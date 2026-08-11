@@ -1,0 +1,26 @@
+# macOS and editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Python
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Local environments and secrets
+**/.venv/
+**/.env
+**/.env.*
+!**/.env.example
+**/.streamlit/secrets.toml
+
+# Local dashboard exports
+**/exports/

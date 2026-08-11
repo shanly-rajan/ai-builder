@@ -1,0 +1,193 @@
+requirement_id,project_id,test_category,applicable,required
+REQ-0001,PRJ-001,Unit,True,True
+REQ-0002,PRJ-001,Integration,True,True
+REQ-0003,PRJ-001,System,True,True
+REQ-0004,PRJ-001,Regression,True,True
+REQ-0005,PRJ-001,Performance,True,True
+REQ-0006,PRJ-001,Security,True,True
+REQ-0007,PRJ-001,UAT,True,True
+REQ-0008,PRJ-001,Production Validation,True,True
+REQ-0009,PRJ-002,Unit,True,True
+REQ-0010,PRJ-002,Integration,True,True
+REQ-0011,PRJ-002,System,True,True
+REQ-0012,PRJ-002,Regression,True,True
+REQ-0013,PRJ-002,Performance,True,True
+REQ-0014,PRJ-002,Security,True,True
+REQ-0015,PRJ-002,UAT,True,True
+REQ-0016,PRJ-002,Production Validation,True,True
+REQ-0017,PRJ-003,Unit,True,True
+REQ-0018,PRJ-003,Integration,True,True
+REQ-0019,PRJ-003,System,True,True
+REQ-0020,PRJ-003,Regression,True,True
+REQ-0021,PRJ-003,Performance,True,True
+REQ-0022,PRJ-003,Security,True,True
+REQ-0023,PRJ-003,UAT,True,True
+REQ-0024,PRJ-003,Production Validation,True,True
+REQ-0025,PRJ-004,Unit,True,True
+REQ-0026,PRJ-004,Integration,True,True
+REQ-0027,PRJ-004,System,True,True
+REQ-0028,PRJ-004,Regression,True,True
+REQ-0029,PRJ-004,Performance,True,True
+REQ-0030,PRJ-004,Security,True,True
+REQ-0031,PRJ-004,UAT,True,True
+REQ-0032,PRJ-004,Production Validation,True,True
+REQ-0033,PRJ-005,Unit,True,True
+REQ-0034,PRJ-005,Integration,True,True
+REQ-0035,PRJ-005,System,True,True
+REQ-0036,PRJ-005,Regression,True,True
+REQ-0037,PRJ-005,Performance,True,True
+REQ-0038,PRJ-005,Security,True,True
+REQ-0039,PRJ-005,UAT,False,False
+REQ-0040,PRJ-005,Production Validation,True,True
+REQ-0041,PRJ-006,Unit,True,True
+REQ-0042,PRJ-006,Integration,True,True
+REQ-0043,PRJ-006,System,True,True
+REQ-0044,PRJ-006,Regression,True,True
+REQ-0045,PRJ-006,Performance,True,True
+REQ-0046,PRJ-006,Security,True,True
+REQ-0047,PRJ-006,UAT,True,True
+REQ-0048,PRJ-006,Production Validation,True,True
+REQ-0049,PRJ-007,Unit,True,True
+REQ-0050,PRJ-007,Integration,True,True
+REQ-0051,PRJ-007,System,True,True
+REQ-0052,PRJ-007,Regression,True,True
+REQ-0053,PRJ-007,Performance,True,True
+REQ-0054,PRJ-007,Security,True,True
+REQ-0055,PRJ-007,UAT,True,True
+REQ-0056,PRJ-007,Production Validation,True,True
+REQ-0057,PRJ-008,Unit,True,True
+REQ-0058,PRJ-008,Integration,True,True
+REQ-0059,PRJ-008,System,True,True
+REQ-0060,PRJ-008,Regression,True,True
+REQ-0061,PRJ-008,Performance,True,True
+REQ-0062,PRJ-008,Security,True,True
+REQ-0063,PRJ-008,UAT,True,True
+REQ-0064,PRJ-008,Production Validation,True,True
+REQ-0065,PRJ-009,Unit,True,True
+REQ-0066,PRJ-009,Integration,True,True
+REQ-0067,PRJ-009,System,True,True
+REQ-0068,PRJ-009,Regression,True,True
+REQ-0069,PRJ-009,Performance,True,True
+REQ-0070,PRJ-009,Security,True,True
+REQ-0071,PRJ-009,UAT,True,True
+REQ-0072,PRJ-009,Production Validation,True,True
+REQ-0073,PRJ-010,Unit,True,True
+REQ-0074,PRJ-010,Integration,True,True
+REQ-0075,PRJ-010,System,True,True
+REQ-0076,PRJ-010,Regression,True,True
+REQ-0077,PRJ-010,Performance,True,True
+REQ-0078,PRJ-010,Security,True,True
+REQ-0079,PRJ-010,UAT,True,True
+REQ-0080,PRJ-010,Production Validation,True,True
+REQ-0081,PRJ-011,Unit,True,True
+REQ-0082,PRJ-011,Integration,True,True
+REQ-0083,PRJ-011,System,True,True
+REQ-0084,PRJ-011,Regression,True,True
+REQ-0085,PRJ-011,Performance,True,True
+REQ-0086,PRJ-011,Security,True,True
+REQ-0087,PRJ-011,UAT,True,True
+REQ-0088,PRJ-011,Production Validation,True,True
+REQ-0089,PRJ-012,Unit,True,True
+REQ-0090,PRJ-012,Integration,True,True
+REQ-0091,PRJ-012,System,True,True
+REQ-0092,PRJ-012,Regression,True,True
+REQ-0093,PRJ-012,Performance,True,True
+REQ-0094,PRJ-012,Security,True,True
+REQ-0095,PRJ-012,UAT,True,True
+REQ-0096,PRJ-012,Production Validation,True,True
+REQ-0097,PRJ-013,Unit,True,True
+REQ-0098,PRJ-013,Integration,True,True
+REQ-0099,PRJ-013,System,True,True
+REQ-0100,PRJ-013,Regression,True,True
+REQ-0101,PRJ-013,Performance,True,True
+REQ-0102,PRJ-013,Security,True,True
+REQ-0103,PRJ-013,UAT,True,True
+REQ-0104,PRJ-013,Production Validation,True,True
+REQ-0105,PRJ-014,Unit,True,True
+REQ-0106,PRJ-014,Integration,True,True
+REQ-0107,PRJ-014,System,True,True
+REQ-0108,PRJ-014,Regression,True,True
+REQ-0109,PRJ-014,Performance,True,True
+REQ-0110,PRJ-014,Security,True,True
+REQ-0111,PRJ-014,UAT,True,True
+REQ-0112,PRJ-014,Production Validation,True,True
+REQ-0113,PRJ-015,Unit,True,True
+REQ-0114,PRJ-015,Integration,True,True
+REQ-0115,PRJ-015,System,True,True
+REQ-0116,PRJ-015,Regression,True,True
+REQ-0117,PRJ-015,Performance,True,True
+REQ-0118,PRJ-015,Security,True,True
+REQ-0119,PRJ-015,UAT,False,False
+REQ-0120,PRJ-015,Production Validation,True,True
+REQ-0121,PRJ-016,Unit,True,True
+REQ-0122,PRJ-016,Integration,True,True
+REQ-0123,PRJ-016,System,True,True
+REQ-0124,PRJ-016,Regression,True,True
+REQ-0125,PRJ-016,Performance,True,True
+REQ-0126,PRJ-016,Security,True,True
+REQ-0127,PRJ-016,UAT,False,False
+REQ-0128,PRJ-016,Production Validation,True,True
+REQ-0129,PRJ-017,Unit,True,True
+REQ-0130,PRJ-017,Integration,True,True
+REQ-0131,PRJ-017,System,True,True
+REQ-0132,PRJ-017,Regression,True,True
+REQ-0133,PRJ-017,Performance,True,True
+REQ-0134,PRJ-017,Security,True,True
+REQ-0135,PRJ-017,UAT,True,True
+REQ-0136,PRJ-017,Production Validation,False,False
+REQ-0137,PRJ-018,Unit,True,True
+REQ-0138,PRJ-018,Integration,True,True
+REQ-0139,PRJ-018,System,True,True
+REQ-0140,PRJ-018,Regression,True,True
+REQ-0141,PRJ-018,Performance,True,True
+REQ-0142,PRJ-018,Security,True,True
+REQ-0143,PRJ-018,UAT,True,True
+REQ-0144,PRJ-018,Production Validation,False,False
+REQ-0145,PRJ-019,Unit,True,True
+REQ-0146,PRJ-019,Integration,True,True
+REQ-0147,PRJ-019,System,True,True
+REQ-0148,PRJ-019,Regression,True,True
+REQ-0149,PRJ-019,Performance,True,True
+REQ-0150,PRJ-019,Security,True,True
+REQ-0151,PRJ-019,UAT,True,True
+REQ-0152,PRJ-019,Production Validation,False,False
+REQ-0153,PRJ-020,Unit,True,True
+REQ-0154,PRJ-020,Integration,True,True
+REQ-0155,PRJ-020,System,True,True
+REQ-0156,PRJ-020,Regression,True,True
+REQ-0157,PRJ-020,Performance,True,True
+REQ-0158,PRJ-020,Security,True,True
+REQ-0159,PRJ-020,UAT,False,False
+REQ-0160,PRJ-020,Production Validation,False,False
+REQ-0161,PRJ-021,Unit,True,True
+REQ-0162,PRJ-021,Integration,True,True
+REQ-0163,PRJ-021,System,True,True
+REQ-0164,PRJ-021,Regression,True,True
+REQ-0165,PRJ-021,Performance,False,False
+REQ-0166,PRJ-021,Security,False,False
+REQ-0167,PRJ-021,UAT,False,False
+REQ-0168,PRJ-021,Production Validation,False,False
+REQ-0169,PRJ-022,Unit,True,True
+REQ-0170,PRJ-022,Integration,True,True
+REQ-0171,PRJ-022,System,True,True
+REQ-0172,PRJ-022,Regression,True,True
+REQ-0173,PRJ-022,Performance,True,True
+REQ-0174,PRJ-022,Security,True,True
+REQ-0175,PRJ-022,UAT,True,True
+REQ-0176,PRJ-022,Production Validation,False,False
+REQ-0177,PRJ-023,Unit,True,True
+REQ-0178,PRJ-023,Integration,True,True
+REQ-0179,PRJ-023,System,True,True
+REQ-0180,PRJ-023,Regression,True,True
+REQ-0181,PRJ-023,Performance,True,True
+REQ-0182,PRJ-023,Security,True,True
+REQ-0183,PRJ-023,UAT,True,True
+REQ-0184,PRJ-023,Production Validation,False,False
+REQ-0185,PRJ-024,Unit,True,True
+REQ-0186,PRJ-024,Integration,True,True
+REQ-0187,PRJ-024,System,True,True
+REQ-0188,PRJ-024,Regression,True,True
+REQ-0189,PRJ-024,Performance,True,True
+REQ-0190,PRJ-024,Security,True,True
+REQ-0191,PRJ-024,UAT,True,True
+REQ-0192,PRJ-024,Production Validation,True,True

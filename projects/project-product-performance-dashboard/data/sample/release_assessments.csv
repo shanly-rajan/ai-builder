@@ -1,0 +1,25 @@
+release_assessment_id,project_id,uat_applicable,uat_status,actual_release_date,release_exception_approved
+REL-001,PRJ-001,True,Passed,2023-12-14,False
+REL-002,PRJ-002,True,Passed,2024-01-31,False
+REL-003,PRJ-003,True,Passed,2024-03-05,False
+REL-004,PRJ-004,True,Passed,2024-03-20,False
+REL-005,PRJ-005,False,Not Applicable,2024-06-04,False
+REL-006,PRJ-006,True,Passed,2024-07-05,True
+REL-007,PRJ-007,True,Passed,2024-08-08,False
+REL-008,PRJ-008,True,Passed,2024-08-20,False
+REL-009,PRJ-009,True,Passed,2024-10-06,False
+REL-010,PRJ-010,True,Passed,2024-11-20,False
+REL-011,PRJ-011,True,Passed,2024-11-20,False
+REL-012,PRJ-012,True,Passed,2025-01-12,False
+REL-013,PRJ-013,True,Passed,2025-02-03,False
+REL-014,PRJ-014,True,Passed,2025-03-13,False
+REL-015,PRJ-015,False,Not Applicable,,False
+REL-016,PRJ-016,False,Not Applicable,2025-05-23,False
+REL-017,PRJ-017,True,Failed,,False
+REL-018,PRJ-018,True,Failed,,False
+REL-019,PRJ-019,True,Not Started,,False
+REL-020,PRJ-020,False,Not Applicable,,False
+REL-021,PRJ-021,False,Not Applicable,,False
+REL-022,PRJ-022,True,Not Started,,False
+REL-023,PRJ-023,True,In Progress,,False
+REL-024,PRJ-024,True,Passed,2025-09-23,True

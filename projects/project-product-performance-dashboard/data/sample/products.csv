@@ -1,0 +1,11 @@
+product_id,product_name,product_owner,category,lifecycle_status,launch_date
+PRD-001,LedgerFlow,Eden Moss,Financial Operations,Active,2024-01-15
+PRD-002,PayPilot,Kai River,Payments,Active,2024-02-12
+PRD-003,InsightHub,Maya Flint,Analytics,Active,2024-04-08
+PRD-004,ConnectAPI,Jonah Field,Developer Platform,Active,2024-06-17
+PRD-005,RiskLens,Zara Coast,Risk,Active,2024-08-12
+PRD-006,MerchantPulse,Eden Moss,Merchant Experience,Active,2025-01-13
+PRD-007,CloudConsole,Kai River,Platform Operations,Active,2025-03-03
+PRD-008,CheckoutEdge,Maya Flint,Payments,Active,2025-06-09
+PRD-009,AssistAI,Jonah Field,Customer Support,Pilot,2025-11-05
+PRD-010,VaultNext,Zara Coast,Security,Pilot,2025-12-10

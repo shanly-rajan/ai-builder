@@ -1,0 +1,19 @@
+defect_id,project_id,defect_name,severity,status,release_blocker
+DEF-0001,PRJ-001,Resolved pre-release validation issue,Low,Resolved,False
+DEF-0002,PRJ-003,Resolved pre-release validation issue,Medium,Resolved,False
+DEF-0003,PRJ-004,Resolved pre-release validation issue,Medium,Resolved,False
+DEF-0004,PRJ-005,Resolved pre-release validation issue,Medium,Resolved,False
+DEF-0005,PRJ-006,Unresolved authorization boundary condition,High,Open,True
+DEF-0006,PRJ-007,Resolved pre-release validation issue,Low,Resolved,False
+DEF-0007,PRJ-010,Resolved pre-release validation issue,Low,Resolved,False
+DEF-0008,PRJ-011,Resolved pre-release validation issue,Medium,Resolved,False
+DEF-0009,PRJ-013,Resolved pre-release validation issue,Low,Resolved,False
+DEF-0010,PRJ-014,Resolved pre-release validation issue,Medium,Resolved,False
+DEF-0011,PRJ-015,Resolved pre-release validation issue,Medium,Resolved,False
+DEF-0012,PRJ-016,Resolved pre-release validation issue,Medium,Resolved,False
+DEF-0013,PRJ-017,Critical integration environment instability,Critical,In Progress,True
+DEF-0014,PRJ-018,Critical integration environment instability,Critical,In Progress,True
+DEF-0015,PRJ-019,Usability wording requires refinement,Medium,Open,False
+DEF-0016,PRJ-022,Usability wording requires refinement,Medium,Open,False
+DEF-0017,PRJ-023,Usability wording requires refinement,Medium,Open,False
+DEF-0018,PRJ-024,Unresolved authorization boundary condition,High,Open,True
