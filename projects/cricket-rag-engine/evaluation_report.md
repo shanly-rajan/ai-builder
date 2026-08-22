@@ -1,13 +1,19 @@
 # 🏏 MCC Cricket Laws RAG Engine — Evaluation Report
 
+> **Interpretation warning:** This is an illustrative snapshot from one live-provider
+> run against the limited `data/sample/laws.txt` corpus. The labels below use simple
+> law-number and string-presence heuristics; they do not prove verdict accuracy,
+> semantic faithfulness, citation correctness, or zero hallucinations. See
+> [`docs/evaluation.md`](docs/evaluation.md) for the methodology and known gaps.
+
 ## Summary Metrics
 - **Total Scenarios Evaluated:** 15
-- **Retrieval Success Rate:** 15 / 15
-- **Zero-Hallucination Refusals:** Verified across out-of-scope tournament rules (DRS, Impact Player, Free Hits)
+- **Retrieval Heuristic Passes:** 15 / 15
+- **Refusal Phrase Checks:** Included for DRS, Impact Player, and Free Hit scenarios; not a zero-hallucination guarantee
 
 ## Detailed Benchmark Results
 
-| ID | Scenario Name | Expected Ref | Retrieved Laws | Retrieval | Faithfulness |
+| ID | Scenario Name | Expected Ref | Retrieved Laws | Retrieval heuristic | Answer string heuristic |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | 1 | Non-Striker Run Out | Law 38.3 | 38, 34 | ✅ Pass | ✅ Grounded |
 | 2 | Helmet Penalty | Law 28.3 | 19, 28, 34 | ✅ Pass | ✅ Grounded |

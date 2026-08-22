@@ -1,56 +1,82 @@
 # Cricket RAG Engine
 
-An architecture-first learning project for building a retrieval-augmented generation
-(RAG) service that answers cricket questions from an explicitly curated corpus and
-returns evidence with every grounded answer.
+An end-to-end retrieval-augmented generation (RAG) learning project that retrieves
+selected cricket-law clauses and generates a cited response to a match scenario.
 
-This commit establishes the project boundary and development environment. Provider
-connectivity, ingestion, retrieval, generation, and evaluation are the next vertical
-slices; the setup screen does not make external API calls.
+> **Current corpus boundary:** the engine indexes only
+> [`data/sample/laws.txt`](data/sample/laws.txt). This small educational fixture is
+> not the complete or verified-current MCC Laws of Cricket, and the output is not
+> authoritative umpiring advice.
 
-## Target outcome
+## What is implemented
 
-```text
-Question: Who won the fictional Harbour Cup final?
-    -> retrieve: harbour-cup-final.pdf, page 4
-    -> answer: The Cape Comets won by five wickets. [harbour-cup-final.pdf, p. 4]
-```
+| Stage | Current implementation |
+|---|---|
+| Configuration | Loads provider credentials and model settings from `.env` without displaying secret values |
+| Ingestion | Parses the single plain-text sample into 11 LangChain documents with law metadata |
+| Indexing | Embeds the documents with OpenAI and upserts them into a Pinecone Serverless cosine index |
+| Retrieval | Embeds a question and returns the top-k Pinecone matches, with optional law metadata filtering |
+| Generation | Sends the question and retrieved clauses to a grounded LangChain prompt and ChatOpenAI |
+| Interfaces | Provides retrieval and adjudication CLIs plus a Streamlit scenario UI |
+| Evaluation | Runs 15 live-provider scenarios and writes `evaluation_report.md` |
 
-When the indexed evidence is missing or scores below the configured threshold, the
-engine must say that it has insufficient evidence instead of inventing an answer.
+## Supported corpus
 
-## Architecture
+The current file contains only these sections:
+
+| Law | Included sections | Covered topic |
+|---|---|---|
+| 19 — Boundaries | 19.4, 19.5 | Ball beyond the boundary and a fielder grounded beyond it |
+| 28 — The fielder | 28.3 | A fielding helmet placed on the ground |
+| 34 — Hit the ball twice | 34.1, 34.3 | Dismissal and the wicket-protection exception |
+| 38 — Run out | 38.1, 38.3 | General run out and the non-striker leaving early |
+
+Everything else is out of scope, including other MCC laws and definitions, DRS,
+Free Hit rules, IPL Impact Player rules, ICC or local playing conditions, match
+statistics, player data, and live cricket information. Missing evidence means only
+that the answer is absent from this fixture; it does not establish an official
+cricket ruling.
+
+See the [sample corpus data card](data/sample/README.md) for the exact inventory,
+parser behavior, checksum, and unresolved provenance status.
+
+## Current architecture
 
 ```mermaid
 flowchart LR
-    subgraph Ingestion
-        A[Curated PDF / Markdown] --> B[Load and normalize]
-        B --> C[Chunk with provenance]
+    subgraph Ingestion[Offline ingestion]
+        A[data/sample/laws.txt] --> B[Regex law parser]
+        B --> C[11 clause documents<br/>with metadata]
         C --> D[OpenAI embeddings]
-        D --> E[(Pinecone index)]
+        D --> E[(Pinecone Serverless)]
     end
 
-    subgraph Query
-        Q[Cricket question] --> F[Embed query]
-        F --> G[Top-k retrieval]
+    subgraph Adjudication[Online adjudication]
+        Q[Scenario or question] --> F[OpenAI query embedding]
+        F --> G[Pinecone top-k search]
         E --> G
-        G --> H{Evidence threshold met?}
-        H -->|Yes| I[Grounded prompt]
-        I --> J[OpenAI answer]
-        J --> K[Answer and citations]
-        H -->|No| L[Insufficient evidence]
+        G --> H[Retrieved clauses]
+        Q --> I[Grounded prompt]
+        H --> I
+        I --> J[ChatOpenAI]
+        J --> K[Verdict and law references]
+        H --> K
     end
 ```
 
-The codebase keeps provider-specific adapters behind domain-oriented ingestion,
-retrieval, and generation boundaries. This limits lock-in and keeps evaluation tests
-deterministic even when the production path uses hosted services.
+The retriever currently discards Pinecone similarity scores and always forwards the
+returned top-k clauses. There is no programmatic relevance threshold. Abstention and
+citation behavior are prompt instructions, not enforced validation gates.
+
+For component responsibilities, sequences, failure paths, and architecture trade-offs,
+see [Architecture](docs/architecture.md).
 
 ## Quick start
 
-The checked-in environment targets Python 3.14.6. `pyenv` users can select it from
-`.python-version`; another Python 3.11+ interpreter can also be used while the
-dependency stack remains compatible.
+### 1. Create the environment
+
+The checked-in environment targets Python 3.14.6. The code is linted for Python 3.11
+syntax compatibility.
 
 ```bash
 cd projects/cricket-rag-engine
@@ -59,17 +85,74 @@ source venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements-dev.txt
 cp .env.example .env
+```
+
+Set `OPENAI_API_KEY`, `PINECONE_API_KEY`, and `PINECONE_INDEX_NAME` in the local
+`.env`. Never commit that file.
+
+### 2. Index the sample corpus
+
+```bash
+python -m src.ingestion.indexer
+```
+
+This command makes live OpenAI and Pinecone calls. It creates the configured Pinecone
+index in AWS `us-east-1` when the index does not exist, embeds the 11 parsed documents,
+and upserts them with positional IDs such as `law_chunk_0`.
+
+Indexing must complete before retrieval, adjudication, the UI, or evaluation can work.
+
+### 3. Use the engine
+
+Retrieve clauses only:
+
+```bash
+python -m src.retrieval.retriever "helmet on the field" --top-k 4
+python -m src.retrieval.retriever "boundary catch" --law 19
+```
+
+Generate an adjudication:
+
+```bash
+python -m src.generation.chain \
+  "A ball hits a fielding helmet on the ground behind the keeper. What happens?" \
+  --top-k 4
+```
+
+Start the Streamlit UI:
+
+```bash
 streamlit run app.py
 ```
 
-Add the real provider values only to `.env`. The project-local `.gitignore` excludes
-that file, virtual environments, generated indexes, raw/downloaded corpora, model
-caches, local databases, logs, and test/build output.
+These paths require configured provider credentials, network access, an indexed
+corpus, and available OpenAI/Pinecone quota. They may incur provider charges.
 
-The learning defaults use `text-embedding-3-small` with 1,536 dimensions and
-`gpt-5.6-luna` for cost-sensitive answer generation. They remain environment-driven
-so retrieval quality, latency, and cost can be evaluated before a production choice
-is governed.
+### 4. Run the live evaluation
+
+```bash
+python -m src.evaluation.evaluator
+```
+
+The evaluator makes live calls for 15 scenarios and overwrites
+[`evaluation_report.md`](evaluation_report.md). Its current checks are lightweight
+string and retrieval heuristics, not semantic correctness or faithfulness evaluation.
+Read [Evaluation](docs/evaluation.md) before interpreting the report.
+
+## Configuration
+
+| Variable | Required | Default | Purpose |
+|---|---:|---|---|
+| `OPENAI_API_KEY` | Yes | — | Embedding and answer-generation authentication |
+| `PINECONE_API_KEY` | Yes | — | Vector-index authentication |
+| `PINECONE_INDEX_NAME` | Yes | — | Target vector index |
+| `EMBEDDING_MODEL` | No | `text-embedding-3-small` | Document and query embeddings |
+| `EMBEDDING_DIM` | No | `1536` | Pinecone vector dimension |
+| `LLM_MODEL` | No | `gpt-5.6-luna` | Adjudication model |
+| `TOP_K_RETRIEVAL` | No | `5` | Default number of retrieved documents |
+
+The environment configuration is the source of truth for model selection. Any model
+name shown in UI copy is descriptive only.
 
 ## Development checks
 
@@ -78,54 +161,52 @@ pytest
 ruff check .
 ```
 
-The initial tests verify configuration behavior, deterministic parsing with synthetic
-text, and that the Streamlit shell starts without contacting OpenAI or Pinecone.
+Provider clients are mocked in the unit tests. The current Streamlit smoke test still
+assumes offline startup, while the app now eagerly constructs a live engine; that test
+and the UI initialization lifecycle need to be aligned before treating the full suite
+as a release gate.
 
 ## Project structure
 
 ```text
 cricket-rag-engine/
-├── app.py                  # local Streamlit setup shell
-├── data/sample/            # committed synthetic/licensed fixtures only
+├── app.py                         # live Streamlit adjudication UI
+├── data/sample/laws.txt           # only indexed corpus
+├── docs/
+│   ├── architecture.md            # implemented flow and trade-offs
+│   └── evaluation.md              # benchmark method and validity limits
+├── evaluation_report.md           # generated live-run snapshot
 ├── src/
-│   ├── config.py           # secret-safe environment loading
-│   ├── ingestion/          # document loading and chunking boundary
-│   ├── retrieval/          # embedding and vector-search boundary
-│   ├── generation/         # grounded answer and citation boundary
-│   └── evaluation/         # retrieval and answer quality boundary
+│   ├── config.py                  # environment configuration
+│   ├── ingestion/
+│   │   ├── parser.py              # text to LangChain documents
+│   │   └── indexer.py             # OpenAI embeddings to Pinecone
+│   ├── retrieval/retriever.py     # top-k vector retrieval
+│   ├── generation/chain.py        # grounded adjudication chain
+│   └── evaluation/evaluator.py    # 15-scenario runner
 └── tests/
     ├── unit/
     └── smoke/
 ```
 
-## Architecture guardrails
+## Current limitations
 
-| Concern | Foundation decision | Scale-out path |
-|---|---|---|
-| Grounding | Answers require retrieved evidence and citations | Add claim-level citation checks and golden evaluations |
-| Security | Keys stay in environment variables and are never rendered | Move production secrets to a managed secret store |
-| Data | Commit only synthetic or clearly redistributable fixtures | Add provenance, license, retention, and deletion metadata |
-| Latency | Keep the synchronous learning path observable | Add async ingestion, caching, and reranking only when measured |
-| Cost | No provider calls during setup or automated tests | Track tokens, embedding volume, and cost per answered query |
-| Resilience | Low evidence produces an explicit abstention | Add retries, timeouts, circuit breaking, and degraded retrieval |
-| Portability | Domain boundaries isolate OpenAI and Pinecone | Replace adapters without rewriting policy or evaluation logic |
+- Only `data/sample/laws.txt` can be treated as the supported corpus; there is no
+  multi-file, PDF, Markdown, or incremental ingestion workflow.
+- The sample has no recorded source URL, edition, effective date, retrieval date, or
+  redistribution permission. Verify provenance before public or production use.
+- Chunk IDs are positional, so inserting or reordering content can change their
+  meaning. Re-indexing does not remove stale vectors.
+- The existing Pinecone index dimension and metric are not validated before upsert.
+- Retrieval exposes no score or evidence threshold, hybrid search, reranking, or
+  authorization filter.
+- Citations, verdicts, signals, and abstentions are model-generated and are not
+  programmatically verified against the retrieved text.
+- The application has no API boundary, authentication, rate limiting, retry policy,
+  observability, cost telemetry, or provider failover.
 
-## Delivery roadmap
+## Data and security
 
-1. **Ingestion:** load a small provenance-bearing sample corpus, normalize text, and
-   create stable chunk identifiers.
-2. **Retrieval:** embed chunks, upsert idempotently, apply metadata filters, and return
-   scored top-k evidence.
-3. **Generation:** constrain the model to retrieved context, attach citations, and
-   abstain when evidence is weak.
-4. **Evaluation:** add golden questions, retrieval hit-rate, citation correctness,
-   faithfulness, latency, and cost checks.
-5. **Service hardening:** add API authentication, authorization-aware retrieval,
-   rate limits, observability, and provider failover where justified.
-
-## Data and privacy
-
-The repository must not contain real credentials, private cricket datasets, or
-copyrighted source material without permission. `data/sample/` is reserved for small
-synthetic or redistributable fixtures with documented provenance. Generated indexes
-and downloaded source documents remain local and ignored.
+The real `.env`, virtual environments, downloaded corpora, generated indexes, model
+caches, databases, and logs are excluded by the project `.gitignore`. Do not place
+credentials, private datasets, or unverified third-party content in tracked files.
