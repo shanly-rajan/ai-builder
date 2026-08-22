@@ -12,3 +12,4 @@ one another unless a genuinely reusable shared capability is introduced later.
 ## Projects
 
 - [Project & Product Performance Dashboard](projects/project-product-performance-dashboard/README.md) — a fictional-data Streamlit dashboard connecting engineering delivery and quality to product adoption, revenue, break-even, and profitability.
+- [Cricket RAG Engine](projects/cricket-rag-engine/README.md) — an architecture-first retrieval-augmented generation experiment for grounded cricket answers with source citations.
