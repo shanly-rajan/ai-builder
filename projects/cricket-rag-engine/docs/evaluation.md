@@ -16,10 +16,16 @@ faithfulness, safety, or zero-hallucination benchmark.
 flowchart LR
     A[15 hard-coded scenarios] --> B[CricketAdjudicationEngine]
     B --> C[Top-4 Pinecone retrieval]
-    C --> D[ChatOpenAI adjudication]
-    C --> E[Retrieved law metadata]
-    D --> F[String-based answer check]
+    C -->|Retrieval succeeds| D[ChatOpenAI adjudication]
+    D -->|Generation succeeds| E[Verdict + retrieved documents]
+    C -. Retrieval failure .-> W1[Warning + no documents]
+    D -. Generation failure .-> W2[Warning + retrieved documents]
+    E --> F[String-based answer check]
+    W1 --> F
+    W2 --> F
     E --> G[Law-number retrieval check]
+    W1 --> G
+    W2 --> G
     F --> H[evaluation_report.md]
     G --> H
 ```
@@ -34,6 +40,11 @@ This makes live OpenAI and Pinecone calls and can incur cost. Results can change
 the model, index contents, provider behavior, prompt, or retrieval order changes.
 This document is the canonical methodology note; rerunning the evaluator overwrites
 the generated report, including any manual annotations made directly in that report.
+
+Chat generation is configured with `max_retries=3` and a 30-second request timeout,
+so transient failures can increase run latency and provider calls. Engine-construction
+failures still abort the run. After construction, `adjudicate()` converts retrieval
+and generation failures into warning strings, allowing the evaluator to continue.
 
 ## Scenario coverage
 
@@ -86,6 +97,10 @@ mean only that the simple string heuristic passed.
   grounded by the current heuristic.
 - Some report answers state run values or umpire signals that are not present in the
   limited sample corpus.
+- Provider failures are not a distinct result category. A retrieval warning returns no
+  documents but still gets an automatic retrieval pass for refusal scenarios; a
+  generation warning is evaluated as ordinary answer text. Operational failures can
+  therefore skew the heuristic result instead of being counted separately.
 - The report records no run timestamp, corpus checksum, index namespace, model and
   embedding versions, prompt version, latency, token usage, or cost.
 - `temperature=0` reduces sampling variation but does not make a hosted-model run
@@ -110,6 +125,7 @@ claim with the exact retrieved text and mark unsupported details explicitly.
 4. Compare normalized verdicts against explicit acceptable outcomes.
 5. Validate every cited clause and flag claims not entailed by retrieved text.
 6. Add human-reviewed golden cases for ambiguity and insufficient-context behavior.
-7. Track latency, token consumption, provider errors, and estimated cost.
+7. Classify provider failures separately from domain refusals, and track latency,
+   retries, token consumption, provider errors, and estimated cost.
 8. Keep a deterministic mocked suite for CI and run live-provider evaluation as a
    separately authorized integration workflow.

@@ -16,8 +16,8 @@ selected cricket-law clauses and generates a cited response to a match scenario.
 | Ingestion | Parses the single plain-text sample into 11 LangChain documents with law metadata |
 | Indexing | Embeds the documents with OpenAI and upserts them into a Pinecone Serverless cosine index |
 | Retrieval | Embeds a question and returns the top-k Pinecone matches, with optional law metadata filtering |
-| Generation | Sends the question and retrieved clauses to a grounded LangChain prompt and ChatOpenAI |
-| Interfaces | Provides retrieval and adjudication CLIs plus a Streamlit scenario UI |
+| Generation | Sends the question and retrieved clauses to ChatOpenAI; chat calls use `max_retries=3` and a 30-second request timeout |
+| Interfaces | Provides retrieval and adjudication CLIs plus a session-state Streamlit chat with presets, retrieval-depth control, inline citations, and a clear-feed action |
 | Evaluation | Runs 15 live-provider scenarios and writes `evaluation_report.md` |
 
 ## Supported corpus
@@ -59,7 +59,7 @@ flowchart LR
         Q --> I[Grounded prompt]
         H --> I
         I --> J[ChatOpenAI]
-        J --> K[Verdict and law references]
+        J --> K[Verdict or warning<br/>and available law references]
         H --> K
     end
 ```
@@ -125,6 +125,16 @@ Start the Streamlit UI:
 streamlit run app.py
 ```
 
+The UI provides five quick-review presets, a top-k retrieval slider, a clear-feed
+action, and expandable citations directly below each response. It retains the visible
+transcript and citations for the current Streamlit session, but previous messages are
+not sent to the adjudication chain: every prompt is independently retrieved and
+answered.
+
+During adjudication, retrieval and generation exceptions are logged and displayed as
+warnings. A retrieval failure skips generation and returns no citations. A generation
+failure returns a warning while preserving any clauses that were already retrieved.
+
 These paths require configured provider credentials, network access, an indexed
 corpus, and available OpenAI/Pinecone quota. They may incur provider charges.
 
@@ -161,16 +171,17 @@ pytest
 ruff check .
 ```
 
-Provider clients are mocked in the unit tests. The current Streamlit smoke test still
-assumes offline startup, while the app now eagerly constructs a live engine; that test
-and the UI initialization lifecycle need to be aligned before treating the full suite
-as a release gate.
+Provider clients are mocked in the existing unit tests, but the new failure fallbacks
+and conversational session-state behavior are not covered. The current Streamlit smoke
+test still assumes offline startup and expects the obsolete `Cricket RAG Engine` title,
+while the app eagerly constructs a live engine. The test and UI initialization
+lifecycle need to be aligned before treating the full suite as a release gate.
 
 ## Project structure
 
 ```text
 cricket-rag-engine/
-├── app.py                         # live Streamlit adjudication UI
+├── app.py                         # conversational Streamlit adjudication UI
 ├── data/sample/laws.txt           # only indexed corpus
 ├── docs/
 │   ├── architecture.md            # implemented flow and trade-offs
@@ -205,8 +216,15 @@ cricket-rag-engine/
 - The current UI and system prompt still use official-adjudicator language, and the UI
   contains a hard-coded GPT-4o caption. Those labels are presentation debt, not claims
   about corpus authority or the configured runtime model.
-- The application has no API boundary, authentication, rate limiting, retry policy,
-  observability, cost telemetry, or provider failover.
+- Chat history is browser-session presentation state only; it is not durable and does
+  not provide multi-turn conversational context to the model.
+- Operational failures are encoded as display strings rather than typed results. The
+  OpenAI warning labels every `OpenAIError` as a gateway/502 error and says citations
+  appear on the right, although the chat UI now renders them inline below the warning.
+- The application has no API boundary, authentication, rate limiting, circuit breaker,
+  cost telemetry, provider failover, or structured observability. Chat generation alone
+  has three configured retries and a 30-second timeout; retrieval and ingestion have no
+  application-level retry policy.
 
 ## Data and security
 

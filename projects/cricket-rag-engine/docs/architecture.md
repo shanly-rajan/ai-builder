@@ -11,8 +11,8 @@ The current boundary is intentionally narrow:
 ```text
 Input corpus: data/sample/laws.txt only
 Input query:  one cricket-law question or scenario
-Output:       generated verdict plus retrieved law references
-Interfaces:   Python CLI and Streamlit
+Output:       generated verdict or operational warning, plus law references when available
+Interfaces:   Python CLIs and a session-state Streamlit chat UI
 ```
 
 It is not a complete laws platform, live cricket data system, deterministic rules
@@ -31,7 +31,7 @@ flowchart TB
         Indexer[src/ingestion/indexer.py]
         Retriever[src/retrieval/retriever.py]
         Chain[src/generation/chain.py]
-        UI[app.py]
+        UI[app.py conversational chat]
         Eval[src/evaluation/evaluator.py]
     end
 
@@ -103,31 +103,52 @@ Important current semantics:
 ```mermaid
 sequenceDiagram
     actor User
-    participant C as CLI / Streamlit
+    participant C as CLI / Streamlit chat
     participant A as CricketAdjudicationEngine
     participant R as CricketRetriever
     participant O as OpenAI
     participant V as Pinecone
 
     User->>C: Submit scenario and top-k
+    Note over C: UI stores transcript and citations in session state
     C->>A: adjudicate(query, top_k)
     A->>R: retrieve(query, top_k)
-    R->>O: Embed query
-    O-->>R: Query vector
-    R->>V: top-k cosine query + metadata
-    V-->>R: Matches
-    Note over R: Similarity scores are discarded
-    R-->>A: LangChain Documents
-    A->>A: Format retrieved context
-    A->>O: Invoke grounded chat prompt
-    O-->>A: Generated adjudication
-    A-->>C: Verdict + retrieved Documents
-    C-->>User: Display answer and clause context
+    alt Retrieval succeeds
+        R->>O: Embed query
+        O-->>R: Query vector
+        R->>V: top-k cosine query + metadata
+        V-->>R: Matches
+        Note over R: Similarity scores are discarded
+        R-->>A: LangChain Documents
+        A->>A: Format retrieved context
+        A->>O: Invoke grounded chat prompt<br/>(max_retries=3, timeout=30s)
+        alt Generation succeeds
+            O-->>A: Generated adjudication
+            A-->>C: Verdict + retrieved Documents
+        else OpenAIError after client handling
+            O--xA: Provider exception
+            A->>A: Log error
+            A-->>C: API warning + retrieved Documents
+        else Other generation exception
+            A->>A: Log exception class
+            A-->>C: Engine warning + retrieved Documents
+        end
+    else Retrieval fails
+        R--xA: Query embedding or vector-store exception
+        A->>A: Log error
+        A-->>C: Vector Index warning + empty Documents
+    end
+    C-->>User: Append answer or warning and inline citations
 ```
 
 There is no relevance-score gate between retrieval and generation. The prompt asks
 the model to refuse unsupported questions and cite laws, but code does not validate
 the resulting claims, references, signals, or abstention.
+
+The Streamlit transcript is presentation state only. Each submission sends the current
+question and newly retrieved context to the chain; previous chat turns are displayed
+but are not included in the model input. Adjudication encodes operational failures as
+warning strings in the normal return tuple rather than a typed error contract.
 
 ## Data contracts
 
@@ -157,8 +178,12 @@ The retriever removes `text` from metadata and uses it as the returned Document'
 |---|---|---|
 | Missing environment variable | Constructor raises `ValueError` | CLI or UI startup fails |
 | Missing corpus file | Parser raises `FileNotFoundError` | Indexing stops |
-| Provider/network/quota failure | Provider exception propagates | Request or ingestion fails |
-| Pinecone index absent at query time | Provider exception propagates | Retrieval fails |
+| Provider/network/quota failure during indexing | Provider exception propagates | Indexing stops; partial writes are possible |
+| Provider failure from the direct retrieval CLI | Provider exception propagates | Retrieval command fails |
+| Query-embedding or Pinecone-query exception during adjudication | Broadly caught and logged; returns a `Vector Index Error` warning and an empty document list | Generation is skipped; an embedding failure may be mislabeled as a vector-index problem |
+| `OpenAIError` during chat generation | `ChatOpenAI` is configured with `max_retries=3` and a 30-second timeout; final failure is logged and returned as a warning with retrieved documents | The request completes with citations available for manual review |
+| Other generation exception | Logged; the warning includes the exception class and preserves retrieved documents | The request completes, but the operational error is encoded as display text |
+| Pinecone index absent at adjudication time | Follows the caught retrieval-error path | No model invocation and no citations |
 | Irrelevant top-k results | Results still reach the model | Unsupported or overconfident answer risk |
 | Empty matches | Prompt receives fallback text | Refusal remains model-dependent |
 | Partial indexing | No transaction or rollback | Index may contain an incomplete mix |
@@ -171,11 +196,11 @@ The retriever removes `text` from metadata and uses it as the returned Document'
 | Grounding | Top-k context plus prompt instructions | Add scores, a relevance threshold, claim checks, and citation validation |
 | Security | Secrets loaded from ignored `.env` | Use managed secrets, least-privilege keys, rotation, and audit logging in production |
 | Data governance | One committed sample file | Resolve provenance/license and record corpus version metadata |
-| Latency | Sequential embedding, retrieval, then generation | Measure p50/p95 and consider batching/caching only after profiling |
+| Latency | Sequential embedding, retrieval, then generation; retries can extend tail latency | Measure p50/p95, separate retry time, and consider batching/caching only after profiling |
 | Cost | Hosted embedding, vector, and chat calls | Record tokens, vector volume, query counts, and cost per evaluation/run |
-| Resilience | Provider errors fail the operation | Add timeouts, bounded retries, idempotency, and circuit breaking |
+| Resilience | Chat generation has three configured retries and a 30-second timeout; adjudication translates retrieval and generation exceptions into warnings | Startup and ingestion still fail fast; add a typed error contract, consistent per-stage policies, idempotency, circuit breaking, and failover if needed |
 | Scalability | Synchronous UI/CLI and one index | Add async ingestion, namespaces/tenancy, and an API only when required |
-| Observability | Console messages and generated report | Add structured logs, traces, run IDs, model/prompt versions, and metrics |
+| Observability | Module-level error logging, console messages, and a generated report | Add structured logs, traces, run IDs, model/prompt versions, and metrics |
 
 ## Next architecture decisions
 
@@ -184,5 +209,7 @@ The retriever removes `text` from metadata and uses it as the returned Document'
 3. Retain retrieval scores and establish an evaluated abstention threshold.
 4. Add semantic answer, citation, and unsupported-claim evaluation.
 5. Decide whether provider ports/adapters are needed before adding another provider.
-6. Add an authenticated API, operational controls, and observability only if the
+6. Define typed success/failure results and consistent retry, timeout, and
+   circuit-breaker policies across provider calls.
+7. Add an authenticated API, operational controls, and observability only if the
    learning prototype becomes a shared service.
