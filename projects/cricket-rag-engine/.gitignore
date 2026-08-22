@@ -1,0 +1,49 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Python environments
+.venv/
+venv/
+env/
+
+# Python caches, coverage, and build output
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Generated RAG data and vector stores
+/data/raw/
+/data/processed/
+/data/index/
+/data/uploads/
+/chroma/
+/vector_store/
+*.faiss
+*.sqlite
+*.sqlite3
+*.db
+
+# Downloaded model and tool caches
+/.cache/
+/.huggingface/
+/models/
+
+# Streamlit, notebooks, logs, editors, and OS files
+.streamlit/secrets.toml
+.ipynb_checkpoints/
+*.log
+.DS_Store
+.idea/
+.vscode/
+*.swp

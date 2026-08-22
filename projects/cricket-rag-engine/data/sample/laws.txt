@@ -1,0 +1,25 @@
+LAW 19 BOUNDARIES
+19.4 Ball beyond the boundary
+19.4.1 The ball is beyond the boundary when it touches the boundary or the ground beyond the boundary, or any object that is grounded beyond the boundary.
+19.4.2 An airborne player touches the boundary if their last contact with the ground was not entirely within the boundary before touching the ball.
+
+19.5 Fielder grounded beyond the boundary
+19.5.1 A fielder who is not in contact with the ground is grounded beyond the boundary if his/her last ground contact was beyond the boundary.
+19.5.2 A catch is not legal if the fielder touches the ball while grounded beyond the boundary.
+
+LAW 28 THE FIELDER
+28.3 Protective helmets belonging to the fielding side
+28.3.1 While the ball is in play, if the ball strikes a protective helmet placed on the ground behind the wicket-keeper, the ball shall immediately become dead and 5 penalty runs shall be awarded to the batting side.
+28.3.2 In addition, runs completed by the batters before the ball struck the helmet, plus the run in progress if they had crossed, shall be awarded.
+
+LAW 34 HIT THE BALL TWICE
+34.1 Out Hit the ball twice
+34.1.1 The striker is out Hit the ball twice if, while the ball is in play, it strikes any part of their person or bat and they wilfully strike it again with bat or person.
+34.3 Ball lawfully struck more than once
+34.3.1 The striker may, solely for the purpose of guarding their wicket, hit the ball a second time with bat or any part of the person other than a hand not holding the bat. No runs may be scored from such a stroke.
+
+LAW 38 RUN OUT
+38.1 Out Run out
+38.1.1 Either batter is out Run out if, at any time while the ball is in play, they are out of their ground and their wicket is put down by the fielding side.
+38.3 Non-striker leaving their ground early
+38.3.1 At any time from the moment the ball comes into play until the instant when the bowler would normally have been expected to release the ball, the non-striker is liable to be Run out if they are out of their ground.
