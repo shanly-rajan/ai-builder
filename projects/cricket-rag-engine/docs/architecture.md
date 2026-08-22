@@ -84,7 +84,7 @@ sequenceDiagram
         I->>O: Embed document text
         O-->>I: 1,536-value vector by default
     end
-    I->>V: Upsert batches with law_chunk_<ordinal> IDs
+    I->>V: Upsert batches with law_chunk_N IDs
     V-->>I: Upsert accepted
 ```
 
