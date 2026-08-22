@@ -32,6 +32,8 @@ python -m src.evaluation.evaluator
 
 This makes live OpenAI and Pinecone calls and can incur cost. Results can change when
 the model, index contents, provider behavior, prompt, or retrieval order changes.
+This document is the canonical methodology note; rerunning the evaluator overwrites
+the generated report, including any manual annotations made directly in that report.
 
 ## Scenario coverage
 

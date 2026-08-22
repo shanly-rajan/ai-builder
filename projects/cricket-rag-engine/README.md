@@ -75,8 +75,8 @@ see [Architecture](docs/architecture.md).
 
 ### 1. Create the environment
 
-The checked-in environment targets Python 3.14.6. The code is linted for Python 3.11
-syntax compatibility.
+The checked-in environment targets Python 3.14.6. Ruff's target version is configured
+for Python 3.11 syntax compatibility.
 
 ```bash
 cd projects/cricket-rag-engine
@@ -202,6 +202,9 @@ cricket-rag-engine/
   authorization filter.
 - Citations, verdicts, signals, and abstentions are model-generated and are not
   programmatically verified against the retrieved text.
+- The current UI and system prompt still use official-adjudicator language, and the UI
+  contains a hard-coded GPT-4o caption. Those labels are presentation debt, not claims
+  about corpus authority or the configured runtime model.
 - The application has no API boundary, authentication, rate limiting, retry policy,
   observability, cost telemetry, or provider failover.
 
