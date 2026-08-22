@@ -1,83 +1,155 @@
-"""Streamlit Web UI for the MCC Cricket Laws & Match Scenarios Adjudicator."""
+"""Conversational Third Umpire Chatbot for MCC Cricket Laws RAG."""
 
 import streamlit as st
 from src.generation.chain import CricketAdjudicationEngine
 
 # Page configuration
 st.set_page_config(
-    page_title="MCC Cricket Laws Adjudicator",
+    page_title="MCC Cricket Laws Third Umpire",
     page_icon="🏏",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-@st.cache_resource
-def get_adjudication_engine():
-    """Cache engine instantiation across Streamlit reruns."""
-    return CricketAdjudicationEngine()
-
-engine = get_adjudication_engine()
-
-# Sidebar: Controls and presets
-with st.sidebar:
-    st.header("⚙️ Adjudication Settings")
-    top_k = st.slider("Retrieved Clauses (Top-K)", min_value=1, max_value=8, value=4)
-    
-    st.markdown("---")
-    st.subheader("📋 Preset Match Scenarios")
-    presets = {
-        "Custom Scenario": "",
-        "Non-Striker Run Out (Law 38.3)": "Bowler enters delivery stride, sees non-striker backing up too far, and breaks the stumps before releasing the ball. Is it Out?",
-        "Ball Hits Helmet on Ground (Law 28.3)": "A deflected ball off the batter pad strikes the fielder helmet lying on the ground behind the keeper. What is the penalty and ball status?",
-        "Protecting Wicket with Boot (Law 34.3)": "Batter blocks the ball, it rolls back toward their stumps, and the batter kicks the ball away with their boot to save their wicket. Are they Out?",
-        "Airborne Boundary Catch (Law 19.5)": "Fielder catches ball over boundary, tosses it into the air while landing beyond the rope, then jumps back inside to catch it. Is it a legal catch?",
-        "Refusal Test (DRS Rule)": "Can the fielding captain challenge a wide ball call using DRS under standard MCC Laws?"
+# Custom Styling: Hide top toolbar status widget & add in-chat cricket spinner
+st.markdown(
+    """
+    <style>
+    /* 1. Hide the top-right toolbar runner/stop status widget completely */
+    div[data-testid="stStatusWidget"] {
+        visibility: hidden !important;
+        display: none !important;
     }
     
-    selected_preset = st.selectbox("Choose a scenario:", list(presets.keys()))
-
-# Main Display
-st.title("🏏 MCC Cricket Laws Adjudication Engine")
-st.caption("Grounded Third Umpire Assistant powered by Pinecone Serverless and GPT-4o")
-
-preset_text = presets[selected_preset]
-scenario_input = st.text_area(
-    "Enter Match Scenario / Incident Description:",
-    value=preset_text,
-    placeholder="Describe the match situation...",
-    height=120
+    /* 2. Style the in-chat spinner with a spinning cricket ball */
+    div[data-testid="stSpinner"] > div {
+        border: none !important;
+    }
+    div[data-testid="stSpinner"]::before {
+        content: "🏏";
+        font-size: 1.4rem;
+        display: inline-block;
+        animation: spin-cricket 0.8s infinite linear;
+        margin-right: 8px;
+    }
+    
+    @keyframes spin-cricket {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
 )
 
-col_btn, _ = st.columns([1, 4])
-with col_btn:
-    adjudicate_btn = st.button("⚖️ Adjudicate Scenario", type="primary", use_container_width=True)
+USER_AVATAR = "🧢"            # Batting / Field Captain Cap
+REPLAY_SCREEN_AVATAR = "📺"   # Third Umpire TV Replay Screen
 
-if adjudicate_btn:
-    if not scenario_input.strip():
-        st.warning("⚠️ Please provide a match scenario to adjudicate.")
-    else:
-        with st.spinner("Retrieving grounded clauses from Pinecone and adjudicating..."):
-            verdict, retrieved_docs = engine.adjudicate(scenario_input, top_k=top_k)
+@st.cache_resource
+def get_engine():
+    """Instantiate and cache the adjudication engine."""
+    return CricketAdjudicationEngine()
 
-        col_verdict, col_citations = st.columns([3, 2], gap="medium")
+engine = get_engine()
 
-        with col_verdict:
-            st.subheader("📋 Official Adjudication")
-            # Using a native container ensures full contrast support in dark and light mode
-            with st.container(border=True):
+# Initialize conversational session state
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {
+            "role": "assistant",
+            "avatar": REPLAY_SCREEN_AVATAR,
+            "content": "👋 **Third Umpire Replay Screen Active.** State any match incident, dismissal dispute, or penalty scenario to review against the MCC Laws.",
+            "citations": []
+        }
+    ]
+
+# Sidebar Controls & Quick Scenarios
+with st.sidebar:
+    st.header("⚙️ TV Umpire Controls")
+    top_k = st.slider("Pinecone Retrieval Depth (Top-K)", min_value=1, max_value=8, value=4)
+    
+    st.markdown("---")
+    st.subheader("⚡ Review Presets")
+    
+    presets = [
+        "Non-striker run out before delivery release (Law 38.3)",
+        "Ball deflects off pad and hits helmet on turf (Law 28.3)",
+        "Batter kicks rolling ball away to save wicket (Law 34.3)",
+        "Airborne boundary catch relay (Law 19.5)",
+        "Can captain challenge Wide ball using DRS? (Refusal Test)"
+    ]
+    
+    for preset in presets:
+        if st.button(preset, use_container_width=True):
+            st.session_state.next_prompt = preset
+
+    st.markdown("---")
+    if st.button("🗑️ Clear Review Feed", type="secondary", use_container_width=True):
+        st.session_state.messages = [st.session_state.messages[0]]
+        st.rerun()
+
+# Main Chat View
+st.title("🏏 MCC Third Umpire Copilot")
+st.caption("Conversational, document-backed adjudicator powered by Pinecone Serverless & GPT-4o")
+
+# Render chat history
+for msg in st.session_state.messages:
+    avatar_icon = msg.get("avatar", REPLAY_SCREEN_AVATAR if msg["role"] == "assistant" else USER_AVATAR)
+    with st.chat_message(msg["role"], avatar=avatar_icon):
+        if "⚠️" in msg["content"]:
+            st.warning(msg["content"])
+        else:
+            st.markdown(msg["content"])
+            
+        if msg.get("citations"):
+            with st.expander(f"📚 Grounded Citations ({len(msg['citations'])} Clauses)"):
+                for doc in msg["citations"]:
+                    law_no = doc.metadata.get("law_number", "N/A")
+                    section = doc.metadata.get("section", "Clause")
+                    st.markdown(f"**📌 Law {law_no}: {section}**")
+                    st.write(doc.page_content.strip())
+                    st.divider()
+
+# Handle input from chat bar or quick-scenario buttons
+prompt = st.chat_input("Ask about a match scenario, dismissal, or penalty...")
+if hasattr(st.session_state, "next_prompt") and st.session_state.next_prompt:
+    prompt = st.session_state.next_prompt
+    st.session_state.next_prompt = None
+
+if prompt:
+    # 1. Append user message
+    st.session_state.messages.append({
+        "role": "user",
+        "avatar": USER_AVATAR,
+        "content": prompt,
+        "citations": []
+    })
+    with st.chat_message("user", avatar=USER_AVATAR):
+        st.markdown(prompt)
+
+    # 2. Adjudicate via RAG Engine with Replay Screen avatar and in-chat spinner
+    with st.chat_message("assistant", avatar=REPLAY_SCREEN_AVATAR):
+        with st.spinner("Checking replay angles against MCC Laws..."):
+            verdict, docs = engine.adjudicate(prompt, top_k=top_k)
+            
+            if "⚠️" in verdict:
+                st.warning(verdict)
+            else:
                 st.markdown(verdict)
 
-        with col_citations:
-            st.subheader(f"📚 Grounded Context ({len(retrieved_docs)} Clauses)")
-            if not retrieved_docs:
-                st.info("No relevant law clauses retrieved.")
-            else:
-                for i, doc in enumerate(retrieved_docs, 1):
-                    law_no = doc.metadata.get("law_number", "N/A")
-                    section = doc.metadata.get("section", f"Clause {i}")
-                    law_title = doc.metadata.get("law_title", "")
-                    
-                    with st.expander(f"📌 Law {law_no}: {section}"):
-                        if law_title:
-                            st.caption(f"**Category/Title:** {law_title}")
-                        st.markdown(doc.page_content.strip())
+            if docs:
+                with st.expander(f"📚 Grounded Citations ({len(docs)} Clauses)"):
+                    for doc in docs:
+                        law_no = doc.metadata.get("law_number", "N/A")
+                        section = doc.metadata.get("section", "Clause")
+                        st.markdown(f"**📌 Law {law_no}: {section}**")
+                        st.write(doc.page_content.strip())
+                        st.divider()
+
+    # 3. Append assistant response to history
+    st.session_state.messages.append({
+        "role": "assistant",
+        "avatar": REPLAY_SCREEN_AVATAR,
+        "content": verdict,
+        "citations": docs
+    })

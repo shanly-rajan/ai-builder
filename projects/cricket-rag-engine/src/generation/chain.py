@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import logging
+from openai import OpenAIError
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -10,6 +12,8 @@ from langchain_core.documents import Document
 
 from src.config import Settings, load_settings
 from src.retrieval.retriever import CricketRetriever
+
+logger = logging.getLogger(__name__)
 
 UMPIRE_SYSTEM_PROMPT = """You are the official Third Umpire and MCC Laws of Cricket adjudicator.
 Deliver clear, definitive verdicts on match scenarios strictly grounded in the context clauses provided below.
@@ -51,6 +55,8 @@ class CricketAdjudicationEngine:
         self.llm = ChatOpenAI(
             model=self.settings.llm_model,
             temperature=0.0,
+            max_retries=3,  # Automatically retry transient 502/503/429 errors
+            request_timeout=30.0,
             openai_api_key=self.settings.openai_api_key,
         )
         self.prompt = ChatPromptTemplate.from_messages([
@@ -61,10 +67,34 @@ class CricketAdjudicationEngine:
 
     def adjudicate(self, query: str, top_k: int | None = None) -> tuple[str, list[Document]]:
         """Retrieve relevant context and generate the official grounded adjudication."""
-        docs = self.retriever.retrieve(query, top_k=top_k)
+        docs: list[Document] = []
+        try:
+            docs = self.retriever.retrieve(query, top_k=top_k)
+        except Exception as e:
+            logger.error(f"Pinecone retrieval failed: {e}")
+            return "⚠️ **Vector Index Error:** Unable to retrieve MCC Law context. Please verify your Pinecone connection.", []
+
         context = format_docs(docs)
-        verdict = self.chain.invoke({"question": query, "context": context})
-        return verdict, docs
+
+        try:
+            verdict = self.chain.invoke({"question": query, "context": context})
+            return verdict, docs
+        except OpenAIError as err:
+            logger.error(f"OpenAI Gateway/API Error: {err}")
+            fallback_msg = (
+                "⚠️ **Third Umpire System Alert (API Gateway 502/Error)**\n\n"
+                "The upstream adjudication model temporarily failed to respond. "
+                "The retrieved MCC Law clauses are preserved on the right for manual review. "
+                "Please retry your query in a few moments."
+            )
+            return fallback_msg, docs
+        except Exception as err:
+            logger.error(f"Unexpected generation failure: {err}")
+            fallback_msg = (
+                f"⚠️ **Adjudication Engine Failure:** An unexpected error occurred (`{type(err).__name__}`). "
+                "Please check system logs."
+            )
+            return fallback_msg, docs
 
 
 def main():
