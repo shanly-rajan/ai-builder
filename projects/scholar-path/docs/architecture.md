@@ -1,8 +1,68 @@
-# ScholarPath M0 Architecture
+# ScholarPath M1 Architecture
 
-M0 establishes packaging, configuration, quality gates, and future component
-boundaries. It intentionally implements no orchestration graph, agent behavior,
-provider client, model integration, memory service, or web interface.
+M1 adds the typed domain language that later components will exchange. It implements
+immutable data contracts, evidence-sufficiency rules, and Supervisor lifecycle
+transitions. It still contains no orchestration graph, agent behavior, provider client,
+model integration, memory service, or web interface.
+
+## Domain contract flow
+
+```mermaid
+flowchart LR
+    CP[CandidateProfile] --> SP[SearchPlan]
+    SP -. future discovery .-> PS[ProspectiveSupervisor]
+    EC[EvidenceClaim collection] --> VERIFY{Evidence sufficient?}
+    PS --> VERIFY
+    VERIFY -->|Identity + current affiliation + research profile| VS[VerifiedSupervisor]
+    AS[AvailabilityStatus] -->|Recorded independently| VS
+    VS -. future fit evaluation .-> RF[ResearchFitAssessment]
+    CP -. future fit evaluation .-> RF
+    RF -. future review presentation .-> CR[CandidateReviewDecision]
+    CR -->|approve| SS[SupervisorShortlist]
+    CR -->|reject| RS[Rejected Supervisor]
+    CR -->|request_more| VS
+
+    classDef human fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
+    class CR human;
+```
+
+Dashed arrows identify behavior deferred to later milestones. M1 defines the payloads
+on those boundaries but does not generate search plans, discover people, calculate
+scores, or present a review interface.
+
+## Verification boundary
+
+A Prospective Supervisor becomes a Verified Supervisor only when directly supported,
+same-Supervisor evidence establishes all three required categories:
+
+1. identity;
+2. current affiliation; and
+3. a research interest or publication.
+
+Availability is a separate fact. `not_stated` never blocks verification. Any stronger
+availability status must match a typed, directly supported availability claim;
+`conflicting_evidence` requires both accepting and not-accepting claims. This prevents
+research activity from being mistaken for current doctoral availability.
+
+The verification helper derives this status from the typed claims. With no direct
+availability claim it deterministically selects `not_stated`, so availability cannot
+become a verification prerequisite.
+
+```mermaid
+stateDiagram-v2
+    [*] --> prospective
+    prospective --> verified: sufficient evidence
+    verified --> shortlisted: explicit Candidate approval
+    verified --> rejected: Candidate rejection
+    verified --> verified: request more evidence
+    shortlisted --> [*]
+    rejected --> [*]
+```
+
+The self-loop represents an unchanged lifecycle status, not a persisted state
+transition. Shortlisted and rejected states are terminal in M1. Each terminal record
+retains the matching Candidate review decision, so deserialization cannot create a
+terminal status from a bare status flag.
 
 ## Foundation structure
 
@@ -46,24 +106,28 @@ flowchart LR
 The arrows describe intended future dependency direction, not implemented runtime
 behavior. Domain rules remain independent of provider SDKs and user-interface code.
 
-## M0 quality boundaries
+## M1 quality boundaries
 
-| Concern | M0 control |
+| Concern | M1 control |
 |---|---|
 | Packaging | Python src-layout with editable installation |
 | Configuration | Pydantic settings with deferred secret validation |
-| Determinism | Configuration and terminology checks use ordinary Python logic |
+| Data contracts | Frozen Pydantic models reject unknown fields and invalid values |
+| Provenance | Each evidence claim carries source URL, kind, retrieval time, and confidence |
+| Determinism | Validation, evidence sufficiency, score bounds, and transitions use ordinary Python logic |
+| Human authority | Terminal records retain the matching Candidate review decision |
 | Network isolation | Default pytest selection excludes tests marked `live` |
 | Quality | Ruff formatting/linting, strict mypy, pytest, and branch coverage |
 | Automation | Path-scoped GitHub Actions workflow on Python 3.12 |
 | Secrets | Environment variables, `SecretStr`, ignored `.env`, and sanitized errors |
 
-## Deferred beyond M0
+## Deferred beyond M1
 
 - LangGraph and workflow state
 - Agent implementations or model SDKs
 - Search clients and evidence retrieval
+- Research Fit calculation policy and ranking
+- Source authority, freshness, and conflict-resolution policy
 - Streamlit user experience
 - Preference-memory services
 - LangSmith runtime tracing
-- Supervisor domain schemas, scoring, and lifecycle transitions

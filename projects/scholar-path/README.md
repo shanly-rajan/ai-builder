@@ -14,12 +14,13 @@ Supervisor is shortlisted or any outreach is drafted.
 
 ## Project status
 
-Milestone M0 establishes the repository foundation: a Python src-layout package,
-typed settings, canonical terminology, project quality configuration, offline tests,
-and path-scoped continuous integration.
+Milestone M1 establishes typed domain contracts for Candidate input, search planning,
+Supervisor discovery and verification, Research Fit assessments, Candidate review,
+and shortlisting. Pure functions enforce evidence sufficiency, valid lifecycle
+transitions, and the Candidate approval gate.
 
 No orchestration graph, agent behavior, model provider, search integration, memory
-service, or Streamlit interface is implemented yet.
+service, Research Fit calculation, or Streamlit interface is implemented yet.
 
 ## M0 foundation
 
@@ -32,8 +33,40 @@ service, or Streamlit interface is implemented yet.
 | Quality gates | Ruff, strict mypy, pytest, branch coverage, and GitHub Actions |
 | Network policy | Default and CI tests exclude tests marked `live` |
 
-See [M0 architecture](docs/architecture.md) and
+See [M1 architecture](docs/architecture.md) and
 [canonical terminology](docs/terminology.md) for the current boundaries.
+
+## M1 domain contracts
+
+```mermaid
+flowchart LR
+    P[ProspectiveSupervisor] -->|Direct identity + affiliation + research evidence| V[VerifiedSupervisor]
+    V -->|Candidate approves| S[SupervisorShortlist]
+    V -->|Candidate rejects| R[Rejected Supervisor]
+    V -->|Candidate requests more| V
+```
+
+All M1 models are frozen Pydantic contracts. URLs and timezone-aware timestamps are
+validated, Research Fit scores are constrained to 0–100, evidence retains source
+provenance, and unknown fields are rejected. Availability defaults to `not_stated` and
+does not block verification. Explicit availability states must match typed availability
+evidence, and every shortlisted record retains its Candidate approval decision.
+
+The deterministic fixture cohort is available from `tests.fixtures` for offline tests:
+
+```python
+from tests.fixtures import (
+    make_candidate_profile,
+    make_prospective_supervisors,
+    make_research_fit_assessments,
+    make_verified_supervisors,
+)
+
+candidate = make_candidate_profile()
+prospective = make_prospective_supervisors()  # 8 records
+verified = make_verified_supervisors()  # 6 records
+assessments = make_research_fit_assessments()  # 5 records
+```
 
 ## Setup
 

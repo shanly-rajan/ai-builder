@@ -29,9 +29,23 @@ flowchart LR
     D --> E{Candidate Review}
     E -->|Reject| F[Rejected Supervisor]
     E -->|Approve| G[Shortlisted Supervisor]
+    E -->|Request more| C
 ```
 
-Only explicit Candidate approval can create a Shortlisted Supervisor.
+Only explicit Candidate approval can create a Shortlisted Supervisor. A request for
+more information keeps the record verified while additional evidence is sought.
+
+## Typed lifecycle values
+
+| Value | Domain meaning |
+|---|---|
+| `prospective` | Discovered but not yet supported by sufficient verification evidence. |
+| `verified` | Identity, current affiliation, and research-profile evidence are directly supported. |
+| `shortlisted` | A Verified Supervisor explicitly approved by the Candidate. |
+| `rejected` | A Verified Supervisor excluded by the Candidate. |
+
+Research evidence records factual interests and publications about a Supervisor.
+Candidate-specific alignment is expressed separately in a Research Fit assessment.
 
 ## Availability vocabulary
 
@@ -44,6 +58,10 @@ content.
 | `confirmed_not_accepting` | A current authoritative source explicitly states that the Supervisor is not accepting doctoral Candidates. |
 | `not_stated` | No authoritative availability statement was found. |
 | `conflicting_evidence` | Current sources disagree about availability. |
+
+An individual availability claim can assert only `confirmed_accepting` or
+`confirmed_not_accepting`. `conflicting_evidence` is derived only when directly
+supported claims establish both outcomes; `not_stated` requires neither.
 
 ScholarPath never calculates an admission probability and never treats a Research Fit
 Score as proof of availability or admission likelihood.

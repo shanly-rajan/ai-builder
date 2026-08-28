@@ -174,3 +174,96 @@ and non-live continuous integration without implementing future platform capabil
   hardening decisions.
 - Live-test opt-in and provider-specific credential gates must be implemented alongside
   the first real provider adapter.
+
+## Milestone M1: Domain models and data contracts
+
+**Date:** 2026-08-28
+
+### Milestone objective
+
+Define immutable, provenance-preserving Candidate, search, Supervisor, evidence,
+Research Fit, review, and shortlist contracts plus deterministic Supervisor lifecycle
+rules and a realistic offline fixture cohort. No orchestration or external integration
+is introduced.
+
+### Prompt used
+
+[`docs/prompts/m1-domain-models-and-data-contracts.md`](prompts/m1-domain-models-and-data-contracts.md)
+
+### Files changed
+
+- Added `src/scholarpath/domain/enums.py`, `models.py`, and `lifecycle.py`.
+- Updated `src/scholarpath/domain/__init__.py` with the supported public API.
+- Added deterministic factories in `tests/fixtures/`.
+- Added domain unit, fixture contract, and offline integration tests.
+- Updated `README.md`, `docs/architecture.md`, `docs/terminology.md`, and the fixture
+  guidance.
+- Archived the M1 prompt and updated this build journal.
+
+### Tests added
+
+- Valid construction, serialization, and JSON round trips for every M1 model.
+- Invalid URL, empty required field, timezone-awareness, unknown-field, strict score,
+  and score-bound checks.
+- Evidence ownership, uniqueness, direct-support, sufficiency, typed availability, and
+  Research Fit reference checks.
+- Valid and invalid lifecycle transitions, terminal states, request-more behavior, and
+  Candidate approval enforcement.
+- Adversarial copy-update, availability derivation, distinct conflict-source, and
+  coercive input checks.
+- Exact one-to-eight-to-six-to-five fixture cardinality, relationship, timestamp,
+  reserved-domain, availability, and evidence-integrity contracts.
+- Offline integration coverage from verified records through Candidate approval to a
+  five-record shortlist JSON round trip.
+
+### Test results
+
+- `venv/bin/ruff format --check .`: passed.
+- `venv/bin/ruff check .`: all checks passed.
+- `venv/bin/mypy src tests`: no issues found.
+- `venv/bin/pytest -m "not live"`: 149 tests passed without network access.
+- Coverage: 100 percent statement and branch coverage, above the 90 percent gate.
+- Python 3.12 syntax compilation of `src` and `tests`: passed.
+- `venv/bin/python -m pip check`: no broken requirements found.
+- `git diff --check`: passed.
+- The manual lifecycle smoke demo printed `prospective -> verified -> shortlisted`
+  and retained five evidence claims, `not_stated` availability, and `approve` evidence.
+- The first full test run passed all domain behavior and reported one governance
+  failure because the archived prompt was not yet linked. Adding this journal entry
+  resolved that expected audit-trail failure.
+- A final adversarial review identified direct terminal-status construction and generic
+  availability claims as bypasses. Persisted Candidate decisions and typed availability
+  outcomes closed both paths before the final quality run.
+
+### Assumptions
+
+- Evidence records factual research interests or publications; Candidate-specific
+  alignment belongs in `ResearchFitAssessment`.
+- A publication can satisfy the research-profile portion of verification when it is
+  directly supported and belongs to the same Supervisor.
+- The canonical M1 lifecycle is prospective to verified, then shortlisted or rejected;
+  terminal states cannot transition again.
+- `not_stated` needs no availability claim and never blocks verification. Any explicit
+  availability state requires direct availability evidence.
+- Fixture identities, institutions, and sources are invented; fixed timestamps and
+  reserved domains keep the suite deterministic and safe.
+
+### Lessons learned
+
+- Separating evidence sufficiency from Research Fit scoring prevents Candidate-specific
+  judgment from being stored as if it were a source fact.
+- Enforcing invariants in model construction as well as lifecycle helpers prevents
+  callers from bypassing verification rules through direct deserialization.
+- Revalidating reconstructed frozen models and model-copy updates prevents lifecycle
+  invariants from being bypassed by an unchecked status replacement.
+- Candidate approval is easiest to audit when shortlist records themselves require the
+  `shortlisted` lifecycle status and retain the matching review decision.
+
+### Remaining debt
+
+- Define source-authority, freshness, re-verification, and conflicting-evidence policy.
+- Define and test the Research Fit calculation and ranking policy; M1 only validates
+  externally supplied scores and breakdowns.
+- Define how partial Candidate preference revisions merge into persisted preferences.
+- Add graph state and orchestration behavior only in an explicitly requested future
+  milestone.
