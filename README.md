@@ -13,3 +13,4 @@ one another unless a genuinely reusable shared capability is introduced later.
 
 - [Project & Product Performance Dashboard](projects/project-product-performance-dashboard/README.md) — a fictional-data Streamlit dashboard connecting engineering delivery and quality to product adoption, revenue, break-even, and profitability.
 - [Cricket RAG Engine](projects/cricket-rag-engine/README.md) — an end-to-end RAG learning prototype restricted to selected cricket-law clauses in `data/sample/laws.txt`.
+- [ScholarPath](projects/scholar-path/README.md) — a multi-agent doctoral supervisor discovery and research-fit system.
