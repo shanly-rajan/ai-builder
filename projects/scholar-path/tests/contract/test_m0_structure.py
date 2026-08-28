@@ -51,11 +51,13 @@ def test_required_m0_files_exist() -> None:
         assert with_path.is_file(), f"Missing M0 file: {relative_path}"
 
 
-def test_m0_runtime_dependencies_are_minimal() -> None:
+def test_runtime_dependencies_match_the_current_milestone() -> None:
     with (PROJECT_ROOT / "pyproject.toml").open("rb") as pyproject_file:
         pyproject = tomllib.load(pyproject_file)
 
     assert pyproject["project"]["dependencies"] == [
+        "langchain-core>=1.4.7,<2",
+        "langgraph>=1.2.11,<2",
         "pydantic>=2.10,<3",
         "pydantic-settings>=2.7,<3",
     ]
@@ -67,7 +69,7 @@ def test_m0_runtime_dependencies_are_minimal() -> None:
             *pyproject["project"]["optional-dependencies"]["dev"],
         ]
     ).lower()
-    for deferred_dependency in ("langgraph", "streamlit", "mem0", "tavily", "openai"):
+    for deferred_dependency in ("streamlit", "mem0", "tavily", "openai"):
         assert deferred_dependency not in all_dependencies
 
 

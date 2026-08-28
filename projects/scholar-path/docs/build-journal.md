@@ -347,3 +347,104 @@ checking, offline tests, and all M1 domain behavior.
   top-level ScholarPath subpackage.
 - A future packaging milestone may evaluate whether a conventional physical package
   directory becomes preferable as distribution complexity grows.
+
+## Milestone M2: Deterministic LangGraph walking skeleton
+
+**Date:** 2026-08-28
+
+### Milestone objective
+
+Connect the M1 data contracts through a complete, typed LangGraph walking skeleton
+whose 15 nodes, conditional routes, retry behavior, Candidate review gate, and final
+five-record shortlist run entirely from deterministic fixtures without a model,
+provider, or external network call.
+
+### Prompt used
+
+[`docs/prompts/m2-deterministic-langgraph-walking-skeleton.md`](prompts/m2-deterministic-langgraph-walking-skeleton.md)
+
+### Files changed
+
+- Added LangGraph and the minimum LangChain Core dependency to `pyproject.toml`.
+- Added the typed state, reducers, fixture bundle, 15-node workflow, and public graph
+  API under `src/graph/`.
+- Added `src/cli.py` for the offline five-Supervisor demonstration.
+- Added `tests/conftest.py` to block socket access throughout the non-live suite.
+- Added M2 unit, graph, contract, and CLI integration tests and updated existing
+  dependency, terminology, and package-structure contracts.
+- Updated `README.md` and `docs/architecture.md`, and added the graph-derived
+  `docs/m2-walking-skeleton.mmd` artifact.
+- Archived the M2 prompt and updated this build journal.
+
+### Tests added
+
+- Exact happy-path execution-log and 15-node topology contracts.
+- Insufficient discovery and evidence route tests for fallback and alternate retrieval.
+- Candidate approval, rejection with replacement, and `request_more` refinement tests.
+- Discovery, evidence, and review retry-exhaustion tests, including maximum configured
+  retry budgets and clean terminal state assertions.
+- Reducer immutability, stable Supervisor merge, initial-state, raw-result conversion,
+  configuration-boundary, invalid-review-scope, partial-approval, and determinism tests.
+- Runtime Supervisor-type, canonical-terminology, aggregate-consistency, JSON
+  round-trip, generated-Mermaid, direct-dependency, offline-network, and CLI contracts.
+
+### Test results
+
+- `venv/bin/pytest --no-cov tests/graph tests/unit/graph tests/contract/test_m2_graph_contract.py tests/integration/test_cli.py -q`:
+  38 focused M2 tests passed.
+- `venv/bin/python -m pip install -e ".[dev]" --config-settings editable_mode=strict`:
+  the package and declared dependencies installed successfully.
+- `venv/bin/python -m pip check`: no broken requirements found.
+- `venv/bin/ruff format --check .`: 51 files already formatted.
+- `venv/bin/ruff check --no-cache .`: all checks passed.
+- `venv/bin/mypy src tests`: no issues found in 40 source files.
+- `venv/bin/pytest -m "not live"`: 191 tests passed with 98.71 percent statement and
+  branch coverage, above the 90 percent gate. Socket access was blocked by the
+  non-live autouse fixture.
+- Python 3.12.13 syntax compilation of `src` and `tests`: passed.
+- `venv/bin/python -m scholarpath.cli`: printed five ranked Shortlisted Supervisors
+  and their fixture Research Fit Scores.
+- Exact generated-Mermaid comparison, terminology scan, package metadata, test
+  discovery, dependency-boundary, `git diff --check`, and deterministic repeat-run
+  contracts passed.
+- The first strict-install attempt correctly failed because the isolated build
+  environment had no sandbox network access; repeating the same declared command with
+  approved PyPI access succeeded.
+
+### Assumptions
+
+- M2 fixture orchestration owns synthetic runtime data under `src/graph/`; production
+  code never imports factories from the test suite.
+- Six Verified Supervisor assessments allow a rejected top-five record to be replaced
+  while every successful terminal shortlist still contains exactly five records.
+- `candidate_review_gate_stub` applies configured typed decisions synchronously; graph
+  interruption and a Candidate-facing interface remain outside this milestone.
+- List reducers belong only on append-only history channels. Canonical entity
+  collections are snapshots, while rejected records merge by stable Supervisor ID.
+- Each configurable retry budget is capped at five, and the LangGraph recursion guard
+  is derived above the maximum valid configured route rather than acting as normal
+  workflow termination.
+
+### Lessons learned
+
+- A walking skeleton becomes architecturally useful when it exercises the full state
+  and routing seams even though its adapters still return deterministic fixtures.
+- Retry telemetry should count retries actually taken, not a denied next attempt.
+- Candidate approval and shortlist cardinality are separate invariants; both must be
+  checked before declaring the workflow complete.
+- Generated architecture diagrams are safer when an exact offline contract detects
+  node, edge, order, or duplication drift.
+- Blocking socket entry points makes the default no-network promise executable rather
+  than relying only on dependency inspection.
+
+### Remaining debt
+
+- `request_more` changes the typed SearchPlan and preference history but replays the
+  same synthetic cohort; provider-backed query refinement is deferred.
+- Replace fixture nodes with typed agent and tool interfaces one boundary at a time.
+- Define Research Fit calculation, source-authority, freshness, and conflict policies
+  before replacing the supplied fixture assessments.
+- Replace the configured review stub with LangGraph interruption and Candidate resume
+  behavior only in a later milestone.
+- Add LangSmith tracing and evaluation without placing personal data, credentials, or
+  full page content in trace metadata.

@@ -22,7 +22,10 @@ def authored_product_files() -> tuple[Path, ...]:
     """Return source and authored documentation, excluding verbatim prompt records."""
     source_files = tuple(SOURCE_ROOT.rglob("*.py")) + tuple(SOURCE_ROOT.rglob("*.pyi"))
     documentation_files = tuple(
-        path for path in DOCS_ROOT.rglob("*.md") if PROMPT_ARCHIVE not in path.parents
+        path
+        for suffix in ("*.md", "*.mmd")
+        for path in DOCS_ROOT.rglob(suffix)
+        if PROMPT_ARCHIVE not in path.parents
     )
     return tuple(sorted((*source_files, *documentation_files, PROJECT_ROOT / "README.md")))
 
@@ -47,7 +50,7 @@ def test_authored_source_and_documentation_use_canonical_terminology() -> None:
     assert find_banned_terminology(files) == []
 
 
-@pytest.mark.parametrize("relative_path", ["src/example.py", "docs/example.md"])
+@pytest.mark.parametrize("relative_path", ["src/example.py", "docs/example.md", "docs/example.mmd"])
 @pytest.mark.parametrize(
     "bad_text",
     ["supervisor candidate", "Supervisor-Candidates", "approved_candidate"],

@@ -14,13 +14,14 @@ Supervisor is shortlisted or any outreach is drafted.
 
 ## Project status
 
-Milestone M1 establishes typed domain contracts for Candidate input, search planning,
-Supervisor discovery and verification, Research Fit assessments, Candidate review,
-and shortlisting. Pure functions enforce evidence sufficiency, valid lifecycle
-transitions, and the Candidate approval gate.
+Milestone M2 adds a deterministic LangGraph walking skeleton over the M1 domain
+contracts. The complete discovery, evidence, Research Fit, review, and shortlist flow
+now runs from START to END using typed state, fixture-backed nodes, conditional edges,
+append reducers, and bounded retries.
 
-No orchestration graph, agent behavior, model provider, search integration, memory
-service, Research Fit calculation, or Streamlit interface is implemented yet.
+No model, search provider, memory service, live API, LangSmith tracing configuration,
+or Streamlit interface is implemented yet. The Candidate review gate is an explicitly
+configured fixture stub rather than a user interface.
 
 ## M0 foundation
 
@@ -28,12 +29,13 @@ service, Research Fit calculation, or Streamlit interface is implemented yet.
 |---|---|
 | Python | Python 3.12 or newer; local repository convention is 3.14.6 |
 | Packaging | Physical `src/` root mapped to the importable `scholarpath` package |
-| Runtime dependencies | Pydantic and pydantic-settings only |
+| Runtime dependencies | Pydantic and pydantic-settings only in M0 |
 | Configuration | Safe non-secret defaults and deferred provider-key validation |
 | Quality gates | Ruff, strict mypy, pytest, branch coverage, and GitHub Actions |
 | Network policy | Default and CI tests exclude tests marked `live` |
 
-See [M1 architecture](docs/architecture.md) and
+See [M2 architecture](docs/architecture.md), the
+[generated graph](docs/m2-walking-skeleton.mmd), and
 [canonical terminology](docs/terminology.md) for the current boundaries.
 
 ## M1 domain contracts
@@ -68,6 +70,39 @@ verified = make_verified_supervisors()  # 6 records
 assessments = make_research_fit_assessments()  # 5 records
 ```
 
+## M2 deterministic walking skeleton
+
+```mermaid
+flowchart TD
+    START([START]) --> Load[load_candidate_preferences]
+    Load --> Plan[plan_supervisor_searches]
+    Plan --> Discover[discover_prospective_supervisors]
+    Discover --> Found[enough_supervisors_found]
+    Found -->|enough| Dedupe[deduplicate_supervisors]
+    Found -->|insufficient and retries remain| Fallback[fallback_supervisor_search]
+    Found -->|retry exhausted| END([END])
+    Fallback --> Found
+    Dedupe --> Extract[extract_supervisor_evidence]
+    Extract --> Evidence[supervisor_evidence_sufficient]
+    Evidence -->|sufficient| Evaluate[evaluate_research_fit]
+    Evidence -->|insufficient and retries remain| Alternate[retry_alternate_evidence_source]
+    Evidence -->|retry exhausted| END
+    Alternate --> Extract
+    Evaluate --> Review[review_fit_assessments]
+    Review --> Synthesize[synthesize_supervisor_shortlist]
+    Synthesize --> Gate[candidate_review_gate_stub]
+    Gate -->|approve| Save[save_shortlisted_supervisors]
+    Gate -->|reject or request_more| Plan
+    Gate -->|retry exhausted| END
+    Save --> Brief[generate_shortlist_briefing]
+    Brief --> END
+```
+
+The default path yields five ranked, evidence-backed records. Rejection and
+`request_more` return to planning only while the explicit review retry budget remains.
+Discovery and evidence retries follow the same bounded rule, so the graph never relies
+on LangGraph's recursion limit for normal termination.
+
 ## Setup
 
 Run these commands from the repository root:
@@ -81,8 +116,9 @@ python -m pip install -e ".[dev]" --config-settings editable_mode=strict
 cp .env.example .env
 ```
 
-No API key is required to install the package, import `scholarpath`, or run the M0
-test suite. The copied `.env` contains non-secret defaults only and is ignored by Git.
+No API key is required to install the package, import `scholarpath`, or run the default
+non-live test suite. The copied `.env` contains non-secret defaults only and is ignored
+by Git.
 
 Verify the editable installation:
 
@@ -90,6 +126,16 @@ Verify the editable installation:
 python -m pip check
 python -c "import scholarpath; print(scholarpath.__version__)"
 ```
+
+Run the offline graph demonstration:
+
+```bash
+python -m scholarpath.cli
+```
+
+It executes the configured approval path and prints the final five Shortlisted
+Supervisors with their fixture Research Fit Scores. It requires no API keys or network
+access.
 
 ## Quality and test commands
 
@@ -205,46 +251,15 @@ execute, coordinate, remember, or observe those responsibilities.
 | **Tavily** | Fallback Supervisor discovery search. |
 | **Nebius** | Independent evidence and Research Fit review. |
 | **Mem0** | Candidate preference and feedback memory. |
-| **LangGraph** | Stateful multi-agent orchestration and human approval flow. |
+| **LangGraph** | Current deterministic state orchestration and future human approval flow. |
 | **LangSmith** | End-to-end tracing, testing, and evaluation. |
 
 Streamlit is the planned Candidate-facing web interface.
 
-## Central workflow
+## Future production evolution
 
-```mermaid
-flowchart TD
-    Start([START]) --> Load[load_candidate_preferences]
-    Load --> Plan[plan_supervisor_searches]
-    Plan --> Discover[discover_prospective_supervisors]
-    Discover --> Found{enough_supervisors_found?}
-
-    Found -->|No| Fallback[fallback_supervisor_search]
-    Found -->|Yes| Dedupe[deduplicate_supervisors]
-    Fallback --> Dedupe
-
-    Dedupe --> Extract[extract_supervisor_evidence]
-    Extract --> Sufficient{supervisor_evidence_sufficient?}
-    Sufficient -->|No| Alternate[retry_alternate_evidence_source]
-    Alternate --> Extract
-    Sufficient -->|Yes| Evaluate[evaluate_research_fit]
-
-    Evaluate --> Review[review_fit_assessments]
-    Review --> Synthesize[synthesize_supervisor_shortlist]
-    Synthesize --> Gate{candidate_review_gate}
-
-    Gate -->|Reject| Feedback[capture_candidate_feedback]
-    Feedback --> Refine[refine_search]
-    Gate -->|Request more| Refine
-    Refine --> Plan
-
-    Gate -->|Approve| Save[save_shortlisted_supervisors]
-    Save --> Briefing[generate_shortlist_briefing]
-    Briefing --> End([END])
-
-    classDef human fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
-    class Gate human;
-```
-
-Retry limits, sufficiency thresholds, scoring dimensions, source-authority rules, and
-data-retention policies remain implementation decisions for later milestones.
+M2 keeps feedback capture inside `candidate_review_gate_stub` and deterministically
+replays the fixture search after rejection or `request_more`. Later milestones may
+split feedback persistence and search refinement into provider-backed responsibilities.
+Source-authority rules, Research Fit calculation policy, and data-retention policy
+remain deferred; retry limits and sufficiency thresholds are explicit M2 configuration.
