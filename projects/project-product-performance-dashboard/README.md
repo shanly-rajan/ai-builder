@@ -135,3 +135,14 @@ reinvestment ledger is a future extension for preserving historical payback exac
 The committed sample data contains aggregate fictional information only. It contains
 no real employees, salaries, merchants, customers, credentials, internal URLs, or
 company financials. The fixed seed and as-of date make results reproducible.
+
+## Mentor feedback for future improvement
+
+> AI Builder Playground was a nice idea to come across. This public
+> repository is a playground for independently runnable experiments in
+> AI-assisted software building, architecture, analytics, and developer
+> tooling. You’ve gone beyond a quick mock-up here—the core flow is implemented,
+> and the README makes the project easy to pick up. The next thing I’d look at is
+> making the key calculations and assumptions more transparent and adding a few
+> edge-case checks so users can trust the output. This came together well, and
+> there’s a solid foundation here if you want to keep pushing it.

@@ -226,6 +226,10 @@ cricket-rag-engine/
   has three configured retries and a 30-second timeout; retrieval and ingestion have no
   application-level retry policy.
 
+## Mentor feedback for future improvement
+
+> Grounding answers in specific laws is a real problem worth tackling. A thought on retrieval depth: your interface can vary how many laws it fetches, but it does not separately decide whether any result is answer-bearing, which means more results change quantity without establishing relevance. You could add a relevance threshold before generation, then let top-k control breadth only after the system has enough evidence to answer.
+
 ## Data and security
 
 The real `.env`, virtual environments, downloaded corpora, generated indexes, model
