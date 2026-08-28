@@ -130,3 +130,21 @@ def test_readme_contains_exact_setup_and_quality_commands() -> None:
 
     for command in required_commands:
         assert command in readme, f"README is missing command: {command}"
+
+
+def test_editor_analysis_uses_the_scholarpath_environment() -> None:
+    with (PROJECT_ROOT / "pyproject.toml").open("rb") as pyproject_file:
+        pyproject = tomllib.load(pyproject_file)
+
+    pyright = pyproject["tool"]["pyright"]
+    assert pyright == {
+        "include": ["src", "tests"],
+        "exclude": ["build", "venv"],
+        "pythonVersion": "3.12",
+        "venvPath": ".",
+        "venv": "venv",
+        "typeCheckingMode": "standard",
+    }
+
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+    assert "projects/scholar-path/venv/bin/python" in readme

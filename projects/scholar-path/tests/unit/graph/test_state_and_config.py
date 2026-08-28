@@ -1,5 +1,7 @@
 """Unit tests for M2 graph reducers, state construction, and fixture controls."""
 
+from collections.abc import Callable
+
 import pytest
 from pydantic import ValidationError
 
@@ -81,21 +83,24 @@ def test_raw_search_result_revalidates_during_domain_conversion() -> None:
 
 
 @pytest.mark.parametrize(
-    ("overrides", "message"),
+    ("config_factory", "message"),
     [
-        ({"primary_discovery_count": 9}, "between 0 and 8"),
-        ({"minimum_discovery_results": 0}, "must be at least 1"),
-        ({"minimum_verified_supervisors": 4}, "must not be less than shortlist_size"),
-        ({"shortlist_size": 4}, "must be 5"),
-        ({"max_evidence_retries": -1}, "must not be negative"),
-        ({"max_review_retries": 6}, "must not exceed 5"),
+        (lambda: GraphFixtureConfig(primary_discovery_count=9), "between 0 and 8"),
+        (lambda: GraphFixtureConfig(minimum_discovery_results=0), "must be at least 1"),
+        (
+            lambda: GraphFixtureConfig(minimum_verified_supervisors=4),
+            "must not be less than shortlist_size",
+        ),
+        (lambda: GraphFixtureConfig(shortlist_size=4), "must be 5"),
+        (lambda: GraphFixtureConfig(max_evidence_retries=-1), "must not be negative"),
+        (lambda: GraphFixtureConfig(max_review_retries=6), "must not exceed 5"),
     ],
 )
 def test_graph_fixture_config_rejects_invalid_controls(
-    overrides: dict[str, int], message: str
+    config_factory: Callable[[], GraphFixtureConfig], message: str
 ) -> None:
     with pytest.raises(ValueError, match=message):
-        GraphFixtureConfig(**overrides)  # type: ignore[arg-type]
+        config_factory()
 
 
 def test_planning_without_loaded_preferences_uses_fixture_regions() -> None:
@@ -105,8 +110,9 @@ def test_planning_without_loaded_preferences_uses_fixture_regions() -> None:
 
     update = nodes.plan_supervisor_searches(state)
 
-    assert update["search_plan"] is not None
-    assert update["search_plan"].target_regions == config.fixtures.search_plan.target_regions
+    search_plan = update.get("search_plan")
+    assert search_plan is not None
+    assert search_plan.target_regions == config.fixtures.search_plan.target_regions
 
 
 def test_invalid_review_scope_stops_safely() -> None:

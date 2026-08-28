@@ -448,3 +448,77 @@ provider, or external network call.
   behavior only in a later milestone.
 - Add LangSmith tracing and evaluation without placing personal data, credentials, or
   full page content in trace metadata.
+
+## Milestone M2 repair: Editor diagnostics
+
+**Date:** 2026-08-28
+
+### Milestone objective
+
+Remove false red editor diagnostics caused by the monorepo selecting macOS Python 3.9
+instead of ScholarPath's Python 3.14 virtual environment, and resolve the remaining
+real Pyright errors without changing runtime behavior.
+
+### Prompt used
+
+[`docs/prompts/m2-editor-diagnostics-repair.md`](prompts/m2-editor-diagnostics-repair.md)
+
+### Files changed
+
+- Added shared Pyright analysis configuration to `pyproject.toml`.
+- Replaced ambiguous dynamic test keyword arguments with typed configuration factories
+  and narrowed an optional state update before accessing it.
+- Added an editor-environment contract test and documented the exact VS Code
+  interpreter path in `README.md`.
+- Created an ignored monorepo-local `.vscode/settings.json` so the active workspace
+  selects `projects/scholar-path/venv/bin/python`; it remains intentionally untracked.
+- Archived the repair prompt and updated this build journal.
+
+### Tests added
+
+- Contract coverage for the Python version, virtual environment, analysis scope, and
+  type-checking mode used by Pyright-compatible editors.
+- Existing invalid-configuration cases now use statically typed factories and retain
+  the same behavioral coverage.
+
+### Test results
+
+- The VS Code Pylance log initially showed `/usr/bin/python3` and Python 3.9.6 for the
+  `ai-builder` workspace; after the local workspace setting changed, it showed
+  ScholarPath's `venv/bin/python` and Python 3.14.6.
+- BasedPyright analysis with the wrong environment reproduced unresolved imports and
+  unsupported-syntax diagnostics.
+- BasedPyright with the committed project configuration: zero errors, warnings, or
+  notes at error level across `src` and `tests`.
+- `venv/bin/ruff format --check .`: 52 files already formatted.
+- `venv/bin/ruff check --no-cache .`: all checks passed.
+- `venv/bin/mypy src tests`: no issues found in 40 source files.
+- `venv/bin/pytest -m "not live"`: 192 tests passed with 98.71 percent coverage.
+- Python 3.12.13 syntax compilation, dependency checking, ignored-workspace-setting
+  verification, and `git diff --check`: passed.
+
+### Assumptions
+
+- The visible red markers originate from VS Code/Pylance in the currently open
+  `ai-builder` workspace; its language-server log is direct evidence of the incorrect
+  interpreter selection.
+- The project continues to target Python 3.12 or newer while the local virtual
+  environment uses the repository's Python 3.14.6 convention.
+- Editor-specific workspace state remains local and ignored; portable analysis rules
+  belong in `pyproject.toml`.
+
+### Lessons learned
+
+- A passing runtime and mypy gate cannot prevent an IDE from using a different Python
+  executable in a multi-project workspace.
+- PEP 695 syntax and strict editable package mappings make an incorrect pre-3.12
+  interpreter immediately visible as cascading editor diagnostics.
+- Test parameterization should remain statically unambiguous across both mypy and
+  Pyright-family analyzers.
+
+### Remaining debt
+
+- Developers using another editor must select the project virtual environment or make
+  that editor honor the shared Pyright configuration.
+- The ignored root workspace setting is machine-local because the monorepo contains
+  sibling projects with independent Python environments.

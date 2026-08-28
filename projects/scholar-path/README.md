@@ -120,6 +120,20 @@ No API key is required to install the package, import `scholarpath`, or run the 
 non-live test suite. The copied `.env` contains non-secret defaults only and is ignored
 by Git.
 
+### Editor interpreter
+
+When the parent `ai-builder` monorepo is open in VS Code, select this interpreter:
+
+```text
+projects/scholar-path/venv/bin/python
+```
+
+ScholarPath requires Python 3.12 or newer and relies on its strict editable installation
+for the flattened physical `src/` layout. Using macOS `/usr/bin/python3` can therefore
+produce false syntax and unresolved-import diagnostics. The shared Pyright settings in
+`pyproject.toml` scope analysis to `src` and `tests`, target Python 3.12, and resolve
+packages from the project virtual environment.
+
 Verify the editable installation:
 
 ```bash
