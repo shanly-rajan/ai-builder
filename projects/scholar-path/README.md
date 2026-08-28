@@ -14,11 +14,66 @@ Supervisor is shortlisted or any outreach is drafted.
 
 ## Project status
 
-Product context captured. Design and implementation will proceed through small,
-explicit milestones.
+Milestone M0 establishes the repository foundation: a Python src-layout package,
+typed settings, canonical terminology, project quality configuration, offline tests,
+and path-scoped continuous integration.
 
-No implementation stack or dependency choices beyond those named in this product
-brief are committed by this milestone.
+No orchestration graph, agent behavior, model provider, search integration, memory
+service, or Streamlit interface is implemented yet.
+
+## M0 foundation
+
+| Capability | M0 implementation |
+|---|---|
+| Python | Python 3.12 or newer; local repository convention is 3.14.6 |
+| Packaging | Installable `src/scholarpath` package using setuptools |
+| Runtime dependencies | Pydantic and pydantic-settings only |
+| Configuration | Safe non-secret defaults and deferred provider-key validation |
+| Quality gates | Ruff, strict mypy, pytest, branch coverage, and GitHub Actions |
+| Network policy | Default and CI tests exclude tests marked `live` |
+
+See [M0 architecture](docs/architecture.md) and
+[canonical terminology](docs/terminology.md) for the current boundaries.
+
+## Setup
+
+Run these commands from the repository root:
+
+```bash
+cd projects/scholar-path
+python3 -m venv venv
+source venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+cp .env.example .env
+```
+
+No API key is required to install the package, import `scholarpath`, or run the M0
+test suite. The copied `.env` contains non-secret defaults only and is ignored by Git.
+
+Verify the editable installation:
+
+```bash
+python -m pip check
+python -c "import scholarpath; print(scholarpath.__version__)"
+```
+
+## Quality and test commands
+
+Run the complete local quality gate from `projects/scholar-path`:
+
+```bash
+ruff format --check .
+ruff check .
+mypy src tests
+pytest -m "not live"
+```
+
+The pytest configuration collects `tests/`, excludes live tests by default, measures
+branch coverage for `scholarpath`, and requires at least 90 percent coverage.
+
+The GitHub Actions workflow runs the same installation and quality commands on Python
+3.12 whenever ScholarPath or its workflow changes.
 
 ## Target outcome and success measures
 

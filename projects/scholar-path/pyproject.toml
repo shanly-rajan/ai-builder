@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scholarpath"
+version = "0.1.0"
+description = "Evidence-backed doctoral Supervisor discovery and Research Fit system"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.7,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.14,<2",
+    "pytest>=8.3,<10",
+    "pytest-cov>=6,<8",
+    "ruff>=0.9,<1",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["scholarpath*"]
+
+[tool.pytest.ini_options]
+minversion = "8.3"
+testpaths = ["tests"]
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+    "-ra",
+    "-m",
+    "not live",
+    "--cov=scholarpath",
+    "--cov-report=term-missing:skip-covered",
+]
+markers = [
+    "live: requires explicit opt-in and provider credentials; excluded by default",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["scholarpath"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+extend-exclude = ["venv", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src", "tests"]
+mypy_path = "src"
+strict = true
+pretty = true
+show_error_codes = true
+warn_unreachable = true

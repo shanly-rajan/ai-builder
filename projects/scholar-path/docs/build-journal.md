@@ -88,3 +88,89 @@ local environments, secrets, caches, private data, or generated artifacts.
   and data-retention policy only when explicitly requested by later milestones.
 - Revisit generated-artifact paths when concrete LangGraph, LangSmith, Mem0, and
   Streamlit persistence choices are introduced.
+
+## Milestone M0: Repository foundation and engineering contract
+
+**Date:** 2026-08-28
+
+### Milestone objective
+
+Create an installable Python src-layout foundation with safe typed settings, canonical
+terminology, deterministic contract checks, local quality tooling, coverage policy,
+and non-live continuous integration without implementing future platform capabilities.
+
+### Prompt used
+
+[`docs/prompts/m0-repository-foundation.md`](prompts/m0-repository-foundation.md)
+
+### Files changed
+
+- Added `.github/workflows/scholarpath-ci.yml` at repository root.
+- Added `projects/scholar-path/.python-version`, `.env.example`, and `pyproject.toml`.
+- Updated `projects/scholar-path/README.md`.
+- Confirmed the existing project-local `AGENTS.md` and `.gitignore` already satisfy
+  the M0 contract and preserved them without unrelated rewrites.
+- Added the `src/scholarpath/` package, `config.py`, and the requested package
+  boundaries.
+- Added `docs/terminology.md`, `docs/architecture.md`, and the archived M0 prompt.
+- Added and expanded unit, contract, integration, discovery, and fixture test assets.
+- Updated this build journal.
+
+### Tests added
+
+- Package import without credentials.
+- Non-secret settings defaults.
+- Missing, blank, and valid provider configuration at the explicit provider boundary.
+- Nested environment-based provider-key loading without eager validation.
+- Secret masking in typed provider configuration.
+- Deterministic authored-source and documentation terminology scanning.
+- Detection of case, plural, hyphen, underscore, source, and documentation violations.
+- Required M0 structure and minimal runtime dependency contracts.
+- Subprocess-based pytest discovery verification.
+- Installed distribution metadata integration check.
+
+### Test results
+
+- `venv/bin/python -m pip install -e ".[dev]"`: editable package and development
+  dependencies installed successfully.
+- `venv/bin/python -m pip check`: no broken requirements found.
+- Installed package import reported version `0.1.0` without credentials.
+- `venv/bin/ruff format --check .`: 28 files already formatted.
+- `venv/bin/ruff check .`: all checks passed.
+- `venv/bin/mypy src tests`: no issues found in 20 source files.
+- `venv/bin/pytest -m "not live"`: 28 tests passed without network access.
+- Coverage: 100 percent statement and branch coverage, above the 90 percent gate.
+- Python 3.12.13 syntax compilation of `src` and `tests`: passed.
+- The subprocess discovery contract collected the unit and contract suites
+  successfully.
+- `git diff --check`: passed.
+
+### Assumptions
+
+- Python 3.12 is the supported floor; `.python-version` preserves the repository's
+  current Python 3.14.6 local convention.
+- Provider configuration remains generic in M0. No provider name, SDK, client, or
+  network behavior is added.
+- `docs/prompts/` is immutable audit input and is excluded from terminology scanning;
+  authored documentation, the project README, and all Python source remain in scope.
+- Empty future package boundaries contain only module documentation and no behavior.
+- Existing governance files and tests remain part of the M0 foundation rather than
+  being rewritten.
+
+### Lessons learned
+
+- Src-layout installation tests the packaging boundary instead of relying on an
+  implicit source-tree Python path.
+- Optional secrets can load safely when strict credential validation is deferred to a
+  typed provider activation method.
+- Prompt archives require an explicit policy exception because they preserve user text
+  verbatim rather than expressing authored product terminology.
+
+### Remaining debt
+
+- No graph state, domain schemas, agent logic, provider protocols, UI, memory service,
+  or runtime observability exists yet; each requires a later explicit milestone.
+- Dependency locking and an expanded Python-version test matrix remain future release
+  hardening decisions.
+- Live-test opt-in and provider-specific credential gates must be implemented alongside
+  the first real provider adapter.
