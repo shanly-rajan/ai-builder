@@ -27,7 +27,7 @@ service, Research Fit calculation, or Streamlit interface is implemented yet.
 | Capability | M0 implementation |
 |---|---|
 | Python | Python 3.12 or newer; local repository convention is 3.14.6 |
-| Packaging | Installable `src/scholarpath` package using setuptools |
+| Packaging | Physical `src/` root mapped to the importable `scholarpath` package |
 | Runtime dependencies | Pydantic and pydantic-settings only |
 | Configuration | Safe non-secret defaults and deferred provider-key validation |
 | Quality gates | Ruff, strict mypy, pytest, branch coverage, and GitHub Actions |
@@ -77,7 +77,7 @@ cd projects/scholar-path
 python3 -m venv venv
 source venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev]" --config-settings editable_mode=strict
 cp .env.example .env
 ```
 

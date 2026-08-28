@@ -10,13 +10,13 @@ REPOSITORY_ROOT = TEST_FILE.parents[4]
 
 def test_required_m0_directories_exist() -> None:
     required_directories = (
-        "src/scholarpath/domain",
-        "src/scholarpath/graph",
-        "src/scholarpath/agents",
-        "src/scholarpath/tools",
-        "src/scholarpath/memory",
-        "src/scholarpath/observability",
-        "src/scholarpath/ui",
+        "src/domain",
+        "src/graph",
+        "src/agents",
+        "src/tools",
+        "src/memory",
+        "src/observability",
+        "src/ui",
         "tests/unit",
         "tests/graph",
         "tests/contract",
@@ -37,8 +37,9 @@ def test_required_m0_files_exist() -> None:
         "AGENTS.md",
         "README.md",
         "pyproject.toml",
-        "src/scholarpath/__init__.py",
-        "src/scholarpath/config.py",
+        "src/__init__.py",
+        "src/config.py",
+        "src/py.typed",
         "docs/terminology.md",
         "docs/architecture.md",
         "docs/build-journal.md",
@@ -70,6 +71,26 @@ def test_m0_runtime_dependencies_are_minimal() -> None:
         assert deferred_dependency not in all_dependencies
 
 
+def test_physical_src_root_maps_to_the_scholarpath_package() -> None:
+    with (PROJECT_ROOT / "pyproject.toml").open("rb") as pyproject_file:
+        pyproject = tomllib.load(pyproject_file)
+
+    setuptools = pyproject["tool"]["setuptools"]
+    assert setuptools["package-dir"] == {"scholarpath": "src"}
+    assert setuptools["package-data"] == {"scholarpath": ["py.typed"]}
+    assert set(setuptools["packages"]) == {
+        "scholarpath",
+        "scholarpath.agents",
+        "scholarpath.domain",
+        "scholarpath.graph",
+        "scholarpath.memory",
+        "scholarpath.observability",
+        "scholarpath.tools",
+        "scholarpath.ui",
+    }
+    assert not (PROJECT_ROOT / "src" / "scholarpath").exists()
+
+
 def test_scholarpath_ci_workflow_exists_at_repository_root() -> None:
     workflow = REPOSITORY_ROOT / ".github" / "workflows" / "scholarpath-ci.yml"
 
@@ -94,7 +115,7 @@ def test_readme_contains_exact_setup_and_quality_commands() -> None:
         "python3 -m venv venv",
         "source venv/bin/activate",
         "python -m pip install --upgrade pip",
-        'python -m pip install -e ".[dev]"',
+        'python -m pip install -e ".[dev]" --config-settings editable_mode=strict',
         "ruff format --check .",
         "ruff check .",
         "mypy src tests",

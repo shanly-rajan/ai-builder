@@ -1,6 +1,6 @@
 """Public domain contracts and deterministic lifecycle rules."""
 
-from scholarpath.domain.enums import (
+from .enums import (
     AvailabilityStatus,
     CandidateReviewAction,
     EvidenceClaimType,
@@ -9,7 +9,7 @@ from scholarpath.domain.enums import (
     SupervisorLifecycleStatus,
     VerificationStatus,
 )
-from scholarpath.domain.lifecycle import (
+from .lifecycle import (
     CandidateApprovalRequiredError,
     CandidateReviewScopeError,
     InvalidSupervisorTransitionError,
@@ -21,7 +21,7 @@ from scholarpath.domain.lifecycle import (
     validate_structural_transition,
     verify_supervisor,
 )
-from scholarpath.domain.models import (
+from .models import (
     CandidatePreferenceRevision,
     CandidateProfile,
     CandidateReviewDecision,

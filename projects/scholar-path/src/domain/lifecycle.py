@@ -5,13 +5,13 @@ from datetime import datetime
 
 from pydantic import ValidationError
 
-from scholarpath.domain.enums import (
+from .enums import (
     AvailabilityStatus,
     CandidateReviewAction,
     SupervisorLifecycleStatus,
     VerificationStatus,
 )
-from scholarpath.domain.models import (
+from .models import (
     CandidateReviewDecision,
     EvidenceClaim,
     ProspectiveSupervisor,

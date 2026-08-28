@@ -16,7 +16,7 @@ from pydantic import (
     model_validator,
 )
 
-from scholarpath.domain.enums import (
+from .enums import (
     AvailabilityStatus,
     CandidateReviewAction,
     EvidenceClaimType,

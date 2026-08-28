@@ -106,11 +106,42 @@ flowchart LR
 The arrows describe intended future dependency direction, not implemented runtime
 behavior. Domain rules remain independent of provider SDKs and user-interface code.
 
+## Physical package layout
+
+The repository avoids an additional physical package-name directory beneath `src/`.
+Setuptools maps the `scholarpath` import namespace directly onto the physical source
+root.
+
+```mermaid
+flowchart LR
+    IMPORT[import scholarpath] --> MAP[setuptools package-dir mapping]
+    MAP --> ROOT[src/__init__.py]
+    IMPORT_DOMAIN[import scholarpath.domain] --> MAP
+    MAP --> DOMAIN[src/domain/]
+```
+
+```text
+src/
+├── __init__.py
+├── config.py
+├── py.typed
+├── domain/
+├── agents/
+├── graph/
+├── memory/
+├── observability/
+├── tools/
+└── ui/
+```
+
+Strict editable installation materializes this logical mapping for runtime and static
+analysis while source files remain in the flattened structure.
+
 ## M1 quality boundaries
 
 | Concern | M1 control |
 |---|---|
-| Packaging | Python src-layout with editable installation |
+| Packaging | Flattened physical `src/` mapped to the `scholarpath` namespace |
 | Configuration | Pydantic settings with deferred secret validation |
 | Data contracts | Frozen Pydantic models reject unknown fields and invalid values |
 | Provenance | Each evidence claim carries source URL, kind, retrieval time, and confidence |

@@ -267,3 +267,75 @@ is introduced.
 - Define how partial Candidate preference revisions merge into persisted preferences.
 - Add graph state and orchestration behavior only in an explicitly requested future
   milestone.
+
+## Milestone M1 amendment: Flattened physical source package
+
+**Date:** 2026-08-28
+
+### Milestone objective
+
+Remove the additional physical `scholarpath/` directory beneath `src/` while
+preserving the public `scholarpath` import namespace, package installation, strict type
+checking, offline tests, and all M1 domain behavior.
+
+### Prompt used
+
+[`docs/prompts/m1-src-package-flattening.md`](prompts/m1-src-package-flattening.md)
+
+### Files changed
+
+- Moved the application package root, configuration, domain modules, and reserved
+  component boundaries directly into `src/`.
+- Updated `pyproject.toml` with an explicit logical-to-physical package mapping and a
+  `py.typed` marker.
+- Updated the editable installation command in `README.md` and ScholarPath CI to use
+  setuptools strict editable mode.
+- Updated repository structure contracts and architecture documentation.
+- Archived the adjustment prompt and updated this build journal.
+
+### Tests added
+
+- Contract coverage for the flattened physical directories and files.
+- Contract coverage for the explicit `scholarpath` package mapping and complete package
+  list.
+- Contract coverage that rejects recreation of `src/scholarpath/`.
+- Existing import, distribution metadata, domain, lifecycle, fixture, and integration
+  tests continue to validate the logical public namespace.
+
+### Test results
+
+- `venv/bin/python -m pip install -e . --config-settings editable_mode=strict`: passed.
+- After strict-editable symlink resolution, runtime imports point `scholarpath` to
+  `src/__init__.py` and `scholarpath.domain` to `src/domain/__init__.py`.
+- `venv/bin/ruff format --check .`: passed.
+- `venv/bin/ruff check .`: passed.
+- `venv/bin/mypy src tests`: passed with strict checking.
+- `venv/bin/pytest -m "not live"`: 150 tests passed without network access.
+- Coverage remained 100 percent for statements and branches.
+- Python 3.12 syntax compilation, dependency checking, and `git diff --check`: passed.
+
+### Assumptions
+
+- `scholarpath` remains the stable public import namespace even though it is no longer
+  repeated as a physical directory beneath `src/`.
+- Explicit setuptools package mapping is preferable to changing imports to `src` or
+  exposing component directories as unrelated top-level packages.
+- Strict editable mode is part of the development contract because it exposes the
+  mapped package topology to both Python and mypy.
+- Generated strict-editable build links remain ignored and are not source artifacts.
+
+### Lessons learned
+
+- Distribution names, import namespaces, and physical source directories are separate
+  architectural concerns and can be mapped deliberately.
+- Runtime import success alone is insufficient; editable installation must also expose
+  the mapping to static analysis.
+- A `py.typed` marker makes ScholarPath's inline types visible when mypy analyzes the
+  installed logical package.
+
+### Remaining debt
+
+- The explicit package list must be extended when a future milestone adds another
+  top-level ScholarPath subpackage.
+- A future packaging milestone may evaluate whether a conventional physical package
+  directory becomes preferable as distribution complexity grows.

@@ -22,11 +22,20 @@ dev = [
 ]
 
 [tool.setuptools]
-package-dir = { "" = "src" }
+package-dir = { scholarpath = "src" }
+packages = [
+    "scholarpath",
+    "scholarpath.agents",
+    "scholarpath.domain",
+    "scholarpath.graph",
+    "scholarpath.memory",
+    "scholarpath.observability",
+    "scholarpath.tools",
+    "scholarpath.ui",
+]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["scholarpath*"]
+[tool.setuptools.package-data]
+scholarpath = ["py.typed"]
 
 [tool.pytest.ini_options]
 minversion = "8.3"
