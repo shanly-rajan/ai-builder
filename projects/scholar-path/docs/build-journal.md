@@ -287,7 +287,8 @@ checking, offline tests, and all M1 domain behavior.
 - Moved the application package root, configuration, domain modules, and reserved
   component boundaries directly into `src/`.
 - Updated `pyproject.toml` with an explicit logical-to-physical package mapping and a
-  `py.typed` marker.
+  `py.typed` marker, plus explicit Ruff first-party import classification for the
+  logical `scholarpath` package and test package.
 - Updated the editable installation command in `README.md` and ScholarPath CI to use
   setuptools strict editable mode.
 - Updated repository structure contracts and architecture documentation.
@@ -298,6 +299,8 @@ checking, offline tests, and all M1 domain behavior.
 - Contract coverage for the flattened physical directories and files.
 - Contract coverage for the explicit `scholarpath` package mapping and complete package
   list.
+- Contract coverage for Ruff's first-party classification under the non-standard
+  physical package mapping.
 - Contract coverage that rejects recreation of `src/scholarpath/`.
 - Existing import, distribution metadata, domain, lifecycle, fixture, and integration
   tests continue to validate the logical public namespace.
@@ -308,7 +311,10 @@ checking, offline tests, and all M1 domain behavior.
 - After strict-editable symlink resolution, runtime imports point `scholarpath` to
   `src/__init__.py` and `scholarpath.domain` to `src/domain/__init__.py`.
 - `venv/bin/ruff format --check .`: passed.
-- `venv/bin/ruff check .`: passed.
+- `venv/bin/ruff check --no-cache .`: passed. The flattened-package GitHub Actions run
+  exposed five import-order errors that a stale local Ruff cache had masked; declaring
+  `scholarpath` and `tests` as known first-party modules resolved the clean-environment
+  failure.
 - `venv/bin/mypy src tests`: passed with strict checking.
 - `venv/bin/pytest -m "not live"`: 150 tests passed without network access.
 - Coverage remained 100 percent for statements and branches.
@@ -330,6 +336,8 @@ checking, offline tests, and all M1 domain behavior.
   architectural concerns and can be mapped deliberately.
 - Runtime import success alone is insufficient; editable installation must also expose
   the mapping to static analysis.
+- Cache-free validation is important after changing source topology because cached
+  lint results can conceal a changed module-classification boundary.
 - A `py.typed` marker makes ScholarPath's inline types visible when mypy analyzes the
   installed logical package.
 

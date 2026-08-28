@@ -71,6 +71,9 @@ extend-exclude = ["venv", ".venv"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["scholarpath", "tests"]
+
 [tool.mypy]
 python_version = "3.12"
 files = ["src", "tests"]

@@ -88,6 +88,10 @@ def test_physical_src_root_maps_to_the_scholarpath_package() -> None:
         "scholarpath.tools",
         "scholarpath.ui",
     }
+    assert set(pyproject["tool"]["ruff"]["lint"]["isort"]["known-first-party"]) == {
+        "scholarpath",
+        "tests",
+    }
     assert not (PROJECT_ROOT / "src" / "scholarpath").exists()
 
 
