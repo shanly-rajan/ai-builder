@@ -79,3 +79,12 @@ At the end of every milestone, return:
 8. Suggested Git commit message
 
 Stop after completing the requested milestone.
+
+## Milestone amendment prompts
+
+> lets ensure AGENTS.md is inside the scholar-path folder and also ensure that
+> gitignore for the project is also taken care off so that the venv and files that are
+> not meant to be commited are not there
+
+> we can remove 0002-project-contract milestone as it should be amended in 0001
+> milestone

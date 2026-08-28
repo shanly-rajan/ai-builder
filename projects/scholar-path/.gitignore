@@ -1,0 +1,48 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+.streamlit/secrets.toml
+
+# Python environments
+/.venv/
+/venv/
+/env/
+
+# Python caches, tests, coverage, and build output
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+.coverage
+.coverage.*
+htmlcov/
+/build/
+/dist/
+
+# Local application data and generated artifacts
+/data/private/
+/data/raw/
+/data/processed/
+/data/uploads/
+/artifacts/
+/exports/
+/logs/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+.langgraph_api/
+.mem0/
+
+# Notebooks, editors, and operating-system files
+.ipynb_checkpoints/
+.DS_Store
+.idea/
+.vscode/
+*.swp
