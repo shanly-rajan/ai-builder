@@ -2044,3 +2044,111 @@ The exact repair prompt is archived as
   aggregate privacy controls do not replace authorization.
 - Confirm regional data residency, retention, deletion, and workspace policies for LangSmith
   before tracing real Candidate workflows in production.
+
+## M11.2 Repair: Discovery completion
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Repair the next bounded live-discovery bottleneck after a traced Streamlit run returned 106
+raw results, identified four plausible and retained Prospective Supervisors, and stopped
+recoverably below the unchanged minimum of five. Improve affiliation integrity, use the
+existing Tavily budget more effectively, and explain deterministic exclusions through
+privacy-safe aggregate diagnostics without adding providers, calls, retries, or downstream
+workflow changes.
+
+### Prompt used
+
+The exact repair prompt is archived as
+[`m11-2-discovery-completion-repair.md`](prompts/m11-2-discovery-completion-repair.md).
+
+### Files changed
+
+- Added `SearchResultRejectionCategory` and immutable `SearchResultRejectionCounts` domain
+  contracts for five fixed exclusion categories.
+- Updated `SupervisorDiscoveryAgent` to account for every raw result exactly once, reject
+  dangling institution suffixes, continue bounded context scanning, and recover complete
+  affiliations such as `University of East London` without a model.
+- Added the pure `prioritize_tavily_fallback_queries` router and applied it to the existing
+  four-call fallback loop using latest current-round You.com yield and stable plan-order
+  tie-breaking. A second pure selection step exhausts ranked untried queries before any
+  repeat when a checkpoint already contains a current-round Tavily attempt.
+- Extended `SearchAttempt` with optional typed rejection counts. New successful attempts
+  always populate them; missing values preserve pre-M11.2 checkpoint compatibility.
+- Advanced tracing to `graph-version:m11.2`, added five allowlisted aggregate rejection
+  metadata fields, and kept custom discovery span inputs and outputs empty.
+- Extended the typed Streamlit projection and renderer with a current-round “Why raw
+  results were excluded” breakdown. Older or failed attempts show an unavailable message
+  instead of invented zeros.
+- Updated `README.md`, `docs/architecture.md`, added
+  [`m11-2-discovery-completion-repair.mmd`](m11-2-discovery-completion-repair.mmd), and
+  recorded this journal entry.
+
+### Tests added
+
+- Domain tests cover taxonomy increment, combination, strict counts, and JSON round trips.
+- Discovery-agent tests cover all five rejection categories, exact raw-result accounting,
+  dangling suffixes, complete bounded-context recovery, and incomplete-only exclusion.
+- Pure routing tests cover latest-attempt semantics, current-round isolation, Tavily-attempt
+  isolation, stable ties, unchanged ordering for zero yield, resumed untried-query
+  selection, negative limits, and invalid attempt totals.
+- Graph tests replay six planned queries and prove productive slots four and five receive
+  the first fallback calls while the four-call budget and minimum-five gate remain fixed.
+- Persistence tests restore a serialized pre-M11.2 `SearchAttempt` without taxonomy data.
+- Observability tests validate fixed rejection metadata, empty payloads, legacy zero trace
+  defaults, and exclusion of query, Candidate, identity, URL, content, and secret fields.
+- Controller and AppTest cases validate aggregate rejection projection, typed totals,
+  legacy-unavailable display, and privacy-safe Candidate rendering.
+- Repository contracts lock the prompt, diagram, journal, graph version, policy bounds,
+  SearchAttempt schema, and trace allowlist.
+
+### Test results
+
+- Focused domain, discovery, routing, persistence, graph, trace, UI, AppTest, and contract
+  regression set: `182 passed`.
+- `venv/bin/ruff format --check .`: all 170 Python files formatted.
+- `venv/bin/ruff check --no-cache .`: all lint checks passed.
+- `venv/bin/mypy src tests`: no issues in 139 source files.
+- `venv/bin/pytest -q`: 884 non-live tests passed, seven live tests were deselected, 48
+  terminology subtests passed, and combined statement/branch coverage was 90.67 percent.
+- The exact three-test 60-second demonstration passed in 1.00 second.
+- `venv/bin/pip check` reported no broken requirements; Python compilation and
+  `git diff --check` passed.
+
+### Assumptions
+
+- Latest You.com plausible-profile yield is a useful deterministic signal for which of the
+  already planned queries should consume the limited fallback budget; it does not score
+  Research Fit or change the search plan.
+- A dangling connector is never sufficient affiliation data. Only bounded provider title,
+  description, and snippet context may complete the phrase during discovery.
+- Rejection categories are operational quality metrics, not evidence about a Supervisor.
+  They must not be persisted with result identity or presented as Candidate-facing facts.
+- Pre-M11.2 checkpoints remain valid even though their historical rejected results cannot
+  be reconstructed safely from aggregate attempt records.
+
+### Lessons learned
+
+- A fallback budget can be made more effective by ordering existing work from primary-path
+  quality signals; resilience does not always require more calls or another provider.
+- Resume-safe work selection must identify completed items rather than offset into a newly
+  ranked list; rank order can change between persisted executions.
+- Truncated provider titles need a completion-integrity rule. Keyword presence alone is not
+  enough when the final token proves the phrase is unfinished.
+- Exact accounting (`plausible + rejected = raw`) makes discovery filters auditable while a
+  closed typed taxonomy prevents accidental retention of sensitive result content.
+- Schema evolution should distinguish “zero observed” from “not recorded.” An optional
+  field at the checkpoint boundary preserves that semantic difference.
+
+### Remaining debt
+
+- Validate category precision and fallback-order lift against a consented, labelled,
+  cross-provider dataset before changing thresholds or budgets.
+- Monitor completion rate, category distribution, fallback yield, latency, and cost in a
+  protected environment; aggregate UI and trace diagnostics are not a substitute for an
+  operational analytics design.
+- Consider a provider-neutral typed source/domain filter contract if live evaluation shows
+  that query ordering alone cannot consistently reach five useful profiles.
+- Define retention and access controls for operational metrics before production, even when
+  those metrics contain counts rather than result content.

@@ -420,6 +420,56 @@ The diagnostics boundary is an explicit projection rather than a graph-state dum
 The distinction between raw, plausible, and retained counts explains provider quality
 without implying that arbitrary search hits are partial Supervisor recommendations.
 
+### M11.2 discovery-completion repair
+
+```mermaid
+flowchart LR
+    Plan[SearchPlan order] --> You[You.com attempts]
+    You --> Yield[Latest current-round plausible count]
+    Yield --> Priority[Descending yield; stable plan-order tie-break]
+    Priority --> Tavily[Existing four-call fallback budget]
+    You --> Checks{Identity + academic context + complete institution}
+    Tavily --> Checks
+    Checks -->|supported| PS[Prospective Supervisor + provenance]
+    Checks -->|excluded| Reasons[Typed aggregate rejection counts]
+    Reasons --> Attempt[Successful SearchAttempt]
+    Attempt --> UI[Safe UI projection]
+    Attempt --> Trace[Safe trace metadata]
+```
+
+M11.2 addresses the observed `106 raw -> 4 plausible -> 4 retained` recoverable stop.
+It changes neither the minimum-five gate nor the four-call Tavily budget. The pure fallback
+ordering function considers only the latest You.com attempt for each query in the current
+discovery round. Productive queries sort first by plausible-profile count; equal and
+zero-yield queries retain the original `SearchPlan` order. Previous rounds and Tavily
+outcomes cannot affect this yield ordering. On resume, current-round Tavily queries that
+already have an attempt move behind all ranked untried queries, preventing a re-ranked
+list from skipping its highest-priority remaining work or wasting a call on an early
+repeat.
+
+Institution extraction treats a phrase ending in `and`, `at`, `for`, `of`, `the`, or
+`with` as incomplete. It continues across bounded provider description/snippet context and
+retains a result only if a complete institution is found. This prevents a truncated title
+such as `University of` from becoming affiliation data while still allowing deterministic
+recovery of `University of East London` from the same bounded result.
+
+Each excluded raw result is assigned exactly one fixed category:
+
+| Category | Meaning |
+|---|---|
+| `person_not_established` | No plausible person identity is supported. |
+| `academic_context_not_established` | A person-like identity lacks sufficient academic or researcher context. |
+| `identity_conflict` | Title identity conflicts with a named academic in bounded context. |
+| `institution_not_established` | Academic identity is plausible but no institution is supported. |
+| `incomplete_institution` | Only a truncated institution phrase is available. |
+
+M11.2 adds only aggregate category counts to graph audit state. `SearchAttempt` continues
+to retain its exact query inside protected checkpoint state because deterministic routing
+and replay require it. Streamlit and LangSmith receive no queries, Candidate content,
+names, URLs, snippets, raw results, page content, or secrets. A pre-M11.2 checkpoint has no
+taxonomy field; its attempt remains valid and the UI labels the breakdown unavailable
+rather than fabricating historical counts.
+
 ## M6 content-extraction transport boundary
 
 ```mermaid
@@ -730,11 +780,11 @@ flowchart LR
     Root --> FitTrace[Research Fit node and rubric metadata]
     Root --> ReviewTrace[independent-review node metadata]
     Root --> Discovery[discovery node + aggregate attempt spans]
-    Tags[environment plus graph-version:m11.1] --> Root
+    Tags[environment plus graph-version:m11.2] --> Root
 ```
 
-The graph version is `m11.1`. Root tags are
-`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m11.1`. Planning, discovery,
+The graph version is `m11.2`. Root tags are
+`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m11.2`. Planning, discovery,
 evidence, Research Fit, and independent-review nodes add only safe component and version
 metadata. The fixed metadata allowlist is:
 
@@ -748,6 +798,11 @@ metadata. The fixed metadata allowlist is:
 - `attempt_number`
 - `raw_result_count`
 - `plausible_supervisor_count`
+- `rejected_person_not_established_count`
+- `rejected_academic_context_not_established_count`
+- `rejected_identity_conflict_count`
+- `rejected_institution_not_established_count`
+- `rejected_incomplete_institution_count`
 - `error_category`
 - `fallback_search_used`
 - `discovery_route`
@@ -965,7 +1020,7 @@ already-running event-loop runtime.
 | Conflicts | Both affiliation claims and cross-referenced evidence IDs are preserved |
 | Retry | One deterministic alternate official-source search and extraction pass |
 | Network isolation | Default tests use fixed pages and fakes; `live` is excluded by default |
-| Observability | `graph-version:m11.1`, prompt and rubric versions, allowlisted aggregate discovery metadata, hidden inputs and outputs |
+| Observability | `graph-version:m11.2`, prompt and rubric versions, allowlisted aggregate discovery metadata, hidden inputs and outputs |
 | Human authority | A real interrupt requires typed explicit approval before Shortlisted status or briefing generation |
 | Persistence | In-memory isolation in tests; ignored SQLite path for trusted local restart; opaque thread IDs partition runs |
 | Checkpoint serialization | Explicit MessagePack type allowlist, URL JSON projection, and no executable pickle fallback |

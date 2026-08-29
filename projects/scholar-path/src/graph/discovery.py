@@ -5,6 +5,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 
+from ..domain import PlannedSearchQuery, SearchResultRejectionCounts
 from ..tools import SearchErrorCategory, SearchProvider
 
 
@@ -48,6 +49,7 @@ class SearchAttempt(BaseModel):
     attempt_number: int = Field(ge=1)
     result_count: int = Field(ge=0)
     plausible_supervisor_count: int = Field(ge=0)
+    rejection_counts: SearchResultRejectionCounts | None = None
     error_category: SearchErrorCategory | None = None
     retryable: StrictBool = False
     discovery_round: int = Field(ge=1)
@@ -61,6 +63,14 @@ class SearchAttempt(BaseModel):
             raise ValueError("a successful SearchAttempt cannot be retryable")
         if self.error_category is not None and self.plausible_supervisor_count != 0:
             raise ValueError("a failed SearchAttempt cannot contain plausible profiles")
+        if self.error_category is not None and self.rejection_counts is not None:
+            raise ValueError("a failed SearchAttempt cannot contain rejection counts")
+        if (
+            self.error_category is None
+            and self.rejection_counts is not None
+            and self.rejection_counts.total + self.plausible_supervisor_count != self.result_count
+        ):
+            raise ValueError("successful SearchAttempt counts must account for every result")
         if (
             self.error_category is not None
             and self.error_category is not SearchErrorCategory.RESPONSE_CONTRACT
@@ -107,6 +117,63 @@ def _latest_attempts_by_query(
         if previous is None or attempt.attempt_number >= previous.attempt_number:
             latest[attempt.query] = attempt
     return tuple(latest.values())
+
+
+def prioritize_tavily_fallback_queries(
+    planned_queries: Sequence[PlannedSearchQuery],
+    attempts: Sequence[SearchAttempt],
+    *,
+    discovery_round: int,
+) -> tuple[PlannedSearchQuery, ...]:
+    """Prioritize primary-provider signals without changing the fallback budget.
+
+    Only the latest You.com attempt for each query in the current discovery round
+    contributes a yield. Queries with equal yields retain their original SearchPlan
+    order, including queries with no plausible profiles or no primary attempt.
+    """
+    current_attempts = _current_round_attempts(attempts, discovery_round)
+    latest_you_attempts = _latest_attempts_by_query(current_attempts, SearchProvider.YOU)
+    plausible_counts = {
+        attempt.query: attempt.plausible_supervisor_count for attempt in latest_you_attempts
+    }
+    indexed_queries = tuple(enumerate(planned_queries))
+    return tuple(
+        planned_query
+        for _, planned_query in sorted(
+            indexed_queries,
+            key=lambda item: (-plausible_counts.get(item[1].query, 0), item[0]),
+        )
+    )
+
+
+def select_tavily_fallback_queries(
+    planned_queries: Sequence[PlannedSearchQuery],
+    attempts: Sequence[SearchAttempt],
+    *,
+    discovery_round: int,
+    maximum_fallback_count: int,
+) -> tuple[PlannedSearchQuery, ...]:
+    """Select the remaining bounded calls, exhausting ranked untried queries first."""
+    if maximum_fallback_count < 0:
+        raise ValueError("maximum_fallback_count must not be negative")
+    current_attempts = _current_round_attempts(attempts, discovery_round)
+    tavily_attempts = tuple(
+        attempt for attempt in current_attempts if attempt.provider_used is SearchProvider.TAVILY
+    )
+    remaining_budget = max(0, maximum_fallback_count - len(tavily_attempts))
+    if remaining_budget == 0 or not planned_queries:
+        return ()
+
+    prioritized = prioritize_tavily_fallback_queries(
+        planned_queries,
+        current_attempts,
+        discovery_round=discovery_round,
+    )
+    attempted_queries = {attempt.query for attempt in tavily_attempts}
+    untried = tuple(item for item in prioritized if item.query not in attempted_queries)
+    already_tried = tuple(item for item in prioritized if item.query in attempted_queries)
+    ordered = (*untried, *already_tried)
+    return tuple(ordered[index % len(ordered)] for index in range(remaining_budget))
 
 
 def _has_unresolved_nonretryable_error(attempts: Sequence[SearchAttempt]) -> bool:

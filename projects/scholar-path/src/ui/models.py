@@ -18,6 +18,7 @@ from ..domain import (
     AvailabilityStatus,
     CandidateProfile,
     EvidenceConfidence,
+    SearchResultRejectionCounts,
     SourceKind,
     SupervisorLifecycleStatus,
     VerificationStatus,
@@ -94,6 +95,7 @@ class DiscoveryAttemptView(BaseModel):
     attempt_number: Annotated[int, Field(strict=True, ge=1)]
     raw_result_count: Annotated[int, Field(strict=True, ge=0)]
     plausible_supervisor_count: Annotated[int, Field(strict=True, ge=0)]
+    rejection_counts: SearchResultRejectionCounts | None = None
     error_category: SearchErrorCategory | None = None
     route: Literal[UiDiscoveryRoute.PRIMARY, UiDiscoveryRoute.FALLBACK]
 
@@ -102,6 +104,15 @@ class DiscoveryAttemptView(BaseModel):
         """Prevent an impossible diagnostic from reaching the interface."""
         if self.plausible_supervisor_count > self.raw_result_count:
             raise ValueError("plausible_supervisor_count must not exceed raw_result_count")
+        if self.error_category is not None and self.rejection_counts is not None:
+            raise ValueError("a failed attempt cannot contain rejection_counts")
+        if (
+            self.error_category is None
+            and self.rejection_counts is not None
+            and self.rejection_counts.total + self.plausible_supervisor_count
+            != self.raw_result_count
+        ):
+            raise ValueError("successful attempt counts must account for every raw result")
         return self
 
 
@@ -114,6 +125,7 @@ class DiscoveryDiagnosticsView(BaseModel):
     raw_result_count: Annotated[int, Field(strict=True, ge=0)]
     plausible_supervisor_count: Annotated[int, Field(strict=True, ge=0)]
     retained_prospective_supervisor_count: Annotated[int, Field(strict=True, ge=0)]
+    rejection_counts: SearchResultRejectionCounts | None = None
     fallback_search_used: bool
     route: UiDiscoveryRoute
 
@@ -130,6 +142,22 @@ class DiscoveryDiagnosticsView(BaseModel):
             item.route is UiDiscoveryRoute.FALLBACK for item in self.attempts
         ):
             raise ValueError("fallback_search_used must match the attempt routes")
+        successful_attempts = tuple(item for item in self.attempts if item.error_category is None)
+        rejection_breakdown_available = bool(successful_attempts) and all(
+            item.rejection_counts is not None for item in successful_attempts
+        )
+        if not rejection_breakdown_available:
+            if self.rejection_counts is not None:
+                raise ValueError(
+                    "rejection_counts must be absent when an attempt breakdown is unavailable"
+                )
+            return self
+        expected_counts = SearchResultRejectionCounts()
+        for attempt in successful_attempts:
+            if attempt.rejection_counts is not None:
+                expected_counts = expected_counts.combine(attempt.rejection_counts)
+        if self.rejection_counts != expected_counts:
+            raise ValueError("rejection_counts must equal the successful attempt totals")
         return self
 
 

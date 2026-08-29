@@ -7,7 +7,9 @@ from .discovery import (
     DiscoveryTimeoutBehavior,
     SearchAttempt,
     SupervisorDiscoveryRoute,
+    prioritize_tavily_fallback_queries,
     route_after_supervisor_discovery,
+    select_tavily_fallback_queries,
 )
 from .fixtures import (
     FIXTURE_RETRIEVED_AT,
@@ -110,9 +112,11 @@ __all__ = [
     "merge_supervisors_by_id",
     "open_local_sqlite_checkpointer",
     "parse_candidate_review_response",
+    "prioritize_tavily_fallback_queries",
     "render_scholarpath_mermaid",
     "route_after_supervisor_discovery",
     "route_after_evidence_sufficiency",
+    "select_tavily_fallback_queries",
     "run_scholarpath_graph",
     "select_alternate_official_source",
 ]

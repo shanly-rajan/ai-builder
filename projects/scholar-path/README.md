@@ -20,6 +20,11 @@ names as progress, presents Prospective and Verified Supervisors with evidence-b
 Research Fit details, and resumes the exact checkpointed thread after an explicit
 `approve`, `reject`, or `request_more` action.
 
+The bounded M11.2 repair improves live discovery completion without adding calls or
+weakening gates: incomplete affiliations are rejected or recovered from bounded context,
+the existing Tavily budget prioritizes queries that produced plausible You.com profiles,
+and five fixed privacy-safe rejection counts explain why raw results were excluded.
+
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
 graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. Unit and
@@ -50,7 +55,8 @@ See [current architecture](docs/architecture.md), the historical
 [M8 independent-review graph](docs/m8-independent-review-graph.mmd), the historical
 [M9 Candidate-review persistence graph](docs/m9-candidate-review-persistence-graph.mmd),
 the current [M10 Candidate-memory graph](docs/m10-candidate-preference-memory-graph.mmd),
-the [M11 Streamlit application boundary](docs/m11-streamlit-interface.mmd), and
+the [M11 Streamlit application boundary](docs/m11-streamlit-interface.mmd), the
+[M11.2 discovery-completion repair](docs/m11-2-discovery-completion-repair.mmd), and
 [canonical terminology](docs/terminology.md) for the current boundaries.
 
 ## M1 domain contracts
@@ -295,6 +301,42 @@ Discovery remains deterministic. The added title and snippet layouts improve rec
 real academic-profile results, while retention still requires a plausible person name,
 academic context, and institution. Availability and Research Fit remain later evidence
 boundaries.
+
+### M11.2 discovery-completion repair
+
+```mermaid
+flowchart LR
+    You[You.com attempts] --> Yield[Latest plausible count per query]
+    Yield --> Priority[Productive queries first; plan order breaks ties]
+    Priority --> Tavily[Existing four-call Tavily budget]
+    You --> Checks{Person + academic context + complete institution}
+    Tavily --> Checks
+    Checks -->|supported| Retain[Prospective Supervisor + provenance]
+    Checks -->|excluded| Reasons[Five fixed rejection counts]
+    Reasons --> UI[Streamlit]
+    Reasons --> Trace[LangSmith]
+```
+
+The live run motivating M11.2 returned 106 raw results but retained only four unique
+Prospective Supervisors. Two You.com queries were productive, while the four Tavily calls
+used the first four plan positions and found no additional plausible profiles. The repair
+keeps the minimum of five, four-call Tavily budget, retry bounds, providers, and downstream
+workflow unchanged. Fallback queries are now ordered by the latest current-round You.com
+plausible count, descending, with original `SearchPlan` order as the deterministic
+tie-breaker. If a local checkpoint already contains a current-round Tavily attempt,
+ranked queries not yet tried by Tavily consume the remaining budget before any repeat.
+
+Discovery rejects institution fragments ending in `and`, `at`, `for`, `of`, `the`, or
+`with`, then continues scanning bounded result context for a complete affiliation. For
+example, a title ending in `University of` can recover `University of East London` from
+the provider description; an incomplete-only result is excluded.
+
+Every successful M11.2 `SearchAttempt` stores aggregate counts for `person not
+established`, `academic context not established`, `identity conflict`, `institution not
+established`, and `incomplete institution`. The UI and trace receive only these counts and
+the existing provider/routing aggregates. Queries, Candidate content, names, URLs,
+snippets, raw results, page content, and secrets remain outside both projections. Older
+checkpoints remain readable and explicitly report that this newer breakdown is unavailable.
 
 ## M6 Supervisor evidence extraction and verification
 
@@ -630,7 +672,7 @@ To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_WORKSPACE_ID` only when the API key is scoped to more than one workspace.
 These values are loaded from `.env` and passed explicitly to the LangSmith client.
 `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag; the implementation
-supplies the fixed `graph-version:m11.1` tag. Disabling tracing does not construct a
+supplies the fixed `graph-version:m11.2` tag. Disabling tracing does not construct a
 LangSmith client, even if another process has globally enabled tracing.
 
 ### Run the Streamlit application locally
@@ -789,6 +831,21 @@ Expected result: `3 passed`. No provider key, network call, checkpoint file, or 
 used. The cases prove one bounded planning retry, six retained Prospective Supervisors
 from realistic fallback summaries, and accurate `40 raw -> 0 plausible -> 0 retained`
 diagnostics without exposing query or Candidate content.
+
+### 60-second M11.2 discovery-completion demonstration
+
+Run the bounded repair regressions without provider keys or network access:
+
+```bash
+pytest -o addopts='' -q \
+  tests/unit/agents/test_supervisor_discovery.py::test_incomplete_title_institution_falls_through_to_complete_bounded_context \
+  tests/graph/test_m5_resilient_discovery.py::test_tavily_budget_prioritizes_productive_you_query_slots \
+  tests/integration/test_streamlit_app.py::test_typed_discovery_rejection_breakdown_is_rendered_without_sensitive_content
+```
+
+Expected result: `3 passed`. The cases demonstrate complete-affiliation recovery,
+productive-query fallback ordering within the unchanged budget, and aggregate-only UI
+diagnostics. No provider, model, trace client, or external network is used.
 
 ## Quality and test commands
 

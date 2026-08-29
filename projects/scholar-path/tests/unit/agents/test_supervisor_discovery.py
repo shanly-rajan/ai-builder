@@ -16,6 +16,7 @@ from scholarpath.domain import (
     PlannedSearchQuery,
     SearchPlan,
     SearchResult,
+    SearchResultRejectionCounts,
     SearchSourceType,
     SupervisorLifecycleStatus,
 )
@@ -84,6 +85,7 @@ def test_valid_academic_profile_becomes_a_prospective_supervisor() -> None:
     assert discovery.result_count == 1
     assert discovery.plausible_supervisor_count == 1
     assert discovery.duplicate_result_count == 0
+    assert discovery.rejection_counts == SearchResultRejectionCounts()
     supervisor = discovery.prospective_supervisors[0]
     assert supervisor.full_name == "Dr Jane Doe"
     assert supervisor.institution == "Example University"
@@ -190,6 +192,7 @@ def test_conflicting_snippet_person_does_not_create_a_mixed_profile_identity() -
     discovery = SupervisorDiscoveryAgent().discover(_search_plan(), (result,))
 
     assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts.identity_conflict == 1
 
 
 def test_conflicting_snippet_person_excludes_a_non_profile_result() -> None:
@@ -215,6 +218,80 @@ def test_combined_role_and_institution_segment_is_normalized_to_institution() ->
     discovery = SupervisorDiscoveryAgent().discover(_search_plan(), (result,))
 
     assert discovery.prospective_supervisors[0].institution == "Example University"
+
+
+def test_incomplete_title_institution_falls_through_to_complete_bounded_context() -> None:
+    result = _result(
+        url="https://www.uel.ac.uk/about-uel/news/professor-nazrul-islam",
+        title="Professor Nazrul Islam | University of",
+        description=(
+            "Professor Nazrul Islam is Director of Research Degrees at the "
+            "University of East London."
+        ),
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), (result,))
+
+    assert len(discovery.prospective_supervisors) == 1
+    assert discovery.prospective_supervisors[0].full_name == "Professor Nazrul Islam"
+    assert discovery.prospective_supervisors[0].institution == "University of East London"
+
+
+@pytest.mark.parametrize("connector", ["and", "at", "for", "of", "the", "with"])
+def test_incomplete_institution_without_complete_context_is_excluded(connector: str) -> None:
+    result = _result(
+        url="https://example.edu/news/professor-nazrul-islam",
+        title=f"Professor Nazrul Islam | Example University {connector}",
+        description="Professor Nazrul Islam is an academic researcher.",
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), (result,))
+
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts.incomplete_institution == 1
+
+
+def test_discovery_records_each_privacy_safe_rejection_category() -> None:
+    results = (
+        _result(
+            url="https://example.edu/directory",
+            title="Staff Directory | Example University",
+            description="Research group directory.",
+        ),
+        _result(
+            url="https://example.edu/news/jane-doe",
+            title="Jane Doe | Example University",
+            description="University news.",
+        ),
+        _result(
+            url="https://example.edu/news/identity-conflict",
+            title="Jane Doe | Example University",
+            description="Academic staff profile.",
+            snippets=("Professor Alice Smith researches systems at Example University.",),
+        ),
+        _result(
+            url="https://example.org/profile/jane-doe",
+            title="Professor Jane Doe | Research profile",
+            description="Professor Jane Doe is an academic researcher.",
+        ),
+        _result(
+            url="https://example.edu/news/professor-nazrul-islam",
+            title="Professor Nazrul Islam | Example University of",
+            description="Professor Nazrul Islam is an academic researcher.",
+        ),
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), results)
+
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(
+        person_not_established=1,
+        academic_context_not_established=1,
+        identity_conflict=1,
+        institution_not_established=1,
+        incomplete_institution=1,
+    )
+    assert discovery.rejection_counts.total == discovery.result_count
 
 
 @pytest.mark.parametrize(
@@ -337,6 +414,11 @@ def test_structured_discovery_output_rejects_inconsistent_quality_counts(
 ) -> None:
     with pytest.raises(ValidationError):
         SupervisorDiscoveryResult.model_validate(counts)
+
+
+def test_structured_discovery_output_requires_all_results_to_be_accounted_for() -> None:
+    with pytest.raises(ValidationError, match="account for every result"):
+        SupervisorDiscoveryResult(result_count=1)
 
 
 def test_normalized_identity_and_canonical_url_duplicates_are_merged() -> None:

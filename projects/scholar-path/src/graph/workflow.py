@@ -120,6 +120,7 @@ from .discovery import (
     SearchAttempt,
     SupervisorDiscoveryRoute,
     route_after_supervisor_discovery,
+    select_tavily_fallback_queries,
 )
 from .fixtures import (
     WalkingSkeletonFixtures,
@@ -559,6 +560,7 @@ class DeterministicScholarPathNodes:
                 attempt.result_count,
                 attempt.plausible_supervisor_count,
                 attempt.error_category,
+                attempt.rejection_counts,
             )
             return outcome
 
@@ -621,6 +623,7 @@ class DeterministicScholarPathNodes:
             attempt_number=attempt_number,
             result_count=len(results),
             plausible_supervisor_count=discovery.plausible_supervisor_count,
+            rejection_counts=discovery.rejection_counts,
             discovery_round=discovery_round,
         )
         raw_results = [
@@ -830,23 +833,16 @@ class DeterministicScholarPathNodes:
             ]
             return update
 
-        current_attempts = [
-            attempt
-            for attempt in state["search_attempts"]
-            if attempt.discovery_round == state["discovery_round"]
-            and attempt.provider_used is SearchProvider.TAVILY
-        ]
-        remaining_budget = self.config.discovery_policy.maximum_tavily_fallback_count - len(
-            current_attempts
-        )
         raw_results: list[RawSupervisorSearchResult] = []
         attempts: list[SearchAttempt] = []
         errors: list[ToolErrorRecord] = []
-        planned_queries = search_plan.search_queries
-        for fallback_index in range(remaining_budget):
-            planned_query = planned_queries[
-                (len(current_attempts) + fallback_index) % len(planned_queries)
-            ]
+        planned_queries = select_tavily_fallback_queries(
+            search_plan.search_queries,
+            state["search_attempts"],
+            discovery_round=state["discovery_round"],
+            maximum_fallback_count=(self.config.discovery_policy.maximum_tavily_fallback_count),
+        )
+        for planned_query in planned_queries:
             query = planned_query.query
             attempt_number = self._attempt_number(
                 [*state["search_attempts"], *attempts],

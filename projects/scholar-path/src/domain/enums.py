@@ -51,6 +51,16 @@ class SearchSourceType(StrEnum):
     DOCTORAL_SUPERVISION_INFORMATION = "doctoral_supervision_information"
 
 
+class SearchResultRejectionCategory(StrEnum):
+    """Privacy-safe reasons a raw search result was not retained."""
+
+    PERSON_NOT_ESTABLISHED = "person_not_established"
+    ACADEMIC_CONTEXT_NOT_ESTABLISHED = "academic_context_not_established"
+    IDENTITY_CONFLICT = "identity_conflict"
+    INSTITUTION_NOT_ESTABLISHED = "institution_not_established"
+    INCOMPLETE_INSTITUTION = "incomplete_institution"
+
+
 class CandidateReviewAction(StrEnum):
     """Actions available to the Candidate at the human review gate."""
 

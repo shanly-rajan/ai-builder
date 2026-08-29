@@ -5,6 +5,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
+from scholarpath.domain import SearchResultRejectionCounts
 from scholarpath.graph import (
     CANONICAL_NODE_NAMES,
     ReviewStatus,
@@ -256,6 +257,7 @@ def test_discovery_diagnostics_expose_counts_but_drop_queries_and_result_content
     assert diagnostics.retained_prospective_supervisor_count == 0
     assert diagnostics.fallback_search_used is True
     assert diagnostics.route is UiDiscoveryRoute.STOPPED_RECOVERABLY
+    assert diagnostics.rejection_counts is None
     assert [attempt.provider for attempt in diagnostics.attempts] == [
         SearchProvider.YOU,
         SearchProvider.TAVILY,
@@ -265,3 +267,64 @@ def test_discovery_diagnostics_expose_counts_but_drop_queries_and_result_content
     assert "older private query" not in rendered
     assert "originating_query" not in rendered
     assert "raw_search_results" not in rendered
+
+
+def test_discovery_diagnostics_aggregate_typed_rejections_without_result_content() -> None:
+    fixtures = build_walking_skeleton_fixtures()
+    state = create_initial_state(fixtures.candidate_profile)
+    private_query = 'site:private.example "Sensitive Candidate topic"'
+    state["discovery_round"] = 1
+    state["search_attempts"] = [
+        SearchAttempt(
+            provider_used=SearchProvider.YOU,
+            query=private_query,
+            attempt_number=1,
+            result_count=6,
+            plausible_supervisor_count=2,
+            rejection_counts=SearchResultRejectionCounts(
+                person_not_established=1,
+                academic_context_not_established=1,
+                identity_conflict=1,
+                institution_not_established=1,
+            ),
+            discovery_round=1,
+        ),
+        SearchAttempt(
+            provider_used=SearchProvider.TAVILY,
+            query=private_query,
+            attempt_number=1,
+            result_count=5,
+            plausible_supervisor_count=1,
+            rejection_counts=SearchResultRejectionCounts(
+                person_not_established=1,
+                academic_context_not_established=1,
+                institution_not_established=1,
+                incomplete_institution=1,
+            ),
+            discovery_round=1,
+        ),
+    ]
+    state["fallback_search_used"] = True
+    state["fallback_search_round"] = 1
+
+    snapshot = project_graph_state_to_ui(
+        state,
+        checkpoint_token="checkpoint-typed-rejection-diagnostics",
+        review_payload=None,
+    )
+
+    diagnostics = snapshot.discovery_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.rejection_counts == SearchResultRejectionCounts(
+        person_not_established=2,
+        academic_context_not_established=2,
+        identity_conflict=1,
+        institution_not_established=2,
+        incomplete_institution=1,
+    )
+    assert diagnostics.rejection_counts.total == 8
+    assert all(attempt.rejection_counts is not None for attempt in diagnostics.attempts)
+    rendered = snapshot.model_dump_json()
+    assert private_query not in rendered
+    assert "Sensitive Candidate topic" not in rendered
+    assert "originating_query" not in rendered

@@ -7,6 +7,8 @@ from pydantic import ValidationError
 
 from scholarpath.domain import (
     SearchResult,
+    SearchResultRejectionCategory,
+    SearchResultRejectionCounts,
     SupervisorDiscoveryProvenance,
 )
 from tests.fixtures import make_prospective_supervisors
@@ -116,6 +118,40 @@ def test_search_result_rejects_malformed_provider_snippets(snippets: object) -> 
                 "originating_query": "responsible AI university profile",
             }
         )
+
+
+def test_search_result_rejection_counts_increment_combine_and_round_trip() -> None:
+    counts = SearchResultRejectionCounts().increment(
+        SearchResultRejectionCategory.PERSON_NOT_ESTABLISHED
+    )
+    combined = counts.combine(
+        SearchResultRejectionCounts(
+            academic_context_not_established=2,
+            identity_conflict=1,
+            institution_not_established=3,
+            incomplete_institution=4,
+        )
+    )
+
+    restored = SearchResultRejectionCounts.model_validate_json(combined.model_dump_json())
+
+    assert restored == combined
+    assert restored.total == 11
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"person_not_established": -1},
+        {"identity_conflict": 1.5},
+        {"unknown_reason": 1},
+    ],
+)
+def test_search_result_rejection_counts_reject_invalid_data(
+    payload: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError):
+        SearchResultRejectionCounts.model_validate(payload)
 
 
 def test_supervisor_discovery_provenance_rejects_duplicate_pairs() -> None:

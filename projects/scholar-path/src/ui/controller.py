@@ -14,6 +14,7 @@ from ..domain import (
     ProposedSupervisorRecommendation,
     ReconciledResearchFitAssessment,
     ResearchFitAssessment,
+    SearchResultRejectionCounts,
     SupervisorLifecycleStatus,
     VerifiedSupervisor,
 )
@@ -282,6 +283,7 @@ def _discovery_diagnostics(state: ScholarPathState) -> DiscoveryDiagnosticsView 
             attempt_number=attempt.attempt_number,
             raw_result_count=attempt.result_count,
             plausible_supervisor_count=attempt.plausible_supervisor_count,
+            rejection_counts=attempt.rejection_counts,
             error_category=attempt.error_category,
             route=(
                 UiDiscoveryRoute.FALLBACK
@@ -291,11 +293,21 @@ def _discovery_diagnostics(state: ScholarPathState) -> DiscoveryDiagnosticsView 
         )
         for attempt in current_attempts
     )
+    successful_attempts = tuple(attempt for attempt in attempts if attempt.error_category is None)
+    rejection_counts: SearchResultRejectionCounts | None = None
+    if successful_attempts and all(
+        attempt.rejection_counts is not None for attempt in successful_attempts
+    ):
+        rejection_counts = SearchResultRejectionCounts()
+        for attempt in successful_attempts:
+            if attempt.rejection_counts is not None:
+                rejection_counts = rejection_counts.combine(attempt.rejection_counts)
     return DiscoveryDiagnosticsView(
         attempts=attempts,
         raw_result_count=sum(item.raw_result_count for item in attempts),
         plausible_supervisor_count=sum(item.plausible_supervisor_count for item in attempts),
         retained_prospective_supervisor_count=len(state["prospective_supervisors"]),
+        rejection_counts=rejection_counts,
         fallback_search_used=any(item.route is UiDiscoveryRoute.FALLBACK for item in attempts),
         route=_discovery_route(state),
     )

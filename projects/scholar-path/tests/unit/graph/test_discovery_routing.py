@@ -3,15 +3,19 @@
 import pytest
 from pydantic import ValidationError
 
+from scholarpath.domain import SearchResultRejectionCounts
 from scholarpath.graph.discovery import (
     DiscoveryPolicy,
     DiscoveryStoppingCondition,
     DiscoveryTimeoutBehavior,
     SearchAttempt,
     SupervisorDiscoveryRoute,
+    prioritize_tavily_fallback_queries,
     route_after_supervisor_discovery,
+    select_tavily_fallback_queries,
 )
 from scholarpath.tools import SearchErrorCategory, SearchProvider
+from tests.fixtures import make_search_plan
 
 
 def _attempt(
@@ -66,12 +70,150 @@ def test_search_attempt_is_frozen_and_serializes_provider_audit_data() -> None:
         "attempt_number": 1,
         "result_count": 8,
         "plausible_supervisor_count": 6,
+        "rejection_counts": None,
         "error_category": None,
         "retryable": False,
         "discovery_round": 1,
     }
     with pytest.raises(ValidationError, match="frozen"):
         attempt.__setattr__("result_count", 9)
+
+
+def test_successful_search_attempt_persists_complete_rejection_taxonomy() -> None:
+    attempt = SearchAttempt(
+        provider_used=SearchProvider.YOU,
+        query="academic profile",
+        attempt_number=1,
+        result_count=10,
+        plausible_supervisor_count=4,
+        rejection_counts=SearchResultRejectionCounts(
+            person_not_established=2,
+            academic_context_not_established=1,
+            identity_conflict=1,
+            institution_not_established=1,
+            incomplete_institution=1,
+        ),
+        discovery_round=1,
+    )
+
+    assert attempt.rejection_counts is not None
+    assert attempt.rejection_counts.total == 6
+
+
+def test_legacy_search_attempt_without_rejection_taxonomy_still_deserializes() -> None:
+    attempt = SearchAttempt.model_validate(
+        {
+            "provider_used": "you.com",
+            "query": "academic profile",
+            "attempt_number": 1,
+            "result_count": 10,
+            "plausible_supervisor_count": 4,
+            "error_category": None,
+            "retryable": False,
+            "discovery_round": 1,
+        }
+    )
+
+    assert attempt.rejection_counts is None
+
+
+def test_successful_search_attempt_rejects_unaccounted_taxonomy() -> None:
+    with pytest.raises(ValidationError, match="account for every result"):
+        SearchAttempt(
+            provider_used=SearchProvider.YOU,
+            query="academic profile",
+            attempt_number=1,
+            result_count=10,
+            plausible_supervisor_count=4,
+            rejection_counts=SearchResultRejectionCounts(person_not_established=5),
+            discovery_round=1,
+        )
+
+
+def test_tavily_queries_prioritize_latest_current_round_you_yield_stably() -> None:
+    base_queries = make_search_plan().search_queries
+    planned_queries = tuple(
+        base_queries[index % len(base_queries)].model_copy(update={"query": f"query {index + 1}"})
+        for index in range(6)
+    )
+    attempts = (
+        _attempt(query="query 1", plausible_count=8, discovery_round=1),
+        _attempt(query="query 2", plausible_count=1, discovery_round=2),
+        _attempt(query="query 4", plausible_count=2, discovery_round=2),
+        _attempt(query="query 5", plausible_count=2, discovery_round=2),
+        _attempt(query="query 6", plausible_count=4, discovery_round=2),
+        _attempt(
+            query="query 6",
+            attempt_number=2,
+            result_count=8,
+            plausible_count=0,
+            discovery_round=2,
+        ),
+        _attempt(
+            provider=SearchProvider.TAVILY,
+            query="query 3",
+            plausible_count=7,
+            discovery_round=2,
+        ),
+    )
+
+    prioritized = prioritize_tavily_fallback_queries(
+        planned_queries,
+        attempts,
+        discovery_round=2,
+    )
+
+    assert tuple(item.query for item in prioritized) == (
+        "query 4",
+        "query 5",
+        "query 2",
+        "query 1",
+        "query 3",
+        "query 6",
+    )
+
+
+def test_resumed_tavily_selection_uses_ranked_untried_queries_before_repeats() -> None:
+    base_queries = make_search_plan().search_queries
+    planned_queries = tuple(
+        base_queries[index % len(base_queries)].model_copy(update={"query": f"query {index + 1}"})
+        for index in range(6)
+    )
+    attempts = (
+        _attempt(query="query 4", plausible_count=3, discovery_round=2),
+        _attempt(query="query 5", plausible_count=2, discovery_round=2),
+        _attempt(
+            provider=SearchProvider.TAVILY,
+            query="query 5",
+            plausible_count=0,
+            discovery_round=1,
+        ),
+        _attempt(
+            provider=SearchProvider.TAVILY,
+            query="query 4",
+            plausible_count=0,
+            discovery_round=2,
+        ),
+    )
+
+    selected = select_tavily_fallback_queries(
+        planned_queries,
+        attempts,
+        discovery_round=2,
+        maximum_fallback_count=4,
+    )
+
+    assert tuple(item.query for item in selected) == ("query 5", "query 1", "query 2")
+
+
+def test_tavily_selection_rejects_a_negative_fallback_limit() -> None:
+    with pytest.raises(ValueError, match="must not be negative"):
+        select_tavily_fallback_queries(
+            make_search_plan().search_queries,
+            (),
+            discovery_round=1,
+            maximum_fallback_count=-1,
+        )
 
 
 def test_response_contract_error_can_preserve_returned_result_count() -> None:

@@ -186,6 +186,26 @@ def _render_discovery_diagnostics(diagnostics: DiscoveryDiagnosticsView) -> None
     )
     st.write(f"Fallback search used: {'Yes' if diagnostics.fallback_search_used else 'No'}")
     st.write(f"Discovery route: {_humanize(diagnostics.route.value)}")
+    st.markdown("#### Why raw results were excluded")
+    if diagnostics.rejection_counts is None:
+        st.info(
+            "Rejection breakdown unavailable. One or more successful attempts may be from "
+            "an earlier persisted run without recorded category counts, or providers may "
+            "have failed before result filtering. ScholarPath does not infer zeros."
+        )
+    else:
+        rejection_counts = diagnostics.rejection_counts
+        st.caption(
+            f"Deterministic exclusion categories account for {rejection_counts.total} "
+            "raw provider results."
+        )
+        st.write(f"Person not established: {rejection_counts.person_not_established}")
+        st.write(
+            f"Academic context not established: {rejection_counts.academic_context_not_established}"
+        )
+        st.write(f"Identity conflict: {rejection_counts.identity_conflict}")
+        st.write(f"Institution not established: {rejection_counts.institution_not_established}")
+        st.write(f"Incomplete institution: {rejection_counts.incomplete_institution}")
     with st.expander("Provider attempts", expanded=False):
         for sequence, attempt in enumerate(diagnostics.attempts, start=1):
             error_category = (
@@ -197,6 +217,8 @@ def _render_discovery_diagnostics(diagnostics: DiscoveryDiagnosticsView) -> None
                 f"Attempt record {sequence}: {attempt.provider.value}; query attempt number "
                 f"{attempt.attempt_number}; {attempt.raw_result_count} raw results; "
                 f"{attempt.plausible_supervisor_count} plausible Supervisor profiles; "
+                "rejection categories recorded: "
+                f"{'Yes' if attempt.rejection_counts is not None else 'No'}; "
                 f"error category: {error_category}; route: {_humanize(attempt.route.value)}."
             )
 

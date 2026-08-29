@@ -27,6 +27,7 @@ def test_m4_boundaries_use_typed_structured_contracts() -> None:
         "result_count",
         "plausible_supervisor_count",
         "duplicate_result_count",
+        "rejection_counts",
     }
 
 

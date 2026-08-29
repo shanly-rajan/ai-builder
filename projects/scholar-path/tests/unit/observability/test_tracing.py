@@ -8,7 +8,7 @@ import pytest
 from pydantic import HttpUrl, SecretStr
 
 from scholarpath.config import Environment, LangSmithSettings
-from scholarpath.domain import ResearchFitRubric
+from scholarpath.domain import ResearchFitRubric, SearchResultRejectionCounts
 from scholarpath.graph import GraphFixtureConfig, build_scholarpath_graph
 from scholarpath.observability import (
     GRAPH_VERSION,
@@ -96,6 +96,13 @@ def test_discovery_metadata_contains_only_safe_aggregate_routing_facts() -> None
         Environment.TEST,
     )
     private_query = 'site:private.example "sensitive Candidate research"'
+    rejection_counts = SearchResultRejectionCounts(
+        person_not_established=2,
+        academic_context_not_established=1,
+        identity_conflict=1,
+        institution_not_established=2,
+        incomplete_institution=1,
+    )
     metadata = sanitize_trace_metadata(
         {
             **observability.discovery_attempt_metadata(
@@ -105,6 +112,7 @@ def test_discovery_metadata_contains_only_safe_aggregate_routing_facts() -> None
                 plausible_supervisor_count=3,
                 error_category=None,
                 fallback_search_used=False,
+                rejection_counts=rejection_counts,
             ),
             "query": private_query,
             "candidate_id": "candidate-private-001",
@@ -121,6 +129,11 @@ def test_discovery_metadata_contains_only_safe_aggregate_routing_facts() -> None
         "attempt_number": 2,
         "raw_result_count": 10,
         "plausible_supervisor_count": 3,
+        "rejected_person_not_established_count": 2,
+        "rejected_academic_context_not_established_count": 1,
+        "rejected_identity_conflict_count": 1,
+        "rejected_institution_not_established_count": 2,
+        "rejected_incomplete_institution_count": 1,
         "error_category": "none",
         "fallback_search_used": False,
         "discovery_route": "primary",
@@ -169,7 +182,18 @@ def test_discovery_attempt_span_uses_empty_payloads_and_safe_final_metadata(
         attempt_number=1,
         fallback_search_used=False,
     ) as complete:
-        complete(8, 2, None)
+        complete(
+            8,
+            2,
+            None,
+            SearchResultRejectionCounts(
+                person_not_established=1,
+                academic_context_not_established=1,
+                identity_conflict=1,
+                institution_not_established=2,
+                incomplete_institution=1,
+            ),
+        )
 
     assert captured["name"] == "you.com_supervisor_search_attempt"
     assert captured["inputs"] == {}
@@ -181,7 +205,36 @@ def test_discovery_attempt_span_uses_empty_payloads_and_safe_final_metadata(
         plausible_supervisor_count=2,
         error_category=None,
         fallback_search_used=False,
+        rejection_counts=SearchResultRejectionCounts(
+            person_not_established=1,
+            academic_context_not_established=1,
+            identity_conflict=1,
+            institution_not_established=2,
+            incomplete_institution=1,
+        ),
     )
+
+
+def test_discovery_metadata_uses_zero_rejection_counts_for_failed_or_legacy_attempts() -> None:
+    observability = LangSmithObservability(
+        LangSmithSettings(tracing=False),
+        Environment.TEST,
+    )
+
+    metadata = observability.discovery_attempt_metadata(
+        provider=SearchProvider.TAVILY,
+        attempt_number=1,
+        raw_result_count=0,
+        plausible_supervisor_count=0,
+        error_category=None,
+        fallback_search_used=True,
+    )
+
+    assert metadata["rejected_person_not_established_count"] == 0
+    assert metadata["rejected_academic_context_not_established_count"] == 0
+    assert metadata["rejected_identity_conflict_count"] == 0
+    assert metadata["rejected_institution_not_established_count"] == 0
+    assert metadata["rejected_incomplete_institution_count"] == 0
 
 
 def test_planning_node_receives_only_the_sanitized_observability_metadata() -> None:

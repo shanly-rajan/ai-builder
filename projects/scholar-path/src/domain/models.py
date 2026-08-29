@@ -27,6 +27,7 @@ from .enums import (
     IndependentReviewDecision,
     IndependentReviewFailureKind,
     IndependentReviewStatus,
+    SearchResultRejectionCategory,
     SearchSourceType,
     SourceKind,
     SupervisorLifecycleStatus,
@@ -235,6 +236,46 @@ class SearchResult(DomainModel):
             if len(snippets) == 5:
                 break
         return tuple(snippets)
+
+
+class SearchResultRejectionCounts(DomainModel):
+    """Aggregate exclusion counts that retain no result or Candidate content."""
+
+    person_not_established: Annotated[int, Field(strict=True, ge=0)] = 0
+    academic_context_not_established: Annotated[int, Field(strict=True, ge=0)] = 0
+    identity_conflict: Annotated[int, Field(strict=True, ge=0)] = 0
+    institution_not_established: Annotated[int, Field(strict=True, ge=0)] = 0
+    incomplete_institution: Annotated[int, Field(strict=True, ge=0)] = 0
+
+    @property
+    def total(self) -> int:
+        """Return the number of raw results excluded by deterministic discovery."""
+        return (
+            self.person_not_established
+            + self.academic_context_not_established
+            + self.identity_conflict
+            + self.institution_not_established
+            + self.incomplete_institution
+        )
+
+    def increment(self, category: SearchResultRejectionCategory) -> Self:
+        """Return a validated copy with one deterministic category incremented."""
+        field_name = category.value
+        return self.model_copy(update={field_name: getattr(self, field_name) + 1})
+
+    def combine(self, other: SearchResultRejectionCounts) -> Self:
+        """Return the field-wise sum of two aggregate rejection records."""
+        return self.__class__(
+            person_not_established=(self.person_not_established + other.person_not_established),
+            academic_context_not_established=(
+                self.academic_context_not_established + other.academic_context_not_established
+            ),
+            identity_conflict=self.identity_conflict + other.identity_conflict,
+            institution_not_established=(
+                self.institution_not_established + other.institution_not_established
+            ),
+            incomplete_institution=(self.incomplete_institution + other.incomplete_institution),
+        )
 
 
 class SupervisorDiscoveryProvenance(DomainModel):

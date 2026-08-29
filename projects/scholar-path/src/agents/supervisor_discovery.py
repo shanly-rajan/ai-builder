@@ -14,6 +14,8 @@ from ..domain import (
     ProspectiveSupervisor,
     SearchPlan,
     SearchResult,
+    SearchResultRejectionCategory,
+    SearchResultRejectionCounts,
     SupervisorDiscoveryProvenance,
 )
 
@@ -134,6 +136,7 @@ _NON_INSTITUTION_ACRONYM_SUFFIXES = {
     "staff",
     "team",
 }
+_DANGLING_INSTITUTION_SUFFIXES = {"and", "at", "for", "of", "the", "with"}
 
 
 class SupervisorDiscoveryResult(BaseModel):
@@ -150,6 +153,9 @@ class SupervisorDiscoveryResult(BaseModel):
     result_count: int = Field(default=0, ge=0)
     plausible_supervisor_count: int = Field(default=0, ge=0)
     duplicate_result_count: int = Field(default=0, ge=0)
+    rejection_counts: SearchResultRejectionCounts = Field(
+        default_factory=SearchResultRejectionCounts
+    )
 
     @model_validator(mode="after")
     def quality_counts_are_consistent(self) -> SupervisorDiscoveryResult:
@@ -161,6 +167,10 @@ class SupervisorDiscoveryResult(BaseModel):
         unique_count = self.plausible_supervisor_count - self.duplicate_result_count
         if len(self.prospective_supervisors) != unique_count:
             raise ValueError("prospective_supervisors must match the unique quality count")
+        if self.rejection_counts.total + self.plausible_supervisor_count != self.result_count:
+            raise ValueError(
+                "rejection_counts and plausible_supervisor_count must account for every result"
+            )
         return self
 
 
@@ -316,8 +326,9 @@ def _is_plausible_acronym_institution(value: str) -> bool:
 
 
 def _has_plausible_institution_suffix(value: str) -> bool:
-    """Reject search-result page labels that merely contain an institution keyword."""
-    return value.rsplit(maxsplit=1)[-1].casefold() not in _NON_INSTITUTION_ACRONYM_SUFFIXES
+    """Reject page labels and truncated institution phrases using their final token."""
+    suffix = value.rsplit(maxsplit=1)[-1].casefold()
+    return suffix not in (_NON_INSTITUTION_ACRONYM_SUFFIXES | _DANGLING_INSTITUTION_SUFFIXES)
 
 
 def _is_context_supported_two_letter_institution(value: str, context: str) -> bool:
@@ -358,7 +369,11 @@ def _contextual_academic_names(context: str) -> tuple[str, ...]:
     return tuple(names)
 
 
-def _extract_name(result: SearchResult, title_segments: tuple[str, ...]) -> str | None:
+def _extract_name(
+    result: SearchResult,
+    title_segments: tuple[str, ...],
+) -> tuple[str | None, SearchResultRejectionCategory | None]:
+    """Return a supported person identity or one privacy-safe rejection category."""
     title_name: str | None = None
     title_has_academic_prefix = False
     for segment in title_segments:
@@ -380,26 +395,47 @@ def _extract_name(result: SearchResult, title_segments: tuple[str, ...]) -> str 
     contextual_names = _contextual_academic_names(context)
     if title_name is not None:
         if title_has_academic_prefix:
-            return title_name
+            return title_name, None
         normalized_title = _normalized_identity_text(title_name, remove_title=True)
         if any(
             _normalized_identity_text(name, remove_title=True) != normalized_title
             for name in contextual_names
         ):
-            return None
+            return None, SearchResultRejectionCategory.IDENTITY_CONFLICT
         if contextual_names or any(
             _ACADEMIC_ROLE_PATTERN.search(segment) for segment in title_segments[1:]
         ):
-            return title_name
+            return title_name, None
         if _SINGULAR_PERSON_PROFILE_URL_PATTERN.search(
             str(result.url)
         ) and _UNNAMED_ACADEMIC_ROLE_PATTERN.search(context):
-            return title_name
+            return title_name, None
+        return None, SearchResultRejectionCategory.ACADEMIC_CONTEXT_NOT_ESTABLISHED
 
     if contextual_names:
-        return contextual_names[0]
+        return contextual_names[0], None
 
-    return None
+    return None, SearchResultRejectionCategory.PERSON_NOT_ESTABLISHED
+
+
+def _has_incomplete_institution_fragment(
+    result: SearchResult,
+    title_segments: tuple[str, ...],
+) -> bool:
+    """Detect a truncated affiliation without retaining or exposing its text."""
+    possible_fragments = (*title_segments, *re.split(r"[.;,|]", _result_context(result)))
+    for fragment in possible_fragments:
+        normalized = _clean_institution_segment(fragment).strip()
+        if not normalized:
+            continue
+        has_institution_signal = bool(
+            _STRONG_INSTITUTION_PATTERN.search(normalized) or _SCHOOL_PATTERN.search(normalized)
+        )
+        if has_institution_signal and normalized.rsplit(maxsplit=1)[-1].casefold() in (
+            _DANGLING_INSTITUTION_SUFFIXES
+        ):
+            return True
+    return False
 
 
 def _extract_institution(
@@ -521,6 +557,7 @@ class SupervisorDiscoveryAgent:
         planned_queries = {item.query for item in search_plan.search_queries}
         result_items = tuple(search_results)
         prospective: list[ProspectiveSupervisor] = []
+        rejection_counts = SearchResultRejectionCounts()
         for result in result_items:
             if result.originating_query not in planned_queries:
                 raise ValueError("SearchResult originating query is not present in SearchPlan")
@@ -529,16 +566,28 @@ class SupervisorDiscoveryAgent:
                 for segment in _TITLE_SPLIT_PATTERN.split(result.title)
                 if segment.strip()
             )
-            full_name = _extract_name(result, title_segments)
+            full_name, rejection_category = _extract_name(result, title_segments)
             if full_name is None:
+                if rejection_category is None:
+                    raise RuntimeError("A missing person identity requires a rejection category")
+                rejection_counts = rejection_counts.increment(rejection_category)
                 continue
             if full_name.casefold().startswith(("dr ", "dr. ")) and not _has_academic_context(
                 result,
                 title_segments,
             ):
+                rejection_counts = rejection_counts.increment(
+                    SearchResultRejectionCategory.ACADEMIC_CONTEXT_NOT_ESTABLISHED
+                )
                 continue
             institution = _extract_institution(result, title_segments, full_name)
             if institution is None:
+                institution_category = (
+                    SearchResultRejectionCategory.INCOMPLETE_INSTITUTION
+                    if _has_incomplete_institution_fragment(result, title_segments)
+                    else SearchResultRejectionCategory.INSTITUTION_NOT_ESTABLISHED
+                )
+                rejection_counts = rejection_counts.increment(institution_category)
                 continue
             department = _extract_department(title_segments, institution)
             source_url = str(result.url)
@@ -568,4 +617,5 @@ class SupervisorDiscoveryAgent:
             result_count=len(result_items),
             plausible_supervisor_count=len(prospective),
             duplicate_result_count=len(prospective) - len(unique_supervisors),
+            rejection_counts=rejection_counts,
         )

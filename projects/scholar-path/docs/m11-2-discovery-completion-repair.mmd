@@ -1,0 +1,24 @@
+flowchart LR
+    Plan[SearchPlan in stable order] --> You[You.com attempts]
+    You --> Extract{Deterministic discovery checks}
+    Extract -->|supported| Prospective[Prospective Supervisor + exact provenance]
+    Extract -->|excluded| Taxonomy[Five fixed rejection counts]
+
+    You --> Yield[Latest current-round plausible count per query]
+    Yield --> Priority[Sort descending yield then original plan order]
+    Priority --> Tavily[Tavily fallback: existing four-call budget]
+    Tavily --> Extract
+
+    Prospective --> Dedupe[Deterministic deduplication]
+    Dedupe --> Gate{At least five unique?}
+    Gate -->|yes| Evidence[Existing evidence workflow]
+    Gate -->|no, budget exhausted| Stop[Recoverable discovery_incomplete]
+
+    Taxonomy --> Attempt[Typed SearchAttempt]
+    Attempt --> UI[Streamlit aggregate diagnostics]
+    Attempt --> Trace[LangSmith empty-payload span metadata]
+
+    classDef external fill:#e8f1ff,stroke:#245a9b;
+    class You,Tavily,Trace external;
+    classDef unchanged fill:#f5f5f5,stroke:#666,stroke-dasharray: 4 3;
+    class Gate,Evidence,Stop unchanged;

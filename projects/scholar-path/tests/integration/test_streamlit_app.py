@@ -11,6 +11,7 @@ from streamlit.testing.v1 import AppTest
 
 import scholarpath.ui.app as ui_app
 import scholarpath.ui.dependencies as ui_dependencies
+from scholarpath.domain import SearchResultRejectionCounts
 from scholarpath.graph import (
     CandidateApproveResponse,
     CandidateRejectResponse,
@@ -316,11 +317,84 @@ def test_zero_retained_results_show_accurate_privacy_safe_discovery_diagnostics(
     ]
     assert "Fallback search used: Yes" in rendered
     assert "Discovery route: Stopped recoverably" in rendered
+    assert "Why raw results were excluded" in rendered
+    assert "Rejection breakdown unavailable" in rendered
+    assert "earlier persisted run without recorded category counts" in rendered
+    assert "does not infer zeros" in rendered
     assert "Search providers returned 40 raw results" in rendered
     assert "none passed the plausible person-and-institution checks" in rendered
     assert "partial results" not in rendered.casefold()
     assert "Legacy partial-results wording" not in rendered
     assert "private query" not in rendered
+
+
+def test_typed_discovery_rejection_breakdown_is_rendered_without_sensitive_content(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rejection_counts = SearchResultRejectionCounts(
+        person_not_established=2,
+        academic_context_not_established=1,
+        identity_conflict=1,
+        institution_not_established=2,
+        incomplete_institution=1,
+    )
+    diagnostics = DiscoveryDiagnosticsView(
+        attempts=(
+            DiscoveryAttemptView(
+                provider=SearchProvider.YOU,
+                attempt_number=1,
+                raw_result_count=9,
+                plausible_supervisor_count=2,
+                rejection_counts=rejection_counts,
+                route=UiDiscoveryRoute.PRIMARY,
+            ),
+        ),
+        raw_result_count=9,
+        plausible_supervisor_count=2,
+        retained_prospective_supervisor_count=2,
+        rejection_counts=rejection_counts,
+        fallback_search_used=False,
+        route=UiDiscoveryRoute.STOPPED_RECOVERABLY,
+    )
+    snapshot = UiRunSnapshot(
+        stage=UiStage.STOPPED,
+        checkpoint_token="ui-rejection-breakdown-checkpoint",
+        progress_events=(
+            GraphProgressEvent(sequence=1, node_name="discover_prospective_supervisors"),
+        ),
+        discovery_diagnostics=diagnostics,
+        errors=(
+            RecoverableUiError(
+                code="supervisor_discovery_incomplete",
+                message="The search stopped safely.",
+                recoverable=True,
+            ),
+        ),
+    )
+    service = FakeScholarPathApplication(start_snapshot=snapshot)
+    _configure_ui_dependencies(monkeypatch, service)
+    app_test = _new_app()
+
+    _submit_candidate_profile(app_test)
+
+    rendered = "\n".join(
+        (
+            *(item.value for item in app_test.markdown),
+            *(item.value for item in app_test.info),
+            *(item.value for item in app_test.caption),
+        )
+    )
+    assert not app_test.exception
+    assert "Why raw results were excluded" in rendered
+    assert "Deterministic exclusion categories account for 7 raw provider results" in rendered
+    assert "Person not established: 2" in rendered
+    assert "Academic context not established: 1" in rendered
+    assert "Identity conflict: 1" in rendered
+    assert "Institution not established: 2" in rendered
+    assert "Incomplete institution: 1" in rendered
+    assert "Rejection breakdown unavailable" not in rendered
+    assert "private query" not in rendered
+    assert "Candidate research statement" not in rendered
 
 
 def test_verified_supervisor_evidence_and_review_fields_are_rendered(

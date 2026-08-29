@@ -1,8 +1,8 @@
 """Optional LangSmith tracing with privacy-safe metadata."""
 
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from typing import Final
+from typing import Final, Protocol
 
 from langchain_core.runnables import RunnableConfig
 from langsmith import Client, trace, tracing_context
@@ -14,11 +14,25 @@ from ..agents.prompts import (
     RESEARCH_PLANNING_PROMPT_VERSION,
 )
 from ..config import Environment, LangSmithSettings
+from ..domain import SearchResultRejectionCounts
 from ..tools.supervisor_search import SearchErrorCategory, SearchProvider
 
-GRAPH_VERSION: Final = "m11.1"
+GRAPH_VERSION: Final = "m11.2"
 type TraceScalar = str | int | float | bool
-type DiscoveryTraceCompletion = Callable[[int, int, SearchErrorCategory | None], None]
+
+
+class DiscoveryTraceCompletion(Protocol):
+    """Complete one discovery span with privacy-safe aggregate counts only."""
+
+    def __call__(
+        self,
+        raw_result_count: int,
+        plausible_supervisor_count: int,
+        error_category: SearchErrorCategory | None,
+        rejection_counts: SearchResultRejectionCounts | None = None,
+    ) -> None: ...
+
+
 SAFE_TRACE_METADATA_KEYS: Final = (
     "application",
     "environment",
@@ -30,6 +44,11 @@ SAFE_TRACE_METADATA_KEYS: Final = (
     "attempt_number",
     "raw_result_count",
     "plausible_supervisor_count",
+    "rejected_person_not_established_count",
+    "rejected_academic_context_not_established_count",
+    "rejected_identity_conflict_count",
+    "rejected_institution_not_established_count",
+    "rejected_incomplete_institution_count",
     "error_category",
     "fallback_search_used",
     "discovery_route",
@@ -142,8 +161,10 @@ class LangSmithObservability:
         plausible_supervisor_count: int,
         error_category: SearchErrorCategory | None,
         fallback_search_used: bool,
+        rejection_counts: SearchResultRejectionCounts | None = None,
     ) -> dict[str, TraceScalar]:
         """Build aggregate per-attempt metadata with all search content omitted."""
+        safe_rejection_counts = rejection_counts or SearchResultRejectionCounts()
         return sanitize_trace_metadata(
             {
                 **self.discovery_node_metadata(
@@ -153,6 +174,19 @@ class LangSmithObservability:
                 "attempt_number": attempt_number,
                 "raw_result_count": raw_result_count,
                 "plausible_supervisor_count": plausible_supervisor_count,
+                "rejected_person_not_established_count": (
+                    safe_rejection_counts.person_not_established
+                ),
+                "rejected_academic_context_not_established_count": (
+                    safe_rejection_counts.academic_context_not_established
+                ),
+                "rejected_identity_conflict_count": (safe_rejection_counts.identity_conflict),
+                "rejected_institution_not_established_count": (
+                    safe_rejection_counts.institution_not_established
+                ),
+                "rejected_incomplete_institution_count": (
+                    safe_rejection_counts.incomplete_institution
+                ),
                 "error_category": (error_category.value if error_category is not None else "none"),
             }
         )
@@ -171,8 +205,9 @@ class LangSmithObservability:
             raw_result_count: int,
             plausible_supervisor_count: int,
             error_category: SearchErrorCategory | None,
+            rejection_counts: SearchResultRejectionCounts | None = None,
         ) -> None:
-            del raw_result_count, plausible_supervisor_count, error_category
+            del raw_result_count, plausible_supervisor_count, error_category, rejection_counts
 
         if not self._settings.tracing:
             yield no_op_completion
@@ -199,6 +234,7 @@ class LangSmithObservability:
                 raw_result_count: int,
                 plausible_supervisor_count: int,
                 error_category: SearchErrorCategory | None,
+                rejection_counts: SearchResultRejectionCounts | None = None,
             ) -> None:
                 nonlocal completed
                 completed = True
@@ -211,6 +247,7 @@ class LangSmithObservability:
                         plausible_supervisor_count=plausible_supervisor_count,
                         error_category=error_category,
                         fallback_search_used=fallback_search_used,
+                        rejection_counts=rejection_counts,
                     ),
                 )
 

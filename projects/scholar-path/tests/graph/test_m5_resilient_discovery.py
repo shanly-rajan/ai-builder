@@ -5,6 +5,7 @@ from typing import cast
 import pytest
 from pydantic import SecretStr
 
+from scholarpath.agents import PlanningSearchQueryResponse
 from scholarpath.config import (
     ApplicationSettings,
     DiscoveryFailureMode,
@@ -15,6 +16,7 @@ from scholarpath.config import (
 from scholarpath.domain import (
     CandidatePreferenceRevision,
     SearchResult,
+    SearchSourceType,
 )
 from scholarpath.graph import (
     CandidateApproveResponse,
@@ -81,13 +83,14 @@ def _run(
     *,
     policy: DiscoveryPolicy | None = None,
     failure_mode: DiscoveryFailureMode = DiscoveryFailureMode.OFF,
+    planning_model: FakePlanningModel | None = None,
 ) -> ScholarPathState:
     return _as_state(
         run_scholarpath_graph(
             GraphFixtureConfig(discovery_policy=policy or DiscoveryPolicy()),
             thread_id="legacy-m5-discovery",
             candidate_review_responses=(_approval_response(),),
-            planning_model=FakePlanningModel(),
+            planning_model=planning_model or FakePlanningModel(),
             candidate_preference_memory=FakeCandidatePreferenceMemory(),
             supervisor_search=you_search,
             tavily_search=tavily_search,
@@ -116,6 +119,17 @@ def test_successful_you_route_does_not_call_tavily() -> None:
     assert {attempt.provider_used for attempt in final_state["search_attempts"]} == {
         SearchProvider.YOU
     }
+    successful_attempts = tuple(
+        attempt for attempt in final_state["search_attempts"] if attempt.error_category is None
+    )
+    assert successful_attempts
+    assert all(attempt.rejection_counts is not None for attempt in successful_attempts)
+    assert all(
+        attempt.rejection_counts is not None
+        and attempt.rejection_counts.total + attempt.plausible_supervisor_count
+        == attempt.result_count
+        for attempt in successful_attempts
+    )
 
 
 def test_realistic_fallback_summaries_reach_downstream_evidence_processing() -> None:
@@ -312,6 +326,55 @@ def test_empty_you_results_route_to_tavily() -> None:
     assert final_state["fallback_search_used"] is True
     assert len(final_state["prospective_supervisors"]) >= 5
     assert final_state["review_status"] is ReviewStatus.COMPLETED
+
+
+def test_tavily_budget_prioritizes_productive_you_query_slots() -> None:
+    base_response = make_valid_planning_response()
+    extra_queries = (
+        PlanningSearchQueryResponse(
+            query="enterprise systems academic expertise university",
+            purpose="Find additional official academic profiles.",
+            target_source_types=[SearchSourceType.OFFICIAL_UNIVERSITY_PROFILE],
+        ),
+        PlanningSearchQueryResponse(
+            query="responsible technology faculty research centre",
+            purpose="Find additional department and research-group profiles.",
+            target_source_types=[SearchSourceType.DEPARTMENT_OR_RESEARCH_GROUP],
+        ),
+    )
+    planned_response = type(base_response).model_validate(
+        {
+            **base_response.model_dump(),
+            "search_queries": [*base_response.search_queries, *extra_queries],
+        }
+    )
+    queries = tuple(item.query for item in planned_response.search_queries)
+    fixture_results = tuple(
+        result for batch in make_fake_search_outcomes().values() for result in batch
+    )
+    you_outcomes: dict[str, tuple[SearchResult, ...]] = {query: () for query in queries}
+    you_outcomes[queries[3]] = tuple(
+        result.model_copy(update={"originating_query": queries[3]})
+        for result in fixture_results[:2]
+    )
+    you_outcomes[queries[4]] = tuple(
+        result.model_copy(update={"originating_query": queries[4]})
+        for result in fixture_results[2:4]
+    )
+    you_search = FakeSupervisorSearch(you_outcomes)
+    tavily_search = FakeSupervisorSearch({query: () for query in queries})
+
+    final_state = _run(
+        you_search,
+        tavily_search,
+        policy=DiscoveryPolicy(maximum_tavily_fallback_count=4),
+        planning_model=FakePlanningModel((planned_response,)),
+    )
+
+    assert tavily_search.calls == [queries[3], queries[4], queries[0], queries[1]]
+    assert len(tavily_search.calls) == 4
+    assert len(final_state["prospective_supervisors"]) == 4
+    assert final_state["review_status"] is ReviewStatus.DISCOVERY_INCOMPLETE
 
 
 def test_duplicate_heavy_you_results_route_to_tavily() -> None:
