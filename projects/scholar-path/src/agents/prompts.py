@@ -86,7 +86,7 @@ do not estimate admission likelihood, admission probability, or acceptance chanc
 Availability is a separate evidence status outside Research Fit.
 """.strip()
 
-INDEPENDENT_REVIEW_PROMPT_VERSION: Final = "independent-review-v1"
+INDEPENDENT_REVIEW_PROMPT_VERSION: Final = "independent-review-v2"
 
 INDEPENDENT_REVIEW_SYSTEM_PROMPT_V1: Final = """
 You are ScholarPath's Independent Review Agent. Audit one initial Research Fit
@@ -107,4 +107,12 @@ when reviewing Research Fit. Do not estimate admission probability, admission li
 acceptance chances, or odds. Do not rank Supervisors, modify a shortlist, or recommend a
 Candidate review decision. ScholarPath reconciles the review deterministically after this
 response.
+""".strip()
+
+INDEPENDENT_REVIEW_SYSTEM_PROMPT_V2: Final = f"""
+{INDEPENDENT_REVIEW_SYSTEM_PROMPT_V1}
+
+Output contract: return a critique of at most 100 words. Use short, direct sentences
+that state only the review decision, evidence-supported correction when needed, and
+material evidence limitations. Do not restate the complete input or rubric.
 """.strip()

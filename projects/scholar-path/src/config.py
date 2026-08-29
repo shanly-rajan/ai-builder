@@ -262,7 +262,7 @@ class NebiusReviewSettings(BaseSettings):
     )
 
     api_key: Annotated[SecretStr | None, Field(repr=False)] = None
-    review_model: str = "Qwen/Qwen3-235B-A22B"
+    review_model: str = "Qwen/Qwen3-235B-A22B-Instruct-2507"
     endpoint: HttpUrl = HttpUrl("https://api.tokenfactory.nebius.com/v1/")
     review_timeout_seconds: float = Field(default=60.0, gt=0)
 

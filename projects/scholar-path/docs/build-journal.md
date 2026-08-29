@@ -1431,3 +1431,80 @@ is unavailable, and updates proposal order without crossing the Candidate approv
   explicit `evidence_claims` input contract do not duplicate evidence tokens on the wire.
 - Evaluate false-positive rates for the deliberately conservative availability-inference
   prose guard, especially for Candidates whose research topic is doctoral supervision.
+
+## Milestone M8 live-validation repair: current Nebius inference model
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Repair the M8 live Nebius smoke path after the configured base model returned `404`,
+without changing the provider-neutral review port, deterministic reconciliation, or any
+other workflow node.
+
+### Prompt used
+
+The archived M8 prompt remains
+[`docs/prompts/m8-independent-research-fit-review-nebius.md`](prompts/m8-independent-research-fit-review-nebius.md).
+This repair was triggered by the Candidate-provided live-test traceback reporting that
+`Qwen/Qwen3-235B-A22B` did not exist at the configured inference endpoint.
+
+### Files changed
+
+- Updated the deferred Nebius review-model default in `src/config.py`, `.env.example`,
+  and `README.md` to the model ID returned by the authenticated `/v1/models` catalog.
+- Preserved `independent-review-v1` and added `independent-review-v2`, which explicitly
+  limits critique output to at most 100 words and prevents unnecessary input restatement.
+- Updated the adapter, public agent exports, observability expectations, architecture,
+  generated Mermaid snapshot, configuration tests, and M8 contract assertions.
+- Updated only the non-secret model value in the ignored local `.env`; the API token was
+  neither printed nor added to version control.
+
+### Tests added or updated
+
+- Updated the configuration unit test to lock the current inference-model default.
+- Updated the M8 contract test to lock the new model, prompt version, and explicit
+  critique-length instruction.
+- Updated observability coverage to lock `independent-review-v2` trace metadata.
+
+### Test results
+
+- Authenticated Nebius model discovery succeeded against the official read-only
+  `/v1/models` endpoint without exposing the token.
+- The first replacement-model probe reached structured output but correctly failed local
+  validation because its critique exceeded 120 words; this motivated the v2 prompt.
+- The repaired guarded live test passed: `1 passed in 2.98s`.
+- `venv/bin/ruff format --check .`: all 134 Python files formatted.
+- `venv/bin/ruff check --no-cache .`: all lint checks passed.
+- `venv/bin/mypy src tests`: no issues in 109 source files.
+- `venv/bin/pytest -q`: 714 non-live tests passed, six live tests were deselected, 43
+  terminology subtests passed, and combined statement/branch coverage was 91.07 percent.
+- `git diff --check` passed.
+
+### Assumptions
+
+- Nebius's authenticated model-list endpoint is the runtime source of truth for model
+  availability; documentation can include fine-tuning models that are not exposed for
+  serverless inference.
+- `Qwen/Qwen3-235B-A22B-Instruct-2507` remains environment-overridable so an operator can
+  migrate again without changing business logic.
+- A 100-word prompt limit intentionally leaves safety margin beneath the immutable
+  120-word domain validator.
+
+### Lessons learned
+
+- Authentication and endpoint correctness can be distinguished from model availability:
+  a provider `404` after a valid request proves the first two boundaries are working.
+- Strict JSON Schema guarantees response shape, but semantic validators such as word
+  counts still require explicit prompt instructions and ordinary-code validation.
+- Live provider smoke tests catch model-catalog drift that deterministic default tests
+  must never discover through network calls.
+
+### Remaining debt
+
+- Add a read-only operational preflight that checks the configured model against the
+  provider catalog before a full graph run, while keeping default tests offline.
+- Evaluate a lower-cost Nebius model against the same review-quality and structured-output
+  contract before changing the production default.
+- Add a scheduled live compatibility check outside the default CI gate so provider model
+  retirement is detected before an interactive run.

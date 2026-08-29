@@ -81,7 +81,7 @@ def test_observability_adds_environment_and_graph_version_without_secrets() -> N
     assert independent_review_metadata == {
         **observability.graph_metadata,
         "component": "independent_review_agent",
-        "prompt_version": "independent-review-v1",
+        "prompt_version": "independent-review-v2",
     }
     assert raw_api_key not in json.dumps(observability.planning_node_metadata)
     assert raw_api_key not in json.dumps(observability.evidence_node_metadata)

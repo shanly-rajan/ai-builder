@@ -277,7 +277,7 @@ def test_nebius_review_settings_defer_credentials_until_model_is_requested(
     settings = load_nebius_review_settings()
 
     assert settings.api_key is None
-    assert settings.review_model == "Qwen/Qwen3-235B-A22B"
+    assert settings.review_model == "Qwen/Qwen3-235B-A22B-Instruct-2507"
     assert str(settings.endpoint) == "https://api.tokenfactory.nebius.com/v1/"
     assert settings.review_timeout_seconds == 60.0
     with pytest.raises(ProviderConfigurationError, match="provider 'nebius'"):

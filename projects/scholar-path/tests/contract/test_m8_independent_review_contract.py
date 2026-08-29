@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from scholarpath.agents import (
     INDEPENDENT_REVIEW_PROMPT_VERSION,
+    INDEPENDENT_REVIEW_SYSTEM_PROMPT_V2,
     IndependentReviewModelPort,
     IndependentReviewResult,
 )
@@ -21,7 +22,8 @@ def test_review_output_and_fake_satisfy_the_provider_neutral_contract() -> None:
 
     assert callable(model.review)
     assert issubclass(IndependentReviewResult, BaseModel)
-    assert INDEPENDENT_REVIEW_PROMPT_VERSION == "independent-review-v1"
+    assert INDEPENDENT_REVIEW_PROMPT_VERSION == "independent-review-v2"
+    assert "critique of at most 100 words" in INDEPENDENT_REVIEW_SYSTEM_PROMPT_V2
     assert "research_fit_review_records" in ScholarPathState.__required_keys__
 
 
@@ -62,7 +64,7 @@ def test_nebius_adapter_uses_strict_structured_output_and_configured_endpoint() 
     assert "api.tokenfactory.nebius.com" not in adapter_source
     assert "Qwen/Qwen3-235B-A22B" not in adapter_source
     assert "https://api.tokenfactory.nebius.com/v1/" in config_source
-    assert 'review_model: str = "Qwen/Qwen3-235B-A22B"' in config_source
+    assert 'review_model: str = "Qwen/Qwen3-235B-A22B-Instruct-2507"' in config_source
 
 
 def test_m8_environment_prompt_diagram_live_test_and_journal_are_recorded() -> None:
@@ -78,7 +80,7 @@ def test_m8_environment_prompt_diagram_live_test_and_journal_are_recorded() -> N
     assert "IndependentReviewModelPort" in journal
     assert prompt_name in journal
     assert "NEBIUS_API_KEY=" in environment_example
-    assert "NEBIUS_REVIEW_MODEL=Qwen/Qwen3-235B-A22B" in environment_example
+    assert "NEBIUS_REVIEW_MODEL=Qwen/Qwen3-235B-A22B-Instruct-2507" in environment_example
     assert "NEBIUS_ENDPOINT=https://api.tokenfactory.nebius.com/v1/" in environment_example
     live_source = live_test.read_text(encoding="utf-8")
     assert "@pytest.mark.live" in live_source
