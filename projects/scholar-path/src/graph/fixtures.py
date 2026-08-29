@@ -14,7 +14,6 @@ from ..domain import (
     EvidenceConfidence,
     ResearchFitAssessment,
     ResearchFitBreakdown,
-    SearchPlan,
     SourceKind,
     VerifiedSupervisor,
     validate_research_fit_evidence,
@@ -137,7 +136,6 @@ class WalkingSkeletonFixtures:
     """Complete immutable fixture bundle injected into deterministic graph nodes."""
 
     candidate_profile: CandidateProfile
-    search_plan: SearchPlan
     raw_search_results: tuple[RawSupervisorSearchResult, ...]
     verified_supervisors: tuple[VerifiedSupervisor, ...]
     research_fit_assessments: tuple[ResearchFitAssessment, ...]
@@ -162,19 +160,6 @@ def _candidate_profile() -> CandidateProfile:
         preferred_research_orientation="applied",
         methodological_interests=("design science", "comparative case study", "mixed methods"),
         exclusions=("fully residential programmes",),
-    )
-
-
-def _search_plan() -> SearchPlan:
-    return SearchPlan(
-        search_queries=_DISCOVERY_QUERIES[:3],
-        expanded_research_concepts=(
-            "enterprise design",
-            "AI assurance",
-            "sociotechnical transformation",
-        ),
-        target_regions=("South Africa", "United Kingdom", "Netherlands"),
-        rationale="Combine the Candidate's core topics with adjacent research concepts.",
     )
 
 
@@ -361,7 +346,6 @@ def build_walking_skeleton_fixtures() -> WalkingSkeletonFixtures:
     )
     return WalkingSkeletonFixtures(
         candidate_profile=_candidate_profile(),
-        search_plan=_search_plan(),
         raw_search_results=tuple(_raw_search_result(index) for index in range(1, 9)),
         verified_supervisors=verified,
         research_fit_assessments=assessments,
@@ -370,7 +354,7 @@ def build_walking_skeleton_fixtures() -> WalkingSkeletonFixtures:
 
 
 def default_review_decision() -> CandidateReviewDecision:
-    """Return the configured approval used by the default CLI fixture path."""
+    """Return the configured approval used by the default fixture-backed review path."""
     return CandidateReviewDecision(
         action=CandidateReviewAction.APPROVE,
         supervisor_ids=(

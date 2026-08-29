@@ -1,9 +1,87 @@
-# ScholarPath M2 Architecture
+# ScholarPath M3 Architecture
 
-M2 connects the M1 domain contracts through a deterministic LangGraph walking
-skeleton. All 15 nodes use local fixtures, conditional routing is ordinary Python,
-and explicit counters terminate every retry loop. There is still no model, search
-provider, memory service, live API, LangSmith tracing configuration, or web interface.
+M3 retains the M2 typed LangGraph walking skeleton and replaces only
+`plan_supervisor_searches`. That node now delegates to a Research Planning Agent
+through an injected `PlanningModelPort`. The production adapter uses OpenAI native
+structured output without tools or web access; every downstream node remains
+fixture-backed. Optional LangSmith observability traces the graph and planning node.
+
+Search providers, evidence retrieval, Research Fit calculation, Candidate interaction,
+memory, and the web interface remain outside M3.
+
+## Research-planning boundary
+
+```mermaid
+flowchart LR
+    Profile[CandidateProfile] --> Map[Deterministic input mapping]
+    Preferences[Remembered Candidate preferences] --> Map
+    Regions[Target regions + exclusions] --> Map
+    Map --> Input[Identity-free PlanningInput]
+    Input --> Agent[ResearchPlanningAgent]
+    Agent --> Port{{PlanningModelPort}}
+    Port --> Fake[FakePlanningModel]
+    Port --> OpenAI[OpenAIPlanningModelAdapter]
+    OpenAI --> Native[ChatOpenAI native JSON schema]
+    Native --> DTO[StructuredSearchPlanResponse]
+    Fake --> DTO
+    DTO --> Domain[Deterministic domain SearchPlan]
+
+    classDef boundary fill:#e8f1ff,stroke:#245a9b,stroke-width:2px;
+    class Port,OpenAI,Native boundary;
+```
+
+`PlanningModelPort` isolates model execution from orchestration and domain logic.
+Default tests inject a deterministic fake, while `run_scholarpath_graph()` lazily
+constructs `OpenAIPlanningModelAdapter` only when no model was injected. Merely
+importing ScholarPath or compiling the topology never validates an OpenAI key.
+
+The adapter composes the versioned `research-planning-v1` system prompt with
+`ChatOpenAI.with_structured_output(StructuredSearchPlanResponse,
+method="json_schema", strict=True)`. It does not bind tools, grant web access, or parse
+JSON from prose. OpenAI produces the provider DTO; the agent then constructs the
+stricter domain contract.
+
+```mermaid
+flowchart TD
+    DTO[Strict structured-output DTO] --> Count{4–8 queries?}
+    Count -->|no| Invalid[Invalid model output]
+    Count -->|yes| Unique{Normalized queries distinct?}
+    Unique -->|no| Invalid
+    Unique -->|yes| Coverage{All four source types covered?}
+    Coverage -->|no| Invalid
+    Coverage -->|yes| Plan[Validated SearchPlan]
+    Constraints[Typed Candidate target regions] --> Plan
+```
+
+Each query contains its purpose and intended source types. Across the plan, source
+coverage must include official university profiles, department or research-group
+pages, recent publication evidence, and explicit doctoral-supervision information.
+Pydantic and ordinary Python enforce these rules; the model does not validate,
+deduplicate, route, or perform arithmetic. Candidate target regions are copied from
+typed input so model output cannot silently change that constraint.
+
+## Planning failure policy
+
+```mermaid
+flowchart TD
+    Call[Planning model call] --> Result{Outcome}
+    Result -->|valid DTO| Plan[Store SearchPlan]
+    Result -->|malformed output, first attempt| Retry[Retry once]
+    Retry --> Result2{Second outcome}
+    Result2 -->|valid DTO| Plan
+    Result2 -->|malformed output| Invalid[Record planning_output_invalid]
+    Result -->|provider/invocation failure| Failed[Record planning_model_failed]
+    Invalid --> Stop[Set retry_exhausted and route to END]
+    Failed --> Stop
+    Plan --> Discovery[Continue to discovery]
+```
+
+Malformed structured output receives one explicit retry, for at most two planning
+calls. Provider failures are not retried. The OpenAI client is configured with
+`max_retries=0`, avoiding hidden retries that would obscure latency and cost. Error
+records use fixed sanitized messages rather than provider exception text. Planning
+failure terminates before discovery, so no stale or absent SearchPlan can drive the
+workflow.
 
 ## Walking-skeleton orchestration
 
@@ -11,11 +89,12 @@ provider, memory service, live API, LangSmith tracing configuration, or web inte
 flowchart TD
     START([START]) --> Load[load_candidate_preferences]
     Load --> Plan[plan_supervisor_searches]
-    Plan --> Discover[discover_prospective_supervisors]
+    Plan -->|validated SearchPlan| Discover[discover_prospective_supervisors]
+    Plan -->|planning failure| END([END])
     Discover --> Found[enough_supervisors_found]
     Found -->|enough| Dedupe[deduplicate_supervisors]
     Found -->|insufficient| Fallback[fallback_supervisor_search]
-    Found -->|exhausted| END([END])
+    Found -->|exhausted| END
     Fallback --> Found
     Dedupe --> Extract[extract_supervisor_evidence]
     Extract --> Evidence[supervisor_evidence_sufficient]
@@ -36,10 +115,10 @@ flowchart TD
     class Gate human;
 ```
 
-The graph-derived Mermaid source is preserved in
-[`docs/m2-walking-skeleton.mmd`](m2-walking-skeleton.mmd). A contract test compares the
-complete normalized artifact with `compiled_graph.get_graph().draw_mermaid()` so
-documentation drift is detected offline.
+The original graph-derived M2 Mermaid source remains at
+[`docs/m2-walking-skeleton.mmd`](m2-walking-skeleton.mmd) as the walking-skeleton
+baseline. M3 adds the conditional planning-success edge shown above; all downstream
+routing remains unchanged.
 
 ## Typed state and reducer policy
 
@@ -89,11 +168,53 @@ The LangGraph recursion limit remains defense-in-depth. It is not the workflow's
 termination mechanism. Fixture configuration caps each retry budget at five and derives
 a recursion guard above the maximum valid configured path.
 
+The planning agent's malformed-output retry is intentionally separate from graph retry
+state: it repairs one model-boundary format failure before the node returns. A terminal
+planning error enters graph state and follows the explicit planning-to-END edge.
+
+## Optional LangSmith observability
+
+```mermaid
+flowchart LR
+    Env[LANGSMITH_TRACING] --> Scope{Tracing enabled?}
+    Scope -->|false| Disabled[tracing_context enabled=false]
+    Scope -->|true| Key[Validate LANGSMITH_API_KEY]
+    Key --> Client[LangSmith Client hides inputs + outputs]
+    Client --> Root[scholarpath_graph trace]
+    Root --> Node[plan_supervisor_searches child trace]
+    Root --> Other[Other LangGraph node traces]
+    Tags[environment:* + graph-version:m3] --> Root
+    Metadata[Allowlisted metadata] --> Root
+    Metadata --> Node
+```
+
+Tracing is scoped to one graph invocation with `langsmith.tracing_context`. Disabled
+execution explicitly uses `enabled=False` and does not construct a LangSmith client.
+Enabled execution validates the key at activation, sends traces to
+`LANGSMITH_PROJECT`, flushes them, and closes the client.
+
+Graph tags are `environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m3`. The
+planning node additionally records its component and prompt version. Metadata passes a
+fixed scalar allowlist only:
+
+- `application`
+- `environment`
+- `graph_version`
+- `component`
+- `prompt_version`
+
+Candidate identifiers, names, email addresses, API keys, full research statements,
+and arbitrary caller metadata cannot enter that allowlist. The LangSmith client also
+uses `hide_inputs=True` and `hide_outputs=True`, preventing graph state and the model
+prompt—including the full research statement required for planning—from being recorded
+as trace payloads.
+
 ## Domain contract flow
 
 ```mermaid
 flowchart LR
-    CP[CandidateProfile] --> SP[SearchPlan]
+    CP[CandidateProfile] --> RP[ResearchPlanningAgent]
+    RP --> SP[SearchPlan]
     SP -->|fixture discovery| PS[ProspectiveSupervisor]
     EC[EvidenceClaim collection] --> VERIFY{Evidence sufficient?}
     PS --> VERIFY
@@ -110,9 +231,10 @@ flowchart LR
     class CR human;
 ```
 
-M1 defines the payloads on these boundaries. M2 exercises them with deterministic
-fixture data but still does not calculate scores, perform live discovery, or present a
-review interface.
+M1 defines the core payloads on these boundaries. M3 generates `SearchPlan` through the
+typed model boundary and exercises every later boundary with deterministic fixture
+data. It still does not calculate scores, perform live discovery, or present a review
+interface.
 
 ## Verification boundary
 
@@ -154,8 +276,10 @@ terminal status from a bare status flag.
 flowchart TB
     ENV[Environment variables] --> CFG[ApplicationSettings]
     CFG --> DEFAULTS[Safe non-secret defaults]
-    CFG -->|Only when explicitly requested| PC[ProviderConfiguration]
-    PC -. future typed boundary .-> ADAPTER[Provider adapter]
+    OAIENV[OPENAI_*] --> OAICFG[OpenAIPlanningSettings]
+    OAICFG -->|Only when adapter requested| OAIADAPTER[OpenAI planning adapter]
+    LSENV[LANGSMITH_*] --> LSCFG[LangSmithSettings]
+    LSCFG -->|Only when tracing enabled| LSCLIENT[LangSmith client]
 
     subgraph Package boundaries
         DOMAIN[domain]
@@ -168,10 +292,11 @@ flowchart TB
     end
 ```
 
-Importing `scholarpath` does not instantiate settings or validate credentials.
-`ApplicationSettings` loads non-secret defaults and optional secrets. A future provider
-adapter must call `for_provider()` during its own construction, which activates
-provider-specific credential validation at that boundary.
+Importing `scholarpath` does not instantiate providers or validate credentials.
+`ApplicationSettings` supplies application defaults, while provider-specific settings
+use the canonical `OPENAI_*` and `LANGSMITH_*` variables. OpenAI validation occurs only
+when `for_planning_model()` is requested. LangSmith validation occurs only when tracing
+is enabled and its activation scope begins.
 
 ## Dependency direction
 
@@ -181,17 +306,22 @@ flowchart LR
     CLI[cli] --> GRAPH
     GRAPH --> LANGGRAPH[LangGraph and LangChain Core]
     GRAPH --> DOMAIN[domain]
-    GRAPH -. future delegation .-> AGENTS[agents]
+    GRAPH --> AGENTS[ResearchPlanningAgent]
+    AGENTS --> PORT[PlanningModelPort]
+    PORT --> OPENAI[LangChain OpenAI adapter]
     AGENTS --> DOMAIN
-    AGENTS --> TOOLS[tools protocols]
+    AGENTS -. no M3 dependency .-> TOOLS[tools]
     MEMORY[memory] --> DOMAIN
-    OBS[observability] -. observes .-> GRAPH
+    OBS[LangSmith observability] --> GRAPH
+    OBS --> LANGSMITH[LangSmith]
     CONFIG[config] -. configuration .-> UI
-    CONFIG -. configuration .-> TOOLS
+    CONFIG --> OPENAI
+    CONFIG --> OBS
 ```
 
-Solid arrows include implemented M2 dependencies; dashed arrows remain future-facing.
-Domain rules stay independent of LangGraph, provider SDKs, and user-interface code.
+Solid arrows include implemented M3 dependencies; the dashed tools edge emphasizes
+that the planner cannot search. Domain rules stay independent of LangGraph, provider
+SDKs, tracing, and user-interface code.
 
 ## Physical package layout
 
@@ -215,9 +345,13 @@ src/
 ├── py.typed
 ├── domain/
 ├── agents/
+│   ├── openai_planning.py
+│   ├── prompts.py
+│   └── research_planning.py
 ├── graph/
 ├── memory/
 ├── observability/
+│   └── tracing.py
 ├── tools/
 └── ui/
 ```
@@ -225,26 +359,74 @@ src/
 Strict editable installation materializes this logical mapping for runtime and static
 analysis while source files remain in the flattened structure.
 
-## M2 quality boundaries
+## Operational trade-offs and NFRs
 
-| Concern | M2 control |
+| Concern | M3 decision | Trade-off or remaining risk |
+|---|---|---|
+| Latency | One OpenAI call on the happy path; at most two for malformed output; 60-second configurable timeout | Candidate refinement invokes planning again; provider failure currently ends the run |
+| Cost | Only the planning node uses a model; all later nodes remain fixtures | One extra model charge is possible for malformed output and for each rejection or `request_more` refinement cycle |
+| Failover | One bounded malformed-output retry; fixed error and clean END on failure | No alternate model/provider fallback yet; retrying invocation failures could amplify outages and cost |
+| Security | Secrets use environment variables and `SecretStr`; trace metadata is allowlisted; trace inputs and outputs are hidden | The full statement must still be sent to OpenAI to plan effectively; provider data-governance review remains necessary |
+| Reliability | Native strict structured output is converted through a stricter domain contract | Schema or model-version changes require adapter contract tests and prompt-version governance |
+| Scalability | Planning is stateless behind a port and graph state remains typed | Concurrency, rate limiting, backpressure, and provider quotas are not yet managed |
+| Observability | Optional graph/node traces carry environment, graph, component, and prompt versions | The LangSmith service is not contacted when disabled; evaluation datasets and alerting are deferred |
+| Determinism | Input mapping, validation, uniqueness, source coverage, routing, and retry arithmetic stay in Python | Expanded concepts and query wording remain probabilistic in live OpenAI runs |
+
+## M3 quality boundaries
+
+| Concern | M3 control |
 |---|---|
 | Packaging | Flattened physical `src/` mapped to the `scholarpath` namespace |
 | Configuration | Pydantic settings with deferred secret validation |
 | Data contracts | Frozen Pydantic models reject unknown fields and invalid values |
 | Provenance | Each evidence claim carries source URL, kind, retrieval time, and confidence |
-| Determinism | Validation, deduplication, sorting, routing, retry arithmetic, and transitions use ordinary Python logic |
+| Planning | Injected model port; versioned prompt; native structured output; no tools or search |
+| Determinism | Validation, query uniqueness, source coverage, deduplication, sorting, routing, retry arithmetic, and transitions use ordinary Python logic |
 | Human authority | Terminal records retain the matching Candidate review decision |
-| Network isolation | Default pytest selection excludes tests marked `live` |
-| Orchestration | LangGraph coordinates typed fixture-backed nodes without a model or live tool |
-| Termination | Discovery, evidence, and review loops have explicit maximum retry counts |
+| Network isolation | Default pytest selection excludes `live`; fakes replace OpenAI in non-live tests |
+| Orchestration | LangGraph coordinates one model-backed planning node and 14 fixture-backed nodes |
+| Termination | Planning failure has an END edge; discovery, evidence, and review loops have explicit retry limits |
+| Observability | Scoped optional LangSmith graph/node traces with safe tags, allowlisted metadata, and hidden inputs |
 | Quality | Ruff formatting/linting, strict mypy, pytest, and branch coverage |
 | Automation | Path-scoped GitHub Actions workflow on Python 3.12 |
 | Secrets | Environment variables, `SecretStr`, ignored `.env`, and sanitized errors |
 
-## Deferred beyond M2
+## Runtime and verification commands
 
-- Agent implementations or model SDKs
+From `projects/scholar-path`:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]" --config-settings editable_mode=strict
+cp .env.example .env
+
+ruff format --check .
+ruff check .
+mypy src tests
+pytest -m "not live"
+```
+
+The live CLI requires `OPENAI_API_KEY` in `.env` or the process environment:
+
+```bash
+python -m scholarpath.cli
+```
+
+The optional smoke test requires both credential and explicit opt-in:
+
+```bash
+export OPENAI_API_KEY="your-openai-key"
+SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_openai_planning_live.py
+```
+
+Optional tracing uses the exact variables `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`,
+and `LANGSMITH_PROJECT`. The OpenAI planning adapter additionally recognizes
+`OPENAI_PLANNING_MODEL` and `OPENAI_PLANNING_TIMEOUT_SECONDS`.
+
+## Deferred beyond M3
+
 - Search clients and evidence retrieval
 - Research Fit calculation policy and ranking
 - Source authority, freshness, and conflict-resolution policy
@@ -252,4 +434,5 @@ analysis while source files remain in the flattened structure.
 - Preference-only `request_more` refinement currently replays the same synthetic cohort
 - Streamlit user experience
 - Preference-memory services
-- LangSmith runtime tracing
+- Alternate planning-provider failover, rate limiting, and circuit breaking
+- LangSmith evaluation datasets, scoring, dashboards, and alerting

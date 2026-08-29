@@ -21,6 +21,7 @@ from .enums import (
     CandidateReviewAction,
     EvidenceClaimType,
     EvidenceConfidence,
+    SearchSourceType,
     SourceKind,
     SupervisorLifecycleStatus,
     VerificationStatus,
@@ -68,13 +69,48 @@ class CandidateProfile(DomainModel):
     exclusions: tuple[NonEmptyString, ...] = ()
 
 
-class SearchPlan(DomainModel):
-    """Deterministic search inputs prepared from a Candidate profile."""
+class PlannedSearchQuery(DomainModel):
+    """One executable query plus its purpose and intended evidence sources."""
 
-    search_queries: tuple[NonEmptyString, ...] = Field(min_length=1)
+    query: NonEmptyString
+    purpose: NonEmptyString
+    target_source_types: tuple[SearchSourceType, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def target_source_types_must_be_unique(self) -> Self:
+        """Prevent duplicated source categories within one planned query."""
+        if len(self.target_source_types) != len(set(self.target_source_types)):
+            raise ValueError("Target source types must be unique within a search query")
+        return self
+
+
+class SearchPlan(DomainModel):
+    """Validated, executable search strategy prepared from Candidate interests."""
+
+    search_queries: tuple[PlannedSearchQuery, ...] = Field(min_length=4, max_length=8)
     expanded_research_concepts: tuple[NonEmptyString, ...] = Field(min_length=1)
     target_regions: tuple[NonEmptyString, ...] = ()
     rationale: NonEmptyString
+
+    @model_validator(mode="after")
+    def queries_must_be_distinct_and_cover_required_sources(self) -> Self:
+        """Enforce distinct queries and complete source-category coverage."""
+        normalized_queries = [
+            " ".join(search.query.casefold().split()) for search in self.search_queries
+        ]
+        if len(normalized_queries) != len(set(normalized_queries)):
+            raise ValueError("Search queries must be distinct")
+
+        covered_sources = {
+            source_type
+            for search in self.search_queries
+            for source_type in search.target_source_types
+        }
+        missing_sources = set(SearchSourceType) - covered_sources
+        if missing_sources:
+            missing_values = ", ".join(sorted(item.value for item in missing_sources))
+            raise ValueError(f"Search plan is missing target source types: {missing_values}")
+        return self
 
 
 class SupervisorProfile(DomainModel):

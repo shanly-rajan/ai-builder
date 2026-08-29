@@ -1,11 +1,20 @@
-"""Command-line demonstration for the deterministic ScholarPath graph."""
+"""Command-line demonstration for the ScholarPath graph."""
 
+from .agents import PlanningModelPort
+from .config import ProviderConfigurationError
 from .graph import ReviewStatus, run_scholarpath_graph
 
 
-def main() -> int:
-    """Run the happy-path fixture graph and print five Shortlisted Supervisors."""
-    final_state = run_scholarpath_graph()
+def main(planning_model: PlanningModelPort | None = None) -> int:
+    """Run the graph and print five Shortlisted Supervisors."""
+    try:
+        if planning_model is None:
+            final_state = run_scholarpath_graph()
+        else:
+            final_state = run_scholarpath_graph(planning_model=planning_model)
+    except ProviderConfigurationError:
+        print("OpenAI planning is not configured. Set OPENAI_API_KEY and try again.")
+        return 2
     shortlist = final_state["supervisor_shortlist"]
     if shortlist is None or final_state["review_status"] is not ReviewStatus.COMPLETED:
         print("ScholarPath did not produce a completed Supervisor shortlist.")

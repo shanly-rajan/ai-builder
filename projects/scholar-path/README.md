@@ -8,20 +8,23 @@ intended to replace hours of fragmented searching across university profiles and
 academic publications with an evidence-backed, human-controlled workflow.
 
 The system plans searches, discovers Prospective Supervisors, verifies supporting
-evidence, evaluates Research Fit, and learns from Candidate feedback. It uses six
-planned platform integrations while retaining a Candidate approval gate before any
-Supervisor is shortlisted or any outreach is drafted.
+evidence, evaluates Research Fit, and learns from Candidate feedback. It introduces
+platform integrations incrementally while retaining a Candidate approval gate before
+any Supervisor is shortlisted or any outreach is drafted.
 
 ## Project status
 
-Milestone M2 adds a deterministic LangGraph walking skeleton over the M1 domain
-contracts. The complete discovery, evidence, Research Fit, review, and shortlist flow
-now runs from START to END using typed state, fixture-backed nodes, conditional edges,
-append reducers, and bounded retries.
+Milestone M3 replaces only `plan_supervisor_searches` with an injected Research
+Planning Agent. Its OpenAI adapter uses native structured output to create a typed
+search strategy; it has no tools and cannot browse. The remaining discovery,
+verification, Research Fit, review, and shortlist nodes stay deterministic and
+fixture-backed.
 
-No model, search provider, memory service, live API, LangSmith tracing configuration,
-or Streamlit interface is implemented yet. The Candidate review gate is an explicitly
-configured fixture stub rather than a user interface.
+Baseline LangSmith tracing is optional. When enabled, it traces the graph and planning
+node with fixed environment and graph-version tags, allowlisted metadata, and hidden
+trace inputs and outputs. The Candidate review gate remains a configured fixture stub rather than
+a user interface. Search providers, memory, Streamlit, and other model-backed agents
+are not implemented yet.
 
 ## M0 foundation
 
@@ -34,8 +37,9 @@ configured fixture stub rather than a user interface.
 | Quality gates | Ruff, strict mypy, pytest, branch coverage, and GitHub Actions |
 | Network policy | Default and CI tests exclude tests marked `live` |
 
-See [M2 architecture](docs/architecture.md), the
-[generated graph](docs/m2-walking-skeleton.mmd), and
+See [current architecture](docs/architecture.md), the historical
+[M2 generated graph](docs/m2-walking-skeleton.mmd), the current
+[M3 generated graph](docs/m3-research-planning-graph.mmd), and
 [canonical terminology](docs/terminology.md) for the current boundaries.
 
 ## M1 domain contracts
@@ -70,17 +74,18 @@ verified = make_verified_supervisors()  # 6 records
 assessments = make_research_fit_assessments()  # 5 records
 ```
 
-## M2 deterministic walking skeleton
+## M2 walking skeleton, extended in M3
 
 ```mermaid
 flowchart TD
     START([START]) --> Load[load_candidate_preferences]
     Load --> Plan[plan_supervisor_searches]
-    Plan --> Discover[discover_prospective_supervisors]
+    Plan -->|validated SearchPlan| Discover[discover_prospective_supervisors]
+    Plan -->|planning failure| END([END])
     Discover --> Found[enough_supervisors_found]
     Found -->|enough| Dedupe[deduplicate_supervisors]
     Found -->|insufficient and retries remain| Fallback[fallback_supervisor_search]
-    Found -->|retry exhausted| END([END])
+    Found -->|retry exhausted| END
     Fallback --> Found
     Dedupe --> Extract[extract_supervisor_evidence]
     Extract --> Evidence[supervisor_evidence_sufficient]
@@ -98,10 +103,58 @@ flowchart TD
     Brief --> END
 ```
 
-The default path yields five ranked, evidence-backed records. Rejection and
+The successful path yields five ranked, evidence-backed records. Rejection and
 `request_more` return to planning only while the explicit review retry budget remains.
 Discovery and evidence retries follow the same bounded rule, so the graph never relies
 on LangGraph's recursion limit for normal termination.
+
+## M3 Research Planning Agent
+
+```mermaid
+flowchart LR
+    State[CandidateProfile + remembered preferences] --> Input[Identity-free PlanningInput]
+    Input --> Agent[ResearchPlanningAgent]
+    Agent --> Port[PlanningModelPort]
+    Port --> Fake[FakePlanningModel in default tests]
+    Port --> Adapter[OpenAIPlanningModelAdapter]
+    Adapter --> Native[ChatOpenAI native JSON-schema output]
+    Native --> DTO[StructuredSearchPlanResponse]
+    Fake --> DTO
+    DTO --> Validate{Deterministic validation}
+    Validate -->|valid| Plan[Domain SearchPlan]
+    Validate -->|malformed first response| Port
+    Validate -->|malformed twice| Error[tool_errors + END]
+
+    classDef external fill:#e8f1ff,stroke:#245a9b;
+    class Adapter,Native external;
+```
+
+The versioned `research-planning-v1` system prompt requires four to eight distinct
+queries whose combined targets cover official university profiles, department or
+research-group pages, recent publications, and explicit doctoral-supervision
+information. Each query carries its purpose and intended source types.
+
+The adapter calls `ChatOpenAI.with_structured_output` with `method="json_schema"` and
+`strict=True`; ScholarPath never parses important output from prose. A provider DTO is
+converted into the stricter domain `SearchPlan`, where ordinary Python and Pydantic
+enforce query count, normalized uniqueness, source coverage, and non-empty fields.
+Candidate target regions are copied from typed input rather than rewritten by the
+model.
+
+A malformed structured response receives exactly one bounded retry. OpenAI invocation
+failure, or a second malformed response, creates a sanitized planning error and routes
+to END before discovery. The OpenAI client has `max_retries=0`, so there are no hidden
+SDK retries beyond ScholarPath's explicit policy.
+
+The port is the substitution seam:
+
+```python
+final_state = run_scholarpath_graph(planning_model=fake_planning_model)
+```
+
+Default tests inject `FakePlanningModel`; they never instantiate OpenAI or use the
+network. Calling `run_scholarpath_graph()` without an injected model lazily creates the
+OpenAI adapter and validates `OPENAI_API_KEY` at that boundary.
 
 ## Setup
 
@@ -116,9 +169,37 @@ python -m pip install -e ".[dev]" --config-settings editable_mode=strict
 cp .env.example .env
 ```
 
-No API key is required to install the package, import `scholarpath`, or run the default
-non-live test suite. The copied `.env` contains non-secret defaults only and is ignored
-by Git.
+No API key is required to install the package, import `scholarpath`, render the graph,
+or run the default non-live test suite. The copied `.env` contains placeholders only
+and is ignored by Git. An OpenAI key is validated only when the OpenAI planning adapter
+is instantiated.
+
+### Provider configuration
+
+Set these variables in the ignored `.env` before running the live CLI:
+
+```dotenv
+OPENAI_API_KEY=your-openai-key
+OPENAI_PLANNING_MODEL=gpt-5.4-mini
+OPENAI_PLANNING_TIMEOUT_SECONDS=60
+```
+
+`OPENAI_API_KEY` is required for a live planning run. The model and timeout shown are
+the current non-secret defaults.
+
+LangSmith is optional and disabled by default:
+
+```dotenv
+LANGSMITH_TRACING=false
+LANGSMITH_API_KEY=
+LANGSMITH_PROJECT=scholarpath
+```
+
+To trace a live run, set `LANGSMITH_TRACING=true` and provide
+`LANGSMITH_API_KEY`. `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag;
+the implementation supplies the fixed `graph-version:m3` tag. Disabling tracing does
+not construct a LangSmith client, even if another process has globally enabled
+tracing.
 
 ### Editor interpreter
 
@@ -141,15 +222,16 @@ python -m pip check
 python -c "import scholarpath; print(scholarpath.__version__)"
 ```
 
-Run the offline graph demonstration:
+Run the live graph demonstration after configuring OpenAI:
 
 ```bash
 python -m scholarpath.cli
 ```
 
-It executes the configured approval path and prints the final five Shortlisted
-Supervisors with their fixture Research Fit Scores. It requires no API keys or network
-access.
+It uses OpenAI only for research planning, then executes the remaining fixture-backed
+approval path and prints the final five Shortlisted Supervisors with their fixture
+Research Fit Scores. If OpenAI is not configured, the CLI exits cleanly with setup
+guidance.
 
 ## Quality and test commands
 
@@ -164,6 +246,16 @@ pytest -m "not live"
 
 The pytest configuration collects `tests/`, excludes live tests by default, measures
 branch coverage for `scholarpath`, and requires at least 90 percent coverage.
+
+The optional OpenAI smoke test requires both an exported key and explicit opt-in:
+
+```bash
+export OPENAI_API_KEY="your-openai-key"
+SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_openai_planning_live.py
+```
+
+Without either condition, the live test skips. `-o addopts=''` deliberately overrides
+the repository's default `-m "not live"` selection for this one command.
 
 The GitHub Actions workflow runs the same installation and quality commands on Python
 3.12 whenever ScholarPath or its workflow changes.
@@ -245,7 +337,7 @@ Only the Candidate Review decision can create a Shortlisted Supervisor.
 | Agent | Responsibility |
 |---|---|
 | **Candidate Intake Agent** | Captures and structures the Candidate's proposed research area, preferences, and constraints. |
-| **Research Planning Agent** | Expands the Candidate's interests into search concepts and prepares the research strategy. |
+| **Research Planning Agent** | Current M3 agent: produces a structured, source-diverse SearchPlan through an injected model port. |
 | **Supervisor Discovery Agent** | Finds Prospective Supervisors using You.com, with Tavily as a fallback. |
 | **Evidence Verification Agent** | Verifies Supervisor identity, affiliation, research interests, publications, and stated supervisor availability. |
 | **Research Fit Evaluation Agent** | Calculates and explains the Research Fit between the Candidate and each Verified Supervisor. |
@@ -254,26 +346,29 @@ Only the Candidate Review decision can create a Shortlisted Supervisor.
 | **Preference Learning Agent** | Records Candidate rejection reasons, approvals, and search preferences through Mem0. |
 | **Orchestrator Agent** | Coordinates workflow state, transitions, retries, tool fallback, and human approval using LangGraph. |
 
-## Planned platform integrations
+## Platform integrations
 
 Agents are logical responsibilities; integrations are the external platforms used to
 execute, coordinate, remember, or observe those responsibilities.
 
-| Integration | Planned role |
+| Integration | Role |
 |---|---|
+| **OpenAI** | Current native structured-output model for research planning; no tools or browsing. |
 | **You.com** | Primary Supervisor discovery search. |
 | **Tavily** | Fallback Supervisor discovery search. |
 | **Nebius** | Independent evidence and Research Fit review. |
 | **Mem0** | Candidate preference and feedback memory. |
 | **LangGraph** | Current deterministic state orchestration and future human approval flow. |
-| **LangSmith** | End-to-end tracing, testing, and evaluation. |
+| **LangSmith** | Current optional graph/planning tracing; evaluation remains planned. |
 
 Streamlit is the planned Candidate-facing web interface.
 
 ## Future production evolution
 
-M2 keeps feedback capture inside `candidate_review_gate_stub` and deterministically
-replays the fixture search after rejection or `request_more`. Later milestones may
-split feedback persistence and search refinement into provider-backed responsibilities.
-Source-authority rules, Research Fit calculation policy, and data-retention policy
-remain deferred; retry limits and sufficiency thresholds are explicit M2 configuration.
+M3 keeps feedback capture inside `candidate_review_gate_stub` and deterministically
+replays the fixture discovery path after rejection or `request_more`; only the search
+plan is regenerated. Later milestones may split feedback persistence and search
+refinement into provider-backed responsibilities. An alternate planning-model failover,
+source-authority rules, Research Fit calculation policy, trace evaluation, and
+data-retention policy remain deferred. Retry limits and sufficiency thresholds are
+explicit configuration rather than model decisions.

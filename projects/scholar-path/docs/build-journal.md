@@ -522,3 +522,125 @@ real Pyright errors without changing runtime behavior.
   that editor honor the shared Pyright configuration.
 - The ignored root workspace setting is machine-local because the monorepo contains
   sibling projects with independent Python environments.
+
+## Milestone M3: OpenAI Research Planning Agent and baseline LangSmith observability
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Replace only the fixture-backed `plan_supervisor_searches` implementation with a typed,
+dependency-injected Research Planning Agent backed by OpenAI native structured output,
+while adding optional privacy-safe LangSmith graph and planning-node traces. Preserve
+all downstream fixture nodes and every existing deterministic route.
+
+### Prompt used
+
+[`docs/prompts/m3-openai-research-planning-and-langsmith-observability.md`](prompts/m3-openai-research-planning-and-langsmith-observability.md)
+
+### Files changed
+
+- Added the versioned planning prompt, provider-neutral planning contracts, Research
+  Planning Agent, and OpenAI adapter under `src/agents/`.
+- Added provider-specific OpenAI and LangSmith settings with deferred credential
+  validation in `src/config.py` and documented their variables in `.env.example`.
+- Extended the domain SearchPlan with typed query purposes and target source types,
+  plus deterministic count, uniqueness, and source-coverage validation.
+- Replaced the graph's planning fixture with injected model composition, added the
+  planning-failure route to END, and retained fixtures for the other 14 nodes.
+- Added scoped LangSmith tracing, safe environment and graph-version tags, allowlisted
+  metadata, and hidden trace inputs and outputs under `src/observability/`.
+- Updated the CLI for lazy OpenAI composition, clean missing-key guidance, and an
+  injectable offline demonstration seam.
+- Added `langchain-openai` and a direct LangSmith dependency while preserving the
+  existing LangGraph and LangChain Core version line.
+- Updated `README.md` and `docs/architecture.md`, saved the generated M3 graph at
+  `docs/m3-research-planning-graph.mmd`, and archived this milestone prompt.
+- Added the tests-only `FakePlanningModel`, planning/adapter/observability tests, graph
+  failure tests, contract coverage, and the explicitly gated live smoke test.
+
+### Tests added
+
+- Complete CandidateProfile, remembered-preference, region, and exclusion mapping into
+  an identity-free typed planning input.
+- Valid structured response conversion and SearchPlan JSON round trips.
+- Empty, duplicated, under-specified, and source-incomplete query-plan rejection.
+- Exactly one retry for malformed Pydantic or LangChain structured-parser output.
+- Immediate, sanitized graph termination for provider invocation failure and terminal
+  malformed output, with no downstream discovery execution.
+- Default graph-route coverage through an injected recording FakePlanningModel and an
+  assertion that offline tests never instantiate OpenAI.
+- OpenAI adapter contracts for native strict JSON-schema output, zero provider retries,
+  sanitized exceptions, and no search-tool binding or prose JSON parsing.
+- Optional LangSmith activation, disabled/no-client behavior, safe tags and metadata,
+  sensitive-field exclusion, and input/output payload hiding.
+- Exact provider environment-variable loading and deferred secret validation.
+- A `pytest.mark.live` OpenAI smoke test requiring both an API key and the explicit
+  `SCHOLARPATH_RUN_LIVE_TESTS` opt-in flag.
+- Current generated-Mermaid, dependencies, prompt archive, terminology, and audit
+  contracts while preserving all M2 routing scenarios.
+
+### Test results
+
+- `venv/bin/pip install -e ".[dev]" --config-settings editable_mode=strict`: installed
+  the project and the current compatible `langchain-openai` dependency successfully
+  after approved package-index access.
+- `venv/bin/pip check`: no broken requirements found.
+- `venv/bin/ruff format --check .`: all 67 files already formatted.
+- `venv/bin/ruff check --no-cache .`: all checks passed.
+- `venv/bin/mypy src tests`: no issues found in 54 source files.
+- `venv/bin/pytest -m "not live"`: 219 tests passed, one live test was deselected,
+  and total statement/branch coverage was 95.70 percent, above the 90 percent gate.
+- The explicitly selected live smoke test skipped cleanly without the opt-in flag and
+  API key, making no provider request.
+- Python 3.12.13 and 3.14.6 syntax compilation of `src` and `tests`: passed.
+- Key-free package import, generated-Mermaid equality, terminology, test discovery,
+  dependency boundaries, prompt audit linkage, and `git diff --check`: passed.
+- A local injected-model smoke run traversed the happy path and produced five
+  Shortlisted Supervisors without network access.
+
+### Assumptions
+
+- `gpt-5.4-mini` is the configurable planning default for the current supported
+  LangChain OpenAI integration; a deployment may select another structured-output
+  capable OpenAI model through `OPENAI_PLANNING_MODEL`.
+- Candidate identity is unnecessary at the model boundary. The full research statement
+  is necessary for planning, is sent to OpenAI, and is hidden from LangSmith trace
+  inputs and outputs.
+- Malformed structured output is retryable once; provider invocation failure is not
+  retried because duplicate requests would amplify outage latency and cost.
+- A planning failure must terminate before discovery so stale or absent SearchPlan data
+  cannot drive later nodes.
+- LangGraph's normal tracing captures the graph root and its nodes, so duplicate manual
+  planning spans are unnecessary.
+- The live CLI intentionally requires OpenAI configuration; offline tests demonstrate
+  the same orchestration through the injected fake rather than a silent runtime
+  fallback.
+
+### Lessons learned
+
+- Separating the OpenAI-compatible transport DTO from the stricter domain SearchPlan
+  keeps provider schema limitations out of domain invariants.
+- Provider-internal retries and application retries must not overlap; setting OpenAI
+  retries to zero makes the single malformed-output retry observable and testable.
+- Current native structured-output parsing can surface malformed shape as a plain
+  `ValueError`, so the adapter must classify parser failures rather than treating every
+  non-Pydantic exception as a provider outage.
+- Metadata allowlisting prevents accidental identity or secret fields from entering
+  traces; hiding both inputs and outputs also protects Candidate state carried through
+  LangGraph payloads.
+- Injecting a recording fake validates semantic input mapping and graph routing without
+  coupling tests to LangChain message types or external network behavior.
+
+### Remaining debt
+
+- Add an alternate planning provider, rate limiting, circuit breaking, and explicit
+  token/cost budgets before production-scale use.
+- Define OpenAI data-governance, retention, regional-processing, and model-change review
+  policies for Candidate research statements.
+- Add LangSmith evaluation datasets, scoring, dashboards, sampling, retention, and
+  operational alerts; M3 supplies tracing only.
+- Replace the remaining fixture-backed discovery, verification, Research Fit, review,
+  synthesis, and persistence nodes only through later explicit milestones.
+- Replace the configured Candidate review stub with an interrupt/resume interaction in
+  a later milestone.

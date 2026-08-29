@@ -41,6 +41,15 @@ class SourceKind(StrEnum):
     OTHER = "other"
 
 
+class SearchSourceType(StrEnum):
+    """Source categories a planned search query is intended to target."""
+
+    OFFICIAL_UNIVERSITY_PROFILE = "official_university_profile"
+    DEPARTMENT_OR_RESEARCH_GROUP = "department_or_research_group"
+    RECENT_PUBLICATION = "recent_publication"
+    DOCTORAL_SUPERVISION_INFORMATION = "doctoral_supervision_information"
+
+
 class CandidateReviewAction(StrEnum):
     """Actions available to the Candidate at the human review gate."""
 

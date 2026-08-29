@@ -60,16 +60,17 @@ def test_compiled_graph_contains_exactly_the_fifteen_canonical_nodes() -> None:
     assert len(CANONICAL_NODE_NAMES) == 15
 
 
-def test_saved_mermaid_matches_the_compiled_graph_structure() -> None:
-    saved = (PROJECT_ROOT / "docs" / "m2-walking-skeleton.mmd").read_text(encoding="utf-8")
+def test_current_mermaid_matches_the_compiled_graph_structure() -> None:
+    saved = (PROJECT_ROOT / "docs" / "m3-research-planning-graph.mmd").read_text(encoding="utf-8")
     generated = render_scholarpath_mermaid()
 
     assert saved.strip() == generated.strip()
+    assert (PROJECT_ROOT / "docs" / "m2-walking-skeleton.mmd").is_file()
     for node_name in CANONICAL_NODE_NAMES:
         assert node_name in saved
 
 
-def test_m2_runtime_does_not_import_test_fixtures_or_live_integrations() -> None:
+def test_runtime_does_not_import_test_fixtures_or_deferred_integrations() -> None:
     graph_source = "\n".join(
         path.read_text(encoding="utf-8")
         for path in sorted((PROJECT_ROOT / "src" / "graph").glob("*.py"))
@@ -79,9 +80,11 @@ def test_m2_runtime_does_not_import_test_fixtures_or_live_integrations() -> None
     normalized_dependencies = "\n".join(dependencies).casefold()
 
     assert "tests.fixtures" not in graph_source
-    assert "langchain-core>=1.4.7,<2" in dependencies
+    assert "langchain-core>=1.6.0,<2" in dependencies
+    assert "langchain-openai>=1.6.0,<2" in dependencies
     assert "langgraph>=1.2.11,<2" in dependencies
-    for deferred_dependency in ("streamlit", "mem0", "tavily", "openai"):
+    assert "langsmith>=0.11.2,<1" in dependencies
+    for deferred_dependency in ("streamlit", "mem0", "tavily"):
         assert deferred_dependency not in normalized_dependencies
 
 

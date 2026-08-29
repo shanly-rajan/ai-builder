@@ -8,10 +8,12 @@ from scholarpath.domain import (
     EvidenceClaim,
     EvidenceClaimType,
     EvidenceConfidence,
+    PlannedSearchQuery,
     ProspectiveSupervisor,
     ResearchFitAssessment,
     ResearchFitBreakdown,
     SearchPlan,
+    SearchSourceType,
     SourceKind,
     VerifiedSupervisor,
     validate_research_fit_evidence,
@@ -124,7 +126,28 @@ def make_candidate_profile(**overrides: object) -> CandidateProfile:
 def make_search_plan(**overrides: object) -> SearchPlan:
     """Return a deterministic search plan aligned with the Candidate fixture."""
     data: dict[str, object] = {
-        "search_queries": _DISCOVERY_QUERIES[:3],
+        "search_queries": (
+            PlannedSearchQuery(
+                query=_DISCOVERY_QUERIES[0],
+                purpose="Find official identity, affiliation, and research profile evidence.",
+                target_source_types=(SearchSourceType.OFFICIAL_UNIVERSITY_PROFILE,),
+            ),
+            PlannedSearchQuery(
+                query=_DISCOVERY_QUERIES[1],
+                purpose="Find department and research-group alignment evidence.",
+                target_source_types=(SearchSourceType.DEPARTMENT_OR_RESEARCH_GROUP,),
+            ),
+            PlannedSearchQuery(
+                query=_DISCOVERY_QUERIES[2],
+                purpose="Find recent publication evidence for Research Fit.",
+                target_source_types=(SearchSourceType.RECENT_PUBLICATION,),
+            ),
+            PlannedSearchQuery(
+                query=_DISCOVERY_QUERIES[7],
+                purpose="Find explicit institutional doctoral supervision information.",
+                target_source_types=(SearchSourceType.DOCTORAL_SUPERVISION_INFORMATION,),
+            ),
+        ),
         "expanded_research_concepts": (
             "enterprise design",
             "AI assurance",

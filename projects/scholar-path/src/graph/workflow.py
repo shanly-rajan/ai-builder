@@ -1,21 +1,39 @@
-"""Deterministic LangGraph walking skeleton for ScholarPath milestone M2."""
+"""ScholarPath graph with an injected M3 Research Planning Agent."""
 
 from dataclasses import dataclass, field
 from typing import Final, Literal, cast
 
-from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from ..agents import (
+    RESEARCH_PLANNING_PROMPT_VERSION,
+    OpenAIPlanningModelAdapter,
+    PlanningFailureKind,
+    PlanningInput,
+    PlanningModelInvocationError,
+    PlanningModelPort,
+    ResearchPlanningAgent,
+    ResearchPlanningError,
+    StructuredSearchPlanResponse,
+)
+from ..config import (
+    ApplicationSettings,
+    LangSmithSettings,
+    OpenAIPlanningSettings,
+    load_langsmith_settings,
+    load_openai_planning_settings,
+    load_settings,
+)
 from ..domain import (
     CandidatePreferenceRevision,
     CandidateReviewAction,
     CandidateReviewDecision,
-    SearchPlan,
     apply_candidate_review,
     create_supervisor_shortlist,
     validate_research_fit_evidence,
 )
+from ..observability import LangSmithObservability
 from .fixtures import (
     WalkingSkeletonFixtures,
     build_walking_skeleton_fixtures,
@@ -70,6 +88,7 @@ MAX_CONFIGURED_RETRIES: Final = 5
 type DiscoveryRoute = Literal["fallback_supervisor_search", "deduplicate_supervisors", "__end__"]
 type EvidenceRoute = Literal["retry_alternate_evidence_source", "evaluate_research_fit", "__end__"]
 type ReviewRoute = Literal["save_shortlisted_supervisors", "plan_supervisor_searches", "__end__"]
+type PlanningRoute = Literal["discover_prospective_supervisors", "__end__"]
 type ScholarPathGraph = CompiledStateGraph[
     ScholarPathState, None, ScholarPathState, ScholarPathState
 ]
@@ -153,10 +172,11 @@ class GraphFixtureConfig:
 
 
 class DeterministicScholarPathNodes:
-    """Fixture-backed node and routing functions with no external side effects."""
+    """Fixture-backed nodes with one injected Research Planning Agent boundary."""
 
-    def __init__(self, config: GraphFixtureConfig) -> None:
+    def __init__(self, config: GraphFixtureConfig, planning_agent: ResearchPlanningAgent) -> None:
         self.config = config
+        self.planning_agent = planning_agent
 
     @staticmethod
     def _error(node: str, code: str, message: str) -> ToolErrorRecord:
@@ -175,6 +195,15 @@ class DeterministicScholarPathNodes:
                 return revision.preferred_regions
         return fallback
 
+    @staticmethod
+    def _latest_exclusions(
+        preferences: list[CandidatePreferenceRevision], fallback: tuple[str, ...]
+    ) -> tuple[str, ...]:
+        for revision in reversed(preferences):
+            if revision.exclusions is not None:
+                return revision.exclusions
+        return fallback
+
     def load_candidate_preferences(self, state: ScholarPathState) -> ScholarPathStateUpdate:
         """Load a typed preference snapshot from the fixture Candidate profile."""
         return {
@@ -183,21 +212,43 @@ class DeterministicScholarPathNodes:
         }
 
     def plan_supervisor_searches(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Create the fixture search plan, reflecting the latest region preference."""
-        base_plan = self.config.fixtures.search_plan
-        regions = self._latest_regions(state["candidate_preferences"], base_plan.target_regions)
-        review_cycle = state["retry_counts"]["review"]
-        rationale = base_plan.rationale
-        if review_cycle:
-            rationale = f"{rationale} Deterministic refinement cycle {review_cycle}."
-        plan = SearchPlan.model_validate(
-            {
-                **base_plan.model_dump(mode="python"),
-                "target_regions": regions,
-                "rationale": rationale,
+        """Delegate search planning through the typed model port and sanitize failures."""
+        profile = state["candidate_profile"]
+        regions = self._latest_regions(state["candidate_preferences"], profile.preferred_regions)
+        exclusions = self._latest_exclusions(state["candidate_preferences"], profile.exclusions)
+        try:
+            plan = self.planning_agent.plan(
+                profile,
+                tuple(state["candidate_preferences"]),
+                target_regions=regions,
+                exclusions=exclusions,
+            )
+        except ResearchPlanningError as error:
+            error_code = (
+                "planning_model_failed"
+                if error.kind is PlanningFailureKind.MODEL_INVOCATION
+                else "planning_output_invalid"
+            )
+            return {
+                "search_plan": None,
+                "review_status": ReviewStatus.RETRY_EXHAUSTED,
+                "tool_errors": [
+                    self._error(
+                        PLAN_SUPERVISOR_SEARCHES,
+                        error_code,
+                        "Research planning could not produce a valid typed SearchPlan.",
+                    )
+                ],
+                "execution_log": [PLAN_SUPERVISOR_SEARCHES],
             }
-        )
         return {"search_plan": plan, "execution_log": [PLAN_SUPERVISOR_SEARCHES]}
+
+    @staticmethod
+    def route_after_planning(state: ScholarPathState) -> PlanningRoute:
+        """Continue only when planning produced a validated SearchPlan."""
+        if state["search_plan"] is not None:
+            return DISCOVER_PROSPECTIVE_SUPERVISORS
+        return "__end__"
 
     def discover_prospective_supervisors(self, state: ScholarPathState) -> ScholarPathStateUpdate:
         """Append the configured primary fixture search batch."""
@@ -491,15 +542,43 @@ class DeterministicScholarPathNodes:
         }
 
 
-def build_scholarpath_graph(config: GraphFixtureConfig | None = None) -> ScholarPathGraph:
-    """Compile the complete fixture-backed LangGraph walking skeleton."""
-    nodes = DeterministicScholarPathNodes(config or GraphFixtureConfig())
+class _UnconfiguredPlanningModel:
+    """Fail safely if a topology-only graph is accidentally executed."""
+
+    def generate(self, planning_input: PlanningInput) -> StructuredSearchPlanResponse:
+        del planning_input
+        raise PlanningModelInvocationError("No planning model was injected.")
+
+
+def build_scholarpath_graph(
+    config: GraphFixtureConfig | None = None,
+    *,
+    planning_model: PlanningModelPort | None = None,
+    observability: LangSmithObservability | None = None,
+) -> ScholarPathGraph:
+    """Compile the graph without instantiating a provider or requiring credentials."""
+    resolved_model = planning_model or _UnconfiguredPlanningModel()
+    nodes = DeterministicScholarPathNodes(
+        config or GraphFixtureConfig(), ResearchPlanningAgent(resolved_model)
+    )
     builder: StateGraph[ScholarPathState, None, ScholarPathState, ScholarPathState] = StateGraph(
         ScholarPathState
     )
 
     builder.add_node(LOAD_CANDIDATE_PREFERENCES, nodes.load_candidate_preferences)
-    builder.add_node(PLAN_SUPERVISOR_SEARCHES, nodes.plan_supervisor_searches)
+    planning_metadata = (
+        observability.planning_node_metadata
+        if observability is not None
+        else {
+            "component": "research_planning_agent",
+            "prompt_version": RESEARCH_PLANNING_PROMPT_VERSION,
+        }
+    )
+    builder.add_node(
+        PLAN_SUPERVISOR_SEARCHES,
+        nodes.plan_supervisor_searches,
+        metadata=planning_metadata,
+    )
     builder.add_node(DISCOVER_PROSPECTIVE_SUPERVISORS, nodes.discover_prospective_supervisors)
     builder.add_node(ENOUGH_SUPERVISORS_FOUND, nodes.enough_supervisors_found)
     builder.add_node(FALLBACK_SUPERVISOR_SEARCH, nodes.fallback_supervisor_search)
@@ -516,7 +595,11 @@ def build_scholarpath_graph(config: GraphFixtureConfig | None = None) -> Scholar
 
     builder.add_edge(START, LOAD_CANDIDATE_PREFERENCES)
     builder.add_edge(LOAD_CANDIDATE_PREFERENCES, PLAN_SUPERVISOR_SEARCHES)
-    builder.add_edge(PLAN_SUPERVISOR_SEARCHES, DISCOVER_PROSPECTIVE_SUPERVISORS)
+    builder.add_conditional_edges(
+        PLAN_SUPERVISOR_SEARCHES,
+        nodes.route_after_planning,
+        [DISCOVER_PROSPECTIVE_SUPERVISORS, END],
+    )
     builder.add_edge(DISCOVER_PROSPECTIVE_SUPERVISORS, ENOUGH_SUPERVISORS_FOUND)
     builder.add_conditional_edges(
         ENOUGH_SUPERVISORS_FOUND,
@@ -542,13 +625,35 @@ def build_scholarpath_graph(config: GraphFixtureConfig | None = None) -> Scholar
     )
     builder.add_edge(SAVE_SHORTLISTED_SUPERVISORS, GENERATE_SHORTLIST_BRIEFING)
     builder.add_edge(GENERATE_SHORTLIST_BRIEFING, END)
-    return builder.compile(name="ScholarPath deterministic walking skeleton")
+    return builder.compile(name="ScholarPath M3 research planning graph")
 
 
-def run_scholarpath_graph(config: GraphFixtureConfig | None = None) -> ScholarPathState:
-    """Execute the compiled graph with a complete fixture-backed initial state."""
+def run_scholarpath_graph(
+    config: GraphFixtureConfig | None = None,
+    *,
+    planning_model: PlanningModelPort | None = None,
+    application_settings: ApplicationSettings | None = None,
+    openai_settings: OpenAIPlanningSettings | None = None,
+    langsmith_settings: LangSmithSettings | None = None,
+) -> ScholarPathState:
+    """Compose providers lazily, then execute one optionally traced graph run."""
     resolved_config = config or GraphFixtureConfig()
-    graph = build_scholarpath_graph(resolved_config)
+    resolved_application_settings = application_settings or load_settings()
+    resolved_langsmith_settings = langsmith_settings or load_langsmith_settings()
+    observability = LangSmithObservability(
+        resolved_langsmith_settings, resolved_application_settings.environment
+    )
+    resolved_planning_model = planning_model
+    if resolved_planning_model is None:
+        resolved_openai_settings = openai_settings or load_openai_planning_settings()
+        resolved_planning_model = OpenAIPlanningModelAdapter(
+            resolved_openai_settings.for_planning_model()
+        )
+    graph = build_scholarpath_graph(
+        resolved_config,
+        planning_model=resolved_planning_model,
+        observability=observability,
+    )
     initial_state = create_initial_state(resolved_config.fixtures.candidate_profile)
     recursion_limit = (
         32
@@ -556,8 +661,9 @@ def run_scholarpath_graph(config: GraphFixtureConfig | None = None) -> ScholarPa
         + (4 * resolved_config.max_evidence_retries)
         + (16 * resolved_config.max_review_retries)
     )
-    runnable_config: RunnableConfig = {"recursion_limit": recursion_limit, "callbacks": []}
-    return cast(ScholarPathState, graph.invoke(initial_state, config=runnable_config))
+    runnable_config = observability.runnable_config(recursion_limit)
+    with observability.activate():
+        return cast(ScholarPathState, graph.invoke(initial_state, config=runnable_config))
 
 
 def render_scholarpath_mermaid(config: GraphFixtureConfig | None = None) -> str:

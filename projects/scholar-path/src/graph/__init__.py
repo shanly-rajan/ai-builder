@@ -1,4 +1,4 @@
-"""Public API for the deterministic ScholarPath LangGraph walking skeleton."""
+"""Public API for the ScholarPath LangGraph workflow."""
 
 from .fixtures import (
     FIXTURE_RETRIEVED_AT,

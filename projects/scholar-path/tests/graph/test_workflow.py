@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 import pytest
 
+from scholarpath.config import ApplicationSettings, Environment, LangSmithSettings
 from scholarpath.domain import (
     CandidatePreferenceRevision,
     CandidateReviewAction,
@@ -22,6 +23,7 @@ from scholarpath.graph import (
     render_scholarpath_mermaid,
     run_scholarpath_graph,
 )
+from tests.fakes import FakePlanningModel
 
 HAPPY_PATH_LOG = [
     "load_candidate_preferences",
@@ -54,6 +56,19 @@ RANKED_IDS_AFTER_REJECTION = (
 )
 
 
+def _run_graph(
+    config: GraphFixtureConfig | None = None,
+    *,
+    planning_model: FakePlanningModel | None = None,
+) -> ScholarPathState:
+    return run_scholarpath_graph(
+        config,
+        planning_model=planning_model or FakePlanningModel(),
+        application_settings=ApplicationSettings(environment=Environment.TEST),
+        langsmith_settings=LangSmithSettings(tracing=False),
+    )
+
+
 def _decision(
     action: CandidateReviewAction,
     supervisor_ids: tuple[str, ...] = RANKED_IDS,
@@ -69,7 +84,7 @@ def _decision(
 
 
 def test_normal_happy_path_has_the_exact_node_sequence() -> None:
-    final_state = run_scholarpath_graph()
+    final_state = _run_graph()
 
     assert final_state["execution_log"] == HAPPY_PATH_LOG
     assert final_state["retry_counts"] == {"discovery": 0, "evidence": 0, "review": 0}
@@ -80,7 +95,7 @@ def test_normal_happy_path_has_the_exact_node_sequence() -> None:
 def test_insufficient_results_route_through_fallback_search() -> None:
     config = GraphFixtureConfig(primary_discovery_count=3, fallback_discovery_count=5)
 
-    final_state = run_scholarpath_graph(config)
+    final_state = _run_graph(config)
 
     log = final_state["execution_log"]
     assert log[:7] == [
@@ -101,7 +116,7 @@ def test_insufficient_results_route_through_fallback_search() -> None:
 def test_insufficient_evidence_routes_through_alternate_retrieval() -> None:
     config = GraphFixtureConfig(initial_evidence_count=2, alternate_evidence_count=6)
 
-    final_state = run_scholarpath_graph(config)
+    final_state = _run_graph(config)
 
     log = final_state["execution_log"]
     first_extract = log.index("extract_supervisor_evidence")
@@ -118,7 +133,7 @@ def test_insufficient_evidence_routes_through_alternate_retrieval() -> None:
 
 
 def test_candidate_approval_reaches_end_with_shortlisted_statuses() -> None:
-    final_state = run_scholarpath_graph()
+    final_state = _run_graph()
 
     assert final_state["review_status"] is ReviewStatus.COMPLETED
     assert final_state["execution_log"][-2:] == [
@@ -140,7 +155,7 @@ def test_candidate_rejection_records_feedback_and_returns_to_planning() -> None:
     )
     config = GraphFixtureConfig(review_decisions=(reject, approve_remaining))
 
-    final_state = run_scholarpath_graph(config)
+    final_state = _run_graph(config)
 
     rejected = final_state["rejected_supervisors"]
     assert [item.supervisor_id for item in rejected] == ["supervisor-005"]
@@ -174,7 +189,8 @@ def test_request_more_records_preferences_and_returns_to_search_planning() -> No
     approve = _decision(CandidateReviewAction.APPROVE)
     config = GraphFixtureConfig(review_decisions=(request_more, approve))
 
-    final_state = run_scholarpath_graph(config)
+    planning_model = FakePlanningModel()
+    final_state = _run_graph(config, planning_model=planning_model)
 
     assert [decision.action for decision in final_state["candidate_feedback"]] == [
         CandidateReviewAction.REQUEST_MORE,
@@ -183,6 +199,8 @@ def test_request_more_records_preferences_and_returns_to_search_planning() -> No
     assert final_state["candidate_preferences"][-1] == revision
     assert final_state["search_plan"] is not None
     assert final_state["search_plan"].target_regions == ("Netherlands",)
+    assert planning_model.call_count == 2
+    assert planning_model.inputs[-1].target_regions == ("Netherlands",)
     assert final_state["execution_log"].count("plan_supervisor_searches") == 2
     assert final_state["execution_log"].count("candidate_review_gate_stub") == 2
     assert final_state["retry_counts"]["review"] == 1
@@ -242,7 +260,7 @@ def test_retry_exhaustion_stops_cleanly_without_recursion_failure(
     retry_node: str,
     node_count: int,
 ) -> None:
-    final_state = run_scholarpath_graph(config_factory())
+    final_state = _run_graph(config_factory())
 
     assert final_state["review_status"] is ReviewStatus.RETRY_EXHAUSTED
     assert len(final_state["tool_errors"]) == 1
@@ -262,7 +280,7 @@ def test_maximum_configured_discovery_retries_exhaust_through_domain_state() -> 
         max_discovery_retries=5,
     )
 
-    final_state = run_scholarpath_graph(config)
+    final_state = _run_graph(config)
 
     assert final_state["review_status"] is ReviewStatus.RETRY_EXHAUSTED
     assert final_state["retry_counts"]["discovery"] == 5
@@ -278,7 +296,7 @@ def test_maximum_configured_review_retries_exhaust_through_domain_state() -> Non
         max_review_retries=5,
     )
 
-    final_state = run_scholarpath_graph(config)
+    final_state = _run_graph(config)
 
     assert final_state["review_status"] is ReviewStatus.RETRY_EXHAUSTED
     assert final_state["retry_counts"]["review"] == 5
@@ -288,7 +306,7 @@ def test_maximum_configured_review_retries_exhaust_through_domain_state() -> Non
 
 
 def test_graph_paths_never_use_candidate_as_a_supervisor_label() -> None:
-    graph = build_scholarpath_graph().get_graph()
+    graph = build_scholarpath_graph(planning_model=FakePlanningModel()).get_graph()
     graph_node_names = set(graph.nodes)
     candidate_nodes = {name for name in graph_node_names if "candidate" in name.casefold()}
 
@@ -304,7 +322,7 @@ def test_graph_paths_never_use_candidate_as_a_supervisor_label() -> None:
     ):
         assert banned_phrase not in mermaid
 
-    final_state = run_scholarpath_graph()
+    final_state = _run_graph()
     supervisor_collections: tuple[list[ProspectiveSupervisor] | list[VerifiedSupervisor], ...] = (
         final_state["prospective_supervisors"],
         final_state["verified_supervisors"],
@@ -329,7 +347,7 @@ def test_graph_paths_never_use_candidate_as_a_supervisor_label() -> None:
 
 
 def test_final_state_satisfies_supervisor_shortlist_validation() -> None:
-    final_state: ScholarPathState = run_scholarpath_graph()
+    final_state = _run_graph()
     shortlist = final_state["supervisor_shortlist"]
 
     assert shortlist is not None

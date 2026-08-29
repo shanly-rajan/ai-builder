@@ -5,6 +5,8 @@ from collections.abc import Callable
 import pytest
 from pydantic import ValidationError
 
+from scholarpath.agents import ResearchPlanningAgent
+from scholarpath.config import ApplicationSettings, Environment, LangSmithSettings
 from scholarpath.domain import (
     CandidateReviewAction,
     CandidateReviewDecision,
@@ -15,6 +17,7 @@ from scholarpath.graph import (
     GraphFixtureConfig,
     RawSupervisorSearchResult,
     ReviewStatus,
+    ScholarPathState,
     append_items,
     build_walking_skeleton_fixtures,
     create_initial_state,
@@ -22,6 +25,16 @@ from scholarpath.graph import (
     run_scholarpath_graph,
 )
 from scholarpath.graph.workflow import DeterministicScholarPathNodes
+from tests.fakes import FakePlanningModel
+
+
+def _run_graph(config: GraphFixtureConfig | None = None) -> ScholarPathState:
+    return run_scholarpath_graph(
+        config,
+        planning_model=FakePlanningModel(),
+        application_settings=ApplicationSettings(environment=Environment.TEST),
+        langsmith_settings=LangSmithSettings(tracing=False),
+    )
 
 
 def test_append_reducer_returns_a_new_list_without_mutating_inputs() -> None:
@@ -103,16 +116,21 @@ def test_graph_fixture_config_rejects_invalid_controls(
         config_factory()
 
 
-def test_planning_without_loaded_preferences_uses_fixture_regions() -> None:
+def test_planning_without_loaded_preferences_uses_candidate_profile_regions() -> None:
     config = GraphFixtureConfig()
-    nodes = DeterministicScholarPathNodes(config)
+    planning_model = FakePlanningModel()
+    nodes = DeterministicScholarPathNodes(config, ResearchPlanningAgent(planning_model))
     state = create_initial_state(config.fixtures.candidate_profile)
 
     update = nodes.plan_supervisor_searches(state)
 
     search_plan = update.get("search_plan")
     assert search_plan is not None
-    assert search_plan.target_regions == config.fixtures.search_plan.target_regions
+    assert search_plan.target_regions == config.fixtures.candidate_profile.preferred_regions
+    assert (
+        planning_model.inputs[0].target_regions
+        == config.fixtures.candidate_profile.preferred_regions
+    )
 
 
 def test_invalid_review_scope_stops_safely() -> None:
@@ -122,7 +140,7 @@ def test_invalid_review_scope_stops_safely() -> None:
         reason="This fixture deliberately references an unknown Supervisor.",
     )
 
-    final_state = run_scholarpath_graph(GraphFixtureConfig(review_decisions=(invalid_decision,)))
+    final_state = _run_graph(GraphFixtureConfig(review_decisions=(invalid_decision,)))
 
     assert final_state["review_status"] is ReviewStatus.RETRY_EXHAUSTED
     assert final_state["tool_errors"][-1].code == "review_scope_invalid"
@@ -142,7 +160,7 @@ def test_review_retry_limit_stops_before_replanning() -> None:
         reason="The Candidate requested a broader fixture search.",
     )
 
-    final_state = run_scholarpath_graph(
+    final_state = _run_graph(
         GraphFixtureConfig(review_decisions=(request_more,), max_review_retries=0)
     )
 
@@ -159,7 +177,7 @@ def test_partial_approval_cannot_complete_the_five_supervisor_shortlist() -> Non
         reason="The Candidate approved only one fixture recommendation.",
     )
 
-    final_state = run_scholarpath_graph(GraphFixtureConfig(review_decisions=(partial_approval,)))
+    final_state = _run_graph(GraphFixtureConfig(review_decisions=(partial_approval,)))
 
     assert final_state["review_status"] is ReviewStatus.RETRY_EXHAUSTED
     assert final_state["tool_errors"][-1].code == "approved_shortlist_incomplete"
@@ -169,7 +187,7 @@ def test_partial_approval_cannot_complete_the_five_supervisor_shortlist() -> Non
 
 def test_briefing_node_rejects_missing_shortlist() -> None:
     config = GraphFixtureConfig()
-    nodes = DeterministicScholarPathNodes(config)
+    nodes = DeterministicScholarPathNodes(config, ResearchPlanningAgent(FakePlanningModel()))
     state = create_initial_state(config.fixtures.candidate_profile)
 
     with pytest.raises(ValueError, match="SupervisorShortlist is required"):
@@ -177,4 +195,4 @@ def test_briefing_node_rejects_missing_shortlist() -> None:
 
 
 def test_repeated_default_runs_are_equal() -> None:
-    assert run_scholarpath_graph() == run_scholarpath_graph()
+    assert _run_graph() == _run_graph()
