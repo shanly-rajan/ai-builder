@@ -470,6 +470,64 @@ names, URLs, snippets, raw results, page content, or secrets. A pre-M11.2 checkp
 taxonomy field; its attempt remains valid and the UI labels the breakdown unavailable
 rather than fabricating historical counts.
 
+### M11.3 academic-profile context repair
+
+```mermaid
+flowchart TD
+    Result[Normalized SearchResult] --> Title{Plausible title identity?}
+    Title -->|no| PersonReject[person_not_established]
+    Title -->|yes, explicit role| Institution
+    Title -->|yes, untitled| Conjunction{Profile conjunction}
+    Conjunction --> URL[Singular URL identity matches]
+    Conjunction --> Context[Same identity has bounded positive scholarly relation]
+    Conjunction --> Coherence[Context identity is coherent]
+    Conjunction --> Topic[Identity is not a planned topic phrase]
+    URL --> All{All signals agree?}
+    Context --> All
+    Coherence --> All
+    Topic --> All
+    All -->|no, different academic only| Conflict[identity_conflict]
+    All -->|no| ContextReject[academic_context_not_established]
+    All -->|yes| Institution{Title or owner-linked complete institution?}
+    Institution -->|yes| PS[Prospective Supervisor + provenance]
+    Institution -->|no| InstitutionReject[Existing institution category]
+```
+
+M11.3 addresses the measured `101 raw -> 0 plausible -> 0 retained` run. All provider
+attempts succeeded, but 64 person-like titles failed academic-context recognition and no
+result reached institution validation. The repair adds no provider call or inference
+model; it refines only deterministic interpretation of provider-neutral `SearchResult`
+objects.
+
+The alternative untitled-profile route requires six agreeing signals:
+
+1. A plausible title identity.
+2. A singular academic profile path whose normalized slug identifies that same person,
+   including locale-prefixed `/persons/<name>` paths.
+3. At most the first 1,000 provider-description characters plus already bounded snippets,
+   preventing page-sized summaries from expanding regex work or the interpretation scope.
+4. An explicit positive grammatical relationship between the same identity and research,
+   publications, scholarly work, or research-qualified expertise, interests, or projects;
+   negated assertions and unrelated personal activity do not qualify.
+5. The identity is neither an exact expanded research concept nor a contiguous phrase in a
+   planned query. Direct named academic-role paths are unchanged by this topic guard.
+6. A complete institution is present in the title or an explicit affiliation clause ties
+   the selected owner to it. Collaborator clauses and collaboration targets cannot supply
+   the owner's institution.
+
+The conjunction prevents a path such as `/people/digital-transformation` plus a generic
+research keyword from becoming a person. Generic topic, directory, listing, news,
+publication, non-academic, and clinical layouts preserve their existing exclusions.
+Additional named academics are co-mentions only when the title identity is independently
+supported; if bounded academic names exist and none supports the title identity, the
+result remains `identity_conflict`. A later titled identity in an institution-first SEO
+title is accepted only when it matches the singular profile URL; it cannot override a
+different primary identity.
+
+This is discovery evidence only: bounded provider summaries may justify creating a
+Prospective Supervisor, but they do not verify affiliation, research claims, or
+availability. Verification still requires retrieved source content downstream.
+
 ## M6 content-extraction transport boundary
 
 ```mermaid
@@ -780,11 +838,11 @@ flowchart LR
     Root --> FitTrace[Research Fit node and rubric metadata]
     Root --> ReviewTrace[independent-review node metadata]
     Root --> Discovery[discovery node + aggregate attempt spans]
-    Tags[environment plus graph-version:m11.2] --> Root
+    Tags[environment plus graph-version:m11.3] --> Root
 ```
 
-The graph version is `m11.2`. Root tags are
-`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m11.2`. Planning, discovery,
+The graph version is `m11.3`. Root tags are
+`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m11.3`. Planning, discovery,
 evidence, Research Fit, and independent-review nodes add only safe component and version
 metadata. The fixed metadata allowlist is:
 
@@ -1020,7 +1078,7 @@ already-running event-loop runtime.
 | Conflicts | Both affiliation claims and cross-referenced evidence IDs are preserved |
 | Retry | One deterministic alternate official-source search and extraction pass |
 | Network isolation | Default tests use fixed pages and fakes; `live` is excluded by default |
-| Observability | `graph-version:m11.2`, prompt and rubric versions, allowlisted aggregate discovery metadata, hidden inputs and outputs |
+| Observability | `graph-version:m11.3`, prompt and rubric versions, allowlisted aggregate discovery metadata, hidden inputs and outputs |
 | Human authority | A real interrupt requires typed explicit approval before Shortlisted status or briefing generation |
 | Persistence | In-memory isolation in tests; ignored SQLite path for trusted local restart; opaque thread IDs partition runs |
 | Checkpoint serialization | Explicit MessagePack type allowlist, URL JSON projection, and no executable pickle fallback |

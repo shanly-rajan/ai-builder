@@ -1,0 +1,25 @@
+flowchart TD
+    Raw[One normalized SearchResult] --> Identity{Plausible title identity?}
+    Identity -->|no| NoPerson[person_not_established]
+    Identity -->|yes| Direct{Academic title or matching named role?}
+    Direct -->|yes| Institution
+    Direct -->|no| Profile{Conservative profile conjunction}
+
+    Profile --> URL[Singular person-profile URL]
+    Profile --> Same[Same identity tied positively to bounded scholarly context]
+    Profile --> Coherent[No unsupported identity conflict]
+    Profile --> Topic[Identity is not a planned research-topic phrase]
+    URL --> All{All signals agree?}
+    Same --> All
+    Coherent --> All
+    Topic --> All
+    All -->|no, different academic only| Conflict[identity_conflict]
+    All -->|no| NoContext[academic_context_not_established]
+    All -->|yes| Institution{Title or owner-linked complete institution?}
+
+    Institution -->|no, truncated| Incomplete[incomplete_institution]
+    Institution -->|no, absent| NoInstitution[institution_not_established]
+    Institution -->|yes| Prospective[Prospective Supervisor + exact provenance]
+
+    classDef reject fill:#fff0f0,stroke:#a33;
+    class NoPerson,Conflict,NoContext,Incomplete,NoInstitution reject;

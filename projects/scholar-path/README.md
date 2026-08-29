@@ -25,6 +25,11 @@ weakening gates: incomplete affiliations are rejected or recovered from bounded 
 the existing Tavily budget prioritizes queries that produced plausible You.com profiles,
 and five fixed privacy-safe rejection counts explain why raw results were excluded.
 
+The bounded M11.3 repair targets the next measured gate: realistic untitled academic
+profiles. It accepts one only when a person-like title, matching singular profile URL,
+same-identity positive scholarly context, and owner-linked complete institution all agree;
+planned topic phrases and unrelated-person results remain excluded.
+
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
 graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. Unit and
@@ -56,7 +61,8 @@ See [current architecture](docs/architecture.md), the historical
 [M9 Candidate-review persistence graph](docs/m9-candidate-review-persistence-graph.mmd),
 the current [M10 Candidate-memory graph](docs/m10-candidate-preference-memory-graph.mmd),
 the [M11 Streamlit application boundary](docs/m11-streamlit-interface.mmd), the
-[M11.2 discovery-completion repair](docs/m11-2-discovery-completion-repair.mmd), and
+[M11.2 discovery-completion repair](docs/m11-2-discovery-completion-repair.mmd), the
+[M11.3 academic-profile context repair](docs/m11-3-academic-profile-context-repair.mmd), and
 [canonical terminology](docs/terminology.md) for the current boundaries.
 
 ## M1 domain contracts
@@ -337,6 +343,49 @@ established`, and `incomplete institution`. The UI and trace receive only these 
 the existing provider/routing aggregates. Queries, Candidate content, names, URLs,
 snippets, raw results, page content, and secrets remain outside both projections. Older
 checkpoints remain readable and explicitly report that this newer breakdown is unavailable.
+
+### M11.3 academic-profile context repair
+
+```mermaid
+flowchart LR
+    Result[SearchResult] --> Name{Plausible title identity?}
+    Name -->|yes| Profile{Singular profile URL}
+    Profile --> Same{Same identity tied to scholarly work}
+    Same --> Topic{Not a planned topic phrase}
+    Topic --> Institution{Title or owner-linked institution}
+    Institution -->|yes| Retain[Prospective Supervisor + provenance]
+    Name -->|no| Exclude[Existing rejection taxonomy]
+    Profile -->|no| Exclude
+    Same -->|no| Exclude
+    Topic -->|no| Exclude
+    Institution -->|no| Exclude
+```
+
+The live run motivating M11.3 completed all eleven provider calls but produced
+`101 raw -> 0 plausible -> 0 retained`: 35 results did not establish a person, 64
+person-like titles lacked recognized academic context, and two had identity conflicts.
+No result reached institution validation. This was a deterministic interpretation
+bottleneck rather than a provider, retry, or affiliation failure.
+
+Untitled names on paths such as `/people/<name>`, `/profiles/<name>`, or
+`/persons/<name>` now receive one conservative alternative route. The normalized URL
+identity must match the title identity, at most the first 1,000 description characters plus
+already bounded snippets must positively relate that identity to explicit scholarly work,
+and a complete institution must come from the title or an explicit owner-linked affiliation
+clause. Negated or unrelated personal interests are insufficient.
+
+The alternative route also rejects an untitled identity that exactly reproduces an expanded
+research concept or contiguous planned-query phrase. This keeps a page such as
+`/people/enterprise-architecture` excluded even if its summary uses person-like grammar.
+A capitalized topic plus a research keyword never establishes a person.
+
+When bounded context names both the supported profile owner and a collaborator, the second
+academic is treated as a co-mention. If contextual academic names exist but none supports
+the title identity, the result remains an `identity_conflict`; another academic's affiliation
+cannot be borrowed. Institution-first SEO titles can use a later titled identity only when
+it matches the profile URL. Search planning, provider ordering, budgets, retries,
+diagnostics, provenance, verification, Research Fit, memory, and Candidate approval are
+unchanged.
 
 ## M6 Supervisor evidence extraction and verification
 
@@ -672,7 +721,7 @@ To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_WORKSPACE_ID` only when the API key is scoped to more than one workspace.
 These values are loaded from `.env` and passed explicitly to the LangSmith client.
 `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag; the implementation
-supplies the fixed `graph-version:m11.2` tag. Disabling tracing does not construct a
+supplies the fixed `graph-version:m11.3` tag. Disabling tracing does not construct a
 LangSmith client, even if another process has globally enabled tracing.
 
 ### Run the Streamlit application locally
@@ -846,6 +895,22 @@ pytest -o addopts='' -q \
 Expected result: `3 passed`. The cases demonstrate complete-affiliation recovery,
 productive-query fallback ordering within the unchanged budget, and aggregate-only UI
 diagnostics. No provider, model, trace client, or external network is used.
+
+### 60-second M11.3 academic-profile context demonstration
+
+Run the three offline regressions for the repaired recognition boundary:
+
+```bash
+pytest -o addopts='' -q \
+  tests/unit/agents/test_supervisor_discovery_academic_profiles.py::test_supported_profile_owner_is_retained_when_a_collaborator_is_also_named \
+  tests/integration/test_m11_3_you_discovery_pipeline.py::test_you_results_flow_through_conservative_academic_profile_recognition \
+  tests/graph/test_m11_3_academic_profile_discovery_regression.py::test_m11_3_untitled_academic_profiles_continue_downstream_without_tavily
+```
+
+Expected result: `3 passed`. The cases prove collaborator-safe identity handling, the
+mocked You.com transport-to-domain boundary for a `/persons/<name>` profile and a generic
+topic page, and downstream graph continuation without Tavily. No provider key, model,
+trace client, checkpoint file, or external network is used.
 
 ## Quality and test commands
 

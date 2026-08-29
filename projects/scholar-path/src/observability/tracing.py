@@ -17,7 +17,7 @@ from ..config import Environment, LangSmithSettings
 from ..domain import SearchResultRejectionCounts
 from ..tools.supervisor_search import SearchErrorCategory, SearchProvider
 
-GRAPH_VERSION: Final = "m11.2"
+GRAPH_VERSION: Final = "m11.3"
 type TraceScalar = str | int | float | bool
 
 

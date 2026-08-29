@@ -6,7 +6,7 @@ import hashlib
 import re
 import unicodedata
 from collections.abc import Iterable
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
@@ -27,6 +27,13 @@ _ACADEMIC_PREFIX_PATTERN = re.compile(
 _ACADEMIC_PREFIX_SEARCH_PATTERN = re.compile(
     r"\b(Associate Professor|Assistant Professor|Professor|Prof\.?|Dr\.?)\s+"
     r"([^,.;|—–]+)",
+    re.IGNORECASE,
+)
+_ACADEMIC_SUFFIX_PATTERN = re.compile(
+    r"^(?P<name>.+?),\s*"
+    r"(?P<role>Associate Professor|Assistant Professor|Professor|Prof\.?|Dr\.?|Lecturer|"
+    r"Researcher|Research Fellow|Research Scientist|Reader|Principal Investigator)"
+    r"(?:\s+(?:at|of|in)\b.*)?$",
     re.IGNORECASE,
 )
 _ACADEMIC_ROLE_PATTERN = re.compile(
@@ -57,13 +64,13 @@ _RESEARCH_CONTEXT_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _PERSON_URL_PATTERN = re.compile(
-    r"/(people|person|profiles?|staff(?:-directory)?|faculty|researchers?|academics?|"
+    r"/(people|persons?|profiles?|staff(?:-directory)?|faculty|researchers?|academics?|"
     r"academic-staff|experts?|team|directory)(?:/|$)",
     re.IGNORECASE,
 )
 _SINGULAR_PERSON_PROFILE_URL_PATTERN = re.compile(
-    r"/(?:people|person|profiles?|staff(?:-directory)?|faculty|researchers?|academics?|"
-    r"academic-staff)/[^/?#]+(?:[/?#]|$)",
+    r"/(?:people|persons?|profiles?|staff(?:-directory)?|faculty|researchers?|academics?|"
+    r"academic-staff)/(?P<profile_slug>[^/?#]+)(?:[/?#]|$)",
     re.IGNORECASE,
 )
 _UNNAMED_ACADEMIC_ROLE_PATTERN = re.compile(
@@ -73,10 +80,29 @@ _UNNAMED_ACADEMIC_ROLE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _TRACKING_QUERY_KEYS = {"fbclid", "gclid", "mc_cid", "mc_eid"}
-_NAME_PARTICLES = {"al", "bin", "da", "de", "del", "di", "la", "le", "van", "von"}
+_NAME_PARTICLES = {
+    "al",
+    "bin",
+    "da",
+    "de",
+    "del",
+    "den",
+    "der",
+    "di",
+    "dos",
+    "du",
+    "la",
+    "le",
+    "van",
+    "von",
+}
 _NAME_PARTICLE_ALTERNATION = "|".join(sorted(_NAME_PARTICLES))
-_NAME_WORD = r"[A-ZÀ-ÖØ-Þ][^\W\d_.'’\-]*"
-_NAME_SEQUENCE = rf"{_NAME_WORD}(?:\s+(?:(?:{_NAME_PARTICLE_ALTERNATION})\s+)?{_NAME_WORD}){{1,3}}"
+_NAME_WORD = r"[A-ZÀ-ÖØ-Þ][^\W\d_]*(?:[-'’][^\W\d_]+)*\.?"
+_NAME_TOKEN_PATTERN = re.compile(r"[^\W\d_]+(?:[-'’][^\W\d_]+)*", re.UNICODE)
+_NAME_SEQUENCE = (
+    rf"{_NAME_WORD}(?:\s+(?:(?:{_NAME_PARTICLE_ALTERNATION})\s+){{0,2}}"
+    rf"{_NAME_WORD}){{1,3}}"
+)
 _UNTITLED_ACADEMIC_PATTERN = re.compile(
     rf"\b(?P<name>{_NAME_SEQUENCE})\s+"
     r"(?i:(?:is|serves\s+as|works\s+as|,\s*)\s+(?:an?\s+)?"
@@ -86,8 +112,8 @@ _UNTITLED_ACADEMIC_PATTERN = re.compile(
     re.UNICODE,
 )
 _LAST_FIRST_NAME_PATTERN = re.compile(
-    rf"^(?P<last>(?:(?:{_NAME_PARTICLE_ALTERNATION})\s+)?{_NAME_WORD}"
-    rf"(?:\s+(?:{_NAME_PARTICLE_ALTERNATION})\s+{_NAME_WORD})?)"
+    rf"^(?P<last>(?:(?:{_NAME_PARTICLE_ALTERNATION})\s+){{0,2}}{_NAME_WORD}"
+    rf"(?:\s+(?:(?:{_NAME_PARTICLE_ALTERNATION})\s+){{0,2}}{_NAME_WORD})?)"
     rf",\s*(?P<first>{_NAME_WORD}(?:\s+{_NAME_WORD})?)$",
     re.UNICODE,
 )
@@ -137,6 +163,7 @@ _NON_INSTITUTION_ACRONYM_SUFFIXES = {
     "team",
 }
 _DANGLING_INSTITUTION_SUFFIXES = {"and", "at", "for", "of", "the", "with"}
+_MAX_BOUNDED_DESCRIPTION_CHARACTERS = 1_000
 
 
 class SupervisorDiscoveryResult(BaseModel):
@@ -183,6 +210,28 @@ def _normalized_identity_text(value: str, *, remove_title: bool = False) -> str:
             normalized,
         )
     return " ".join(re.sub(r"[_\W]+", " ", normalized).split())
+
+
+def _accent_folded_identity_text(value: str, *, remove_title: bool = False) -> str:
+    """Fold accents only for URL-slug identity comparison, never stored display data."""
+    decomposed = unicodedata.normalize("NFKD", value)
+    without_combining_marks = "".join(
+        character for character in decomposed if not unicodedata.combining(character)
+    )
+    return _normalized_identity_text(without_combining_marks, remove_title=remove_title)
+
+
+def _accent_folded_length_preserving_text(value: str) -> str:
+    """Fold one code point at a time so regex match offsets still address the source text."""
+    folded_characters: list[str] = []
+    for character in value:
+        decomposed = unicodedata.normalize("NFKD", character)
+        base_character = next(
+            (item for item in decomposed if not unicodedata.combining(item)),
+            character,
+        )
+        folded_characters.append(base_character)
+    return "".join(folded_characters)
 
 
 def canonical_profile_url(value: str) -> str:
@@ -285,7 +334,7 @@ def _clean_name_tokens(value: str) -> tuple[str, ...]:
         normalized = token.casefold()
         if normalized in _NAME_STOP_WORDS:
             break
-        if not re.fullmatch(r"[^\W\d_][^\W\d_.'’\-]*", token, re.UNICODE):
+        if _NAME_TOKEN_PATTERN.fullmatch(token) is None:
             break
         if not (token[0].isupper() or normalized in _NAME_PARTICLES):
             break
@@ -298,7 +347,36 @@ def _clean_name_tokens(value: str) -> tuple[str, ...]:
 
 def _result_context(result: SearchResult) -> str:
     """Combine only provider summaries and bounded snippets, never retrieved pages."""
-    return ". ".join(part for part in (result.description, *result.snippets) if part)
+    bounded_description = result.description[:_MAX_BOUNDED_DESCRIPTION_CHARACTERS]
+    return ". ".join(part for part in (bounded_description, *result.snippets) if part)
+
+
+def _bounded_context_clauses(context: str) -> tuple[str, ...]:
+    """Split bounded context without treating titles or middle initials as sentences."""
+    clauses: list[str] = []
+    start = 0
+    for index, character in enumerate(context):
+        if character not in ".;!?|":
+            continue
+        if character == ".":
+            token_start = index - 1
+            while token_start >= start and context[token_start].isalpha():
+                token_start -= 1
+            preceding_token = context[token_start + 1 : index]
+            if (
+                len(preceding_token) == 1
+                and preceding_token.isupper()
+                or preceding_token.casefold() in {"dr", "mr", "mrs", "ms", "prof"}
+            ):
+                continue
+        clause = context[start:index].strip()
+        if clause:
+            clauses.append(clause)
+        start = index + 1
+    final_clause = context[start:].strip()
+    if final_clause:
+        clauses.append(final_clause)
+    return tuple(clauses)
 
 
 def _title_name_tokens(value: str) -> tuple[str, ...]:
@@ -308,6 +386,32 @@ def _title_name_tokens(value: str) -> tuple[str, ...]:
             f"{last_first_match.group('first')} {last_first_match.group('last')}"
         )
     return _clean_name_tokens(value)
+
+
+def _titled_identity_from_segment(segment: str) -> str | None:
+    """Extract one explicit prefix- or suffix-role identity from a title segment."""
+    prefix_match = _ACADEMIC_PREFIX_PATTERN.match(segment)
+    if prefix_match is not None:
+        tokens = _clean_name_tokens(prefix_match.group(2))
+        if tokens:
+            return f"{prefix_match.group(1)} {' '.join(tokens)}"
+
+    suffix_match = _ACADEMIC_SUFFIX_PATTERN.match(segment)
+    if suffix_match is None:
+        return None
+    tokens = _clean_name_tokens(suffix_match.group("name"))
+    return " ".join(tokens) if tokens else None
+
+
+def _title_segment_names_different_person(segment: str, full_name: str) -> bool:
+    """Prevent a co-mentioned person's title segment from supplying owner attributes."""
+    segment_identity = _titled_identity_from_segment(segment)
+    if segment_identity is None:
+        return False
+    return _accent_folded_identity_text(
+        segment_identity,
+        remove_title=True,
+    ) != _accent_folded_identity_text(full_name, remove_title=True)
 
 
 def _clean_institution_segment(value: str) -> str:
@@ -369,53 +473,219 @@ def _contextual_academic_names(context: str) -> tuple[str, ...]:
     return tuple(names)
 
 
+def _singular_profile_url_identity(profile_url: str) -> str | None:
+    """Return the normalized identity encoded by one singular profile slug, if present."""
+    match = _SINGULAR_PERSON_PROFILE_URL_PATTERN.search(profile_url)
+    if match is None:
+        return None
+    profile_slug = re.sub(
+        r"\.(?:html?|aspx?)$",
+        "",
+        unquote(match.group("profile_slug")),
+        flags=re.IGNORECASE,
+    )
+    slug_identity = _accent_folded_identity_text(profile_slug, remove_title=True)
+    slug_identity = " ".join(token for token in slug_identity.split() if not token.isdecimal())
+    return slug_identity or None
+
+
+def _singular_profile_url_supports_identity(profile_url: str, full_name: str) -> bool:
+    """Require the singular profile slug to identify the same person as the title."""
+    slug_identity = _singular_profile_url_identity(profile_url)
+    title_identity = _accent_folded_identity_text(full_name, remove_title=True)
+    return slug_identity == title_identity or (
+        slug_identity is not None
+        and slug_identity.replace(" ", "") == title_identity.replace(" ", "")
+    )
+
+
+def _singular_profile_url_names_different_person(
+    profile_url: str,
+    full_name: str,
+) -> bool:
+    """Detect a different person-like slug without treating opaque profile IDs as names."""
+    slug_identity = _singular_profile_url_identity(profile_url)
+    if slug_identity is None:
+        return False
+    slug_tokens = slug_identity.split()
+    slug_looks_like_person = len(slug_tokens) >= 2 and all(
+        token.isalpha() and token not in _NAME_STOP_WORDS for token in slug_tokens
+    )
+    title_identity = _accent_folded_identity_text(full_name, remove_title=True)
+    identities_match = slug_identity == title_identity or slug_identity.replace(
+        " ", ""
+    ) == title_identity.replace(
+        " ",
+        "",
+    )
+    return slug_looks_like_person and not identities_match
+
+
+def _identity_matches_search_topic(full_name: str, search_plan: SearchPlan) -> bool:
+    """Reject untitled identities that reproduce a planned research-topic phrase."""
+    normalized_identity = _normalized_identity_text(full_name, remove_title=True)
+    normalized_concepts = {
+        _normalized_identity_text(concept) for concept in search_plan.expanded_research_concepts
+    }
+    if normalized_identity in normalized_concepts:
+        return True
+    bounded_identity = f" {normalized_identity} "
+    return any(
+        bounded_identity in f" {_normalized_identity_text(item.query)} "
+        for item in search_plan.search_queries
+    )
+
+
+def _context_explicitly_supports_scholarly_identity(
+    context: str,
+    full_name: str,
+) -> bool:
+    """Recognize only explicit same-person scholarly statements in bounded context."""
+    normalized_name = _accent_folded_identity_text(full_name, remove_title=True)
+    if not context or not normalized_name:
+        return False
+
+    name = re.escape(normalized_name)
+    scholarly_noun = (
+        r"(?:research(?: interests?| projects?| expertise)?|publications?|scholarly work|"
+        r"academic expertise)"
+    )
+    direct_scholarly_patterns = (
+        rf"\b{name}\s+s\s+(?:current |recent |stated )?{scholarly_noun}\b",
+        rf"\b{name}\s+researches\b",
+        rf"\b{name}\s+(?:publishes|published)\s+"
+        rf"(?:\w+\s+){{0,6}}{scholarly_noun}\b",
+        rf"\b{name}\s+(?:leads|conducts|undertakes|works on|focuses on|"
+        rf"specialises in|specializes in)\s+(?:\w+\s+){{0,6}}{scholarly_noun}\b",
+        rf"\b{name}\s+(?:is known for|has|brings|offers)\s+"
+        rf"(?:\w+\s+){{0,6}}{scholarly_noun}\b",
+        rf"\b{scholarly_noun}\s+(?:of|by)\s+{name}\b",
+    )
+    negated_scholarly_patterns = (
+        rf"\b{name}\s+(?:has|offers|brings)\s+(?:no|not|without)\s+"
+        rf"(?:\w+\s+){{0,3}}{scholarly_noun}\b",
+        rf"\b{name}\s+(?:has\s+not|does\s+not|did\s+not|cannot|can\s+not)\s+"
+        rf"(?:\w+\s+){{0,4}}(?:publish|published|conduct|undertake|have|offer)\w*\b",
+        rf"\b{name}\s+(?:lacks?|lacking|without)\s+"
+        rf"(?:\w+\s+){{0,3}}{scholarly_noun}\b",
+        rf"\b{name}\s+s\s+(?:current |recent |stated )?{scholarly_noun}\s+"
+        r"(?:(?:is|are|was|were)\s+)?(?:not|unavailable|absent)\b",
+        rf"\b(?:no|not|without)\s+{scholarly_noun}\s+(?:of|by)\s+{name}\b",
+    )
+    normalized_clauses = tuple(
+        _accent_folded_identity_text(clause)
+        for clause in _bounded_context_clauses(context)
+        if clause.strip()
+    )
+    return any(
+        re.search(pattern, clause)
+        for clause in normalized_clauses
+        if not any(re.search(pattern, clause) for pattern in negated_scholarly_patterns)
+        for pattern in direct_scholarly_patterns
+    )
+
+
 def _extract_name(
     result: SearchResult,
     title_segments: tuple[str, ...],
-) -> tuple[str | None, SearchResultRejectionCategory | None]:
+    search_plan: SearchPlan,
+) -> tuple[str | None, SearchResultRejectionCategory | None, bool]:
     """Return a supported person identity or one privacy-safe rejection category."""
     title_name: str | None = None
     title_has_academic_prefix = False
-    for segment in title_segments:
-        match = _ACADEMIC_PREFIX_PATTERN.match(segment)
-        if match is None:
+    named_title_segments: list[str] = []
+    named_title_segment_indexes: set[int] = set()
+    for index, segment in enumerate(title_segments):
+        named_identity = _titled_identity_from_segment(segment)
+        if named_identity is None:
             continue
-        tokens = _clean_name_tokens(match.group(2))
-        if tokens:
-            title_name = f"{match.group(1)} {' '.join(tokens)}"
+        if index == 0:
+            title_name = named_identity
             title_has_academic_prefix = True
-            break
+        else:
+            named_title_segments.append(named_identity)
+            named_title_segment_indexes.add(index)
 
     if title_name is None and title_segments:
         tokens = _title_name_tokens(title_segments[0])
         if tokens:
             title_name = " ".join(tokens)
 
+    if title_name is None:
+        for named_identity in named_title_segments:
+            if _singular_profile_url_supports_identity(str(result.url), named_identity):
+                title_name = named_identity
+                title_has_academic_prefix = True
+                break
+
     context = _result_context(result)
     contextual_names = _contextual_academic_names(context)
     if title_name is not None:
         if title_has_academic_prefix:
-            return title_name, None
-        normalized_title = _normalized_identity_text(title_name, remove_title=True)
-        if any(
-            _normalized_identity_text(name, remove_title=True) != normalized_title
-            for name in contextual_names
+            if _singular_profile_url_names_different_person(str(result.url), title_name):
+                return None, SearchResultRejectionCategory.IDENTITY_CONFLICT, False
+            return title_name, None, False
+        normalized_title = _accent_folded_identity_text(title_name, remove_title=True)
+        contextual_identities = {
+            _accent_folded_identity_text(name, remove_title=True) for name in contextual_names
+        }
+        later_named_identities = {
+            _accent_folded_identity_text(name, remove_title=True) for name in named_title_segments
+        }
+        later_untitled_identities: dict[int, str] = {}
+        for index, segment in enumerate(title_segments[1:], start=1):
+            tokens = _title_name_tokens(segment)
+            if tokens:
+                later_untitled_identities[index] = _accent_folded_identity_text(
+                    " ".join(tokens),
+                    remove_title=True,
+                )
+        unnamed_role_segment_exists = any(
+            index not in named_title_segment_indexes
+            and index - 1 not in later_untitled_identities
+            and _ACADEMIC_ROLE_PATTERN.search(segment)
+            for index, segment in enumerate(title_segments[1:], start=1)
+        )
+        title_is_independently_supported = (
+            normalized_title in contextual_identities
+            or normalized_title in later_named_identities
+            or unnamed_role_segment_exists
+        )
+        identity_matches_topic = _identity_matches_search_topic(title_name, search_plan)
+        if (
+            not identity_matches_topic
+            and _singular_profile_url_supports_identity(str(result.url), title_name)
+            and _context_explicitly_supports_scholarly_identity(context, title_name)
         ):
-            return None, SearchResultRejectionCategory.IDENTITY_CONFLICT
-        if contextual_names or any(
-            _ACADEMIC_ROLE_PATTERN.search(segment) for segment in title_segments[1:]
+            return title_name, None, True
+        if title_is_independently_supported and not identity_matches_topic:
+            return title_name, None, True
+        if identity_matches_topic:
+            return (
+                None,
+                SearchResultRejectionCategory.ACADEMIC_CONTEXT_NOT_ESTABLISHED,
+                False,
+            )
+        if (
+            contextual_identities
+            or later_named_identities
+            or set(later_untitled_identities.values())
         ):
-            return title_name, None
+            return None, SearchResultRejectionCategory.IDENTITY_CONFLICT, False
         if _SINGULAR_PERSON_PROFILE_URL_PATTERN.search(
             str(result.url)
         ) and _UNNAMED_ACADEMIC_ROLE_PATTERN.search(context):
-            return title_name, None
-        return None, SearchResultRejectionCategory.ACADEMIC_CONTEXT_NOT_ESTABLISHED
+            return title_name, None, True
+        return (
+            None,
+            SearchResultRejectionCategory.ACADEMIC_CONTEXT_NOT_ESTABLISHED,
+            False,
+        )
 
     if contextual_names:
-        return contextual_names[0], None
+        return contextual_names[0], None, False
 
-    return None, SearchResultRejectionCategory.PERSON_NOT_ESTABLISHED
+    return None, SearchResultRejectionCategory.PERSON_NOT_ESTABLISHED, False
 
 
 def _has_incomplete_institution_fragment(
@@ -438,14 +708,76 @@ def _has_incomplete_institution_fragment(
     return False
 
 
+def _extract_owner_linked_context_institution(
+    context: str,
+    full_name: str,
+) -> str | None:
+    """Capture only the institution licensed by a closed owner-affiliation relation."""
+    normalized_name = _accent_folded_identity_text(full_name, remove_title=True)
+    name = r"[\W_]{1,4}".join(re.escape(token) for token in normalized_name.split())
+    academic_role = (
+        r"(?:(?:associate|assistant|adjunct|full|senior)\s+)?"
+        r"(?:professor|lecturer|researcher|research fellow|research scientist|reader|"
+        r"principal investigator)"
+    )
+    owner_affiliation = re.compile(
+        rf"\b{name}\b\s+(?:"
+        rf"is\s+(?:(?:an?|the)\s+)?{academic_role}(?:\s+(?:in|of)\s+[^,.;]{{1,80}}?)?|"
+        r"is\s+(?:currently\s+)?(?:based|employed|affiliated)|"
+        rf"works(?:\s+as\s+(?:(?:an?|the)\s+)?{academic_role})?|"
+        rf"serves\s+as\s+(?:(?:an?|the)\s+)?{academic_role}|"
+        r"holds\s+(?:(?:an?|the)\s+)?(?:academic\s+)?(?:position|post|chair|role)"
+        r")\s+at\s+(?:the\s+)?",
+        re.IGNORECASE,
+    )
+    activity_boundary = re.compile(
+        r",|\bwhere\b|\bwhose\b|\b(?:(?:and\s+(?:(?:she|he|they)\s+)?)?"
+        r"(?:researches|researching|studies|publishes|leads|focuses|specialises|"
+        r"specializes|teaches|examines|examining|investigates|develops|conducts|"
+        r"collaborates|works|serves))\b|\b(?:from|with)\b|\s+-\s+",
+        re.IGNORECASE,
+    )
+
+    for clause in _bounded_context_clauses(context):
+        named_academics = {
+            _accent_folded_identity_text(name, remove_title=True)
+            for name in _contextual_academic_names(clause)
+        }
+        if named_academics - {normalized_name}:
+            continue
+        comparison_clause = _accent_folded_length_preserving_text(clause)
+        relation = owner_affiliation.search(comparison_clause)
+        if relation is None:
+            continue
+        if re.search(
+            r"\b(?:with|collaborat\w*|partner\w*|projects?|alongside|together|led\s+by)\b",
+            relation.group(0),
+            re.IGNORECASE,
+        ):
+            continue
+        institution = activity_boundary.split(clause[relation.end() :], maxsplit=1)[0]
+        institution = institution.strip(" .,:;-")
+        if (
+            _STRONG_INSTITUTION_PATTERN.search(institution)
+            or _SCHOOL_PATTERN.search(institution)
+            or _is_plausible_acronym_institution(institution)
+        ) and _has_plausible_institution_suffix(institution):
+            return institution
+    return None
+
+
 def _extract_institution(
     result: SearchResult,
     title_segments: tuple[str, ...],
     full_name: str,
+    *,
+    require_owner_linked_context: bool = False,
 ) -> str | None:
     context = _result_context(result)
     normalized_name = _normalized_identity_text(full_name, remove_title=True)
     for segment in reversed(title_segments):
+        if _title_segment_names_different_person(segment, full_name):
+            continue
         institution = _clean_institution_segment(segment)
         if (
             _STRONG_INSTITUTION_PATTERN.search(institution)
@@ -455,6 +787,8 @@ def _extract_institution(
             return institution
 
     for segment in reversed(title_segments):
+        if _title_segment_names_different_person(segment, full_name):
+            continue
         stripped = _clean_institution_segment(segment)
         if (
             _SCHOOL_PATTERN.search(stripped)
@@ -465,6 +799,8 @@ def _extract_institution(
             return stripped
 
     for segment in reversed(title_segments):
+        if _title_segment_names_different_person(segment, full_name):
+            continue
         stripped = _clean_institution_segment(segment)
         if (
             _is_plausible_acronym_institution(stripped)
@@ -472,7 +808,10 @@ def _extract_institution(
         ) and _normalized_identity_text(stripped, remove_title=True) != normalized_name:
             return stripped
 
-    for clause in re.split(r"[.;]", context):
+    if require_owner_linked_context:
+        return _extract_owner_linked_context_institution(context, full_name)
+
+    for clause in _bounded_context_clauses(context):
         at_parts = re.split(
             r"\b(?:at|from|with)\s+(?:the\s+)?",
             clause,
@@ -482,8 +821,9 @@ def _extract_institution(
             continue
         institution = at_parts[-1].strip(" .,:;-")
         institution = re.split(
-            r",|\bwhere\b|\bwhose\b|\band\s+(?:researches|studies|publishes|leads|"
-            r"focuses|specialises|specializes|teaches)\b",
+            r",|\bwhere\b|\bwhose\b|\b(?:and\s+(?:(?:she|he|they)\s+)?)?"
+            r"(?:researches|researching|studies|publishes|leads|focuses|specialises|"
+            r"specializes|teaches|examines|examining|investigates|develops|conducts)\b",
             institution,
             maxsplit=1,
             flags=re.IGNORECASE,
@@ -520,9 +860,15 @@ def _extract_institution(
     return None
 
 
-def _extract_department(title_segments: tuple[str, ...], institution: str) -> str:
+def _extract_department(
+    title_segments: tuple[str, ...],
+    institution: str,
+    full_name: str,
+) -> str:
     normalized_institution = _normalized_identity_text(institution)
     for segment in title_segments:
+        if _title_segment_names_different_person(segment, full_name):
+            continue
         if not _DEPARTMENT_PATTERN.search(segment):
             continue
         if _normalized_identity_text(segment) != normalized_institution:
@@ -566,7 +912,11 @@ class SupervisorDiscoveryAgent:
                 for segment in _TITLE_SPLIT_PATTERN.split(result.title)
                 if segment.strip()
             )
-            full_name, rejection_category = _extract_name(result, title_segments)
+            full_name, rejection_category, require_owner_linked_context = _extract_name(
+                result,
+                title_segments,
+                search_plan,
+            )
             if full_name is None:
                 if rejection_category is None:
                     raise RuntimeError("A missing person identity requires a rejection category")
@@ -580,7 +930,12 @@ class SupervisorDiscoveryAgent:
                     SearchResultRejectionCategory.ACADEMIC_CONTEXT_NOT_ESTABLISHED
                 )
                 continue
-            institution = _extract_institution(result, title_segments, full_name)
+            institution = _extract_institution(
+                result,
+                title_segments,
+                full_name,
+                require_owner_linked_context=require_owner_linked_context,
+            )
             if institution is None:
                 institution_category = (
                     SearchResultRejectionCategory.INCOMPLETE_INSTITUTION
@@ -589,7 +944,7 @@ class SupervisorDiscoveryAgent:
                 )
                 rejection_counts = rejection_counts.increment(institution_category)
                 continue
-            department = _extract_department(title_segments, institution)
+            department = _extract_department(title_segments, institution, full_name)
             source_url = str(result.url)
             provenance = SupervisorDiscoveryProvenance(
                 source_url=result.url,

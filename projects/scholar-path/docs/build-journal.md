@@ -2152,3 +2152,108 @@ The exact repair prompt is archived as
   that query ordering alone cannot consistently reach five useful profiles.
 - Define retention and access controls for operational metrics before production, even when
   those metrics contain counts rather than result content.
+
+## M11.3 Repair: Academic-profile context
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Repair the next measured live-discovery bottleneck after 101 normalized provider results
+produced zero Prospective Supervisors. Refine only deterministic academic-profile context
+recognition so a realistic untitled person profile can proceed when independent identity,
+URL, scholarly-context, and institution signals agree, while preserving conservative
+false-positive controls and every downstream boundary.
+
+### Prompt used
+
+The exact bounded repair prompt is archived as
+[`m11-3-academic-profile-context-repair.md`](prompts/m11-3-academic-profile-context-repair.md).
+
+### Files changed
+
+- Updated `src/agents/supervisor_discovery.py` with singular `/persons/<name>` path support,
+  deterministic profile-slug/title identity matching, and explicit same-person scholarly
+  relation recognition. It bounds descriptions at 1,000 characters, rejects planned topic
+  phrases and negated or ambiguous activity, supports safe institution-first title order,
+  and requires owner-linked context affiliation on the new route. Supported owners tolerate
+  collaborator co-mentions; a different supported academic without owner support remains an
+  identity conflict.
+- Advanced the fixed observability graph version to `m11.3` without adding trace fields or
+  exposing result content.
+- Added the offline unit, graph, You.com transport-to-domain integration, and repository
+  contract regressions; updated prior current-version contract assertions.
+- Updated `README.md`, `docs/architecture.md`, and added
+  [`m11-3-academic-profile-context-repair.mmd`](m11-3-academic-profile-context-repair.mmd).
+
+### Tests added
+
+- Adversarial unit cases for `/people/` and locale-prefixed `/persons/` layouts,
+  description and snippet support, accented identities with ASCII slugs, middle initials,
+  hyphenated and apostrophized names, bounded multi-particle surnames, bounded context,
+  search-topic and ambiguous-activity false positives, scoped negation, SEO title order,
+  collaborator co-mentions, true identity conflicts, owner-linked affiliation, activity
+  suffix trimming, mandatory institution, exact count accounting, privacy, and canonical
+  terminology.
+- Graph regressions proving six untitled academic layouts continue to deduplication and
+  evidence extraction without fallback, while generic topic layouts stop recoverably.
+- A mocked You.com integration proving normalized provider results flow through the repaired
+  domain boundary with exact provenance and rejection accounting and no network call.
+- A repository contract locking the prompt, diagram, journal, graph version, unchanged
+  provider budgets, deterministic implementation boundary, and closed rejection taxonomy.
+
+### Test results
+
+- New unit, graph, integration, and repository-contract repair set: `56 passed`.
+- Existing and new discovery-agent plus M4/M5/M11.3 graph and integration regression set:
+  `117 passed`.
+- Current M11.3 and prior current-version repository contracts: `13 passed`.
+- The exact three-test 60-second demonstration passed in 0.76 seconds.
+- `venv/bin/ruff format --check .`: all 175 Python files formatted.
+- `venv/bin/ruff check --no-cache .`: all lint checks passed.
+- `venv/bin/mypy src tests`: no issues in 143 source files.
+- `venv/bin/pytest -q`: 940 non-live tests passed, seven live tests were deselected, 49
+  terminology subtests passed, and combined statement/branch coverage was 90.90 percent.
+- `venv/bin/pip check` reported no broken requirements; Python compilation and
+  `git diff --check` passed.
+
+### Assumptions
+
+- A provider summary or bounded snippet may support discovery of a Prospective Supervisor,
+  but it is not verified evidence and cannot establish availability.
+- Exact normalized agreement between an untitled name and singular profile slug is a useful
+  independent identity signal; numeric URL suffixes and common profile-page extensions are
+  non-semantic.
+- A same-name possessive or active scholarly relationship is materially stronger than a
+  bare name adjacent to a research keyword.
+- Planned expanded concepts and query phrases are safe deterministic negative signals only
+  for the new untitled-profile route; explicit named academic-role paths remain unaffected.
+- Context-only affiliation on the new route must state an owner relationship. Mere
+  collaboration with an institution or another academic's affiliation is insufficient.
+- Existing provider budgets, minimum-five routing, and retry limits remain appropriate for
+  this interpretation repair and require separate evidence before they are changed.
+
+### Lessons learned
+
+- Successful provider calls can still fail at a deterministic interpretation gate; the
+  rejection-category distribution localized this failure before institution parsing.
+- Identity, URL shape, language relationship, and affiliation form a safer conjunction than
+  broadening any one heuristic independently.
+- Positive grammar is still insufficient when a capitalized topic can occupy the subject
+  position; the typed SearchPlan supplies a bounded topic guard without model inference.
+- A second named academic is not automatically a conflict. The safe distinction is whether
+  the title owner has independent support before treating other names as co-mentions.
+- Transport-to-domain integration with mocked HTTP catches normalization and provenance
+  regressions that a classifier-only unit test cannot.
+
+### Remaining debt
+
+- Re-run the same Candidate research profile against live providers and compare aggregate
+  `raw -> plausible -> retained` counts; do not use this synthetic suite as a live-recall
+  claim.
+- Evaluate false-positive and false-negative rates against a consented, labelled,
+  cross-institution dataset before adding grammatical variants or relaxing slug equality.
+- Monitor how often valid profiles use directory IDs rather than name-bearing URL slugs;
+  support for those layouts needs a separate evidence-backed identity design.
+- If M11.3 still does not reach the minimum-five gate, evaluate source-specific query intent
+  as a separate bounded repair rather than weakening identity or verification rules.

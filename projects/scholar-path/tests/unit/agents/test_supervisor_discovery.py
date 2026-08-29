@@ -506,14 +506,16 @@ def test_non_person_and_missing_institution_results_are_excluded() -> None:
 
 
 @pytest.mark.parametrize(
-    ("title", "expected_institution", "expected_department"),
+    ("url", "title", "expected_institution", "expected_department"),
     [
         (
+            "https://example.edu/people/elias-hart",
             "Professor Elias Hart | School of Computing and Strategy | Northbridge University",
             "Northbridge University",
             "School of Computing and Strategy",
         ),
         (
+            "https://example.edu/people/sofia-mensah",
             "Professor Sofia Mensah | School of Organisational Studies | "
             "Meridian School of Management",
             "Meridian School of Management",
@@ -522,6 +524,7 @@ def test_non_person_and_missing_institution_results_are_excluded() -> None:
     ],
 )
 def test_department_school_is_not_mistaken_for_the_institution(
+    url: str,
     title: str,
     expected_institution: str,
     expected_department: str,
@@ -530,7 +533,7 @@ def test_department_school_is_not_mistaken_for_the_institution(
         SupervisorDiscoveryAgent()
         .discover(
             _search_plan(),
-            (_result(title=title, description="Academic research profile."),),
+            (_result(url=url, title=title, description="Academic research profile."),),
         )
         .prospective_supervisors[0]
     )
