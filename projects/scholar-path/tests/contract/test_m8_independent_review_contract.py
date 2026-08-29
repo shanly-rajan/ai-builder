@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from scholarpath.agents import (
     INDEPENDENT_REVIEW_PROMPT_VERSION,
-    INDEPENDENT_REVIEW_SYSTEM_PROMPT_V2,
+    INDEPENDENT_REVIEW_SYSTEM_PROMPT_V3,
     IndependentReviewModelPort,
     IndependentReviewResult,
 )
@@ -22,8 +22,11 @@ def test_review_output_and_fake_satisfy_the_provider_neutral_contract() -> None:
 
     assert callable(model.review)
     assert issubclass(IndependentReviewResult, BaseModel)
-    assert INDEPENDENT_REVIEW_PROMPT_VERSION == "independent-review-v2"
-    assert "critique of at most 100 words" in INDEPENDENT_REVIEW_SYSTEM_PROMPT_V2
+    assert INDEPENDENT_REVIEW_PROMPT_VERSION == "independent-review-v3"
+    assert "critique of at most 100 words" in INDEPENDENT_REVIEW_SYSTEM_PROMPT_V3
+    assert "Perform availability and admission-safety checks silently" in (
+        INDEPENDENT_REVIEW_SYSTEM_PROMPT_V3
+    )
     assert "research_fit_review_records" in ScholarPathState.__required_keys__
 
 
@@ -59,6 +62,7 @@ def test_nebius_adapter_uses_strict_structured_output_and_configured_endpoint() 
     assert 'method="json_schema"' in adapter_source
     assert "include_raw=False" in adapter_source
     assert "strict=True" in adapter_source
+    assert "temperature=0.0" in adapter_source
     assert "max_retries=0" in adapter_source
     assert "json.loads" not in adapter_source
     assert "api.tokenfactory.nebius.com" not in adapter_source

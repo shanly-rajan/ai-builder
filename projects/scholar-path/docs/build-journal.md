@@ -1508,3 +1508,70 @@ This repair was triggered by the Candidate-provided live-test traceback reportin
   contract before changing the production default.
 - Add a scheduled live compatibility check outside the default CI gate so provider model
   retirement is detected before an interactive run.
+
+## Milestone M8 live-output stabilization
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Remove a live-test failure mode in which a structurally valid Nebius response repeated a
+safe availability disclaimer that the stricter ScholarPath Research Fit prose contract
+correctly excludes from score-bearing review text.
+
+### Prompt used
+
+The archived M8 prompt remains
+[`docs/prompts/m8-independent-research-fit-review-nebius.md`](prompts/m8-independent-research-fit-review-nebius.md).
+This stabilization was triggered by the Candidate-provided sanitized adapter traceback
+and a clean live reproduction of the underlying structured-output validation failure.
+
+### Files changed
+
+- Preserved prompt versions v1 and v2 and added `independent-review-v3`, which requires
+  availability and admission checks to happen silently and keeps critique text focused
+  only on Research Fit evidence.
+- Configured the Nebius chat adapter with temperature `0.0` to reduce avoidable output
+  variance while retaining strict JSON Schema and zero SDK retries.
+- Updated public exports, current architecture, Mermaid trace metadata, unit tests,
+  contract tests, observability expectations, and this journal.
+
+### Tests added or updated
+
+- Extended the adapter unit test to require temperature `0.0`.
+- Extended the M8 contract test to lock prompt v3 and its silent safety-check instruction.
+- Updated the observability test to require `independent-review-v3` metadata.
+
+### Test results
+
+- The guarded Nebius live test passed with an explicit current model override:
+  `1 passed in 2.66s`.
+- `venv/bin/ruff format --check .`: all 134 Python files formatted.
+- `venv/bin/ruff check --no-cache .`: all lint checks passed.
+- `venv/bin/mypy src tests`: no issues in 109 source files.
+- `venv/bin/pytest -q`: 714 non-live tests passed, six live tests were deselected, 43
+  terminology subtests passed, and combined statement/branch coverage was 91.07 percent.
+- `git diff --check` passed.
+
+### Assumptions
+
+- A reviewer can validate internally that availability did not influence Research Fit
+  without repeating that status in its score-bearing critique.
+- Temperature `0.0` reduces variance but does not replace strict ordinary-code validation
+  or the existing safe graph fallback.
+
+### Lessons learned
+
+- A response can satisfy JSON Schema yet fail semantic domain policy; both validation
+  layers are necessary.
+- Safety instructions and output instructions must agree: asking a model to inspect a
+  prohibited factor should explicitly state whether it may mention that check.
+- Optional live tests reveal probabilistic contract mismatches that fixed fakes cannot
+  reproduce unless the observed case is added to their assertions.
+
+### Remaining debt
+
+- Add an evaluation set of safe disclaimers and unsafe availability inferences to measure
+  prompt compliance across alternative Nebius models.
+- Decide whether a bounded application-level output retry is worth its additional cost;
+  the current graph intentionally preserves the original assessment on invalid output.

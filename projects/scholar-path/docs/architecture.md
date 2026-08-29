@@ -554,7 +554,7 @@ The Research Fit node records `component=research_fit_evaluation_agent`,
 `ResearchFitRubric.version` as `rubric_version` (the default is
 `research-fit-rubric-v1`). Neither evidence text nor Candidate or Supervisor identity
 is trace metadata. The review node records `component=independent_review_agent` and
-`prompt_version=independent-review-v2`; Candidate and evidence payloads remain trace
+`prompt_version=independent-review-v3`; Candidate and evidence payloads remain trace
 inputs rather than metadata, and the LangSmith client hides all inputs and outputs.
 
 Tracing remains optional. When disabled, ScholarPath uses an explicitly disabled

@@ -17,7 +17,7 @@ from .independent_review import (
 )
 from .prompts import (
     INDEPENDENT_REVIEW_PROMPT_VERSION,
-    INDEPENDENT_REVIEW_SYSTEM_PROMPT_V2,
+    INDEPENDENT_REVIEW_SYSTEM_PROMPT_V3,
 )
 
 
@@ -30,6 +30,7 @@ class NebiusReviewModelAdapter:
             model=configuration.model,
             base_url=str(configuration.endpoint),
             timeout=configuration.timeout_seconds,
+            temperature=0.0,
             max_retries=0,
         )
         structured_model = chat_model.with_structured_output(
@@ -40,7 +41,7 @@ class NebiusReviewModelAdapter:
         )
         prompt = ChatPromptTemplate.from_messages(
             (
-                ("system", INDEPENDENT_REVIEW_SYSTEM_PROMPT_V2),
+                ("system", INDEPENDENT_REVIEW_SYSTEM_PROMPT_V3),
                 ("human", "Independent Research Fit review input:\n{review_input}"),
             )
         )

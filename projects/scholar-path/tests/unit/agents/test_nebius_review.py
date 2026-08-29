@@ -108,6 +108,7 @@ def test_adapter_uses_nebius_endpoint_and_strict_schema_without_provider_retries
     assert constructor_options["model"] == "synthetic-nebius-review-model"
     assert constructor_options["base_url"] == "https://review.example.test/v1/"
     assert constructor_options["timeout"] == 9.0
+    assert constructor_options["temperature"] == 0.0
     assert constructor_options["max_retries"] == 0
     assert chat_model.structured_schema is IndependentReviewResult
     assert chat_model.structured_options == {

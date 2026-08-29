@@ -86,7 +86,7 @@ do not estimate admission likelihood, admission probability, or acceptance chanc
 Availability is a separate evidence status outside Research Fit.
 """.strip()
 
-INDEPENDENT_REVIEW_PROMPT_VERSION: Final = "independent-review-v2"
+INDEPENDENT_REVIEW_PROMPT_VERSION: Final = "independent-review-v3"
 
 INDEPENDENT_REVIEW_SYSTEM_PROMPT_V1: Final = """
 You are ScholarPath's Independent Review Agent. Audit one initial Research Fit
@@ -115,4 +115,12 @@ INDEPENDENT_REVIEW_SYSTEM_PROMPT_V2: Final = f"""
 Output contract: return a critique of at most 100 words. Use short, direct sentences
 that state only the review decision, evidence-supported correction when needed, and
 material evidence limitations. Do not restate the complete input or rubric.
+""".strip()
+
+INDEPENDENT_REVIEW_SYSTEM_PROMPT_V3: Final = f"""
+{INDEPENDENT_REVIEW_SYSTEM_PROMPT_V2}
+
+Perform availability and admission-safety checks silently. The critique must not mention
+availability, accepting status, supervision capacity, admission, or acceptance, even to
+say that one of those factors was excluded. Discuss only Research Fit evidence.
 """.strip()
