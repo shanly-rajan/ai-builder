@@ -644,3 +644,104 @@ all downstream fixture nodes and every existing deterministic route.
   synthesis, and persistence nodes only through later explicit milestones.
 - Replace the configured Candidate review stub with an interrupt/resume interaction in
   a later milestone.
+
+## Milestone M3 repair: Editor environment and CLI configuration
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Remove the confirmed red ScholarPath editor diagnostics without changing M3 product
+scope, create a private ignored `.env` with explicit OpenAI and optional LangSmith
+secret slots, and document verified offline and explicitly opted-in live CLI paths.
+
+### Prompt used
+
+[`docs/prompts/m3-editor-environment-and-cli-repair.md`](prompts/m3-editor-environment-and-cli-repair.md)
+
+### Files changed
+
+- Changed optional secret field metadata in `src/config.py` to Pydantic's `Annotated`
+  form so Pylint sees the runtime `SecretStr` type, and isolated its remaining
+  `default_factory` inference limitation to one documented expression.
+- Changed two observability assertions to use `RunnableConfig.get`, matching
+  LangChain's optional-key TypedDict contract and clearing Pyright diagnostics.
+- Changed the CLI to report the actual sanitized provider configuration error instead
+  of always attributing a failure to OpenAI.
+- Updated CLI integration coverage and `README.md` with monorepo Pylance setup, private
+  environment-file handling, offline graph execution, live graph execution, and the
+  explicitly gated OpenAI smoke-test command.
+- Created a blank-secret `.env` with user-only permissions and enabled Pylance nearest
+  configuration discovery in the monorepo's `.vscode/settings.json`. Both are local,
+  ignored files and are intentionally absent from the commit.
+- Archived the repair prompt and updated this build journal.
+
+### Tests added
+
+- Added CLI integration coverage proving that a LangSmith configuration failure is
+  reported as LangSmith rather than incorrectly as an OpenAI failure.
+- Updated existing observability assertions to satisfy the external `RunnableConfig`
+  TypedDict while preserving their runtime checks.
+- Re-ran all existing unit, graph, contract, integration, terminology, discovery, and
+  guarded-live contracts; no network-backed test was enabled.
+
+### Test results
+
+- VS Code logs confirmed that Pylance used the correct Python 3.14.6 virtual
+  environment but scanned the 131-file monorepo because it did not discover the nested
+  ScholarPath Pyright configuration.
+- The VS Code Pylint extension reproduced three Pydantic `FieldInfo` `no-member`
+  diagnostics in `src/config.py`; after repair, Pylint reported no errors across
+  `src/`, and the focused configuration module received 10.00/10.
+- BasedPyright analyzed the 54 configured files with zero errors, warnings, or notes.
+- `venv/bin/ruff format --check .`: all 68 files were formatted.
+- `venv/bin/ruff check --no-cache .`: all checks passed.
+- `venv/bin/mypy src tests`: no issues found in 54 source files.
+- `venv/bin/python -m pip check`: no broken requirements found.
+- The first full test run passed 220 tests and exposed only the expected missing journal
+  link for this newly archived prompt. After adding this entry, the final non-live run
+  passed all 220 selected tests, deselected one live test, and achieved 95.96 percent
+  statement and branch coverage.
+- The injected `FakePlanningModel` CLI command completed without network access and
+  printed five ranked Shortlisted Supervisors.
+- The live test selection skipped cleanly with its API key and explicit opt-in removed;
+  no OpenAI or LangSmith request was made.
+- Git confirmed `.env` and the monorepo `.vscode/settings.json` are ignored; `.env` has
+  mode `0600` and contains no secret value.
+
+### Assumptions
+
+- The reported red project state refers to the currently active VS Code analyzers;
+  their logs supplied the exact Pylint errors and Pylance workspace behavior.
+- The monorepo remains the active VS Code workspace, so local nearest-configuration
+  discovery is preferable to a repository-root Pyright policy that could affect
+  sibling projects.
+- `.env` is resolved from the process working directory by pydantic-settings, so all
+  documented commands begin in `projects/scholar-path`.
+- The OpenAI key is required only for a live planning invocation. The LangSmith key is
+  optional while `LANGSMITH_TRACING=false`.
+
+### Lessons learned
+
+- Selecting the right interpreter and discovering the nearest static-analysis
+  configuration are independent requirements in a nested monorepo.
+- Pydantic's assignment-style `Field` descriptors can create Pylint false positives
+  even when mypy, Pyright, runtime validation, and tests agree; using `Annotated`
+  retains metadata while exposing the intended optional secret type.
+- Provider setup errors should preserve their sanitized provider identity so operators
+  fix the correct secret or feature flag.
+- A live pytest module that reads `os.getenv` directly needs `.env` exported into its
+  process, while the application settings classes load `.env` themselves.
+
+### Remaining debt
+
+- Pylance's nearest-configuration feature is experimental; developers can instead open
+  `projects/scholar-path` directly if a future editor release changes its behavior.
+- Pylint remains an editor-side supplementary analyzer rather than a declared CI gate;
+  Ruff, strict mypy, Pyright-compatible analysis, and pytest are the documented project
+  gates.
+- A built-in offline `--fixture-demo` CLI option could replace the current explicit
+  test-fake injection command, but that would be a separate requested milestone.
+- The live OpenAI and optional LangSmith paths still require the user to add personal
+  credentials and explicitly opt in; this repair deliberately made no paid or external
+  request.

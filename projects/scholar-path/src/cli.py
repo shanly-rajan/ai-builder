@@ -12,8 +12,8 @@ def main(planning_model: PlanningModelPort | None = None) -> int:
             final_state = run_scholarpath_graph()
         else:
             final_state = run_scholarpath_graph(planning_model=planning_model)
-    except ProviderConfigurationError:
-        print("OpenAI planning is not configured. Set OPENAI_API_KEY and try again.")
+    except ProviderConfigurationError as error:
+        print(f"ScholarPath provider configuration error: {error}")
         return 2
     shortlist = final_state["supervisor_shortlist"]
     if shortlist is None or final_state["review_status"] is not ReviewStatus.COMPLETED:

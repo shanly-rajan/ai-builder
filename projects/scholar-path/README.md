@@ -174,6 +174,13 @@ or run the default non-live test suite. The copied `.env` contains placeholders 
 and is ignored by Git. An OpenAI key is validated only when the OpenAI planning adapter
 is instantiated.
 
+Run commands from `projects/scholar-path`, because the application resolves `.env`
+relative to the current working directory. Keep the local file private:
+
+```bash
+chmod 600 .env
+```
+
 ### Provider configuration
 
 Set these variables in the ignored `.env` before running the live CLI:
@@ -211,9 +218,23 @@ projects/scholar-path/venv/bin/python
 
 ScholarPath requires Python 3.12 or newer and relies on its strict editable installation
 for the flattened physical `src/` layout. Using macOS `/usr/bin/python3` can therefore
-produce false syntax and unresolved-import diagnostics. The shared Pyright settings in
-`pyproject.toml` scope analysis to `src` and `tests`, target Python 3.12, and resolve
-packages from the project virtual environment.
+produce false syntax and unresolved-import diagnostics.
+
+Pylance normally reads configuration only from the opened workspace root. If
+`ai-builder` is the root, enable its nearest-configuration mode in the ignored root
+`.vscode/settings.json` so it discovers ScholarPath's nested `[tool.pyright]` section:
+
+```json
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/projects/scholar-path/venv/bin/python",
+  "python.analysis.useNearestConfiguration": true
+}
+```
+
+Then run **Developer: Reload Window** in VS Code. Alternatively, open
+`projects/scholar-path` directly as the workspace. The committed Pyright settings then
+scope analysis to `src` and `tests`, target Python 3.12, and resolve the project virtual
+environment.
 
 Verify the editable installation:
 
@@ -233,6 +254,13 @@ approval path and prints the final five Shortlisted Supervisors with their fixtu
 Research Fit Scores. If OpenAI is not configured, the CLI exits cleanly with setup
 guidance.
 
+To exercise the same full graph without secrets, provider calls, or network access,
+inject the test fake from the CLI:
+
+```bash
+LANGSMITH_TRACING=false python -c 'from scholarpath.cli import main; from tests.fakes import FakePlanningModel; raise SystemExit(main(FakePlanningModel()))'
+```
+
 ## Quality and test commands
 
 Run the complete local quality gate from `projects/scholar-path`:
@@ -247,15 +275,19 @@ pytest -m "not live"
 The pytest configuration collects `tests/`, excludes live tests by default, measures
 branch coverage for `scholarpath`, and requires at least 90 percent coverage.
 
-The optional OpenAI smoke test requires both an exported key and explicit opt-in:
+The optional OpenAI smoke test requires both a process-environment key and explicit
+opt-in. Load the ignored `.env` into the current shell first:
 
 ```bash
-export OPENAI_API_KEY="your-openai-key"
-SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_openai_planning_live.py
+set -a
+source .env
+set +a
+LANGSMITH_TRACING=false SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_openai_planning_live.py
 ```
 
 Without either condition, the live test skips. `-o addopts=''` deliberately overrides
-the repository's default `-m "not live"` selection for this one command.
+the repository's default `-m "not live"` selection for this one command. The standalone
+smoke test reads the process environment directly; it does not load `.env` itself.
 
 The GitHub Actions workflow runs the same installation and quality commands on Python
 3.12 whenever ScholarPath or its workflow changes.

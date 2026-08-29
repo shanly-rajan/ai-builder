@@ -1,6 +1,7 @@
 """Typed application and provider settings with deferred credential validation."""
 
 from enum import StrEnum
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -83,7 +84,7 @@ class OpenAIPlanningSettings(BaseSettings):
         str_strip_whitespace=True,
     )
 
-    api_key: SecretStr | None = Field(default=None, repr=False)
+    api_key: Annotated[SecretStr | None, Field(repr=False)] = None
     planning_model: str = "gpt-5.4-mini"
     planning_timeout_seconds: float = Field(default=60.0, gt=0)
 
@@ -112,7 +113,7 @@ class LangSmithSettings(BaseSettings):
     )
 
     tracing: bool = False
-    api_key: SecretStr | None = Field(default=None, repr=False)
+    api_key: Annotated[SecretStr | None, Field(repr=False)] = None
     project: str = Field(default="scholarpath", min_length=1)
 
     def require_api_key(self) -> SecretStr:
@@ -150,9 +151,9 @@ class ApplicationSettings(BaseSettings):
         if not normalized_provider:
             raise ProviderConfigurationError("Provider name must not be blank.")
 
-        normalized_keys = {
-            name.strip().casefold(): api_key for name, api_key in self.provider_api_keys.items()
-        }
+        # Pylint does not apply Pydantic's runtime field transform to this descriptor.
+        provider_items = self.provider_api_keys.items()  # pylint: disable=no-member
+        normalized_keys = {name.strip().casefold(): api_key for name, api_key in provider_items}
         api_key = normalized_keys.get(normalized_provider)
         if api_key is None or not api_key.get_secret_value().strip():
             raise ProviderConfigurationError(

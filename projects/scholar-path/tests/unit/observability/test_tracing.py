@@ -102,8 +102,8 @@ def test_disabled_tracing_never_constructs_a_langsmith_client(
     with observability.activate():
         config = observability.runnable_config(recursion_limit=42)
 
-    assert config["recursion_limit"] == 42
-    assert config["run_name"] == "scholarpath_graph"
+    assert config.get("recursion_limit") == 42
+    assert config.get("run_name") == "scholarpath_graph"
 
 
 def test_enabled_tracing_hides_input_and_output_payloads(

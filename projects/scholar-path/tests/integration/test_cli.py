@@ -8,7 +8,12 @@ from pathlib import Path
 import pytest
 
 from scholarpath import cli
-from scholarpath.config import ApplicationSettings, Environment, LangSmithSettings
+from scholarpath.config import (
+    ApplicationSettings,
+    Environment,
+    LangSmithSettings,
+    ProviderConfigurationError,
+)
 from scholarpath.graph import (
     ScholarPathState,
     build_walking_skeleton_fixtures,
@@ -84,5 +89,26 @@ def test_cli_module_reports_missing_openai_key_without_a_traceback(tmp_path: Pat
     assert result.returncode == 2
     assert result.stderr == ""
     assert result.stdout == (
-        "OpenAI planning is not configured. Set OPENAI_API_KEY and try again.\n"
+        "ScholarPath provider configuration error: Missing API key for provider 'openai'.\n"
+    )
+
+
+def test_cli_reports_the_actual_provider_configuration_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fail_graph(**_kwargs: object) -> ScholarPathState:
+        raise ProviderConfigurationError(
+            "Missing API key for provider 'langsmith' while tracing is enabled."
+        )
+
+    monkeypatch.setattr(cli, "run_scholarpath_graph", fail_graph)
+
+    exit_code = cli.main(FakePlanningModel())
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert captured.out == (
+        "ScholarPath provider configuration error: "
+        "Missing API key for provider 'langsmith' while tracing is enabled.\n"
     )
