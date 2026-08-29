@@ -217,6 +217,7 @@ class RecoverableUiError(BaseModel):
     code: NonEmptyUiText
     message: NonEmptyUiText
     recoverable: bool
+    occurrence_count: Annotated[int, Field(strict=True, ge=1)] = 1
 
 
 class UiRunSnapshot(BaseModel):

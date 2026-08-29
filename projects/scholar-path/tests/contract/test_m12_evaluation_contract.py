@@ -201,4 +201,4 @@ def test_m12_prompt_plan_diagram_baseline_readme_and_build_journal_are_recorded(
     assert "scripts/create_eval_dataset.py" in readme
     assert "scripts/run_evals.py" in readme
     assert "Milestone M12" in journal
-    assert GRAPH_VERSION == "m12"
+    assert GRAPH_VERSION == "m12.1"

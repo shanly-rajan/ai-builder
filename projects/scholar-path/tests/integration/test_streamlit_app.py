@@ -397,6 +397,44 @@ def test_typed_discovery_rejection_breakdown_is_rendered_without_sensitive_conte
     assert "Candidate research statement" not in rendered
 
 
+def test_repeated_recoverable_errors_render_once_with_an_occurrence_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repeated_message = "No alternate official Supervisor source could be selected."
+    single_message = "A Supervisor source page could not be extracted."
+    snapshot = UiRunSnapshot(
+        stage=UiStage.STOPPED,
+        checkpoint_token="ui-grouped-errors-checkpoint",
+        errors=(
+            RecoverableUiError(
+                code="alternate_source_unavailable",
+                message=repeated_message,
+                recoverable=True,
+                occurrence_count=5,
+            ),
+            RecoverableUiError(
+                code="page_extraction_failed",
+                message=single_message,
+                recoverable=True,
+            ),
+        ),
+    )
+    service = FakeScholarPathApplication(start_snapshot=snapshot)
+    _configure_ui_dependencies(monkeypatch, service)
+    app_test = _new_app()
+
+    _submit_candidate_profile(app_test)
+
+    warnings = [item.value for item in app_test.warning]
+    rendered = "\n".join(warnings)
+    assert not app_test.exception
+    assert sum(repeated_message in warning for warning in warnings) == 1
+    assert rendered.count(repeated_message) == 1
+    assert "recorded 5 times in the current run" in rendered
+    assert sum(single_message in warning for warning in warnings) == 1
+    assert "recorded 1 time" not in rendered
+
+
 def test_verified_supervisor_evidence_and_review_fields_are_rendered(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

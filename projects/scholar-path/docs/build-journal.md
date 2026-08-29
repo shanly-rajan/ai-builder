@@ -2370,3 +2370,89 @@ The exact milestone prompt is archived as
 - Introduce a separately governed, consented, de-identified real-world evaluation corpus
   before claiming external validity; the synthetic baseline proves behavior, not recall or
   recommendation quality in production.
+
+## M12.1 Repair: Live-result presentation
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Repair the bounded live-result defects visible after discovery: a repeated abbreviated title
+inside a Supervisor name, a navigation breadcrumb retained as the institution, and many
+identical evidence-extraction warnings rendered separately. Preserve all provider budgets,
+workflow state, provenance, evidence rules, and Candidate approval controls.
+
+### Prompt used
+
+The exact repair prompt is archived as
+[`m12-1-live-result-presentation-repair.md`](prompts/m12-1-live-result-presentation-repair.md).
+
+### Files changed
+
+- Updated deterministic discovery cleanup so normalized `Prof` and `Dr` tokens terminate
+  name extraction, and a colon-delimited breadcrumb returns its rightmost strong institution
+  fragment.
+- Added an explicit positive `occurrence_count` to the typed Candidate-facing error model.
+  The graph-to-UI projection groups only exact `(code, message, recoverable)` matches in
+  stable first-seen order while leaving append-only graph error records unchanged.
+- Updated Streamlit warning and error rendering to show one message per group and a count only
+  when the same issue occurred more than once.
+- Advanced the graph version and offline evaluation replay identifier to `m12.1`; updated the
+  README, architecture, current-version contracts, and added
+  [`m12-1-live-result-presentation-repair.mmd`](m12-1-live-result-presentation-repair.mmd).
+
+### Tests added
+
+- Discovery regressions cover the exact repeated Sussex title/breadcrumb shape and a second
+  strong-institution breadcrumb.
+- Controller regression proves duplicate grouping, stable order, distinct severity, exact
+  occurrence counts, and preservation of the original graph audit-record count.
+- AppTest proves one grouped warning is rendered with a five-occurrence message while a
+  single warning receives no count suffix.
+- Repository contracts lock the prompt, diagram, journal, graph version, unchanged discovery
+  budgets, unchanged graph error schema, typed UI count, deterministic implementation, and
+  versioned evaluation replay name.
+
+### Test results
+
+- Focused discovery, controller, AppTest, and contract regressions: `95 passed`.
+- Offline LangSmith-compatible regression replay: `11/11` scenarios passed; every applicable
+  deterministic evaluator passed and the duplicate Supervisor rate was `0.000`.
+- Ruff formatting: `200 files already formatted`; Ruff lint: all checks passed.
+- Mypy: no issues in `164` source files.
+- Full non-live pytest suite: `1041 passed`, `8 deselected`, and `51 subtests passed` with
+  `90.56%` coverage.
+- Dependency integrity, bytecode compilation, and diff whitespace checks passed.
+
+### Assumptions
+
+- Normalized `Prof` and `Dr` appearing after a substantive name identify a repeated title or
+  navigation artifact, not another valid name token.
+- In a colon-delimited academic breadcrumb, the rightmost fragment containing a strong
+  university or institute marker is the institution label; weaker group text is navigation,
+  not affiliation evidence.
+- Exact UI grouping is safe because code, message, and recoverability must all match. A
+  difference in any field remains visible as a distinct issue.
+- Occurrence counts are presentation metadata, not a replacement for the persisted per-event
+  audit trail.
+
+### Lessons learned
+
+- Provider title cleanup needs explicit stop tokens for abbreviated roles as well as their
+  expanded forms.
+- Navigation breadcrumbs and institution labels can occupy one normalized title segment;
+  selecting a strong fragment is safer than accepting the whole segment.
+- Operational audit cardinality and user-interface cardinality serve different purposes.
+  Keeping grouping at the projection boundary preserves both.
+- Repeated warnings should communicate frequency without forcing the Candidate to visually
+  deduplicate identical failure text.
+
+### Remaining debt
+
+- The grouped warnings still represent real extraction failures. If live runs continue to
+  produce no Verified Supervisors, inspect typed attempt categories and safe traces rather
+  than weakening evidence sufficiency.
+- Validate breadcrumb cleanup on a labelled cross-institution title corpus before adding
+  separators or weaker institution types.
+- Consider a protected support correlation ID for grouped operational failures once thread
+  authorization and trace access governance exist.

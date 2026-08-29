@@ -127,6 +127,7 @@ _NAME_STOP_WORDS = {
     "college",
     "department",
     "directory",
+    "dr",
     "experts",
     "faculty",
     "from",
@@ -138,6 +139,7 @@ _NAME_STOP_WORDS = {
     "laboratory",
     "lecturer",
     "polytechnic",
+    "prof",
     "professor",
     "profile",
     "research",
@@ -415,9 +417,15 @@ def _title_segment_names_different_person(segment: str, full_name: str) -> bool:
 
 
 def _clean_institution_segment(value: str) -> str:
-    """Remove an academic-role prefix from a combined role-and-institution title segment."""
+    """Remove a role prefix and resolve a strong institution from a title breadcrumb."""
     stripped = value.strip(" .,:;-")
-    return _ACADEMIC_ROLE_AT_INSTITUTION_PATTERN.sub("", stripped).strip(" .,:;-")
+    stripped = _ACADEMIC_ROLE_AT_INSTITUTION_PATTERN.sub("", stripped).strip(" .,:;-")
+    strong_breadcrumb_fragments = tuple(
+        fragment.strip(" .,:;-")
+        for fragment in stripped.split(":")
+        if _STRONG_INSTITUTION_PATTERN.search(fragment)
+    )
+    return strong_breadcrumb_fragments[-1] if strong_breadcrumb_fragments else stripped
 
 
 def _is_plausible_acronym_institution(value: str) -> bool:

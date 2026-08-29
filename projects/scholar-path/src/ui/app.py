@@ -491,6 +491,11 @@ def _render_shortlist(snapshot: UiRunSnapshot) -> None:
 
 def _render_errors(snapshot: UiRunSnapshot) -> None:
     for error in snapshot.errors:
+        occurrence_note = (
+            f" This issue was recorded {error.occurrence_count} times in the current run."
+            if error.occurrence_count > 1
+            else ""
+        )
         diagnostics = snapshot.discovery_diagnostics
         if (
             error.code == "supervisor_discovery_incomplete"
@@ -500,13 +505,13 @@ def _render_errors(snapshot: UiRunSnapshot) -> None:
             st.warning(
                 "Supervisor discovery completed its bounded provider attempts without "
                 "retaining a Prospective Supervisor. Revise the search preferences and try "
-                "again."
+                f"again.{occurrence_note}"
             )
             continue
         if error.recoverable:
-            st.warning(f"{error.message} You can revise the search and try again.")
+            st.warning(f"{error.message} You can revise the search and try again.{occurrence_note}")
         else:
-            st.error(error.message)
+            st.error(f"{error.message}{occurrence_note}")
 
 
 def _render_existing_thread(thread_id: str) -> None:

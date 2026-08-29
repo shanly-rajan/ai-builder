@@ -1,0 +1,14 @@
+flowchart LR
+    Result[Provider search result] --> Name[Deterministic name token cleanup]
+    Name --> Institution[Strong institution breadcrumb selection]
+    Institution --> Prospective[Prospective Supervisor]
+
+    GraphErrors[Append-only graph tool errors] --> Group[Exact UI grouping key]
+    Group --> Key[code + message + recoverable]
+    Key --> View[One UI error with occurrence count]
+    View --> Candidate[Candidate sees concise recoverable warnings]
+
+    GraphErrors -. preserved for audit .-> Checkpoint[Persisted graph state]
+
+    classDef boundary fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
+    class Name,Institution,Group boundary;

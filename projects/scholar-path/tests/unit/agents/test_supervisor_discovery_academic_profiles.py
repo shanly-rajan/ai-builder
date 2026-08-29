@@ -381,6 +381,45 @@ def test_generic_profile_slug_does_not_conflict_with_a_titled_identity() -> None
     ]
 
 
+def test_repeated_abbreviated_title_does_not_extend_the_supervisor_name() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://www.sussex.ac.uk/profiles/123456",
+                title=(
+                    "Prof Margaret A Boden Prof Margaret | "
+                    "People : AI Research Group : University of Sussex"
+                ),
+                description="Official academic profile.",
+            ),
+        ),
+    )
+
+    assert discovery.rejection_counts == SearchResultRejectionCounts()
+    assert [
+        (supervisor.full_name, supervisor.institution)
+        for supervisor in discovery.prospective_supervisors
+    ] == [("Prof Margaret A Boden", "University of Sussex")]
+
+
+def test_colon_breadcrumb_retains_only_the_strong_institution_fragment() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://example.edu/people/jane-doe",
+                title="Professor Jane Doe | People : AI Research Group : Example University",
+                description="Official academic profile.",
+            ),
+        ),
+    )
+
+    assert [supervisor.institution for supervisor in discovery.prospective_supervisors] == [
+        "Example University"
+    ]
+
+
 @pytest.mark.parametrize(
     "description",
     [

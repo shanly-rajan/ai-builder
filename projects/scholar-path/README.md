@@ -727,7 +727,7 @@ To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_WORKSPACE_ID` only when the API key is scoped to more than one workspace.
 These values are loaded from `.env` and passed explicitly to the LangSmith client.
 `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag; the implementation
-supplies the fixed `graph-version:m12` tag. Disabling tracing does not construct a
+supplies the fixed `graph-version:m12.1` tag. Disabling tracing does not construct a
 LangSmith client, even if another process has globally enabled tracing.
 
 ### Run the M12 evaluation suite
@@ -776,6 +776,23 @@ Uploaded target traces carry application, environment, graph version, prompt ver
 provider, fallback use, and Candidate review outcome tags. Candidate identity, full research
 statements, queries, source content, credentials, and thread IDs are excluded from metadata;
 the evaluation client also hides target inputs and outputs.
+
+### M12.1 live-result presentation repair
+
+Live discovery labels are normalized before a Prospective Supervisor is rendered. Repeated
+`Prof` or `Dr` tokens terminate deterministic name extraction, and colon-delimited academic
+breadcrumbs retain the strongest institution fragment—for example:
+
+```text
+Prof Margaret A Boden Prof Margaret | People : AI Research Group : University of Sussex
+                                  ↓
+Prof Margaret A Boden — University of Sussex
+```
+
+Graph `tool_errors` remain append-only in persisted state. The Streamlit projection groups
+only exact duplicate `(code, message, recoverable)` records, preserves first-seen order, and
+renders one warning with an occurrence count. Distinct errors and severities remain separate;
+this presentation repair does not conceal or resolve an underlying extraction failure.
 
 ### Run the Streamlit application locally
 

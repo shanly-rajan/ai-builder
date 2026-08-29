@@ -838,11 +838,11 @@ flowchart LR
     Root --> FitTrace[Research Fit node and rubric metadata]
     Root --> ReviewTrace[independent-review node metadata]
     Root --> Discovery[discovery node + aggregate attempt spans]
-    Tags[environment plus graph-version:m12] --> Root
+    Tags[environment plus graph-version:m12.1] --> Root
 ```
 
-The graph version is `m12`. Root tags are
-`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m12`. Planning, discovery,
+The graph version is `m12.1`. Root tags are
+`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m12.1`. Planning, discovery,
 evidence, Research Fit, and independent-review nodes add only safe component and version
 metadata. The fixed metadata allowlist is:
 
@@ -937,6 +937,20 @@ version, model provider, fallback use, Candidate review outcome, target, and syn
 scenario ID. Candidate identity, full research statements, search queries, source content,
 URLs, checkpoint thread IDs, and secrets are omitted. The LangSmith client hides inputs and
 outputs and omits runtime metadata.
+
+## M12.1 live-result presentation boundary
+
+[`m12-1-live-result-presentation-repair.mmd`](m12-1-live-result-presentation-repair.mmd)
+shows the two bounded transformations. Discovery terminates a name when a repeated
+abbreviated academic role token appears, then selects the rightmost strong institution from
+a colon-delimited title breadcrumb. These deterministic rules act only on normalized search
+result fields and do not create evidence, availability, or Research Fit claims.
+
+Persisted graph errors remain append-only so per-Supervisor failures can be audited. The UI
+projection groups exact `(code, message, recoverable)` matches, sums an explicit positive
+occurrence count, and preserves first-seen order. Rendering displays one warning per group.
+Different codes, messages, or severity remain distinct. This separates an operational audit
+log from a Candidate-facing presentation without mutating workflow state.
 
 ## Configuration and deferred provider activation
 
@@ -1128,7 +1142,7 @@ already-running event-loop runtime.
 | Conflicts | Both affiliation claims and cross-referenced evidence IDs are preserved |
 | Retry | One deterministic alternate official-source search and extraction pass |
 | Network isolation | Default tests use fixed pages and fakes; `live` is excluded by default |
-| Observability | `graph-version:m12`, prompt and rubric versions, allowlisted aggregate discovery and evaluation metadata, hidden inputs and outputs |
+| Observability | `graph-version:m12.1`, prompt and rubric versions, allowlisted aggregate discovery and evaluation metadata, hidden inputs and outputs |
 | Evaluation | Eleven typed synthetic scenarios, fake-default targets, ten deterministic metrics, optional scoped judges, stable dataset IDs, and separate upload/live gates |
 | Human authority | A real interrupt requires typed explicit approval before Shortlisted status or briefing generation |
 | Persistence | In-memory isolation in tests; ignored SQLite path for trusted local restart; opaque thread IDs partition runs |

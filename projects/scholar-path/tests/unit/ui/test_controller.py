@@ -10,6 +10,7 @@ from scholarpath.graph import (
     CANONICAL_NODE_NAMES,
     ReviewStatus,
     SearchAttempt,
+    ToolErrorRecord,
     build_walking_skeleton_fixtures,
     create_initial_state,
 )
@@ -202,6 +203,54 @@ def test_graph_state_projection_exposes_verified_evidence_but_not_raw_graph_data
     assert "raw_search_results" not in rendered
     assert "raw_state_dump" not in rendered
     assert "supporting_excerpt" not in rendered
+
+
+def test_graph_error_projection_groups_exact_duplicates_and_preserves_audit_count() -> None:
+    fixtures = build_walking_skeleton_fixtures()
+    state = create_initial_state(fixtures.candidate_profile)
+    extraction_error = ToolErrorRecord(
+        node="extract_supervisor_evidence",
+        code="evidence_model_output",
+        message="Evidence extraction returned invalid structured output.",
+        recoverable=True,
+    )
+    alternate_error = ToolErrorRecord(
+        node="retry_alternate_evidence_source",
+        code="alternate_source_unavailable",
+        message="No alternate official Supervisor source could be selected.",
+        recoverable=True,
+    )
+    distinct_error = ToolErrorRecord(
+        node="extract_supervisor_evidence",
+        code="page_extraction_failed",
+        message="A Supervisor source page could not be extracted.",
+        recoverable=False,
+    )
+    state["tool_errors"] = [
+        extraction_error,
+        extraction_error,
+        alternate_error,
+        alternate_error,
+        alternate_error,
+        alternate_error,
+        alternate_error,
+        distinct_error,
+    ]
+
+    snapshot = project_graph_state_to_ui(
+        state,
+        checkpoint_token="checkpoint-grouped-ui-errors",
+        review_payload=None,
+    )
+
+    assert [(item.code, item.occurrence_count) for item in snapshot.errors] == [
+        ("evidence_model_output", 2),
+        ("alternate_source_unavailable", 5),
+        ("page_extraction_failed", 1),
+    ]
+    assert [item.recoverable for item in snapshot.errors] == [True, True, False]
+    assert sum(item.occurrence_count for item in snapshot.errors) == len(state["tool_errors"])
+    assert len(state["tool_errors"]) == 8
 
 
 def test_discovery_diagnostics_expose_counts_but_drop_queries_and_result_content() -> None:

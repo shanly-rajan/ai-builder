@@ -24,6 +24,7 @@ from ..graph import (
     CandidateReviewInterruptPayload,
     ReviewStatus,
     ScholarPathState,
+    ToolErrorRecord,
 )
 from ..tools import SearchProvider
 from .models import (
@@ -372,14 +373,7 @@ def project_graph_state_to_ui(
         )
         for supervisor in state["shortlisted_supervisors"]
     )
-    errors = tuple(
-        RecoverableUiError(
-            code=error.code,
-            message=error.message,
-            recoverable=error.recoverable,
-        )
-        for error in state["tool_errors"]
-    )
+    errors = _group_ui_errors(state["tool_errors"])
 
     if state["supervisor_shortlist"] is not None:
         stage = UiStage.SUPERVISOR_SHORTLIST
@@ -414,3 +408,27 @@ def project_graph_state_to_ui(
         shortlist_briefing=state["shortlist_briefing"],
         errors=errors,
     )
+
+
+def _group_ui_errors(errors: Iterable[ToolErrorRecord]) -> tuple[RecoverableUiError, ...]:
+    """Group exact Candidate-facing duplicates while preserving graph audit records."""
+    grouped: list[RecoverableUiError] = []
+    positions: dict[tuple[str, str, bool], int] = {}
+    for error in errors:
+        key = (error.code, error.message, error.recoverable)
+        position = positions.get(key)
+        if position is None:
+            positions[key] = len(grouped)
+            grouped.append(
+                RecoverableUiError(
+                    code=error.code,
+                    message=error.message,
+                    recoverable=error.recoverable,
+                )
+            )
+            continue
+        current = grouped[position]
+        grouped[position] = current.model_copy(
+            update={"occurrence_count": current.occurrence_count + 1}
+        )
+    return tuple(grouped)
