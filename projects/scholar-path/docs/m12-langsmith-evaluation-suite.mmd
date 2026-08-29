@@ -1,0 +1,81 @@
+flowchart LR
+    Dataset[11 synthetic M12 scenarios]
+
+    subgraph Splits[Versioned dataset splits]
+        PlanningSplit[planning]
+        VerificationSplit[evidence-verification]
+        FitSplit[research-fit]
+        WorkflowSplit[graph-fake]
+        LiveSplit[graph-live]
+    end
+
+    Dataset --> PlanningSplit
+    Dataset --> VerificationSplit
+    Dataset --> FitSplit
+    Dataset --> WorkflowSplit
+    Dataset --> LiveSplit
+
+    subgraph Targets[Typed target functions]
+        PlanningTarget[Search planning target]
+        VerificationTarget[Evidence verification target]
+        FitTarget[Research Fit target]
+        FakeTarget[Fake end-to-end graph target]
+        LiveGate{Explicit live end-to-end opt-in?}
+        LiveTarget[Live end-to-end graph target]
+    end
+
+    PlanningSplit --> PlanningTarget
+    VerificationSplit --> VerificationTarget
+    FitSplit --> FitTarget
+    WorkflowSplit --> FakeTarget
+    LiveSplit --> LiveGate
+    LiveGate -->|yes and credentials present| LiveTarget
+    LiveGate -->|no| SkipLive[Skip without provider construction]
+
+    subgraph Exact[Deterministic evaluators]
+        Schema[Schema and terminology]
+        Evidence[Evidence IDs and source URLs]
+        Score[Score bounds and component totals]
+        Safety[Availability and admission safety]
+        Route[Fallback and duplicate rate]
+        Approval[Candidate approval enforcement]
+    end
+
+    PlanningTarget --> Schema
+    VerificationTarget --> Schema
+    VerificationTarget --> Evidence
+    VerificationTarget --> Safety
+    FitTarget --> Schema
+    FitTarget --> Evidence
+    FitTarget --> Score
+    FitTarget --> Safety
+    FakeTarget --> Exact
+    LiveTarget --> Exact
+
+    subgraph Qualitative[Optional structured-output judges]
+        JudgeGate{Explicit judge opt-in?}
+        Relevance[Research Fit relevance]
+        Explanation[Explanation usefulness]
+        Grounding[Evidence-grounded rationale]
+        Shortlist[Shortlist usefulness]
+    end
+
+    FitTarget --> JudgeGate
+    FakeTarget --> JudgeGate
+    LiveTarget --> JudgeGate
+    JudgeGate -->|yes and model key present| Relevance
+    JudgeGate -->|yes and model key present| Explanation
+    JudgeGate -->|yes and model key present| Grounding
+    JudgeGate -->|yes and model key present| Shortlist
+    JudgeGate -->|no| SkipJudge[Record judge metrics as not run]
+
+    Exact --> Local[Direct offline baseline; no LangSmith client]
+    Qualitative --> LiveExperiment[Opt-in LangSmith experiment]
+    LiveTarget --> LiveExperiment
+
+    Local --> Baseline[Transparent baseline record]
+    LiveExperiment --> Dashboard[Versioned LangSmith results]
+
+    Privacy[Metadata allowlist only]
+    Privacy -. excludes Candidate content, queries, URLs, pages, and secrets .-> Targets
+    Privacy -. fixed application, version, provider, fallback, and review tags .-> Dashboard

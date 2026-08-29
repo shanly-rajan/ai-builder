@@ -90,6 +90,7 @@ def test_physical_src_root_maps_to_the_scholarpath_package() -> None:
         "scholarpath",
         "scholarpath.agents",
         "scholarpath.domain",
+        "scholarpath.evaluation",
         "scholarpath.graph",
         "scholarpath.memory",
         "scholarpath.observability",

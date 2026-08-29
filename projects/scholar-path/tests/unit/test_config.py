@@ -12,6 +12,7 @@ from scholarpath.config import (
     ApplicationSettings,
     DiscoveryFailureMode,
     Environment,
+    EvaluationSettings,
     LangSmithSettings,
     LogLevel,
     Mem0MemoryConfiguration,
@@ -31,6 +32,7 @@ from scholarpath.config import (
     TavilySearchSettings,
     YouSearchConfiguration,
     YouSearchSettings,
+    load_evaluation_settings,
     load_langsmith_settings,
     load_mem0_memory_settings,
     load_nebius_review_settings,
@@ -648,6 +650,35 @@ def test_langsmith_uses_canonical_environment_variables(
     assert settings.workspace_id == "workspace-test-001"
     assert "not-a-real-langsmith-secret" not in repr(settings)
     assert "workspace-test-001" not in repr(settings)
+
+
+def test_langsmith_evaluation_credentials_do_not_require_tracing() -> None:
+    settings = LangSmithSettings(
+        tracing=False,
+        api_key=SecretStr("not-a-real-langsmith-secret"),
+    )
+
+    assert settings.require_evaluation_api_key().get_secret_value() == "not-a-real-langsmith-secret"
+
+
+def test_langsmith_evaluation_credentials_are_validated_only_when_requested() -> None:
+    settings = LangSmithSettings(tracing=False, api_key=None)
+
+    with pytest.raises(ProviderConfigurationError, match="evaluation is enabled"):
+        settings.require_evaluation_api_key()
+
+
+def test_evaluation_settings_default_to_fully_offline(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+
+    settings = load_evaluation_settings()
+
+    assert settings == EvaluationSettings()
+    assert settings.run_langsmith_evals is False
+    assert settings.run_live_e2e_evals is False
+    assert settings.evaluation_dataset_name == "scholarpath-m12-regression-v1"
 
 
 def test_enabled_langsmith_tracing_defers_missing_key_validation(

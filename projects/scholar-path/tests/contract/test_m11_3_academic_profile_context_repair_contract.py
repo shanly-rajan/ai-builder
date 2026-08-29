@@ -26,7 +26,7 @@ def test_m11_3_remains_deterministic_and_keeps_policy_bounds() -> None:
     source = (PROJECT_ROOT / "src/agents/supervisor_discovery.py").read_text(encoding="utf-8")
     policy = DiscoveryPolicy()
 
-    assert GRAPH_VERSION == "m11.3"
+    assert GRAPH_VERSION == "m12"
     assert policy.minimum_unique_supervisors == 5
     assert policy.maximum_you_retry_count == 1
     assert policy.maximum_tavily_fallback_count == 4

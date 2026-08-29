@@ -713,6 +713,12 @@ LANGSMITH_ENDPOINT=https://api.smith.langchain.com
 LANGSMITH_API_KEY=
 LANGSMITH_PROJECT=scholarpath
 LANGSMITH_WORKSPACE_ID=
+SCHOLARPATH_RUN_LANGSMITH_EVALS=false
+SCHOLARPATH_RUN_LIVE_E2E_EVALS=false
+SCHOLARPATH_EVALUATION_DATASET_NAME=scholarpath-m12-regression-v1
+SCHOLARPATH_EVALUATION_EXPERIMENT_PREFIX=scholarpath-m12
+SCHOLARPATH_EVALUATION_JUDGE_MODEL=gpt-5.4-mini
+SCHOLARPATH_EVALUATION_JUDGE_TIMEOUT_SECONDS=60
 ```
 
 To trace a live run, set `LANGSMITH_TRACING=true` and provide
@@ -721,8 +727,55 @@ To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_WORKSPACE_ID` only when the API key is scoped to more than one workspace.
 These values are loaded from `.env` and passed explicitly to the LangSmith client.
 `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag; the implementation
-supplies the fixed `graph-version:m11.3` tag. Disabling tracing does not construct a
+supplies the fixed `graph-version:m12` tag. Disabling tracing does not construct a
 LangSmith client, even if another process has globally enabled tracing.
+
+### Run the M12 evaluation suite
+
+The default evaluation is deterministic, fake-backed, and offline. It constructs no
+LangSmith client and makes no model, search, memory, or network call:
+
+```bash
+venv/bin/python scripts/create_eval_dataset.py
+venv/bin/python scripts/run_evals.py
+venv/bin/python scripts/run_evals.py --target graph_fake
+```
+
+The first command previews all eleven synthetic scenarios. The second runs the complete
+local baseline; the third limits execution to the fake end-to-end graph scenarios. The
+expected baseline is `11/11` scenarios passed. Metric definitions and observed values are
+recorded in [`docs/evaluation-baseline.md`](docs/evaluation-baseline.md).
+
+Writing the dataset or an experiment to LangSmith requires both an explicit command option
+and the environment gate. Load the ignored `.env` first so the configured regional endpoint
+and workspace are used:
+
+```bash
+set -a
+source .env
+set +a
+
+SCHOLARPATH_RUN_LANGSMITH_EVALS=true \
+venv/bin/python scripts/create_eval_dataset.py --upload
+
+SCHOLARPATH_RUN_LANGSMITH_EVALS=true \
+venv/bin/python scripts/run_evals.py --upload --target graph_fake
+```
+
+Add `--include-llm-judges` only when the four qualitative OpenAI judges should run. A live
+end-to-end experiment is a separate, stronger opt-in and uses only the bounded `graph-live`
+scenario:
+
+```bash
+SCHOLARPATH_RUN_LANGSMITH_EVALS=true \
+SCHOLARPATH_RUN_LIVE_E2E_EVALS=true \
+venv/bin/python scripts/run_evals.py --upload --live --target graph_live
+```
+
+Uploaded target traces carry application, environment, graph version, prompt version, model
+provider, fallback use, and Candidate review outcome tags. Candidate identity, full research
+statements, queries, source content, credentials, and thread IDs are excluded from metadata;
+the evaluation client also hides target inputs and outputs.
 
 ### Run the Streamlit application locally
 
@@ -1102,7 +1155,7 @@ execute, coordinate, remember, or observe those responsibilities.
 | **Nebius** | Current independent Research Fit review through the Token Factory OpenAI-compatible endpoint; no browsing or tools. |
 | **Mem0** | Candidate preference and feedback memory. |
 | **LangGraph** | Current deterministic state orchestration, durable interrupt, and Candidate approval flow. |
-| **LangSmith** | Current optional graph, planning, evidence, Research Fit, and independent-review node tracing; evaluation datasets remain planned. |
+| **LangSmith** | Optional graph tracing plus the M12 synthetic dataset, deterministic regression evaluators, and separately selected qualitative judges. |
 | **Streamlit** | Current Candidate-facing interface for profile intake, safe progress, evidence review, and thread-correct interrupt resume. |
 
 ## Future production evolution
@@ -1113,7 +1166,7 @@ current position, while Supervisor facts remain authoritative only in verified e
 Streamlit renders only a safe projection and resumes the same opaque thread; viewing a
 proposal never translates into approval. Authenticated Candidate identity and authorization
 over thread ownership; Mem0 consent, retention, deletion, residency, and access controls;
-source freshness and authority weighting; trace evaluation; checkpoint encryption and
+source freshness and authority weighting; evaluation calibration; checkpoint encryption and
 retention; and multi-process persistence remain deferred. Retry limits, sufficiency
 thresholds, arithmetic, routing, and ranking remain explicit deterministic configuration
 rather than model decisions.

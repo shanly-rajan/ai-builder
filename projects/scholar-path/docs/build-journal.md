@@ -2257,3 +2257,116 @@ The exact bounded repair prompt is archived as
   support for those layouts needs a separate evidence-backed identity design.
 - If M11.3 still does not reach the minimum-five gate, evaluate source-specific query intent
   as a separate bounded repair rather than weakening identity or verification rules.
+
+## Milestone M12: LangSmith evaluation and regression suite
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Supplement the existing pytest release gate with a versioned, privacy-safe ScholarPath
+evaluation dataset; fake-default component and end-to-end targets; deterministic regression
+metrics; narrowly scoped structured-output judges; and explicitly gated LangSmith dataset,
+experiment, and live execution paths.
+
+### Prompt used
+
+The exact milestone prompt is archived as
+[`m12-langsmith-evaluation-and-regression-suite.md`](prompts/m12-langsmith-evaluation-and-regression-suite.md).
+
+### Files changed
+
+- Added the `scholarpath.evaluation` package with strict scenario and output projections,
+  eleven curated synthetic scenarios, source-owned fakes, five target functions, ten pure
+  deterministic evaluators, four optional structured qualitative judges, privacy-safe trace
+  tagging, an offline baseline runner, stable example IDs, dataset synchronization, and an
+  explicitly gated uploaded-experiment path.
+- Added `scripts/create_eval_dataset.py` for no-write preview or explicit idempotent upload,
+  and `scripts/run_evals.py` for offline, uploaded, judge-assisted, or separately gated live
+  execution.
+- Added optional evaluation configuration and dotenv placeholders while preserving inert
+  imports and deferred credential validation.
+- Advanced the observability graph version to `m12` and extended only the safe evaluation
+  tag allowlist.
+- Added [`evaluation-plan.md`](evaluation-plan.md),
+  [`evaluation-baseline.md`](evaluation-baseline.md), and
+  [`m12-langsmith-evaluation-suite.mmd`](m12-langsmith-evaluation-suite.mmd); updated the
+  architecture and README with exact commands and governance boundaries.
+- Registered `scholarpath.evaluation` in the flattened package and included `scripts` in
+  strict mypy checks.
+
+### Tests added
+
+- Model and scenario tests validate strict schemas, stable identifiers, complete scenario
+  coverage, JSON round trips, and synthetic/privacy boundaries.
+- Deterministic evaluator tests include passing, failing, invalid, and non-applicable fixed
+  examples for every custom metric.
+- Judge tests validate the typed port, strict structured result, criterion-specific bounded
+  artifacts, normalized scores, and non-fatal unavailability.
+- Target tests execute all eleven component and fake graph scenarios without provider calls,
+  including fallback, extraction exhaustion, reviewer disagreement, rejection, and the
+  pre-approval interrupt.
+- Trace tests validate all required tags and exclusion of Candidate information, queries,
+  URLs, page content, thread IDs, and secrets.
+- Runner tests validate the no-client offline path, target filtering, stable dataset IDs,
+  idempotent mocked-client synchronization, and independent upload/live gates.
+- The live integration smoke test is marked `live`, requires three explicit opt-ins or
+  credentials, reads at most one synthetic dataset example, and never runs a provider graph.
+- Repository contracts lock dependency, package, script, prompt, diagram, documentation,
+  marker, configuration, target, evaluator, and graph-version boundaries.
+
+### Test results
+
+- Local fake evaluation: `11/11` curated scenarios passed. All applicable Boolean metrics
+  had mean `1.000`; `duplicate_supervisor_rate` was `0.000` across six applicable graph
+  scenarios.
+- Focused M12 unit, runner, contract, and default-live-gate set: `91 passed`, one live test
+  deselected by the default marker.
+- `venv/bin/ruff format --check .`: all 198 Python files formatted.
+- `venv/bin/ruff check --no-cache .`: all lint checks passed.
+- `venv/bin/mypy src tests scripts`: no issues in 163 source files.
+- `venv/bin/pytest -q`: 1,034 non-live tests passed, eight live tests were deselected, 50
+  terminology subtests passed, and combined statement/branch coverage was 90.47 percent.
+- `venv/bin/pip check` reported no broken requirements; strict editable installation,
+  Python compilation, and `git diff --check` passed.
+- No LangSmith dataset, experiment, live provider execution, or LLM judge call was made.
+
+### Assumptions
+
+- Synthetic scenario payloads may contain invented research preferences and `.example`
+  sources, but trace metadata remains a stricter allowlisted boundary.
+- Every exact property—schema, evidence ownership, URL presence, arithmetic, availability,
+  terminology, routing, deduplication, and approval—belongs to deterministic code rather
+  than an LLM judge.
+- `Client.create_examples` with UUID5 IDs is the supported idempotent upsert boundary for the
+  pinned LangSmith SDK.
+- A direct offline runner is preferable for the default gate because it guarantees no
+  client construction or SDK background network activity.
+- Live evaluation requires both explicit CLI intent and separate environment opt-ins; a
+  credential alone is never permission to run it.
+
+### Lessons learned
+
+- Evaluation targets need bounded output projections just as production agents need typed
+  provider boundaries; returning the complete graph state would weaken both privacy and
+  metric clarity.
+- A non-applicable metric must be excluded, not counted as a pass, or aggregate quality is
+  overstated.
+- Failure-path scenarios can be successful regressions when they preserve partial work,
+  stop finitely, expose conflict, and enforce human authority.
+- Dataset IDs, scenario IDs, graph versions, prompt versions, and experiment names must move
+  together so a later result cannot silently masquerade as the baseline.
+- Qualitative judges are useful only after deterministic checks have removed questions with
+  exact answers.
+
+### Remaining debt
+
+- Upload the synthetic dataset and run the first LangSmith experiment only after endpoint,
+  workspace, access, retention, and residency settings are confirmed.
+- Calibrate the four judge rubrics against independent human ratings before making their
+  advisory thresholds release gates.
+- Add longitudinal dashboards and alerting for deterministic regressions, fallback rate,
+  disagreement rate, and human-rated shortlist usefulness.
+- Introduce a separately governed, consented, de-identified real-world evaluation corpus
+  before claiming external validity; the synthetic baseline proves behavior, not recall or
+  recommendation quality in production.

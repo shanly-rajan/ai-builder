@@ -595,6 +595,41 @@ class LangSmithSettings(BaseSettings):
             )
         return self.api_key
 
+    def require_evaluation_api_key(self) -> SecretStr:
+        """Return a credential only when a dataset or experiment is explicitly requested."""
+        if self.api_key is None or not self.api_key.get_secret_value().strip():
+            raise ProviderConfigurationError(
+                "Missing API key for provider 'langsmith' while evaluation is enabled."
+            )
+        return self.api_key
+
+
+class EvaluationSettings(BaseSettings):
+    """Inert defaults and explicit opt-ins for ScholarPath evaluation operations."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="SCHOLARPATH_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        frozen=True,
+        hide_input_in_errors=True,
+        str_strip_whitespace=True,
+    )
+
+    run_langsmith_evals: bool = False
+    run_live_e2e_evals: bool = False
+    evaluation_dataset_name: str = Field(
+        default="scholarpath-m12-regression-v1",
+        min_length=1,
+    )
+    evaluation_experiment_prefix: str = Field(
+        default="scholarpath-m12",
+        min_length=1,
+    )
+    evaluation_judge_model: str = Field(default="gpt-5.4-mini", min_length=1)
+    evaluation_judge_timeout_seconds: float = Field(default=60.0, gt=0, le=180)
+
 
 class ApplicationSettings(BaseSettings):
     """Non-secret defaults plus optional, lazily validated provider credentials."""
@@ -682,3 +717,8 @@ def load_mem0_memory_settings() -> Mem0MemorySettings:
 def load_langsmith_settings() -> LangSmithSettings:
     """Load optional LangSmith settings without activating tracing."""
     return LangSmithSettings()
+
+
+def load_evaluation_settings() -> EvaluationSettings:
+    """Load evaluation defaults without enabling uploads, judges, or live providers."""
+    return EvaluationSettings()

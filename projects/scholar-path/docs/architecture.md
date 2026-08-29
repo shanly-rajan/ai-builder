@@ -838,11 +838,11 @@ flowchart LR
     Root --> FitTrace[Research Fit node and rubric metadata]
     Root --> ReviewTrace[independent-review node metadata]
     Root --> Discovery[discovery node + aggregate attempt spans]
-    Tags[environment plus graph-version:m11.3] --> Root
+    Tags[environment plus graph-version:m12] --> Root
 ```
 
-The graph version is `m11.3`. Root tags are
-`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m11.3`. Planning, discovery,
+The graph version is `m12`. Root tags are
+`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m12`. Planning, discovery,
 evidence, Research Fit, and independent-review nodes add only safe component and version
 metadata. The fixed metadata allowlist is:
 
@@ -887,6 +887,56 @@ settings loaded from `.env` do not depend on process-environment side effects.
 
 Tracing remains optional. When disabled, ScholarPath uses an explicitly disabled
 tracing context and constructs no LangSmith client.
+
+## M12 evaluation and regression architecture
+
+[`m12-langsmith-evaluation-suite.mmd`](m12-langsmith-evaluation-suite.mmd) contains the
+standalone Mermaid source for this flow.
+
+```mermaid
+flowchart LR
+    Scenarios[11 synthetic typed scenarios] --> Dispatch{Target kind}
+    Dispatch --> Plan[Search planning target]
+    Dispatch --> Verify[Evidence verification target]
+    Dispatch --> Fit[Research Fit target]
+    Dispatch --> Graph[Fake end-to-end graph target]
+    Plan --> Checks[Deterministic evaluators]
+    Verify --> Checks
+    Fit --> Checks
+    Graph --> Checks
+    Checks --> Local[Offline baseline report]
+    Checks --> Upload{Explicit LangSmith opt-in?}
+    Upload -->|no| Stop[No client and no network]
+    Upload -->|yes| Experiment[LangSmith experiment]
+    Experiment --> Judges[Optional structured qualitative judges]
+    Experiment --> Trace[Privacy-safe tags and hidden payloads]
+
+    classDef control fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
+    class Upload control;
+```
+
+The checked-in dataset uses strict Pydantic scenario and output contracts. Component targets
+exercise planning, evidence verification, and Research Fit independently; the fake graph
+target exercises routing, fallback, deduplication, partial verification, independent review,
+and Candidate approval boundaries with injected fakes. No default target calls a provider.
+
+Deterministic evaluators own schema validity, terminology, evidence-ID ownership, URL
+presence, score arithmetic, availability evidence, admission-probability exclusion, fallback
+routing, duplicate rate, and approval enforcement. A model is never used for these facts.
+Four versioned structured-output judges are separately selectable only for Research Fit
+relevance, explanation usefulness, evidence-grounded rationale, and shortlist usefulness.
+
+The offline runner directly invokes the typed targets and evaluators and deliberately does
+not construct a LangSmith client. Dataset synchronization and `Client.evaluate` are reached
+only when the command option and `SCHOLARPATH_RUN_LANGSMITH_EVALS=true` agree. Live graph
+execution additionally requires `SCHOLARPATH_RUN_LIVE_E2E_EVALS=true`. Stable UUID5 example
+IDs make dataset upserts idempotent.
+
+Evaluation trace metadata is allowlisted to application, environment, graph version, prompt
+version, model provider, fallback use, Candidate review outcome, target, and synthetic
+scenario ID. Candidate identity, full research statements, search queries, source content,
+URLs, checkpoint thread IDs, and secrets are omitted. The LangSmith client hides inputs and
+outputs and omits runtime metadata.
 
 ## Configuration and deferred provider activation
 
@@ -1078,7 +1128,8 @@ already-running event-loop runtime.
 | Conflicts | Both affiliation claims and cross-referenced evidence IDs are preserved |
 | Retry | One deterministic alternate official-source search and extraction pass |
 | Network isolation | Default tests use fixed pages and fakes; `live` is excluded by default |
-| Observability | `graph-version:m11.3`, prompt and rubric versions, allowlisted aggregate discovery metadata, hidden inputs and outputs |
+| Observability | `graph-version:m12`, prompt and rubric versions, allowlisted aggregate discovery and evaluation metadata, hidden inputs and outputs |
+| Evaluation | Eleven typed synthetic scenarios, fake-default targets, ten deterministic metrics, optional scoped judges, stable dataset IDs, and separate upload/live gates |
 | Human authority | A real interrupt requires typed explicit approval before Shortlisted status or briefing generation |
 | Persistence | In-memory isolation in tests; ignored SQLite path for trusted local restart; opaque thread IDs partition runs |
 | Checkpoint serialization | Explicit MessagePack type allowlist, URL JSON projection, and no executable pickle fallback |
@@ -1154,7 +1205,7 @@ The Tavily extraction smoke test retrieves one bounded public documentation page
 asserts normalized non-empty content, HTTPS provenance, the content cap, and an aware
 retrieval timestamp. Default test runs skip every live test and make no network call.
 
-## Deferred beyond M11
+## Deferred beyond M12
 
 - Empirical Research Fit rubric calibration and model-consistency evaluation
 - Multi-source freshness and source-authority weighting beyond one alternate page
@@ -1166,4 +1217,4 @@ retrieval timestamp. Default test runs skip every live test and make no network 
 - Streamlit production hardening, accessibility evaluation, browser security policy, and load testing
 - Mem0 consent, retention, right-to-delete, residency, and production access controls
 - Production checkpoint encryption, retention, access control, and a multi-process store
-- LangSmith evaluation datasets, scoring, dashboards, and alerting
+- Calibrated LLM-judge thresholds, trend dashboards, alerting, and consented production-like evaluation data

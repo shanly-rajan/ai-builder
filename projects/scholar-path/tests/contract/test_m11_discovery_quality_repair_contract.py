@@ -48,7 +48,7 @@ def test_repair_versions_and_langsmith_regional_settings_are_explicit() -> None:
     environment_example = (PROJECT_ROOT / ".env.example").read_text(encoding="utf-8")
 
     assert RESEARCH_PLANNING_PROMPT_VERSION == "research-planning-v2"
-    assert GRAPH_VERSION == "m11.3"
+    assert GRAPH_VERSION == "m12"
     assert "LANGSMITH_ENDPOINT=" in environment_example
     assert "LANGSMITH_WORKSPACE_ID=" in environment_example
 

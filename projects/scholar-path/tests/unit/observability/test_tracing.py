@@ -62,7 +62,11 @@ def test_observability_adds_environment_and_graph_version_without_secrets() -> N
     )
     observability = LangSmithObservability(settings, Environment.TEST)
 
-    assert observability.tags == ["environment:test", f"graph-version:{GRAPH_VERSION}"]
+    assert observability.tags == [
+        "application:scholarpath",
+        "environment:test",
+        f"graph-version:{GRAPH_VERSION}",
+    ]
     assert observability.graph_metadata == {
         "application": "scholarpath",
         "environment": "test",

@@ -17,7 +17,7 @@ from ..config import Environment, LangSmithSettings
 from ..domain import SearchResultRejectionCounts
 from ..tools.supervisor_search import SearchErrorCategory, SearchProvider
 
-GRAPH_VERSION: Final = "m11.3"
+GRAPH_VERSION: Final = "m12"
 type TraceScalar = str | int | float | bool
 
 
@@ -41,6 +41,7 @@ SAFE_TRACE_METADATA_KEYS: Final = (
     "prompt_version",
     "rubric_version",
     "provider",
+    "model_provider",
     "attempt_number",
     "raw_result_count",
     "plausible_supervisor_count",
@@ -52,6 +53,9 @@ SAFE_TRACE_METADATA_KEYS: Final = (
     "error_category",
     "fallback_search_used",
     "discovery_route",
+    "candidate_review_outcome",
+    "evaluation_target",
+    "evaluation_scenario_id",
 )
 
 
@@ -76,6 +80,7 @@ class LangSmithObservability:
     def tags(self) -> list[str]:
         """Return non-sensitive graph tags inherited by child runs."""
         return [
+            "application:scholarpath",
             f"environment:{self._environment.value}",
             f"graph-version:{GRAPH_VERSION}",
         ]
