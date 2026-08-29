@@ -89,7 +89,21 @@ def test_settings_load_non_secret_defaults(monkeypatch: pytest.MonkeyPatch, tmp_
     assert settings.environment is Environment.DEVELOPMENT
     assert settings.log_level is LogLevel.INFO
     assert settings.discovery_failure_mode is DiscoveryFailureMode.OFF
+    assert settings.checkpoint_database_path == Path(".scholarpath/checkpoints.sqlite3")
     assert settings.provider_api_keys == {}
+
+
+def test_checkpoint_database_path_can_be_overridden_without_provider_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+    checkpoint_path = tmp_path / "local-checkpoints.sqlite3"
+    monkeypatch.setenv("SCHOLARPATH_CHECKPOINT_DATABASE_PATH", str(checkpoint_path))
+
+    settings = load_settings()
+
+    assert settings.checkpoint_database_path == checkpoint_path
 
 
 def test_missing_credentials_are_rejected_only_when_provider_is_requested(

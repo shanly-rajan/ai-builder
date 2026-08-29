@@ -15,7 +15,7 @@ from ..agents.prompts import (
 )
 from ..config import Environment, LangSmithSettings
 
-GRAPH_VERSION: Final = "m8"
+GRAPH_VERSION: Final = "m9"
 type TraceScalar = str | int | float | bool
 SAFE_TRACE_METADATA_KEYS: Final = (
     "application",

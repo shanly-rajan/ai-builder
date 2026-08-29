@@ -36,8 +36,24 @@ flowchart LR
 
 Only explicit Candidate approval can create a Shortlisted Supervisor. A request for
 more information keeps the record verified while additional evidence is sought.
-The M8 preliminary proposal also keeps every included record verified; the word
+The M9 interrupted proposal also keeps every included record verified; the word
 "shortlisted" describes only the post-approval lifecycle state.
+
+## Candidate review vocabulary
+
+| Term | Meaning |
+|---|---|
+| **Proposed Supervisor shortlist** | At most five ranked Verified Supervisors presented for review; no lifecycle promotion has occurred. |
+| **Candidate review interrupt** | A persisted pause that hands control to the Candidate with evidence-backed proposal details. |
+| **Approval response** | An explicit ordered list of proposal Supervisor IDs the Candidate chooses to shortlist. |
+| **Rejection response** | One or more proposal Supervisor IDs, each paired with the Candidate's reason. |
+| **Request-more response** | Revised research interests, regions, study modes, orientation, methods, constraints, or exclusions used for another bounded search. |
+| **Thread ID** | An opaque run identifier that isolates one Candidate research workflow's checkpoints. |
+
+Viewing or receiving an interrupt payload is never approval. Rejection and
+`request_more` preserve feedback in graph state and can trigger another review only
+within configured limits. A thread ID identifies workflow state; it is not a Candidate
+name, email address, or authorization credential.
 
 ## Typed lifecycle values
 

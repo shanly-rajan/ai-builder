@@ -14,17 +14,18 @@ any Supervisor is shortlisted or any outreach is drafted.
 
 ## Project status
 
-Milestone M8 replaces the fixture Research Fit review node. An injected Nebius reviewer
-audits each evidence-cited M7 assessment through strict structured output; ordinary
-Python validates evidence references and creates a separate reconciled score, confidence,
-critique, and Candidate-attention flag without changing the original component arithmetic.
-Availability remains separate.
+Milestone M9 replaces the synchronous review fixture with a real Candidate-controlled
+LangGraph interrupt. Each run pauses on an evidence-backed proposal, persists its state,
+and resumes only when the same opaque thread ID supplies a typed `approve`, `reject`, or
+`request_more` response. Explicit approval can select any ordered subset of the five
+proposed Supervisors.
 
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
-graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. The
-Candidate review gate remains a configured fixture stub rather than a user interface.
-Memory, Streamlit, and the remaining model-backed agents remain deferred.
+graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. Unit and
+graph tests use an isolated in-memory checkpointer; trusted local development can use the
+SQLite checkpointer at the ignored configured path. Mem0, Streamlit, and outreach drafting
+remain deferred.
 
 ## M0 foundation
 
@@ -43,8 +44,9 @@ See [current architecture](docs/architecture.md), the historical
 [M4 generated graph](docs/m4-you-com-discovery-graph.mmd), the historical
 [M5 generated graph](docs/m5-resilient-discovery-graph.mmd), the historical
 [M6 generated graph](docs/m6-evidence-verification-graph.mmd), the current
-[M7 Research Fit graph](docs/m7-research-fit-graph.mmd), the current
-[M8 independent-review graph](docs/m8-independent-review-graph.mmd), and
+[M7 Research Fit graph](docs/m7-research-fit-graph.mmd), the historical
+[M8 independent-review graph](docs/m8-independent-review-graph.mmd), the current
+[M9 Candidate-review persistence graph](docs/m9-candidate-review-persistence-graph.mmd), and
 [canonical terminology](docs/terminology.md) for the current boundaries.
 
 ## M1 domain contracts
@@ -79,7 +81,7 @@ verified = make_verified_supervisors()  # 6 records
 assessments = make_research_fit_assessments()  # 5 records
 ```
 
-## M2 walking skeleton, extended through M8
+## M2 walking skeleton, extended through M9
 
 ```mermaid
 flowchart TD
@@ -103,16 +105,21 @@ flowchart TD
     Review -->|accepted or valid revision| Synthesize[synthesize_supervisor_shortlist]
     Review -->|unavailable| Preserve[Preserve original and reduce confidence]
     Preserve --> Synthesize
-    Synthesize --> Gate[candidate_review_gate_stub]
-    Gate -->|approve| Save[save_shortlisted_supervisors]
-    Gate -->|reject or request_more| Plan
-    Gate -->|retry exhausted| END
+    Synthesize --> Gate{{candidate_review_gate interrupt}}
+    Gate -->|pause + checkpoint| Human[Candidate review]
+    Human -->|approve explicit IDs| Gate
+    Human -->|reject with per-Supervisor reasons| Gate
+    Human -->|request_more with revised preferences| Gate
+    Gate -->|approved| Save[save_shortlisted_supervisors]
+    Gate -->|rejected or request_more| Plan
+    Gate -->|bounded retry exhausted| END
     Save --> Brief[generate_shortlist_briefing]
     Brief --> END
 ```
 
-The successful path yields five ranked, evidence-backed records. Rejection and
-`request_more` return to planning only while the explicit review retry budget remains.
+The proposal contains at most five ranked, evidence-backed records. No lifecycle change
+or shortlist save occurs while the graph is interrupted. Rejection and `request_more`
+return to planning only while the explicit review iteration budget remains.
 Discovery uses explicit per-provider budgets; evidence and review retain their own
 bounded controls. The graph never relies on LangGraph's recursion limit for normal
 termination.
@@ -158,14 +165,15 @@ SDK retries beyond ScholarPath's explicit policy.
 The port is the substitution seam:
 
 ```python
-final_state = run_scholarpath_graph(
+paused_state = run_scholarpath_graph(
+    thread_id="candidate-run-opaque-id",
     planning_model=fake_planning_model,
     supervisor_search=fake_supervisor_search,
 )
 ```
 
 Default tests inject `FakePlanningModel`; they never instantiate OpenAI or use the
-network. Calling `run_scholarpath_graph()` without an injected model lazily creates the
+network. Calling `run_scholarpath_graph(thread_id=...)` without an injected model lazily creates the
 OpenAI adapter and validates `OPENAI_API_KEY` at that boundary.
 
 ## M4 You.com Supervisor discovery
@@ -312,7 +320,7 @@ flowchart LR
     D --> A[Python-calculated ResearchFitAssessment]
     A --> R[Deterministic ranking]
     R --> PS[ProposedSupervisorShortlist]
-    PS --> G[Existing Candidate review gate stub]
+    PS --> G[Candidate review interrupt]
 ```
 
 The configurable rubric totals 100 points: topic alignment 40, methodology or
@@ -380,6 +388,51 @@ approves those Supervisors in a different explicit order, the Candidate decision
 authoritative for the completed shortlist; independent review never reorders an already
 approved shortlist.
 
+## M9 Candidate review interrupt and durable persistence
+
+```mermaid
+sequenceDiagram
+    participant App as ScholarPath application
+    participant Graph as LangGraph
+    participant Store as Thread-scoped checkpointer
+    participant Candidate
+
+    App->>Graph: invoke(initial state, thread_id)
+    Graph->>Store: checkpoint proposed shortlist
+    Graph-->>App: interrupt(review payload)
+    App-->>Candidate: scores, evidence, links, availability, concerns, review outcome
+    Candidate->>App: approve IDs / reject reasons / revised preferences
+    App->>Graph: Command(resume=response), same thread_id
+    Graph->>Store: load exact paused state
+    alt approve
+        Graph->>Graph: save only explicitly approved IDs
+        Graph-->>App: completed SupervisorShortlist
+    else reject or request_more
+        Graph->>Graph: record feedback and re-plan within limit
+        Graph-->>App: next bounded review interrupt
+    end
+```
+
+`candidate_review_gate` performs no side effect before `interrupt()`, because LangGraph
+restarts the node from its beginning when a `Command(resume=...)` arrives. The payload is
+a JSON-safe projection containing the proposal, effective Research Fit Score, evidence
+confidence and source URLs, verified availability status, concerns, and independent-review
+outcome. It excludes retrieved page content and the full Candidate research statement.
+
+Resume values use action-specific Pydantic contracts. Approval requires one to five
+explicit proposal IDs and preserves their order. Rejection requires a reason for every
+targeted Supervisor. `request_more` requires at least one revised topic, region, study
+mode, orientation, method, constraint, or exclusion. Unknown IDs cause a bounded
+re-interrupt with a safe error; they never mutate feedback or Supervisor lifecycle state.
+
+Every invocation requires a non-empty opaque `thread_id`. Tests use `InMemorySaver`.
+Trusted local development uses `SqliteSaver` through `open_local_sqlite_checkpointer()`;
+the default ignored database is `.scholarpath/checkpoints.sqlite3`. The serializer uses
+strict MessagePack with an explicit ScholarPath type allowlist and a JSON projection for
+Pydantic URL values—executable pickle fallback is not enabled. Treat the local checkpoint
+database as Candidate data: restrict file access, define retention before production, and
+do not share a thread ID between research runs.
+
 ## Setup
 
 Run these commands from the repository root:
@@ -434,10 +487,11 @@ TAVILY_EXTRACT_REQUEST_TIMEOUT_SECONDS=25
 TAVILY_EXTRACT_DEPTH=advanced
 TAVILY_EXTRACT_MAX_CONTENT_CHARACTERS=50000
 SCHOLARPATH_DISCOVERY_FAILURE_MODE=off
+SCHOLARPATH_CHECKPOINT_DATABASE_PATH=.scholarpath/checkpoints.sqlite3
 ```
 
 `OPENAI_API_KEY`, `NEBIUS_API_KEY`, `YDC_API_KEY`, and `TAVILY_API_KEY` are required for
-a complete live M8 graph path: OpenAI plans searches, extracts typed evidence, and
+a complete live M9 graph path: OpenAI plans searches, extracts typed evidence, and
 evaluates Research Fit; Nebius independently reviews each assessment; You.com performs
 primary discovery; and Tavily retrieves known evidence pages or handles search fallback.
 Endpoint, model, timeout, result-count, extraction, and failure-mode values shown are
@@ -453,7 +507,7 @@ LANGSMITH_PROJECT=scholarpath
 
 To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_API_KEY`. `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag;
-the implementation supplies the fixed `graph-version:m8` tag. Disabling tracing does
+the implementation supplies the fixed `graph-version:m9` tag. Disabling tracing does
 not construct a LangSmith client, even if another process has globally enabled
 tracing.
 
@@ -492,7 +546,8 @@ python -m pip check
 python -c "import scholarpath; print(scholarpath.__version__)"
 ```
 
-Run the live graph path after configuring OpenAI, Nebius, You.com, and Tavily:
+Run the live graph path to its Candidate review interrupt after configuring OpenAI,
+Nebius, You.com, and Tavily:
 
 ```bash
 python -m scholarpath.cli
@@ -503,8 +558,12 @@ Research Fit component proposals; Nebius independently reviews the evidence-boun
 assessments; You.com handles primary discovery; and Tavily handles page extraction and
 conditional search fallback. ScholarPath validates citations, calculates initial totals,
 reconciles reviews, and ranks proposals deterministically.
-The CLI prints five Shortlisted Supervisors only when a complete shortlist exists and
-otherwise reports the recoverable incomplete run.
+The CLI prints the typed Candidate review payload and exits while the run remains paused.
+No Supervisor is shortlisted by merely displaying that payload. Application code resumes
+the same checkpointed thread with `Command(resume=...)`; the CLI generates and prints an
+opaque thread ID and writes the checkpoint to `SCHOLARPATH_CHECKPOINT_DATABASE_PATH`.
+The 60-second SQLite example below shows the exact mechanism without requiring provider
+credentials.
 
 To exercise the same full graph without secrets, provider calls, or network access,
 inject the test fake from the CLI:
@@ -517,12 +576,28 @@ To demonstrate an offline, deterministic You.com failure followed by successful
 Tavily routing, inject both fakes and enable the failure mode for one process:
 
 ```bash
-SCHOLARPATH_DISCOVERY_FAILURE_MODE=you_retryable_error LANGSMITH_TRACING=false python -c 'from scholarpath.graph import run_scholarpath_graph; from tests.fakes import FakeContentExtraction, FakeEvidenceVerificationModel, FakeIndependentReviewModel, FakePlanningModel, FakeResearchFitModel, FakeSupervisorSearch; search=FakeSupervisorSearch(); state=run_scholarpath_graph(planning_model=FakePlanningModel(), supervisor_search=search, tavily_search=search, content_extractor=FakeContentExtraction(), evidence_model=FakeEvidenceVerificationModel(), research_fit_model=FakeResearchFitModel(), independent_review_model=FakeIndependentReviewModel(), alternate_evidence_search=search); print("fallback_search_used:", state["fallback_search_used"]); print([(a.provider_used.value, a.attempt_number, a.error_category.value if a.error_category else None) for a in state["search_attempts"]])'
+SCHOLARPATH_DISCOVERY_FAILURE_MODE=you_retryable_error LANGSMITH_TRACING=false python -c 'from scholarpath.graph import run_scholarpath_graph; from tests.fakes import FakeContentExtraction, FakeEvidenceVerificationModel, FakeIndependentReviewModel, FakePlanningModel, FakeResearchFitModel, FakeSupervisorSearch; search=FakeSupervisorSearch(); state=run_scholarpath_graph(thread_id="offline-fallback-demo", planning_model=FakePlanningModel(), supervisor_search=search, tavily_search=search, content_extractor=FakeContentExtraction(), evidence_model=FakeEvidenceVerificationModel(), research_fit_model=FakeResearchFitModel(), independent_review_model=FakeIndependentReviewModel(), alternate_evidence_search=search); print("fallback_search_used:", state["fallback_search_used"]); print([(a.provider_used.value, a.attempt_number, a.error_category.value if a.error_category else None) for a in state["search_attempts"]])'
 ```
 
 Use `you_timeout_once` to demonstrate a successful single retry, or
 `both_providers_retryable_error` to demonstrate the recoverable terminal state. The
 default is always `off`.
+
+### 60-second M9 persistence demonstration
+
+First run the offline fake command above and observe `ScholarPath paused for Candidate
+review.` followed by five evidence-backed proposal items. Then exercise an actual SQLite
+pause, process-style close/reopen, state inspection, and approval resume:
+
+```bash
+LANGSMITH_TRACING=false pytest -o addopts='' -q -s \
+  tests/integration/test_m9_sqlite_persistence.py::test_sqlite_checkpoint_can_be_inspected_after_close_and_resumed_after_reopen
+```
+
+The test uses a temporary ignored database, so it does not need provider keys and leaves
+no project data behind. For application code, pass the same opaque `thread_id` both to the
+initial invocation and to `Command(resume=...)`; changing the ID deliberately selects a
+different research run.
 
 ## Quality and test commands
 
@@ -710,10 +785,11 @@ Streamlit is the planned Candidate-facing web interface.
 
 ## Future production evolution
 
-M8 keeps feedback capture inside `candidate_review_gate_stub` and reruns planning,
-resilient discovery, verification, and Research Fit evaluation after rejection or
-`request_more`. Later milestones may split feedback persistence and search refinement
-into provider-backed responsibilities. Source freshness and authority weighting,
-trace evaluation, and data-retention policy remain deferred. Retry
-limits, sufficiency thresholds, arithmetic, and ranking remain explicit deterministic
-configuration rather than model decisions.
+M9 keeps Candidate feedback in thread-scoped graph state and reruns planning, resilient
+discovery, verification, and Research Fit evaluation after rejection or `request_more`.
+A later milestone may add Mem0 behind a typed port without changing the approval gate.
+Streamlit must render the interrupt payload and resume the same thread; it must never
+translate viewing a proposal into approval. Source freshness and authority weighting,
+trace evaluation, checkpoint encryption and retention, and multi-process SQLite writer
+coordination remain deferred. Retry limits, sufficiency thresholds, arithmetic, routing,
+and ranking remain explicit deterministic configuration rather than model decisions.

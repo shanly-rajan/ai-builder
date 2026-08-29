@@ -1,8 +1,8 @@
-# ScholarPath M8 Architecture
+# ScholarPath M9 Architecture
 
-M8 replaces the fixture independent-review node with a configured Nebius model boundary
-followed by deterministic evidence-reference validation, reconciliation, and ranking,
-while preserving the useful M3–M7 architecture:
+M9 replaces the synchronous Candidate review fixture with a durable LangGraph interrupt,
+typed resume values, thread-scoped checkpoints, and bounded deterministic routing while
+preserving the useful M3–M8 architecture:
 
 - M3 plans searches through a structured OpenAI boundary.
 - M4 discovers Prospective Supervisors through You.com.
@@ -16,10 +16,12 @@ while preserving the useful M3–M7 architecture:
 - M8 independently audits each initial assessment through Nebius, preserves that
   immutable component assessment, and stores a reconciled effective score, explanation,
   evidence view, confidence, and attention status.
+- M9 checkpoints the proposed shortlist, pauses for explicit Candidate control, and
+  resumes approval or refinement on the same isolated thread.
 
 Availability remains a separate verified status and never contributes points. Candidate
-review remains the configured stub; M8 creates a proposal whose Supervisor records stay
-`verified`, and no Supervisor becomes Shortlisted without the existing approval gate.
+review is now a real interrupt; every proposed record stays `verified`, and no Supervisor
+becomes Shortlisted until a validated approval names its exact Supervisor ID.
 
 ## End-to-end milestone view
 
@@ -42,18 +44,20 @@ flowchart LR
     RF --> IR[IndependentReviewAgent via Nebius]
     IR --> REC[Deterministic reconciliation]
     REC --> SYNTH[Deterministic ShortlistSynthesisAgent]
-    SYNTH --> GATE[Candidate review gate stub]
-    GATE -->|approve| SS[Shortlisted Supervisor]
-    GATE -->|reject| RS[Rejected Supervisor]
+    SYNTH --> GATE{{Candidate review interrupt}}
+    GATE --> STORE[(Thread checkpoint)]
+    STORE -->|approve explicit IDs| SS[Shortlisted Supervisor]
+    STORE -->|reject with reasons| RS[Rejected Supervisor]
+    STORE -->|request_more| PLAN
 
     classDef human fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
     class GATE human;
 ```
 
-The LangGraph topology still contains the same fifteen canonical operational nodes.
-M8 replaces only `review_fit_assessments` and extends deterministic synthesis to consume
-its reconciled records; it does not implement a real Candidate approval interface,
-outreach, or preference memory.
+The LangGraph topology still contains fifteen canonical operational nodes. M9 replaces
+`candidate_review_gate_stub` with `candidate_review_gate`, adds its bounded validation
+self-route, and compiles with an injected checkpointer. It does not implement outreach,
+Mem0, or the Candidate-facing Streamlit interface.
 
 ## M7 Research Fit and proposal boundary
 
@@ -169,6 +173,60 @@ The graph retains the initial score, lowers confidence one level, marks review
 `unavailable`, appends a sanitized `tool_errors` record, and continues. The adapter has
 no hidden retries; model name, HTTPS base endpoint, and timeout are configuration values.
 Default tests inject a recording fake, so they cannot contact Nebius.
+
+## M9 Candidate-control and persistence boundary
+
+```mermaid
+sequenceDiagram
+    participant UI as Application or future Streamlit UI
+    participant LG as Compiled LangGraph
+    participant CP as Thread-scoped checkpointer
+    participant C as Candidate
+
+    UI->>LG: invoke(initial state, configurable.thread_id)
+    LG->>CP: persist proposal and next-node cursor
+    LG-->>UI: interrupt(CandidateReviewInterruptPayload)
+    UI-->>C: render evidence-backed proposal
+    C->>UI: typed action-specific response
+    UI->>LG: Command(resume=response), same thread_id
+    LG->>CP: restore exact checkpoint
+    LG->>LG: restart candidate_review_gate from its beginning
+    alt approve
+        LG->>LG: validate proposal IDs and save approved subset
+    else reject
+        LG->>LG: retain per-Supervisor reasons and re-plan
+    else request_more
+        LG->>LG: append revised preferences and re-plan
+    end
+```
+
+`CandidateReviewInterruptPayload` is a deliberate presentation projection, not the
+entire graph state. For each proposed Supervisor it includes rank, identity, institution,
+department, profile URL, effective Research Fit Score, evidence confidence, unique source
+links, availability status, concerns, and the independent-review outcome. It excludes
+retrieved page content and the full Candidate research statement.
+
+Resume values are a discriminated union: `CandidateApproveResponse` carries one to five
+ordered proposal IDs; `CandidateRejectResponse` carries a non-empty reason per ID; and
+`CandidateRequestMoreResponse` carries a non-empty preference revision. Pydantic validates
+shape, while ordinary Python validates that each referenced ID belongs to the exact paused
+proposal. Invalid input re-enters the interrupt only within `max_review_input_retries`.
+Repeated rejection or `request_more` consumes `max_review_retries`; neither loop relies on
+the global recursion limit.
+
+The node performs only deterministic payload construction before `interrupt()`. LangGraph
+re-executes that code when resuming, so keeping it side-effect-free makes resume idempotent:
+planning, discovery, extraction, scoring, and review nodes do not run again on approval.
+Lifecycle changes, shortlist persistence, and briefing generation remain downstream of a
+validated approval.
+
+Tests compile with an isolated `InMemorySaver`. Trusted local development opens a
+`SqliteSaver` at `SCHOLARPATH_CHECKPOINT_DATABASE_PATH`, which defaults to the ignored
+`.scholarpath/checkpoints.sqlite3`. A non-empty opaque `thread_id` namespaces each research
+run and is supplied through LangGraph's configurable runtime channel, not trace metadata.
+The project serializer uses strict MessagePack with an explicit allowlist and converts
+Pydantic URL values to safe JSON strings; pickle fallback is disabled. SQLite is a local
+single-process development choice, not the final horizontally scaled persistence tier.
 
 ## M3 research-planning boundary
 
@@ -460,9 +518,12 @@ flowchart TD
     Evaluate --> Review[review_fit_assessments through Nebius]
     Review -->|review applied| Synthesize[synthesize_supervisor_shortlist]
     Review -->|unavailable, preserve and degrade| Synthesize
-    Synthesize --> Gate[candidate_review_gate_stub]
-    Gate -->|approve| Save[save_shortlisted_supervisors]
-    Gate -->|reject or request more| Plan
+    Synthesize --> Gate{{candidate_review_gate interrupt}}
+    Gate -->|pause and checkpoint| Candidate[Candidate response]
+    Candidate -->|approve explicit IDs| Gate
+    Candidate -->|reject reasons or request_more| Gate
+    Gate -->|approved| Save[save_shortlisted_supervisors]
+    Gate -->|rejected or request_more| Plan
     Gate -->|exhausted| END
     Save --> Brief[generate_shortlist_briefing]
     Brief --> END
@@ -476,7 +537,8 @@ The graph-derived M2 diagram remains the topology baseline in
 M4 replaces discovery, M5 activates resilient search fallback, and M6 replaces the
 evidence path. M7 replaces Research Fit evaluation and shortlist proposal synthesis
 without introducing additional operational nodes. M8 replaces the independent-review
-implementation and extends synthesis without changing that topology.
+implementation and extends synthesis. M9 replaces the review stub, adds the interrupt's
+bounded validation self-route, and compiles the graph with thread-scoped persistence.
 
 ## Typed state and reducers
 
@@ -498,7 +560,7 @@ flowchart LR
     CONTROL --> STATUS[review_status]
 ```
 
-| State category | M8 channels | Merge behavior |
+| State category | M9 channels | Merge behavior |
 |---|---|---|
 | Immutable Candidate input | `candidate_profile` | Preserved |
 | Append-only history | preferences, raw search results, feedback, errors, search attempts, evidence extraction attempts, execution log | Reducers append events |
@@ -506,7 +568,7 @@ flowchart LR
 | Alternate-source selection | `alternate_evidence_sources` | Deterministic dictionary replacement keyed by `supervisor_id` |
 | Other entity snapshots | Prospective Supervisors, Research Fit assessments, reconciled review records, the typed proposal, and Shortlisted Supervisors | Latest node output replaces prior snapshot |
 | Unique terminal history | Rejected Supervisors | Reducer merges by `supervisor_id` |
-| Routing control | discovery round, retry counts, review status, fallback flags | Deterministic replacement |
+| Routing control | discovery round, retry counts including review input, review status, validation error, fallback flags | Deterministic replacement |
 
 Each `EvidenceExtractionAttempt` preserves Supervisor ID, exact source URL, source
 kind, attempt number, discovery round, whether it was alternate, success, and a typed
@@ -514,7 +576,7 @@ error category. It does not store a full page or provider exception text. Planni
 new discovery round clears verification snapshots and the alternate-source map while
 retaining append-only attempt history.
 
-## Optional M8 LangSmith observability
+## Optional M9 LangSmith observability
 
 ```mermaid
 flowchart LR
@@ -527,11 +589,11 @@ flowchart LR
     Root --> EvidenceTrace[evidence node metadata]
     Root --> FitTrace[Research Fit node and rubric metadata]
     Root --> ReviewTrace[independent-review node metadata]
-    Tags[environment plus graph-version:m8] --> Root
+    Tags[environment plus graph-version:m9] --> Root
 ```
 
-The graph version is `m8`. Root tags are
-`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m8`. Planning, evidence,
+The graph version is `m9`. Root tags are
+`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m9`. Planning, evidence,
 Research Fit, and independent-review nodes add only safe component and version metadata. The fixed
 metadata allowlist is:
 
@@ -578,6 +640,7 @@ flowchart TB
     TS -->|fallback or alternate search selected| TSA[TavilySearchAdapter]
     TE -->|known URL extraction requested| TEA[TavilyExtractionAdapter]
     LS[LANGSMITH_*] --> LSC[LangSmith activation]
+    DB[SCHOLARPATH_CHECKPOINT_DATABASE_PATH] --> SQLITE[Local SqliteSaver]
 ```
 
 Provider-specific settings may load without credentials. Compiling the graph or
@@ -589,7 +652,7 @@ content extraction is requested. Tavily search remains lazy until discovery fall
 or alternate official-source search requires it. Nebius settings are validated only
 when an assessment reaches independent review.
 
-M8 environment variables are:
+M9 environment variables are:
 
 | Boundary | Variables |
 |---|---|
@@ -601,6 +664,7 @@ M8 environment variables are:
 | Tavily search | `TAVILY_API_KEY`, `TAVILY_SEARCH_TIMEOUT_SECONDS`, `TAVILY_SEARCH_RESULT_COUNT` |
 | Tavily Extract | `TAVILY_API_KEY`, `TAVILY_EXTRACT_PROVIDER_TIMEOUT_SECONDS`, `TAVILY_EXTRACT_REQUEST_TIMEOUT_SECONDS`, `TAVILY_EXTRACT_DEPTH`, `TAVILY_EXTRACT_MAX_CONTENT_CHARACTERS` |
 | LangSmith | `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT` |
+| Local checkpointing | `SCHOLARPATH_CHECKPOINT_DATABASE_PATH` |
 
 The Tavily Extract application request timeout must be greater than its provider
 timeout. API keys use `SecretStr`, remain in environment variables, and are never
@@ -630,6 +694,7 @@ flowchart LR
     TSEARCH --> TSDK[langchain-tavily]
     TEXTRACT --> TSDK
     GRAPH --> LANGGRAPH[LangGraph and LangChain Core]
+    GRAPH --> CHECKPOINT[InMemorySaver or SqliteSaver]
     OBS[LangSmith observability] --> GRAPH
     CONFIG[config] -. settings .-> OPENAI
     CONFIG -. settings .-> NEBIUS
@@ -671,6 +736,8 @@ src/
 │   └── supervisor_discovery.py
 ├── graph/
 │   ├── discovery.py
+│   ├── persistence.py
+│   ├── review.py
 │   ├── state.py
 │   ├── verification.py
 │   └── workflow.py
@@ -689,7 +756,7 @@ Setuptools maps these physical paths onto `scholarpath.*`; no additional physica
 
 ## Operational trade-offs and NFRs
 
-| Concern | M8 control | Trade-off or remaining risk |
+| Concern | M9 control | Trade-off or remaining risk |
 |---|---|---|
 | Evidence integrity | Every direct claim has a source URL, retrieval time, conservative source kind, matching asserted name, and checked excerpt; IDs hash all semantic fields | Textual grounding proves presence and subject binding, not that a page itself is truthful |
 | Availability safety | Only explicit typed accepting or not-accepting statements are retained; absence stays `not_stated` | Institutional pages may be stale, so freshness policy remains limited |
@@ -698,19 +765,21 @@ Setuptools maps these physical paths onto `scholarpath.*`; no additional physica
 | Security | Deferred secrets, public-URL checks, sanitized errors, bounded content, hidden trace inputs/outputs | Institution pages and model inputs still leave the application boundary and require governance review |
 | Privacy | Full page content is transient and excluded from state and trace metadata | Concise evidence excerpts remain persisted because they are required provenance |
 | Latency | Sequential known-URL extraction with explicit deadlines | Worst-case latency grows with the number of Prospective Supervisors and one alternate pass |
-| Cost | Extraction, evidence, Research Fit, and independent-review model calls are bounded per processed Supervisor | M8 has no cross-run cache, batching, or provider budget accounting |
+| Cost | Extraction, evidence, Research Fit, and independent-review model calls are bounded per processed Supervisor | M9 has no cross-run cache, batching, or provider budget accounting |
 | Scalability | Provider ports support fakes and later alternative adapters | Current synchronous orchestration and sequential calls defer concurrency and backpressure |
 | Determinism | IDs, grounding, sufficiency, routing, arithmetic, review reconciliation, confidence degradation, and shortlist ranking use Python | Evidence wording, semantic alignment, and reviewer recommendations remain model-variable |
 | Research Fit integrity | Every positive component cites suitable direct evidence; availability is excluded; Python owns the total | Rubric calibration and model consistency still need empirical evaluation |
 | Independent review | Closed evidence input, strict result schema, valid-ID reconciliation, immutable initial assessment, and safe per-record failure | Reviewer calibration and disagreement metrics still need empirical evaluation |
-| Observability | M8 graph, prompt, and rubric versions are traceable with safe metadata | Evaluation datasets, quality dashboards, and alerts remain deferred |
-| Termination | Search, evidence, and review loops use validated finite budgets | LangGraph recursion limit remains defense-in-depth, not the primary termination rule |
+| Observability | M9 graph, prompt, and rubric versions are traceable with safe metadata | Evaluation datasets, quality dashboards, and alerts remain deferred |
+| Persistence | Thread-scoped in-memory tests and restart-safe local SQLite checkpoints | Encryption, retention automation, multi-process writers, and production database selection remain deferred |
+| Human authority | A typed interrupt blocks lifecycle promotion; approval names exact IDs | Streamlit rendering, authentication, authorization, and session-to-thread ownership remain deferred |
+| Termination | Search, evidence, review, and invalid-input loops use validated finite budgets | LangGraph recursion limit remains defense-in-depth, not the primary termination rule |
 
 The synchronous Tavily adapters currently bridge the provider's async invocation with
 `asyncio.run()`. An async port is deferred before embedding ScholarPath inside an
 already-running event-loop runtime.
 
-## M8 quality boundaries
+## M9 quality boundaries
 
 | Concern | Control |
 |---|---|
@@ -726,8 +795,10 @@ already-running event-loop runtime.
 | Conflicts | Both affiliation claims and cross-referenced evidence IDs are preserved |
 | Retry | One deterministic alternate official-source search and extraction pass |
 | Network isolation | Default tests use fixed pages and fakes; `live` is excluded by default |
-| Observability | `graph-version:m8`, prompt and rubric versions, allowlisted metadata, hidden inputs and outputs |
-| Human authority | Candidate approval remains mandatory before Shortlisted status |
+| Observability | `graph-version:m9`, prompt and rubric versions, allowlisted metadata, hidden inputs and outputs |
+| Human authority | A real interrupt requires typed explicit approval before Shortlisted status or briefing generation |
+| Persistence | In-memory isolation in tests; ignored SQLite path for trusted local restart; opaque thread IDs partition runs |
+| Checkpoint serialization | Explicit MessagePack type allowlist, URL JSON projection, and no executable pickle fallback |
 | Research Fit | Injected typed model port proposes evidence-cited components; Python validates, totals, and bounds them |
 | Independent review | Nebius behind an injected typed port; no tools or browsing; Python validates references and reconciles outcomes |
 | Failure handling | Provider, timeout, malformed-output, and invalid-reference outcomes preserve the original score, lower confidence, and continue |
@@ -786,7 +857,7 @@ The Tavily extraction smoke test retrieves one bounded public documentation page
 asserts normalized non-empty content, HTTPS provenance, the content cap, and an aware
 retrieval timestamp. Default test runs skip every live test and make no network call.
 
-## Deferred beyond M8
+## Deferred beyond M9
 
 - Empirical Research Fit rubric calibration and model-consistency evaluation
 - Multi-source freshness and source-authority weighting beyond one alternate page
@@ -794,7 +865,7 @@ retrieval timestamp. Default test runs skip every live test and make no network 
 - Concurrent or batched extraction, caching, quotas, rate limiting, and circuit breakers
 - Per-Supervisor durable checkpoints inside a long extraction node
 - An async provider-port variant for already-running event loops
-- Real Candidate interruption, rejection feedback, and workflow resumption
 - Streamlit user experience
 - Mem0 preference learning
+- Production checkpoint encryption, retention, access control, and a multi-process store
 - LangSmith evaluation datasets, scoring, dashboards, and alerting

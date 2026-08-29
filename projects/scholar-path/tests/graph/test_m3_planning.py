@@ -1,6 +1,7 @@
 """Graph tests for the injected M3 Research Planning Agent boundary."""
 
 import json
+from typing import cast
 
 import pytest
 
@@ -11,7 +12,13 @@ from scholarpath.config import (
     Environment,
     LangSmithSettings,
 )
-from scholarpath.graph import ReviewStatus, ScholarPathState, run_scholarpath_graph
+from scholarpath.graph import (
+    CandidateApproveResponse,
+    ReviewStatus,
+    ScholarPathState,
+    default_review_decision,
+    run_scholarpath_graph,
+)
 from tests.fakes import (
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
@@ -23,18 +30,27 @@ from tests.fakes import (
 
 
 def _run_with_fake(model: FakePlanningModel) -> ScholarPathState:
-    return run_scholarpath_graph(
-        planning_model=model,
-        supervisor_search=FakeSupervisorSearch(),
-        content_extractor=FakeContentExtraction(),
-        evidence_model=FakeEvidenceVerificationModel(),
-        research_fit_model=FakeResearchFitModel(),
-        independent_review_model=FakeIndependentReviewModel(),
-        application_settings=ApplicationSettings(
-            environment=Environment.TEST,
-            discovery_failure_mode=DiscoveryFailureMode.OFF,
+    approval = CandidateApproveResponse(
+        action="approve",
+        supervisor_ids=default_review_decision().supervisor_ids,
+    )
+    return cast(
+        ScholarPathState,
+        run_scholarpath_graph(
+            thread_id="legacy-m3-planning",
+            candidate_review_responses=(approval,),
+            planning_model=model,
+            supervisor_search=FakeSupervisorSearch(),
+            content_extractor=FakeContentExtraction(),
+            evidence_model=FakeEvidenceVerificationModel(),
+            research_fit_model=FakeResearchFitModel(),
+            independent_review_model=FakeIndependentReviewModel(),
+            application_settings=ApplicationSettings(
+                environment=Environment.TEST,
+                discovery_failure_mode=DiscoveryFailureMode.OFF,
+            ),
+            langsmith_settings=LangSmithSettings(tracing=False),
         ),
-        langsmith_settings=LangSmithSettings(tracing=False),
     )
 
 

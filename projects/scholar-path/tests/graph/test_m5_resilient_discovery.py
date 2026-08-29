@@ -1,5 +1,7 @@
 """Graph scenarios for M5's bounded You.com-to-Tavily discovery policy."""
 
+from typing import cast
+
 import pytest
 from pydantic import SecretStr
 
@@ -11,11 +13,12 @@ from scholarpath.config import (
     TavilySearchSettings,
 )
 from scholarpath.domain import (
-    CandidateReviewAction,
-    CandidateReviewDecision,
+    CandidatePreferenceRevision,
     SearchResult,
 )
 from scholarpath.graph import (
+    CandidateApproveResponse,
+    CandidateRequestMoreResponse,
     DiscoveryPolicy,
     GraphFixtureConfig,
     ReviewStatus,
@@ -59,6 +62,17 @@ def _retryable_error(provider: SearchProvider) -> SearchProviderError:
     )
 
 
+def _approval_response() -> CandidateApproveResponse:
+    return CandidateApproveResponse(
+        action="approve",
+        supervisor_ids=default_review_decision().supervisor_ids,
+    )
+
+
+def _as_state(output: ScholarPathState | dict[str, object]) -> ScholarPathState:
+    return cast(ScholarPathState, output)
+
+
 def _run(
     you_search: SupervisorSearchPort,
     tavily_search: SupervisorSearchPort,
@@ -66,20 +80,24 @@ def _run(
     policy: DiscoveryPolicy | None = None,
     failure_mode: DiscoveryFailureMode = DiscoveryFailureMode.OFF,
 ) -> ScholarPathState:
-    return run_scholarpath_graph(
-        GraphFixtureConfig(discovery_policy=policy or DiscoveryPolicy()),
-        planning_model=FakePlanningModel(),
-        supervisor_search=you_search,
-        tavily_search=tavily_search,
-        content_extractor=FakeContentExtraction(),
-        evidence_model=FakeEvidenceVerificationModel(),
-        research_fit_model=FakeResearchFitModel(),
-        independent_review_model=FakeIndependentReviewModel(),
-        application_settings=ApplicationSettings(
-            environment=Environment.TEST,
-            discovery_failure_mode=failure_mode,
+    return _as_state(
+        run_scholarpath_graph(
+            GraphFixtureConfig(discovery_policy=policy or DiscoveryPolicy()),
+            thread_id="legacy-m5-discovery",
+            candidate_review_responses=(_approval_response(),),
+            planning_model=FakePlanningModel(),
+            supervisor_search=you_search,
+            tavily_search=tavily_search,
+            content_extractor=FakeContentExtraction(),
+            evidence_model=FakeEvidenceVerificationModel(),
+            research_fit_model=FakeResearchFitModel(),
+            independent_review_model=FakeIndependentReviewModel(),
+            application_settings=ApplicationSettings(
+                environment=Environment.TEST,
+                discovery_failure_mode=failure_mode,
+            ),
+            langsmith_settings=LangSmithSettings(tracing=False),
         ),
-        langsmith_settings=LangSmithSettings(tracing=False),
     )
 
 
@@ -109,19 +127,23 @@ def test_successful_you_route_does_not_construct_or_validate_tavily(
         fail_if_tavily_adapter_is_constructed,
     )
 
-    final_state = run_scholarpath_graph(
-        planning_model=FakePlanningModel(),
-        supervisor_search=FakeSupervisorSearch(),
-        content_extractor=FakeContentExtraction(),
-        evidence_model=FakeEvidenceVerificationModel(),
-        research_fit_model=FakeResearchFitModel(),
-        independent_review_model=FakeIndependentReviewModel(),
-        tavily_settings=TavilySearchSettings(api_key=None),
-        application_settings=ApplicationSettings(
-            environment=Environment.TEST,
-            discovery_failure_mode=DiscoveryFailureMode.OFF,
-        ),
-        langsmith_settings=LangSmithSettings(tracing=False),
+    final_state = _as_state(
+        run_scholarpath_graph(
+            thread_id="legacy-m5-lazy-tavily",
+            candidate_review_responses=(_approval_response(),),
+            planning_model=FakePlanningModel(),
+            supervisor_search=FakeSupervisorSearch(),
+            content_extractor=FakeContentExtraction(),
+            evidence_model=FakeEvidenceVerificationModel(),
+            research_fit_model=FakeResearchFitModel(),
+            independent_review_model=FakeIndependentReviewModel(),
+            tavily_settings=TavilySearchSettings(api_key=None),
+            application_settings=ApplicationSettings(
+                environment=Environment.TEST,
+                discovery_failure_mode=DiscoveryFailureMode.OFF,
+            ),
+            langsmith_settings=LangSmithSettings(tracing=False),
+        )
     )
 
     assert final_state["review_status"] is ReviewStatus.COMPLETED
@@ -129,19 +151,23 @@ def test_successful_you_route_does_not_construct_or_validate_tavily(
 
 
 def test_missing_tavily_key_is_typed_only_when_fallback_is_routed() -> None:
-    final_state = run_scholarpath_graph(
-        planning_model=FakePlanningModel(),
-        supervisor_search=FakeSupervisorSearch(_empty_outcomes()),
-        content_extractor=FakeContentExtraction(),
-        evidence_model=FakeEvidenceVerificationModel(),
-        research_fit_model=FakeResearchFitModel(),
-        independent_review_model=FakeIndependentReviewModel(),
-        tavily_settings=TavilySearchSettings(api_key=None),
-        application_settings=ApplicationSettings(
-            environment=Environment.TEST,
-            discovery_failure_mode=DiscoveryFailureMode.OFF,
-        ),
-        langsmith_settings=LangSmithSettings(tracing=False),
+    final_state = _as_state(
+        run_scholarpath_graph(
+            thread_id="legacy-m5-missing-tavily-key",
+            candidate_review_responses=(_approval_response(),),
+            planning_model=FakePlanningModel(),
+            supervisor_search=FakeSupervisorSearch(_empty_outcomes()),
+            content_extractor=FakeContentExtraction(),
+            evidence_model=FakeEvidenceVerificationModel(),
+            research_fit_model=FakeResearchFitModel(),
+            independent_review_model=FakeIndependentReviewModel(),
+            tavily_settings=TavilySearchSettings(api_key=None),
+            application_settings=ApplicationSettings(
+                environment=Environment.TEST,
+                discovery_failure_mode=DiscoveryFailureMode.OFF,
+            ),
+            langsmith_settings=LangSmithSettings(tracing=False),
+        )
     )
 
     assert final_state["review_status"] is ReviewStatus.RETRY_EXHAUSTED
@@ -167,19 +193,23 @@ def test_lazy_tavily_adapter_is_constructed_once_and_reused(
         construct_fake_tavily_adapter,
     )
 
-    final_state = run_scholarpath_graph(
-        planning_model=FakePlanningModel(),
-        supervisor_search=FakeSupervisorSearch(_empty_outcomes()),
-        content_extractor=FakeContentExtraction(),
-        evidence_model=FakeEvidenceVerificationModel(),
-        research_fit_model=FakeResearchFitModel(),
-        independent_review_model=FakeIndependentReviewModel(),
-        tavily_settings=TavilySearchSettings(api_key=SecretStr("not-a-real-tavily-secret")),
-        application_settings=ApplicationSettings(
-            environment=Environment.TEST,
-            discovery_failure_mode=DiscoveryFailureMode.OFF,
-        ),
-        langsmith_settings=LangSmithSettings(tracing=False),
+    final_state = _as_state(
+        run_scholarpath_graph(
+            thread_id="legacy-m5-tavily-reuse",
+            candidate_review_responses=(_approval_response(),),
+            planning_model=FakePlanningModel(),
+            supervisor_search=FakeSupervisorSearch(_empty_outcomes()),
+            content_extractor=FakeContentExtraction(),
+            evidence_model=FakeEvidenceVerificationModel(),
+            research_fit_model=FakeResearchFitModel(),
+            independent_review_model=FakeIndependentReviewModel(),
+            tavily_settings=TavilySearchSettings(api_key=SecretStr("not-a-real-tavily-secret")),
+            application_settings=ApplicationSettings(
+                environment=Environment.TEST,
+                discovery_failure_mode=DiscoveryFailureMode.OFF,
+            ),
+            langsmith_settings=LangSmithSettings(tracing=False),
+        )
     )
 
     assert construction_count == 1
@@ -410,33 +440,37 @@ def test_request_more_evaluates_duplicate_quality_within_the_new_round() -> None
         ]
         for query in _queries()
     }
-    approval = default_review_decision()
-    request_more = CandidateReviewDecision(
-        action=CandidateReviewAction.REQUEST_MORE,
-        supervisor_ids=approval.supervisor_ids,
-        reason="The Candidate requested a new discovery round for this fixture scenario.",
+    approval = _approval_response()
+    request_more = CandidateRequestMoreResponse(
+        action="request_more",
+        revised_preferences=CandidatePreferenceRevision(
+            preferred_regions=("Netherlands",),
+        ),
     )
     config = GraphFixtureConfig(
         discovery_policy=DiscoveryPolicy(maximum_tavily_fallback_count=1),
-        review_decisions=(request_more, approval),
     )
     you_search = FakeSupervisorSearch(scripts=scripts)
     tavily_search = FakeSupervisorSearch(_empty_outcomes())
 
-    final_state = run_scholarpath_graph(
-        config,
-        planning_model=FakePlanningModel(),
-        supervisor_search=you_search,
-        tavily_search=tavily_search,
-        content_extractor=FakeContentExtraction(),
-        evidence_model=FakeEvidenceVerificationModel(),
-        research_fit_model=FakeResearchFitModel(),
-        independent_review_model=FakeIndependentReviewModel(),
-        application_settings=ApplicationSettings(
-            environment=Environment.TEST,
-            discovery_failure_mode=DiscoveryFailureMode.OFF,
-        ),
-        langsmith_settings=LangSmithSettings(tracing=False),
+    final_state = _as_state(
+        run_scholarpath_graph(
+            config,
+            thread_id="legacy-m5-request-more",
+            candidate_review_responses=(request_more, approval),
+            planning_model=FakePlanningModel(),
+            supervisor_search=you_search,
+            tavily_search=tavily_search,
+            content_extractor=FakeContentExtraction(),
+            evidence_model=FakeEvidenceVerificationModel(),
+            research_fit_model=FakeResearchFitModel(),
+            independent_review_model=FakeIndependentReviewModel(),
+            application_settings=ApplicationSettings(
+                environment=Environment.TEST,
+                discovery_failure_mode=DiscoveryFailureMode.OFF,
+            ),
+            langsmith_settings=LangSmithSettings(tracing=False),
+        )
     )
 
     assert final_state["discovery_round"] == 2

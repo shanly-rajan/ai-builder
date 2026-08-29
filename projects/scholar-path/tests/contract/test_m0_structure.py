@@ -61,6 +61,7 @@ def test_runtime_dependencies_match_the_current_milestone() -> None:
         "langchain-openai>=1.6.0,<2",
         "langchain-tavily==0.2.17",
         "langgraph>=1.2.11,<2",
+        "langgraph-checkpoint-sqlite==3.1.1",
         "langsmith>=0.11.2,<1",
         "pydantic>=2.10,<3",
         "pydantic-settings>=2.7,<3",

@@ -15,6 +15,21 @@ from .fixtures import (
     build_walking_skeleton_fixtures,
     default_review_decision,
 )
+from .persistence import create_test_checkpointer, open_local_sqlite_checkpointer
+from .review import (
+    CandidateApproveResponse,
+    CandidateIndependentReviewOutcome,
+    CandidateRejectionReason,
+    CandidateRejectResponse,
+    CandidateRequestMoreResponse,
+    CandidateReviewInterruptPayload,
+    CandidateReviewResponse,
+    CandidateSupervisorReviewItem,
+    build_candidate_review_interrupt_payload,
+    candidate_review_payload_from_graph_output,
+    candidate_review_response_value,
+    parse_candidate_review_response,
+)
 from .state import (
     RawSupervisorSearchResult,
     ReviewStatus,
@@ -35,6 +50,7 @@ from .verification import (
     select_alternate_official_source,
 )
 from .workflow import (
+    CANDIDATE_REVIEW_GATE,
     CANONICAL_NODE_NAMES,
     GraphFixtureConfig,
     UtcClockPort,
@@ -45,6 +61,15 @@ from .workflow import (
 
 __all__ = [
     "CANONICAL_NODE_NAMES",
+    "CANDIDATE_REVIEW_GATE",
+    "CandidateApproveResponse",
+    "CandidateIndependentReviewOutcome",
+    "CandidateRejectionReason",
+    "CandidateRejectResponse",
+    "CandidateRequestMoreResponse",
+    "CandidateReviewInterruptPayload",
+    "CandidateReviewResponse",
+    "CandidateSupervisorReviewItem",
     "DiscoveryPolicy",
     "DiscoveryStoppingCondition",
     "DiscoveryTimeoutBehavior",
@@ -68,9 +93,15 @@ __all__ = [
     "alternate_official_source_query",
     "build_scholarpath_graph",
     "build_walking_skeleton_fixtures",
+    "build_candidate_review_interrupt_payload",
+    "candidate_review_payload_from_graph_output",
+    "candidate_review_response_value",
+    "create_test_checkpointer",
     "create_initial_state",
     "default_review_decision",
     "merge_supervisors_by_id",
+    "open_local_sqlite_checkpointer",
+    "parse_candidate_review_response",
     "render_scholarpath_mermaid",
     "route_after_supervisor_discovery",
     "route_after_evidence_sufficiency",

@@ -1,5 +1,7 @@
 """Graph scenarios for M8 independent Research Fit review and reconciliation."""
 
+from typing import cast
+
 from scholarpath.agents.independent_review import (
     IndependentReviewModelInvocationError,
     IndependentReviewModelOutputError,
@@ -14,9 +16,11 @@ from scholarpath.config import (
 )
 from scholarpath.domain import IndependentReviewStatus
 from scholarpath.graph import (
+    CandidateApproveResponse,
     GraphFixtureConfig,
     ReviewStatus,
     ScholarPathState,
+    default_review_decision,
     run_scholarpath_graph,
 )
 from tests.fakes import (
@@ -36,22 +40,31 @@ def _run(
     config: GraphFixtureConfig | None = None,
     nebius_review_settings: NebiusReviewSettings | None = None,
 ) -> ScholarPathState:
-    return run_scholarpath_graph(
-        config,
-        planning_model=FakePlanningModel(),
-        supervisor_search=FakeSupervisorSearch(),
-        tavily_search=FakeSupervisorSearch(),
-        content_extractor=FakeContentExtraction(),
-        evidence_model=FakeEvidenceVerificationModel(),
-        research_fit_model=FakeResearchFitModel(),
-        independent_review_model=review_model,
-        alternate_evidence_search=FakeSupervisorSearch(),
-        application_settings=ApplicationSettings(
-            environment=Environment.TEST,
-            discovery_failure_mode=DiscoveryFailureMode.OFF,
+    approval = CandidateApproveResponse(
+        action="approve",
+        supervisor_ids=default_review_decision().supervisor_ids,
+    )
+    return cast(
+        ScholarPathState,
+        run_scholarpath_graph(
+            config,
+            thread_id="legacy-m8-independent-review",
+            candidate_review_responses=(approval,),
+            planning_model=FakePlanningModel(),
+            supervisor_search=FakeSupervisorSearch(),
+            tavily_search=FakeSupervisorSearch(),
+            content_extractor=FakeContentExtraction(),
+            evidence_model=FakeEvidenceVerificationModel(),
+            research_fit_model=FakeResearchFitModel(),
+            independent_review_model=review_model,
+            alternate_evidence_search=FakeSupervisorSearch(),
+            application_settings=ApplicationSettings(
+                environment=Environment.TEST,
+                discovery_failure_mode=DiscoveryFailureMode.OFF,
+            ),
+            nebius_review_settings=nebius_review_settings,
+            langsmith_settings=LangSmithSettings(tracing=False),
         ),
-        nebius_review_settings=nebius_review_settings,
-        langsmith_settings=LangSmithSettings(tracing=False),
     )
 
 

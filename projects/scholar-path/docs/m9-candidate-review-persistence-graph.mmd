@@ -1,0 +1,56 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	load_candidate_preferences(load_candidate_preferences)
+	plan_supervisor_searches(plan_supervisor_searches<hr/><small><em>component = research_planning_agent
+prompt_version = research-planning-v1</em></small>)
+	discover_prospective_supervisors(discover_prospective_supervisors)
+	enough_supervisors_found(enough_supervisors_found)
+	fallback_supervisor_search(fallback_supervisor_search)
+	deduplicate_supervisors(deduplicate_supervisors)
+	extract_supervisor_evidence(extract_supervisor_evidence<hr/><small><em>component = evidence_verification_agent
+prompt_version = evidence-verification-v1</em></small>)
+	supervisor_evidence_sufficient(supervisor_evidence_sufficient)
+	retry_alternate_evidence_source(retry_alternate_evidence_source)
+	evaluate_research_fit(evaluate_research_fit<hr/><small><em>component = research_fit_evaluation_agent
+prompt_version = research-fit-evaluation-v1
+rubric_version = research-fit-rubric-v1</em></small>)
+	review_fit_assessments(review_fit_assessments<hr/><small><em>component = independent_review_agent
+prompt_version = independent-review-v3</em></small>)
+	synthesize_supervisor_shortlist(synthesize_supervisor_shortlist)
+	candidate_review_gate(candidate_review_gate)
+	save_shortlisted_supervisors(save_shortlisted_supervisors)
+	generate_shortlist_briefing(generate_shortlist_briefing)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> load_candidate_preferences;
+	candidate_review_gate -.-> __end__;
+	candidate_review_gate -.-> plan_supervisor_searches;
+	candidate_review_gate -.-> save_shortlisted_supervisors;
+	deduplicate_supervisors --> extract_supervisor_evidence;
+	discover_prospective_supervisors --> enough_supervisors_found;
+	enough_supervisors_found -.-> __end__;
+	enough_supervisors_found -.-> deduplicate_supervisors;
+	enough_supervisors_found -.-> discover_prospective_supervisors;
+	enough_supervisors_found -.-> fallback_supervisor_search;
+	evaluate_research_fit --> review_fit_assessments;
+	extract_supervisor_evidence --> supervisor_evidence_sufficient;
+	fallback_supervisor_search --> enough_supervisors_found;
+	load_candidate_preferences --> plan_supervisor_searches;
+	plan_supervisor_searches -.-> __end__;
+	plan_supervisor_searches -.-> discover_prospective_supervisors;
+	retry_alternate_evidence_source --> extract_supervisor_evidence;
+	review_fit_assessments --> synthesize_supervisor_shortlist;
+	save_shortlisted_supervisors --> generate_shortlist_briefing;
+	supervisor_evidence_sufficient -.-> __end__;
+	supervisor_evidence_sufficient -.-> evaluate_research_fit;
+	supervisor_evidence_sufficient -.-> retry_alternate_evidence_source;
+	synthesize_supervisor_shortlist --> candidate_review_gate;
+	generate_shortlist_briefing --> __end__;
+	candidate_review_gate -.-> candidate_review_gate;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

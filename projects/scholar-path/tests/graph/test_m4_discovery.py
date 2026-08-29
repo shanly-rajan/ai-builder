@@ -1,6 +1,7 @@
 """Graph integration tests for the injected M4 Supervisor search boundary."""
 
 import json
+from typing import cast
 
 import pytest
 
@@ -11,10 +12,12 @@ from scholarpath.config import (
     LangSmithSettings,
 )
 from scholarpath.graph import (
+    CandidateApproveResponse,
     DiscoveryPolicy,
     GraphFixtureConfig,
     ReviewStatus,
     ScholarPathState,
+    default_review_decision,
     run_scholarpath_graph,
 )
 from scholarpath.tools import SupervisorSearchTimeoutError
@@ -34,20 +37,29 @@ def _run_with_fake(
     config: GraphFixtureConfig | None = None,
     tavily_search: FakeSupervisorSearch | None = None,
 ) -> ScholarPathState:
-    return run_scholarpath_graph(
-        config,
-        planning_model=FakePlanningModel(),
-        supervisor_search=supervisor_search,
-        tavily_search=tavily_search or FakeSupervisorSearch(),
-        content_extractor=FakeContentExtraction(),
-        evidence_model=FakeEvidenceVerificationModel(),
-        research_fit_model=FakeResearchFitModel(),
-        independent_review_model=FakeIndependentReviewModel(),
-        application_settings=ApplicationSettings(
-            environment=Environment.TEST,
-            discovery_failure_mode=DiscoveryFailureMode.OFF,
+    approval = CandidateApproveResponse(
+        action="approve",
+        supervisor_ids=default_review_decision().supervisor_ids,
+    )
+    return cast(
+        ScholarPathState,
+        run_scholarpath_graph(
+            config,
+            thread_id="legacy-m4-discovery",
+            candidate_review_responses=(approval,),
+            planning_model=FakePlanningModel(),
+            supervisor_search=supervisor_search,
+            tavily_search=tavily_search or FakeSupervisorSearch(),
+            content_extractor=FakeContentExtraction(),
+            evidence_model=FakeEvidenceVerificationModel(),
+            research_fit_model=FakeResearchFitModel(),
+            independent_review_model=FakeIndependentReviewModel(),
+            application_settings=ApplicationSettings(
+                environment=Environment.TEST,
+                discovery_failure_mode=DiscoveryFailureMode.OFF,
+            ),
+            langsmith_settings=LangSmithSettings(tracing=False),
         ),
-        langsmith_settings=LangSmithSettings(tracing=False),
     )
 
 

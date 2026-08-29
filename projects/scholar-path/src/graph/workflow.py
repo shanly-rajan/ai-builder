@@ -1,12 +1,15 @@
 """ScholarPath graph with resilient, policy-routed Supervisor discovery."""
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Final, Literal, Protocol, cast
+from typing import Any, Final, Literal, Protocol, cast
 
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
-from pydantic import HttpUrl
+from langgraph.types import Command, interrupt
+from pydantic import HttpUrl, ValidationError
 
 from ..agents import (
     EVIDENCE_VERIFICATION_PROMPT_VERSION,
@@ -110,8 +113,18 @@ from .discovery import (
 from .fixtures import (
     WalkingSkeletonFixtures,
     build_walking_skeleton_fixtures,
-    default_review_decision,
     preferences_from_profile,
+)
+from .persistence import create_test_checkpointer
+from .review import (
+    CandidateApproveResponse,
+    CandidateRejectResponse,
+    CandidateRequestMoreResponse,
+    CandidateReviewResponse,
+    build_candidate_review_interrupt_payload,
+    candidate_review_payload_from_graph_output,
+    candidate_review_response_value,
+    parse_candidate_review_response,
 )
 from .state import (
     RawSupervisorSearchResult,
@@ -143,7 +156,7 @@ RETRY_ALTERNATE_EVIDENCE_SOURCE: Final = "retry_alternate_evidence_source"
 EVALUATE_RESEARCH_FIT: Final = "evaluate_research_fit"
 REVIEW_FIT_ASSESSMENTS: Final = "review_fit_assessments"
 SYNTHESIZE_SUPERVISOR_SHORTLIST: Final = "synthesize_supervisor_shortlist"
-CANDIDATE_REVIEW_GATE_STUB: Final = "candidate_review_gate_stub"
+CANDIDATE_REVIEW_GATE: Final = "candidate_review_gate"
 SAVE_SHORTLISTED_SUPERVISORS: Final = "save_shortlisted_supervisors"
 GENERATE_SHORTLIST_BRIEFING: Final = "generate_shortlist_briefing"
 
@@ -160,7 +173,7 @@ CANONICAL_NODE_NAMES = (
     EVALUATE_RESEARCH_FIT,
     REVIEW_FIT_ASSESSMENTS,
     SYNTHESIZE_SUPERVISOR_SHORTLIST,
-    CANDIDATE_REVIEW_GATE_STUB,
+    CANDIDATE_REVIEW_GATE,
     SAVE_SHORTLISTED_SUPERVISORS,
     GENERATE_SHORTLIST_BRIEFING,
 )
@@ -174,7 +187,12 @@ type DiscoveryRoute = Literal[
     "__end__",
 ]
 type EvidenceRoute = Literal["retry_alternate_evidence_source", "evaluate_research_fit", "__end__"]
-type ReviewRoute = Literal["save_shortlisted_supervisors", "plan_supervisor_searches", "__end__"]
+type ReviewRoute = Literal[
+    "candidate_review_gate",
+    "save_shortlisted_supervisors",
+    "plan_supervisor_searches",
+    "__end__",
+]
 type PlanningRoute = Literal["discover_prospective_supervisors", "__end__"]
 type ScholarPathGraph = CompiledStateGraph[
     ScholarPathState, None, ScholarPathState, ScholarPathState
@@ -211,9 +229,6 @@ class GraphFixtureConfig:
 
     fixtures: WalkingSkeletonFixtures = field(default_factory=build_walking_skeleton_fixtures)
     discovery_policy: DiscoveryPolicy = field(default_factory=DiscoveryPolicy)
-    review_decisions: tuple[CandidateReviewDecision, ...] = field(
-        default_factory=lambda: (default_review_decision(),)
-    )
     verification_policy: VerificationPolicy = field(default_factory=VerificationPolicy)
     research_fit_rubric: ResearchFitRubric = field(default_factory=ResearchFitRubric)
     independent_review_policy: IndependentReviewPolicy = field(
@@ -221,6 +236,7 @@ class GraphFixtureConfig:
     )
     shortlist_size: int = REQUIRED_SHORTLIST_SIZE
     max_review_retries: int = 1
+    max_review_input_retries: int = 2
 
     def __post_init__(self) -> None:
         """Reject invalid fixture controls before graph construction."""
@@ -237,7 +253,10 @@ class GraphFixtureConfig:
             )
         if self.verification_policy.minimum_verified_supervisors < self.shortlist_size:
             raise ValueError("minimum_verified_supervisors must not be less than shortlist_size")
-        retry_limits = {"max_review_retries": self.max_review_retries}
+        retry_limits = {
+            "max_review_retries": self.max_review_retries,
+            "max_review_input_retries": self.max_review_input_retries,
+        }
         for field_name, value in retry_limits.items():
             if value < 0:
                 raise ValueError(f"{field_name} must not be negative")
@@ -1162,98 +1181,151 @@ class DeterministicScholarPathNodes:
             "execution_log": [SYNTHESIZE_SUPERVISOR_SHORTLIST],
         }
 
-    def candidate_review_gate_stub(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Apply the configured fixture decision and enforce bounded refinement."""
-        attempt = state["retry_counts"]["review"]
-        update: ScholarPathStateUpdate = {"execution_log": [CANDIDATE_REVIEW_GATE_STUB]}
-        if attempt >= len(self.config.review_decisions):
-            update["review_status"] = ReviewStatus.RETRY_EXHAUSTED
-            update["tool_errors"] = [
+    def _invalid_candidate_review_update(
+        self,
+        state: ScholarPathState,
+        *,
+        code: str,
+        message: str,
+    ) -> ScholarPathStateUpdate:
+        """Record invalid resume data and either re-prompt or stop at a strict bound."""
+        invalid_attempts = state["retry_counts"]["review_input"] + 1
+        retry_exhausted = invalid_attempts >= self.config.max_review_input_retries
+        return {
+            "candidate_review_error": message,
+            "review_status": (
+                ReviewStatus.RETRY_EXHAUSTED if retry_exhausted else ReviewStatus.PROPOSED
+            ),
+            "retry_counts": self._retry_counts(state, "review_input", invalid_attempts),
+            "tool_errors": [
                 self._error(
-                    CANDIDATE_REVIEW_GATE_STUB,
-                    "review_fixture_exhausted",
-                    "No configured Candidate review decision remains for this refinement cycle.",
+                    CANDIDATE_REVIEW_GATE,
+                    code,
+                    message,
+                    recoverable=not retry_exhausted,
                 )
-            ]
-            return update
+            ],
+            "execution_log": [CANDIDATE_REVIEW_GATE],
+        }
 
-        decision = self.config.review_decisions[attempt]
+    def candidate_review_gate(self, state: ScholarPathState) -> ScholarPathStateUpdate:
+        """Pause for an explicit Candidate response, then validate it deterministically."""
         proposed_shortlist = state["proposed_shortlist"]
         if proposed_shortlist is None:
-            update["review_status"] = ReviewStatus.RETRY_EXHAUSTED
-            update["tool_errors"] = [
-                self._error(
-                    CANDIDATE_REVIEW_GATE_STUB,
-                    "review_proposal_missing",
-                    "Candidate review requires a valid preliminary Supervisor shortlist.",
-                    recoverable=True,
-                )
-            ]
-            return update
+            return {
+                "review_status": ReviewStatus.RETRY_EXHAUSTED,
+                "tool_errors": [
+                    self._error(
+                        CANDIDATE_REVIEW_GATE,
+                        "review_proposal_missing",
+                        "Candidate review requires a valid preliminary Supervisor shortlist.",
+                        recoverable=True,
+                    )
+                ],
+                "execution_log": [CANDIDATE_REVIEW_GATE],
+            }
+
+        review_attempt = state["retry_counts"]["review"]
+        payload = build_candidate_review_interrupt_payload(
+            proposed_shortlist,
+            review_iteration=review_attempt + 1,
+            maximum_review_iterations=self.config.max_review_retries + 1,
+            validation_error=state["candidate_review_error"],
+        )
+        raw_response = interrupt(payload.model_dump(mode="json"))
+        try:
+            response = parse_candidate_review_response(raw_response)
+        except ValidationError:
+            return self._invalid_candidate_review_update(
+                state,
+                code="review_response_invalid",
+                message="Candidate review response does not match an allowed action schema.",
+            )
+
         proposed_by_id = {
             recommendation.supervisor.supervisor_id: recommendation.supervisor
             for recommendation in proposed_shortlist.recommendations
         }
+        if isinstance(response, CandidateApproveResponse):
+            response_ids = response.supervisor_ids
+        elif isinstance(response, CandidateRejectResponse):
+            response_ids = tuple(item.supervisor_id for item in response.rejections)
+        else:
+            response_ids = ()
         unknown_ids = [
-            supervisor_id
-            for supervisor_id in decision.supervisor_ids
-            if supervisor_id not in proposed_by_id
+            supervisor_id for supervisor_id in response_ids if supervisor_id not in proposed_by_id
         ]
         if unknown_ids:
-            update["review_status"] = ReviewStatus.RETRY_EXHAUSTED
-            update["tool_errors"] = [
-                self._error(
-                    CANDIDATE_REVIEW_GATE_STUB,
-                    "review_scope_invalid",
-                    "The configured Candidate decision references a Supervisor "
-                    "outside the proposal.",
+            return self._invalid_candidate_review_update(
+                state,
+                code="review_scope_invalid",
+                message=(
+                    "Candidate review references Supervisor identifiers outside the current "
+                    "proposal."
+                ),
+            )
+
+        base_update: ScholarPathStateUpdate = {
+            "candidate_review_error": None,
+            "retry_counts": self._retry_counts(state, "review_input", 0),
+            "execution_log": [CANDIDATE_REVIEW_GATE],
+        }
+        if isinstance(response, CandidateApproveResponse):
+            approval = CandidateReviewDecision(
+                action=CandidateReviewAction.APPROVE,
+                supervisor_ids=response.supervisor_ids,
+                reason="Candidate explicitly approved these Supervisors.",
+            )
+            base_update["candidate_feedback"] = [approval]
+            base_update["review_status"] = ReviewStatus.APPROVED
+            return base_update
+
+        if isinstance(response, CandidateRejectResponse):
+            rejection_decisions = [
+                CandidateReviewDecision(
+                    action=CandidateReviewAction.REJECT,
+                    supervisor_ids=(rejection.supervisor_id,),
+                    reason=rejection.reason,
                 )
+                for rejection in response.rejections
             ]
-            return update
-
-        update["candidate_feedback"] = [decision]
-        if decision.revised_preferences is not None:
-            update["candidate_preferences"] = [decision.revised_preferences]
-
-        if decision.action is CandidateReviewAction.APPROVE:
-            if (
-                len(proposed_by_id) != self.config.shortlist_size
-                or len(decision.supervisor_ids) != self.config.shortlist_size
-                or set(decision.supervisor_ids) != set(proposed_by_id)
-            ):
-                update["review_status"] = ReviewStatus.RETRY_EXHAUSTED
-                update["tool_errors"] = [
-                    self._error(
-                        CANDIDATE_REVIEW_GATE_STUB,
-                        "approved_shortlist_incomplete",
-                        "Candidate approval must cover the complete five-Supervisor proposal.",
-                    )
-                ]
-                return update
-            update["review_status"] = ReviewStatus.APPROVED
-            return update
-
-        if decision.action is CandidateReviewAction.REJECT:
-            update["rejected_supervisors"] = [
-                apply_candidate_review(proposed_by_id[supervisor_id], decision)
-                for supervisor_id in decision.supervisor_ids
+            base_update["candidate_feedback"] = rejection_decisions
+            base_update["rejected_supervisors"] = [
+                apply_candidate_review(
+                    proposed_by_id[decision.supervisor_ids[0]],
+                    decision,
+                )
+                for decision in rejection_decisions
             ]
-            update["review_status"] = ReviewStatus.REJECTED
+            base_update["review_status"] = ReviewStatus.REJECTED
         else:
-            update["review_status"] = ReviewStatus.REQUEST_MORE
+            assert isinstance(response, CandidateRequestMoreResponse)
+            request_more = CandidateReviewDecision(
+                action=CandidateReviewAction.REQUEST_MORE,
+                supervisor_ids=tuple(proposed_by_id),
+                reason="Candidate requested a refined Supervisor search.",
+                revised_preferences=response.revised_preferences,
+            )
+            base_update["candidate_feedback"] = [request_more]
+            base_update["candidate_preferences"] = [response.revised_preferences]
+            base_update["review_status"] = ReviewStatus.REQUEST_MORE
 
-        if attempt >= self.config.max_review_retries:
-            update["review_status"] = ReviewStatus.RETRY_EXHAUSTED
-            update["tool_errors"] = [
+        if review_attempt >= self.config.max_review_retries:
+            base_update["review_status"] = ReviewStatus.RETRY_EXHAUSTED
+            base_update["tool_errors"] = [
                 self._error(
-                    CANDIDATE_REVIEW_GATE_STUB,
+                    CANDIDATE_REVIEW_GATE,
                     "review_retry_exhausted",
-                    "Candidate review refinement exceeded the configured retry limit.",
+                    "Candidate review refinement reached the configured iteration limit.",
                 )
             ]
         else:
-            update["retry_counts"] = self._retry_counts(state, "review", attempt + 1)
-        return update
+            base_update["retry_counts"] = {
+                **state["retry_counts"],
+                "review": review_attempt + 1,
+                "review_input": 0,
+            }
+        return base_update
 
     def route_after_candidate_review(self, state: ScholarPathState) -> ReviewRoute:
         """Route approval forward and bounded feedback paths back to planning."""
@@ -1261,10 +1333,15 @@ class DeterministicScholarPathNodes:
             return SAVE_SHORTLISTED_SUPERVISORS
         if state["review_status"] in {ReviewStatus.REJECTED, ReviewStatus.REQUEST_MORE}:
             return PLAN_SUPERVISOR_SEARCHES
+        if (
+            state["review_status"] is ReviewStatus.PROPOSED
+            and state["candidate_review_error"] is not None
+        ):
+            return CANDIDATE_REVIEW_GATE
         return "__end__"
 
     def save_shortlisted_supervisors(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Persist the fixture shortlist only after the configured approval decision."""
+        """Persist only the explicit Supervisor IDs in the latest approval."""
         decision = state["candidate_feedback"][-1]
         proposed_shortlist = state["proposed_shortlist"]
         if proposed_shortlist is None:
@@ -1276,8 +1353,6 @@ class DeterministicScholarPathNodes:
             generated_at=self.config.fixtures.generated_at,
             briefing="Candidate-approved shortlist awaiting its deterministic briefing.",
         )
-        if len(shortlist.shortlisted_supervisors) != self.config.shortlist_size:
-            raise ValueError("The completed fixture shortlist must contain five Supervisors")
         return {
             "shortlisted_supervisors": list(shortlist.shortlisted_supervisors),
             "supervisor_shortlist": shortlist,
@@ -1493,6 +1568,7 @@ def _with_failure_injection(
 def build_scholarpath_graph(
     config: GraphFixtureConfig | None = None,
     *,
+    checkpointer: BaseCheckpointSaver[Any] | None = None,
     planning_model: PlanningModelPort | None = None,
     supervisor_search: SupervisorSearchPort | None = None,
     tavily_search: SupervisorSearchPort | None = None,
@@ -1590,7 +1666,7 @@ def build_scholarpath_graph(
         ),
     )
     builder.add_node(SYNTHESIZE_SUPERVISOR_SHORTLIST, nodes.synthesize_supervisor_shortlist)
-    builder.add_node(CANDIDATE_REVIEW_GATE_STUB, nodes.candidate_review_gate_stub)
+    builder.add_node(CANDIDATE_REVIEW_GATE, nodes.candidate_review_gate)
     builder.add_node(SAVE_SHORTLISTED_SUPERVISORS, nodes.save_shortlisted_supervisors)
     builder.add_node(GENERATE_SHORTLIST_BRIEFING, nodes.generate_shortlist_briefing)
 
@@ -1623,20 +1699,26 @@ def build_scholarpath_graph(
     builder.add_edge(RETRY_ALTERNATE_EVIDENCE_SOURCE, EXTRACT_SUPERVISOR_EVIDENCE)
     builder.add_edge(EVALUATE_RESEARCH_FIT, REVIEW_FIT_ASSESSMENTS)
     builder.add_edge(REVIEW_FIT_ASSESSMENTS, SYNTHESIZE_SUPERVISOR_SHORTLIST)
-    builder.add_edge(SYNTHESIZE_SUPERVISOR_SHORTLIST, CANDIDATE_REVIEW_GATE_STUB)
+    builder.add_edge(SYNTHESIZE_SUPERVISOR_SHORTLIST, CANDIDATE_REVIEW_GATE)
     builder.add_conditional_edges(
-        CANDIDATE_REVIEW_GATE_STUB,
+        CANDIDATE_REVIEW_GATE,
         nodes.route_after_candidate_review,
-        [SAVE_SHORTLISTED_SUPERVISORS, PLAN_SUPERVISOR_SEARCHES, END],
+        [CANDIDATE_REVIEW_GATE, SAVE_SHORTLISTED_SUPERVISORS, PLAN_SUPERVISOR_SEARCHES, END],
     )
     builder.add_edge(SAVE_SHORTLISTED_SUPERVISORS, GENERATE_SHORTLIST_BRIEFING)
     builder.add_edge(GENERATE_SHORTLIST_BRIEFING, END)
-    return builder.compile(name="ScholarPath M8 independent Research Fit review graph")
+    return builder.compile(
+        checkpointer=checkpointer,
+        name="ScholarPath M9 durable Candidate review graph",
+    )
 
 
 def run_scholarpath_graph(
     config: GraphFixtureConfig | None = None,
     *,
+    thread_id: str,
+    candidate_review_responses: Sequence[CandidateReviewResponse | Mapping[str, object]] = (),
+    checkpointer: BaseCheckpointSaver[Any] | None = None,
     planning_model: PlanningModelPort | None = None,
     supervisor_search: SupervisorSearchPort | None = None,
     tavily_search: SupervisorSearchPort | None = None,
@@ -1655,8 +1737,13 @@ def run_scholarpath_graph(
     nebius_review_settings: NebiusReviewSettings | None = None,
     langsmith_settings: LangSmithSettings | None = None,
     utc_clock: UtcClockPort | None = None,
-) -> ScholarPathState:
-    """Compose providers lazily, then execute one optionally traced graph run."""
+) -> ScholarPathState | dict[str, object]:
+    """Execute or resume one isolated thread, stopping if no review response remains."""
+    normalized_thread_id = thread_id.strip()
+    if not normalized_thread_id:
+        raise ValueError("thread_id must not be empty")
+    if len(normalized_thread_id) > 255:
+        raise ValueError("thread_id must not exceed 255 characters")
     resolved_config = config or GraphFixtureConfig()
     resolved_application_settings = application_settings or load_settings()
     resolved_langsmith_settings = langsmith_settings or load_langsmith_settings()
@@ -1710,6 +1797,7 @@ def run_scholarpath_graph(
     resolved_alternate_evidence_search = alternate_evidence_search or resolved_tavily_search
     graph = build_scholarpath_graph(
         resolved_config,
+        checkpointer=checkpointer or create_test_checkpointer(),
         planning_model=resolved_planning_model,
         supervisor_search=resolved_supervisor_search,
         tavily_search=resolved_tavily_search,
@@ -1728,10 +1816,31 @@ def run_scholarpath_graph(
         + (2 * resolved_config.discovery_policy.maximum_tavily_fallback_count)
         + (4 * resolved_config.verification_policy.maximum_alternate_source_retries)
         + (16 * resolved_config.max_review_retries)
+        + (2 * resolved_config.max_review_input_retries)
     )
     runnable_config = observability.runnable_config(recursion_limit)
+    runnable_config["configurable"] = {"thread_id": normalized_thread_id}
     with observability.activate():
-        return cast(ScholarPathState, graph.invoke(initial_state, config=runnable_config))
+        output: object = graph.invoke(initial_state, config=runnable_config)
+        for response in candidate_review_responses:
+            if not isinstance(output, Mapping):
+                break
+            if candidate_review_payload_from_graph_output(output) is None:
+                break
+            resume_value = (
+                candidate_review_response_value(response)
+                if isinstance(
+                    response,
+                    (
+                        CandidateApproveResponse,
+                        CandidateRejectResponse,
+                        CandidateRequestMoreResponse,
+                    ),
+                )
+                else dict(response)
+            )
+            output = graph.invoke(Command(resume=resume_value), config=runnable_config)
+    return cast(ScholarPathState | dict[str, object], output)
 
 
 def render_scholarpath_mermaid(config: GraphFixtureConfig | None = None) -> str:

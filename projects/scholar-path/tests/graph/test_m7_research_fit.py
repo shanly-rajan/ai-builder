@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import cast
 
 from scholarpath.agents import ResearchFitModelInvocationError
 from scholarpath.config import (
@@ -18,9 +19,11 @@ from scholarpath.domain import (
 )
 from scholarpath.graph import (
     FIXTURE_RETRIEVED_AT,
+    CandidateApproveResponse,
     ReviewStatus,
     ScholarPathState,
     UtcClockPort,
+    default_review_decision,
     run_scholarpath_graph,
 )
 from tests.fakes import (
@@ -49,21 +52,30 @@ def _run(
     *,
     utc_clock: UtcClockPort | None = None,
 ) -> ScholarPathState:
-    return run_scholarpath_graph(
-        planning_model=FakePlanningModel(),
-        supervisor_search=FakeSupervisorSearch(),
-        tavily_search=FakeSupervisorSearch(),
-        content_extractor=FakeContentExtraction(),
-        evidence_model=FakeEvidenceVerificationModel(),
-        research_fit_model=model,
-        independent_review_model=FakeIndependentReviewModel(),
-        alternate_evidence_search=FakeSupervisorSearch(),
-        application_settings=ApplicationSettings(
-            environment=Environment.TEST,
-            discovery_failure_mode=DiscoveryFailureMode.OFF,
+    approval = CandidateApproveResponse(
+        action="approve",
+        supervisor_ids=default_review_decision().supervisor_ids,
+    )
+    return cast(
+        ScholarPathState,
+        run_scholarpath_graph(
+            thread_id="legacy-m7-research-fit",
+            candidate_review_responses=(approval,),
+            planning_model=FakePlanningModel(),
+            supervisor_search=FakeSupervisorSearch(),
+            tavily_search=FakeSupervisorSearch(),
+            content_extractor=FakeContentExtraction(),
+            evidence_model=FakeEvidenceVerificationModel(),
+            research_fit_model=model,
+            independent_review_model=FakeIndependentReviewModel(),
+            alternate_evidence_search=FakeSupervisorSearch(),
+            application_settings=ApplicationSettings(
+                environment=Environment.TEST,
+                discovery_failure_mode=DiscoveryFailureMode.OFF,
+            ),
+            langsmith_settings=LangSmithSettings(tracing=False),
+            utc_clock=utc_clock,
         ),
-        langsmith_settings=LangSmithSettings(tracing=False),
-        utc_clock=utc_clock,
     )
 
 

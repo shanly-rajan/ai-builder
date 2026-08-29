@@ -1,5 +1,7 @@
 """Graph scenarios for grounded M6 Supervisor evidence verification."""
 
+from typing import cast
+
 from scholarpath.agents import StructuredEvidenceExtractionResult
 from scholarpath.config import (
     ApplicationSettings,
@@ -16,10 +18,12 @@ from scholarpath.domain import (
     VerificationStatus,
 )
 from scholarpath.graph import (
+    CandidateApproveResponse,
     ReviewStatus,
     ScholarPathState,
     alternate_official_source_query,
     build_walking_skeleton_fixtures,
+    default_review_decision,
     run_scholarpath_graph,
 )
 from scholarpath.tools import (
@@ -82,20 +86,29 @@ def _run(
     evidence_model: FakeEvidenceVerificationModel | None = None,
     alternate_search: FakeSupervisorSearch | None = None,
 ) -> ScholarPathState:
-    return run_scholarpath_graph(
-        planning_model=FakePlanningModel(),
-        supervisor_search=FakeSupervisorSearch(),
-        tavily_search=FakeSupervisorSearch(),
-        content_extractor=content_extractor or FakeContentExtraction(),
-        evidence_model=evidence_model or FakeEvidenceVerificationModel(),
-        research_fit_model=FakeResearchFitModel(),
-        independent_review_model=FakeIndependentReviewModel(),
-        alternate_evidence_search=alternate_search or FakeSupervisorSearch(),
-        application_settings=ApplicationSettings(
-            environment=Environment.TEST,
-            discovery_failure_mode=DiscoveryFailureMode.OFF,
+    approval = CandidateApproveResponse(
+        action="approve",
+        supervisor_ids=default_review_decision().supervisor_ids,
+    )
+    return cast(
+        ScholarPathState,
+        run_scholarpath_graph(
+            thread_id="legacy-m6-evidence",
+            candidate_review_responses=(approval,),
+            planning_model=FakePlanningModel(),
+            supervisor_search=FakeSupervisorSearch(),
+            tavily_search=FakeSupervisorSearch(),
+            content_extractor=content_extractor or FakeContentExtraction(),
+            evidence_model=evidence_model or FakeEvidenceVerificationModel(),
+            research_fit_model=FakeResearchFitModel(),
+            independent_review_model=FakeIndependentReviewModel(),
+            alternate_evidence_search=alternate_search or FakeSupervisorSearch(),
+            application_settings=ApplicationSettings(
+                environment=Environment.TEST,
+                discovery_failure_mode=DiscoveryFailureMode.OFF,
+            ),
+            langsmith_settings=LangSmithSettings(tracing=False),
         ),
-        langsmith_settings=LangSmithSettings(tracing=False),
     )
 
 

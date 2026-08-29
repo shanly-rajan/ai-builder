@@ -1575,3 +1575,124 @@ and a clean live reproduction of the underlying structured-output validation fai
   prompt compliance across alternative Nebius models.
 - Decide whether a bounded application-level output retry is worth its additional cost;
   the current graph intentionally preserves the original assessment on invalid output.
+
+## Milestone M9: Candidate review interrupt and durable graph persistence
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Replace the synchronous fixture review gate with a real LangGraph interrupt that presents
+the complete evidence-backed Supervisor proposal, requires an explicit typed Candidate
+response, persists paused state by thread ID, and resumes safely through approval or a
+bounded refinement route. Add isolated in-memory checkpoints for tests and restart-safe
+SQLite checkpoints for trusted local development without adding Mem0 or outreach.
+
+### Prompt used
+
+The exact milestone prompt is archived as
+[`m9-candidate-review-interrupt-and-persistence.md`](prompts/m9-candidate-review-interrupt-and-persistence.md).
+
+### Files changed
+
+- Added `src/graph/review.py` with `CandidateReviewInterruptPayload`, action-specific
+  approve/reject/request-more response models, JSON-safe payload projection, deterministic
+  parsing, and resume-value conversion.
+- Added `src/graph/persistence.py` with isolated `InMemorySaver` construction, a local
+  SQLite checkpointer context manager, strict MessagePack type allowlisting, and safe URL
+  serialization without pickle fallback.
+- Replaced `candidate_review_gate_stub` in `src/graph/workflow.py` with the real
+  `interrupt()`/`Command(resume=...)` path, explicit thread configuration, bounded invalid
+  input and refinement routes, subset approval, per-Supervisor rejection reasons, and
+  downstream-only shortlist persistence.
+- Extended `ScholarPathState` with a review-validation error and independent invalid-input
+  counter; extended `CandidatePreferenceRevision` with typed constraints.
+- Added `SCHOLARPATH_CHECKPOINT_DATABASE_PATH` to typed settings and `.env.example`, ignored
+  `.scholarpath/`, pinned the patched `langgraph-checkpoint-sqlite==3.1.1` package, and
+  advanced safe observability metadata to `graph-version:m9`.
+- Updated the public graph API and CLI so an ordinary run reports the paused payload; an
+  explicit response is required before a completed shortlist can be printed.
+- Updated `README.md`, `docs/architecture.md`, `docs/terminology.md`, and the generated
+  [`m9-candidate-review-persistence-graph.mmd`](m9-candidate-review-persistence-graph.mmd).
+- Adapted historical M2–M8 graph, CLI, configuration, and contract tests to keep old
+  diagrams historical while exercising the current explicit interrupt boundary.
+
+### Tests added
+
+- `tests/unit/graph/test_candidate_review.py` validates all three response schemas,
+  malformed and ambiguous values, JSON round trips, complete payload projection, source
+  links, and redaction of full Candidate and evidence content.
+- `tests/graph/test_m9_candidate_review_interrupt.py` validates pause and inspection,
+  approval of an ordered subset, per-Supervisor rejection, preference refinement, thread
+  isolation, no pre-approval save, invalid-ID re-prompting, bounded loops, and resume
+  idempotency.
+- `tests/integration/test_m9_sqlite_persistence.py` closes the first application instance,
+  opens a fresh graph against the same SQLite file, inspects the paused thread, and resumes
+  it to an approved shortlist.
+- `tests/contract/test_m9_candidate_review_persistence_contract.py` locks the dependency,
+  environment, ignore, interrupt/resume, safe serializer, prompt, diagram, graph-version,
+  no-Mem0, and no-outreach boundaries.
+- `tests/unit/graph/test_persistence.py` proves unregistered models and tampered model or
+  enum markers are rejected instead of dynamically imported.
+- Extended configuration tests for the checkpoint-path default and environment override.
+
+### Test results
+
+- Focused M9 graph tests: `10 passed`.
+- Focused M9 response and SQLite tests: `19 passed`.
+- Legacy M2–M8 adaptation suite: `92 passed`.
+- `venv/bin/ruff format --check .`: all 142 Python files formatted.
+- `venv/bin/ruff check --no-cache .`: all lint checks passed.
+- `venv/bin/mypy src tests`: no issues in 116 source files.
+- `venv/bin/pytest -q`: 753 non-live tests passed, six live tests were deselected, 44
+  terminology subtests passed, and combined statement/branch coverage was 91.42 percent.
+- Strict editable installation completed with the pinned SQLite checkpointer; `pip check`
+  reported no broken requirements and a fresh import exposed the persistence API.
+- The offline CLI persisted and paused with five fully populated review items and no
+  shortlist save; a fresh Python process reopened that thread, approved one explicit ID,
+  and completed with exactly that one Shortlisted Supervisor.
+- The 60-second SQLite close/reopen demonstration passed: `1 passed in 0.54s`.
+- `git diff --check` passed.
+
+### Assumptions
+
+- A thread ID is an opaque run key generated by application code; it is not a Candidate
+  name, email address, authorization token, or globally reusable session identifier.
+- SQLite is appropriate for trusted, local, single-process development and restart tests;
+  it is not the selected horizontally scaled production checkpoint store.
+- One Candidate response may approve an ordered subset of one to five current proposal
+  IDs; unselected proposal records remain Verified rather than being implicitly rejected.
+- Rejection routes to a fresh search-planning cycle. `request_more` appends the exact typed
+  preference revision before that same bounded cycle.
+- Candidate review payloads may contain public source URLs and concise concerns, but never
+  full retrieved pages, API keys, email addresses, or the full research statement.
+
+### Lessons learned
+
+- LangGraph resumes an interrupted node from its beginning, so every operation before
+  `interrupt()` must be deterministic and side-effect-free. The current node only builds
+  a typed presentation payload before pausing.
+- Human input needs two validation layers: action-specific Pydantic schemas validate shape,
+  and deterministic proposal-scope checks validate exact Supervisor IDs.
+- A checkpointer turns `thread_id` into a data-isolation boundary. The same ID must resume a
+  run, while a different ID must never inherit its proposal, decisions, or lifecycle state.
+- LangGraph's default MessagePack path does not directly encode Pydantic `HttpUrl` values.
+  A JSON-mode model projection plus an explicit deserialization allowlist preserves typed
+  state without enabling executable pickle checkpoints.
+- Candidate authority is easiest to prove structurally when shortlist saving and briefing
+  generation are downstream nodes that cannot run while the interrupt remains unresolved.
+
+### Remaining debt
+
+- Add Streamlit rendering and authenticated session-to-thread ownership without weakening
+  the typed response boundary or treating display as approval.
+- Define checkpoint encryption, filesystem permissions, retention, deletion, audit access,
+  and backup policy before persisting real Candidate data beyond local development.
+- Select a production checkpointer that supports concurrent processes, connection pooling,
+  operational monitoring, and disaster recovery.
+- Decide whether rejected Supervisors should be suppressed permanently, reconsidered after
+  material preference changes, or offered through an explicit Candidate override policy.
+- Add Mem0 behind a typed preference-memory port in a later milestone; M9 feedback remains
+  only in checkpointed graph state.
+- Add LangSmith evaluations for pause-to-decision latency, invalid-response rate, repeated
+  refinement frequency, and premature-lifecycle-promotion regressions.

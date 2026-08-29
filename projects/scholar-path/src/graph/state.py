@@ -123,6 +123,7 @@ class ScholarPathState(TypedDict):
     shortlisted_supervisors: list[VerifiedSupervisor]
     rejected_supervisors: Annotated[list[VerifiedSupervisor], merge_supervisors_by_id]
     candidate_feedback: Annotated[list[CandidateReviewDecision], append_items]
+    candidate_review_error: str | None
     tool_errors: Annotated[list[ToolErrorRecord], append_items]
     search_attempts: Annotated[list[SearchAttempt], append_items]
     fallback_search_used: bool
@@ -153,6 +154,7 @@ class ScholarPathStateUpdate(TypedDict, total=False):
     shortlisted_supervisors: list[VerifiedSupervisor]
     rejected_supervisors: list[VerifiedSupervisor]
     candidate_feedback: list[CandidateReviewDecision]
+    candidate_review_error: str | None
     tool_errors: list[ToolErrorRecord]
     search_attempts: list[SearchAttempt]
     fallback_search_used: bool
@@ -183,12 +185,13 @@ def create_initial_state(candidate_profile: CandidateProfile) -> ScholarPathStat
         shortlisted_supervisors=[],
         rejected_supervisors=[],
         candidate_feedback=[],
+        candidate_review_error=None,
         tool_errors=[],
         search_attempts=[],
         fallback_search_used=False,
         fallback_search_round=None,
         discovery_round=0,
-        retry_counts={"discovery": 0, "evidence": 0, "review": 0},
+        retry_counts={"discovery": 0, "evidence": 0, "review": 0, "review_input": 0},
         review_status=ReviewStatus.PENDING,
         execution_log=[],
         supervisor_shortlist=None,

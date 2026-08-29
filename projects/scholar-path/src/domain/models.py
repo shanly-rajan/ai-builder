@@ -308,6 +308,7 @@ class CandidatePreferenceRevision(DomainModel):
     preferred_study_modes: tuple[NonEmptyString, ...] | None = None
     preferred_research_orientation: NonEmptyString | None = None
     methodological_interests: tuple[NonEmptyString, ...] | None = None
+    constraints: tuple[NonEmptyString, ...] | None = None
     exclusions: tuple[NonEmptyString, ...] | None = None
 
     @model_validator(mode="after")

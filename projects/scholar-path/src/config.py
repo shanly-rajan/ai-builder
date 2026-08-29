@@ -1,6 +1,7 @@
 """Typed application and provider settings with deferred credential validation."""
 
 from enum import StrEnum
+from pathlib import Path
 from typing import Annotated, Literal, Self
 
 from pydantic import (
@@ -549,6 +550,7 @@ class ApplicationSettings(BaseSettings):
     environment: Environment = Environment.DEVELOPMENT
     log_level: LogLevel = LogLevel.INFO
     discovery_failure_mode: DiscoveryFailureMode = DiscoveryFailureMode.OFF
+    checkpoint_database_path: Path = Path(".scholarpath/checkpoints.sqlite3")
     provider_api_keys: dict[str, SecretStr] = Field(default_factory=dict, repr=False)
 
     def for_provider(self, provider: str) -> ProviderConfiguration:

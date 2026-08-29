@@ -1,6 +1,7 @@
 """Graph tests for the deterministic ScholarPath M2 walking skeleton."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from typing import cast
 
 import pytest
 
@@ -13,7 +14,6 @@ from scholarpath.config import (
 from scholarpath.domain import (
     CandidatePreferenceRevision,
     CandidateReviewAction,
-    CandidateReviewDecision,
     ProspectiveSupervisor,
     SupervisorLifecycleStatus,
     SupervisorShortlist,
@@ -21,6 +21,11 @@ from scholarpath.domain import (
 )
 from scholarpath.graph import (
     CANONICAL_NODE_NAMES,
+    CandidateApproveResponse,
+    CandidateRejectionReason,
+    CandidateRejectResponse,
+    CandidateRequestMoreResponse,
+    CandidateReviewResponse,
     DiscoveryPolicy,
     GraphFixtureConfig,
     ReviewStatus,
@@ -52,7 +57,7 @@ HAPPY_PATH_LOG = [
     "evaluate_research_fit",
     "review_fit_assessments",
     "synthesize_supervisor_shortlist",
-    "candidate_review_gate_stub",
+    "candidate_review_gate",
     "save_shortlisted_supervisors",
     "generate_shortlist_briefing",
 ]
@@ -74,36 +79,61 @@ def _run_graph(
     evidence_model: FakeEvidenceVerificationModel | None = None,
     research_fit_model: FakeResearchFitModel | None = None,
     alternate_evidence_search: FakeSupervisorSearch | None = None,
+    candidate_review_responses: Sequence[CandidateReviewResponse] | None = None,
 ) -> ScholarPathState:
-    return run_scholarpath_graph(
-        config,
-        planning_model=planning_model or FakePlanningModel(),
-        supervisor_search=supervisor_search or FakeSupervisorSearch(),
-        tavily_search=tavily_search or FakeSupervisorSearch(),
-        content_extractor=content_extractor or FakeContentExtraction(),
-        evidence_model=evidence_model or FakeEvidenceVerificationModel(),
-        research_fit_model=research_fit_model or FakeResearchFitModel(),
-        independent_review_model=FakeIndependentReviewModel(),
-        alternate_evidence_search=alternate_evidence_search,
-        application_settings=ApplicationSettings(
-            environment=Environment.TEST,
-            discovery_failure_mode=DiscoveryFailureMode.OFF,
+    responses = candidate_review_responses or (_approve(),)
+    return cast(
+        ScholarPathState,
+        run_scholarpath_graph(
+            config,
+            thread_id="legacy-workflow",
+            candidate_review_responses=responses,
+            planning_model=planning_model or FakePlanningModel(),
+            supervisor_search=supervisor_search or FakeSupervisorSearch(),
+            tavily_search=tavily_search or FakeSupervisorSearch(),
+            content_extractor=content_extractor or FakeContentExtraction(),
+            evidence_model=evidence_model or FakeEvidenceVerificationModel(),
+            research_fit_model=research_fit_model or FakeResearchFitModel(),
+            independent_review_model=FakeIndependentReviewModel(),
+            alternate_evidence_search=alternate_evidence_search,
+            application_settings=ApplicationSettings(
+                environment=Environment.TEST,
+                discovery_failure_mode=DiscoveryFailureMode.OFF,
+            ),
+            langsmith_settings=LangSmithSettings(tracing=False),
         ),
-        langsmith_settings=LangSmithSettings(tracing=False),
     )
 
 
-def _decision(
-    action: CandidateReviewAction,
+def _approve(
     supervisor_ids: tuple[str, ...] = RANKED_IDS,
-    *,
-    revised_preferences: CandidatePreferenceRevision | None = None,
-) -> CandidateReviewDecision:
-    return CandidateReviewDecision(
-        action=action,
+) -> CandidateApproveResponse:
+    return CandidateApproveResponse(
+        action="approve",
         supervisor_ids=supervisor_ids,
-        reason=f"Deterministic fixture decision: {action.value}.",
-        revised_preferences=revised_preferences,
+    )
+
+
+def _reject(supervisor_ids: tuple[str, ...]) -> CandidateRejectResponse:
+    return CandidateRejectResponse(
+        action="reject",
+        rejections=tuple(
+            CandidateRejectionReason(
+                supervisor_id=supervisor_id,
+                reason=f"The Candidate rejected fixture Supervisor {supervisor_id}.",
+            )
+            for supervisor_id in supervisor_ids
+        ),
+    )
+
+
+def _request_more(
+    revised_preferences: CandidatePreferenceRevision | None = None,
+) -> CandidateRequestMoreResponse:
+    return CandidateRequestMoreResponse(
+        action="request_more",
+        revised_preferences=revised_preferences
+        or CandidatePreferenceRevision(exclusions=("broaden the fixture search",)),
     )
 
 
@@ -111,7 +141,12 @@ def test_normal_happy_path_has_the_exact_node_sequence() -> None:
     final_state = _run_graph()
 
     assert final_state["execution_log"] == HAPPY_PATH_LOG
-    assert final_state["retry_counts"] == {"discovery": 0, "evidence": 0, "review": 0}
+    assert final_state["retry_counts"] == {
+        "discovery": 0,
+        "evidence": 0,
+        "review": 0,
+        "review_input": 0,
+    }
     assert final_state["tool_errors"] == []
     assert len(final_state["shortlisted_supervisors"]) == 5
 
@@ -158,14 +193,14 @@ def test_candidate_approval_reaches_end_with_shortlisted_statuses() -> None:
 
 
 def test_candidate_rejection_records_feedback_and_returns_to_planning() -> None:
-    reject = _decision(CandidateReviewAction.REJECT, (FIXTURE_IDS[4],))
-    approve_remaining = _decision(
-        CandidateReviewAction.APPROVE,
-        RANKED_IDS_AFTER_REJECTION,
-    )
-    config = GraphFixtureConfig(review_decisions=(reject, approve_remaining))
+    reject = _reject((FIXTURE_IDS[4],))
+    approve_remaining = _approve(RANKED_IDS_AFTER_REJECTION)
+    config = GraphFixtureConfig(max_review_retries=1)
 
-    final_state = _run_graph(config)
+    final_state = _run_graph(
+        config,
+        candidate_review_responses=(reject, approve_remaining),
+    )
 
     rejected = final_state["rejected_supervisors"]
     assert [item.supervisor_id for item in rejected] == [FIXTURE_IDS[4]]
@@ -175,7 +210,7 @@ def test_candidate_rejection_records_feedback_and_returns_to_planning() -> None:
         CandidateReviewAction.APPROVE,
     ]
     assert final_state["execution_log"].count("plan_supervisor_searches") == 2
-    assert final_state["execution_log"].count("candidate_review_gate_stub") == 2
+    assert final_state["execution_log"].count("candidate_review_gate") == 2
     assert final_state["retry_counts"]["review"] == 1
     assert final_state["review_status"] is ReviewStatus.COMPLETED
     shortlisted_ids = tuple(item.supervisor_id for item in final_state["shortlisted_supervisors"])
@@ -192,15 +227,16 @@ def test_candidate_rejection_records_feedback_and_returns_to_planning() -> None:
 
 def test_request_more_records_preferences_and_returns_to_search_planning() -> None:
     revision = CandidatePreferenceRevision(preferred_regions=("Netherlands",))
-    request_more = _decision(
-        CandidateReviewAction.REQUEST_MORE,
-        revised_preferences=revision,
-    )
-    approve = _decision(CandidateReviewAction.APPROVE)
-    config = GraphFixtureConfig(review_decisions=(request_more, approve))
+    request_more = _request_more(revision)
+    approve = _approve()
+    config = GraphFixtureConfig(max_review_retries=1)
 
     planning_model = FakePlanningModel()
-    final_state = _run_graph(config, planning_model=planning_model)
+    final_state = _run_graph(
+        config,
+        planning_model=planning_model,
+        candidate_review_responses=(request_more, approve),
+    )
 
     assert [decision.action for decision in final_state["candidate_feedback"]] == [
         CandidateReviewAction.REQUEST_MORE,
@@ -212,7 +248,7 @@ def test_request_more_records_preferences_and_returns_to_search_planning() -> No
     assert planning_model.call_count == 2
     assert planning_model.inputs[-1].target_regions == ("Netherlands",)
     assert final_state["execution_log"].count("plan_supervisor_searches") == 2
-    assert final_state["execution_log"].count("candidate_review_gate_stub") == 2
+    assert final_state["execution_log"].count("candidate_review_gate") == 2
     assert final_state["retry_counts"]["review"] == 1
     assert final_state["rejected_supervisors"] == []
     assert final_state["review_status"] is ReviewStatus.COMPLETED
@@ -223,18 +259,21 @@ def test_request_more_records_preferences_and_returns_to_search_planning() -> No
 
 
 @pytest.mark.parametrize(
-    ("config_factory", "error_code", "last_node", "retry_key", "retry_node", "node_count"),
+    (
+        "config_factory",
+        "responses_factory",
+        "error_code",
+        "last_node",
+        "retry_key",
+        "retry_node",
+        "node_count",
+    ),
     [
         (
-            lambda: GraphFixtureConfig(
-                review_decisions=(
-                    _decision(CandidateReviewAction.REQUEST_MORE),
-                    _decision(CandidateReviewAction.REQUEST_MORE),
-                ),
-                max_review_retries=1,
-            ),
+            lambda: GraphFixtureConfig(max_review_retries=1),
+            lambda: (_request_more(), _request_more()),
             "review_retry_exhausted",
-            "candidate_review_gate_stub",
+            "candidate_review_gate",
             "review",
             "plan_supervisor_searches",
             2,
@@ -243,13 +282,17 @@ def test_request_more_records_preferences_and_returns_to_search_planning() -> No
 )
 def test_retry_exhaustion_stops_cleanly_without_recursion_failure(
     config_factory: Callable[[], GraphFixtureConfig],
+    responses_factory: Callable[[], tuple[CandidateReviewResponse, ...]],
     error_code: str,
     last_node: str,
     retry_key: str,
     retry_node: str,
     node_count: int,
 ) -> None:
-    final_state = _run_graph(config_factory())
+    final_state = _run_graph(
+        config_factory(),
+        candidate_review_responses=responses_factory(),
+    )
 
     assert final_state["review_status"] is ReviewStatus.RETRY_EXHAUSTED
     assert len(final_state["tool_errors"]) == 1
@@ -314,18 +357,18 @@ def test_maximum_configured_discovery_retries_exhaust_through_domain_state() -> 
 
 
 def test_maximum_configured_review_retries_exhaust_through_domain_state() -> None:
-    request_more = _decision(CandidateReviewAction.REQUEST_MORE)
-    config = GraphFixtureConfig(
-        review_decisions=(request_more,) * 6,
-        max_review_retries=5,
-    )
+    request_more = _request_more()
+    config = GraphFixtureConfig(max_review_retries=5)
 
-    final_state = _run_graph(config)
+    final_state = _run_graph(
+        config,
+        candidate_review_responses=(request_more,) * 6,
+    )
 
     assert final_state["review_status"] is ReviewStatus.RETRY_EXHAUSTED
     assert final_state["retry_counts"]["review"] == 5
     assert final_state["execution_log"].count("plan_supervisor_searches") == 6
-    assert final_state["execution_log"].count("candidate_review_gate_stub") == 6
+    assert final_state["execution_log"].count("candidate_review_gate") == 6
     assert final_state["tool_errors"][0].code == "review_retry_exhausted"
 
 
@@ -338,7 +381,7 @@ def test_graph_paths_never_use_candidate_as_a_supervisor_label() -> None:
     candidate_nodes = {name for name in graph_node_names if "candidate" in name.casefold()}
 
     assert set(CANONICAL_NODE_NAMES) <= graph_node_names
-    assert candidate_nodes == {"load_candidate_preferences", "candidate_review_gate_stub"}
+    assert candidate_nodes == {"load_candidate_preferences", "candidate_review_gate"}
 
     mermaid = render_scholarpath_mermaid().casefold()
     for banned_phrase in (

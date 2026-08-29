@@ -1,7 +1,8 @@
 """Unit tests for M2 graph reducers, state construction, and fixture controls."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import datetime
+from typing import cast
 
 import pytest
 from pydantic import ValidationError
@@ -14,12 +15,16 @@ from scholarpath.config import (
     LangSmithSettings,
 )
 from scholarpath.domain import (
+    CandidatePreferenceRevision,
     CandidateReviewAction,
     CandidateReviewDecision,
     SupervisorLifecycleStatus,
     apply_candidate_review,
 )
 from scholarpath.graph import (
+    CandidateApproveResponse,
+    CandidateRequestMoreResponse,
+    CandidateReviewResponse,
     DiscoveryPolicy,
     GraphFixtureConfig,
     RawSupervisorSearchResult,
@@ -30,6 +35,7 @@ from scholarpath.graph import (
     append_items,
     build_walking_skeleton_fixtures,
     create_initial_state,
+    default_review_decision,
     merge_supervisors_by_id,
     run_scholarpath_graph,
 )
@@ -59,23 +65,36 @@ class _FixedUtcClock:
         return self._timestamp
 
 
-def _run_graph(config: GraphFixtureConfig | None = None) -> ScholarPathState:
+def _run_graph(
+    config: GraphFixtureConfig | None = None,
+    *,
+    candidate_review_responses: Sequence[CandidateReviewResponse] | None = None,
+) -> ScholarPathState:
     resolved_config = config or GraphFixtureConfig()
     utc_clock: UtcClockPort = _FixedUtcClock(resolved_config.fixtures.generated_at)
-    return run_scholarpath_graph(
-        resolved_config,
-        planning_model=FakePlanningModel(),
-        supervisor_search=FakeSupervisorSearch(),
-        content_extractor=FakeContentExtraction(),
-        evidence_model=FakeEvidenceVerificationModel(),
-        research_fit_model=FakeResearchFitModel(),
-        independent_review_model=FakeIndependentReviewModel(),
-        application_settings=ApplicationSettings(
-            environment=Environment.TEST,
-            discovery_failure_mode=DiscoveryFailureMode.OFF,
+    default_approval = CandidateApproveResponse(
+        action="approve",
+        supervisor_ids=default_review_decision().supervisor_ids,
+    )
+    return cast(
+        ScholarPathState,
+        run_scholarpath_graph(
+            resolved_config,
+            thread_id="legacy-state-and-config",
+            candidate_review_responses=candidate_review_responses or (default_approval,),
+            planning_model=FakePlanningModel(),
+            supervisor_search=FakeSupervisorSearch(),
+            content_extractor=FakeContentExtraction(),
+            evidence_model=FakeEvidenceVerificationModel(),
+            research_fit_model=FakeResearchFitModel(),
+            independent_review_model=FakeIndependentReviewModel(),
+            application_settings=ApplicationSettings(
+                environment=Environment.TEST,
+                discovery_failure_mode=DiscoveryFailureMode.OFF,
+            ),
+            langsmith_settings=LangSmithSettings(tracing=False),
+            utc_clock=utc_clock,
         ),
-        langsmith_settings=LangSmithSettings(tracing=False),
-        utc_clock=utc_clock,
     )
 
 
@@ -115,7 +134,12 @@ def test_initial_state_populates_every_channel_with_safe_defaults() -> None:
     state = create_initial_state(fixtures.candidate_profile)
 
     assert state["candidate_profile"] == fixtures.candidate_profile
-    assert state["retry_counts"] == {"discovery": 0, "evidence": 0, "review": 0}
+    assert state["retry_counts"] == {
+        "discovery": 0,
+        "evidence": 0,
+        "review": 0,
+        "review_input": 0,
+    }
     assert state["review_status"] is ReviewStatus.PENDING
     assert state["search_plan"] is None
     assert state["supervisor_shortlist"] is None
@@ -123,6 +147,7 @@ def test_initial_state_populates_every_channel_with_safe_defaults() -> None:
     assert state["search_attempts"] == []
     assert state["verification_records"] == []
     assert state["research_fit_review_records"] == []
+    assert state["candidate_review_error"] is None
     assert state["evidence_extraction_attempts"] == []
     assert state["alternate_evidence_sources"] == {}
     assert state["fallback_search_used"] is False
@@ -203,13 +228,15 @@ def test_planning_without_loaded_preferences_uses_candidate_profile_regions() ->
 
 
 def test_invalid_review_scope_stops_safely() -> None:
-    invalid_decision = CandidateReviewDecision(
-        action=CandidateReviewAction.APPROVE,
+    invalid_response = CandidateApproveResponse(
+        action="approve",
         supervisor_ids=("supervisor-999",),
-        reason="This fixture deliberately references an unknown Supervisor.",
     )
 
-    final_state = _run_graph(GraphFixtureConfig(review_decisions=(invalid_decision,)))
+    final_state = _run_graph(
+        GraphFixtureConfig(max_review_input_retries=1),
+        candidate_review_responses=(invalid_response,),
+    )
 
     assert final_state["review_status"] is ReviewStatus.RETRY_EXHAUSTED
     assert final_state["tool_errors"][-1].code == "review_scope_invalid"
@@ -217,14 +244,16 @@ def test_invalid_review_scope_stops_safely() -> None:
 
 
 def test_review_retry_limit_stops_before_replanning() -> None:
-    request_more = CandidateReviewDecision(
-        action=CandidateReviewAction.REQUEST_MORE,
-        supervisor_ids=tuple(FIXTURE_IDS[index] for index in (0, 1, 3, 2, 4)),
-        reason="The Candidate requested a broader fixture search.",
+    request_more = CandidateRequestMoreResponse(
+        action="request_more",
+        revised_preferences=CandidatePreferenceRevision(
+            preferred_regions=("Netherlands",),
+        ),
     )
 
     final_state = _run_graph(
-        GraphFixtureConfig(review_decisions=(request_more,), max_review_retries=0)
+        GraphFixtureConfig(max_review_retries=0),
+        candidate_review_responses=(request_more,),
     )
 
     assert final_state["review_status"] is ReviewStatus.RETRY_EXHAUSTED
@@ -233,19 +262,19 @@ def test_review_retry_limit_stops_before_replanning() -> None:
     assert final_state["retry_counts"]["review"] == 0
 
 
-def test_partial_approval_cannot_complete_the_five_supervisor_shortlist() -> None:
-    partial_approval = CandidateReviewDecision(
-        action=CandidateReviewAction.APPROVE,
+def test_explicit_partial_approval_shortlists_only_the_selected_supervisor() -> None:
+    partial_approval = CandidateApproveResponse(
+        action="approve",
         supervisor_ids=(FIXTURE_IDS[0],),
-        reason="The Candidate approved only one fixture recommendation.",
     )
 
-    final_state = _run_graph(GraphFixtureConfig(review_decisions=(partial_approval,)))
+    final_state = _run_graph(candidate_review_responses=(partial_approval,))
 
-    assert final_state["review_status"] is ReviewStatus.RETRY_EXHAUSTED
-    assert final_state["tool_errors"][-1].code == "approved_shortlist_incomplete"
-    assert final_state["shortlisted_supervisors"] == []
-    assert final_state["supervisor_shortlist"] is None
+    assert final_state["review_status"] is ReviewStatus.COMPLETED
+    assert [item.supervisor_id for item in final_state["shortlisted_supervisors"]] == [
+        FIXTURE_IDS[0]
+    ]
+    assert final_state["supervisor_shortlist"] is not None
 
 
 def test_briefing_node_rejects_missing_shortlist() -> None:

@@ -66,7 +66,10 @@ def test_historical_m2_mermaid_preserves_the_fifteen_node_walking_skeleton() -> 
     saved = (PROJECT_ROOT / "docs" / "m2-walking-skeleton.mmd").read_text(encoding="utf-8")
 
     for node_name in CANONICAL_NODE_NAMES:
-        assert node_name in saved
+        historical_name = (
+            "candidate_review_gate_stub" if node_name == "candidate_review_gate" else node_name
+        )
+        assert historical_name in saved
 
 
 def test_runtime_does_not_import_test_fixtures_or_deferred_integrations() -> None:
