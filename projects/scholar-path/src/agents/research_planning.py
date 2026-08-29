@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from enum import StrEnum
 from typing import Protocol, Self
 
@@ -17,6 +18,13 @@ from ..domain import (
 from ..memory.models import CandidateMemoryRecord
 
 MAX_PLANNING_OUTPUT_ATTEMPTS = 2
+MAX_SITE_FILTERS_PER_QUERY = 1
+MAX_BOOLEAN_OPERATORS_PER_QUERY = 2
+MAX_QUOTED_PHRASES_PER_QUERY = 1
+
+_SITE_FILTER_PATTERN = re.compile(r"(?<![\w-])site\s*:\s*[^\s()]+", re.IGNORECASE)
+_BOOLEAN_OPERATOR_PATTERN = re.compile(r"\b(?:AND|OR|NOT)\b")
+_QUOTED_PHRASE_PATTERN = re.compile(r'"[^"\n]+"|“[^”\n]+”')
 
 
 def _normalized_text(value: str) -> str:
@@ -70,7 +78,12 @@ class PlanningInput(BaseModel):
 class PlanningSearchQueryResponse(BaseModel):
     """OpenAI-compatible structured representation of one planned query."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        revalidate_instances="always",
+        str_strip_whitespace=True,
+    )
 
     query: str
     purpose: str
@@ -82,6 +95,18 @@ class PlanningSearchQueryResponse(BaseModel):
         """Reject prose fields that contain only whitespace."""
         if not value.strip():
             raise ValueError("Planning query text and purpose must not be blank")
+        return value
+
+    @field_validator("query")
+    @classmethod
+    def query_syntax_must_remain_provider_portable(cls, value: str) -> str:
+        """Reject deterministic signs of an over-constrained provider query."""
+        if len(_SITE_FILTER_PATTERN.findall(value)) > MAX_SITE_FILTERS_PER_QUERY:
+            raise ValueError("Search query must contain at most one site: filter")
+        if len(_BOOLEAN_OPERATOR_PATTERN.findall(value)) > MAX_BOOLEAN_OPERATORS_PER_QUERY:
+            raise ValueError("Search query must contain at most two explicit Boolean operators")
+        if len(_QUOTED_PHRASE_PATTERN.findall(value)) > MAX_QUOTED_PHRASES_PER_QUERY:
+            raise ValueError("Search query must contain at most one quoted phrase")
         return value
 
     @model_validator(mode="after")
@@ -97,7 +122,12 @@ class PlanningSearchQueryResponse(BaseModel):
 class StructuredSearchPlanResponse(BaseModel):
     """Typed model output accepted by ScholarPath's planning boundary."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        revalidate_instances="always",
+        str_strip_whitespace=True,
+    )
 
     expanded_research_concepts: list[str]
     search_queries: list[PlanningSearchQueryResponse]

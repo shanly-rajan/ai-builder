@@ -151,10 +151,13 @@ flowchart LR
     class Adapter,Native external;
 ```
 
-The versioned `research-planning-v1` system prompt requires four to eight distinct
+The versioned `research-planning-v2` system prompt requires four to eight distinct
 queries whose combined targets cover official university profiles, department or
 research-group pages, recent publications, and explicit doctoral-supervision
-information. Each query carries its purpose and intended source types.
+information. Each query carries its purpose and intended source types. Deterministic
+query-shape validation allows at most one `site:` restriction, two explicit uppercase
+Boolean operators, and one quoted phrase per query. An over-constrained model response
+uses the same single bounded format retry as any other malformed structured output.
 
 The adapter calls `ChatOpenAI.with_structured_output` with `method="json_schema"` and
 `strict=True`; ScholarPath never parses important output from prose. A provider DTO is
@@ -206,8 +209,10 @@ flowchart LR
 
 `YouSearchAdapter` is transport-only. It sends the exact query and configured result
 limit to the official POST endpoint, applies an explicit HTTP timeout, and normalizes
-web/news results into typed `SearchResult` records. It does not identify people,
-evaluate Research Fit, or infer doctoral availability.
+web/news results into typed `SearchResult` records. Provider snippets are whitespace
+normalized, deduplicated, and bounded to five excerpts of at most 1,000 characters each;
+full-page content is never retained during discovery. The adapter does not identify
+people, evaluate Research Fit, or infer doctoral availability.
 
 `SupervisorDiscoveryAgent` uses conservative deterministic extraction because M4 does
 not introduce another model integration. A result must contain a plausible person name
@@ -260,6 +265,36 @@ immediately. Exhausting both providers below the minimum ends with
 `review_status=discovery_incomplete` and a recoverable tool error rather than looping
 or raising an unhandled exception. Tavily credentials are validated lazily only if the
 policy actually selects the fallback.
+
+### M11.1 discovery-quality repair
+
+```mermaid
+flowchart LR
+    Planner[Research planner v2] --> Guard{Portable query guard}
+    Guard -->|invalid once| Planner
+    Guard -->|valid| Search[You.com then bounded Tavily fallback]
+    Search --> Context[Title + description + bounded snippets]
+    Context --> Extract{Person + academic context + institution}
+    Extract -->|plausible| Retain[Prospective Supervisor + provenance]
+    Extract -->|not plausible| Exclude[Exclude deterministically]
+    Search --> Metrics[Safe attempt counts and route]
+    Extract --> Metrics
+    Metrics --> UI[Streamlit diagnostics]
+    Metrics --> Trace[LangSmith child spans]
+```
+
+The live trace that motivated this repair showed a healthy planning call, zero You.com
+results, then forty raw Tavily results from four calls but zero plausible profiles. The
+repair treats those as three different measures: raw provider results, plausible profiles
+before deduplication, and retained Prospective Supervisors. Only those counts, provider,
+query-local attempt number, typed error category, fallback flag, and route may appear in
+the UI or trace metadata. Queries, Candidate research content, names, URLs, page content,
+and secrets remain excluded.
+
+Discovery remains deterministic. The added title and snippet layouts improve recall for
+real academic-profile results, while retention still requires a plausible person name,
+academic context, and institution. Availability and Research Fit remain later evidence
+boundaries.
 
 ## M6 Supervisor evidence extraction and verification
 
@@ -583,15 +618,20 @@ LangSmith is optional and disabled by default:
 
 ```dotenv
 LANGSMITH_TRACING=false
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
 LANGSMITH_API_KEY=
 LANGSMITH_PROJECT=scholarpath
+LANGSMITH_WORKSPACE_ID=
 ```
 
 To trace a live run, set `LANGSMITH_TRACING=true` and provide
-`LANGSMITH_API_KEY`. `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag;
-the implementation supplies the fixed `graph-version:m11` tag. Disabling tracing does
-not construct a LangSmith client, even if another process has globally enabled
-tracing.
+`LANGSMITH_API_KEY`. EU accounts must set
+`LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com`; set
+`LANGSMITH_WORKSPACE_ID` only when the API key is scoped to more than one workspace.
+These values are loaded from `.env` and passed explicitly to the LangSmith client.
+`SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag; the implementation
+supplies the fixed `graph-version:m11.1` tag. Disabling tracing does not construct a
+LangSmith client, even if another process has globally enabled tracing.
 
 ### Run the Streamlit application locally
 
@@ -733,6 +773,22 @@ pytest -o addopts='' -q -s tests/integration/test_streamlit_app.py
 The test uses `FakeScholarPathApplication`, so it requires no provider key, network call,
 browser automation, or local checkpoint file. It also verifies recoverable error display,
 secret redaction, and independent session isolation.
+
+### 60-second discovery-quality repair demonstration
+
+Run the three offline regressions that exercise the repaired boundaries:
+
+```bash
+pytest -o addopts='' -q \
+  tests/unit/agents/test_research_planning.py::test_overconstrained_query_output_is_retried_once_then_repaired \
+  tests/graph/test_m5_resilient_discovery.py::test_realistic_fallback_summaries_reach_downstream_evidence_processing \
+  tests/integration/test_streamlit_app.py::test_zero_retained_results_show_accurate_privacy_safe_discovery_diagnostics
+```
+
+Expected result: `3 passed`. No provider key, network call, checkpoint file, or model is
+used. The cases prove one bounded planning retry, six retained Prospective Supervisors
+from realistic fallback summaries, and accurate `40 raw -> 0 plausible -> 0 retained`
+diagnostics without exposing query or Candidate content.
 
 ## Quality and test commands
 

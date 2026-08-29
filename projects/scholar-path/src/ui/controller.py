@@ -24,12 +24,16 @@ from ..graph import (
     ReviewStatus,
     ScholarPathState,
 )
+from ..tools import SearchProvider
 from .models import (
     CandidateResearchProfileSubmission,
+    DiscoveryAttemptView,
+    DiscoveryDiagnosticsView,
     EvidenceSourceView,
     GraphProgressEvent,
     ProspectiveSupervisorView,
     RecoverableUiError,
+    UiDiscoveryRoute,
     UiRunSnapshot,
     UiStage,
     VerifiedSupervisorView,
@@ -240,6 +244,63 @@ def _verified_supervisor_view(
     )
 
 
+def _discovery_route(state: ScholarPathState) -> UiDiscoveryRoute:
+    """Derive one privacy-safe current-round route from persisted workflow facts."""
+    if state["review_status"] is ReviewStatus.DISCOVERY_INCOMPLETE:
+        return UiDiscoveryRoute.STOPPED_RECOVERABLY
+    if any(error.code == "supervisor_discovery_stopped" for error in state["tool_errors"]):
+        return UiDiscoveryRoute.STOPPED
+    downstream_nodes = {
+        "deduplicate_supervisors",
+        "extract_supervisor_evidence",
+        "supervisor_evidence_sufficient",
+        "retry_alternate_evidence_source",
+        "evaluate_research_fit",
+        "review_fit_assessments",
+        "synthesize_supervisor_shortlist",
+        "candidate_review_gate",
+    }
+    if downstream_nodes.intersection(state["execution_log"]):
+        return UiDiscoveryRoute.DOWNSTREAM
+    if state["fallback_search_round"] == state["discovery_round"]:
+        return UiDiscoveryRoute.FALLBACK
+    return UiDiscoveryRoute.PRIMARY
+
+
+def _discovery_diagnostics(state: ScholarPathState) -> DiscoveryDiagnosticsView | None:
+    """Project current-round attempt counts while dropping queries and result content."""
+    current_attempts = tuple(
+        attempt
+        for attempt in state["search_attempts"]
+        if attempt.discovery_round == state["discovery_round"]
+    )
+    if not current_attempts:
+        return None
+    attempts = tuple(
+        DiscoveryAttemptView(
+            provider=attempt.provider_used,
+            attempt_number=attempt.attempt_number,
+            raw_result_count=attempt.result_count,
+            plausible_supervisor_count=attempt.plausible_supervisor_count,
+            error_category=attempt.error_category,
+            route=(
+                UiDiscoveryRoute.FALLBACK
+                if attempt.provider_used is SearchProvider.TAVILY
+                else UiDiscoveryRoute.PRIMARY
+            ),
+        )
+        for attempt in current_attempts
+    )
+    return DiscoveryDiagnosticsView(
+        attempts=attempts,
+        raw_result_count=sum(item.raw_result_count for item in attempts),
+        plausible_supervisor_count=sum(item.plausible_supervisor_count for item in attempts),
+        retained_prospective_supervisor_count=len(state["prospective_supervisors"]),
+        fallback_search_used=any(item.route is UiDiscoveryRoute.FALLBACK for item in attempts),
+        route=_discovery_route(state),
+    )
+
+
 def project_graph_state_to_ui(
     state: ScholarPathState,
     *,
@@ -329,6 +390,7 @@ def project_graph_state_to_ui(
         stage=stage,
         checkpoint_token=checkpoint_token,
         progress_events=progress_events_from_execution_log(state["execution_log"]),
+        discovery_diagnostics=_discovery_diagnostics(state),
         prospective_supervisors=prospective_views,
         verified_supervisors=verified_views,
         review_supervisors=review_views if review_payload is not None else (),

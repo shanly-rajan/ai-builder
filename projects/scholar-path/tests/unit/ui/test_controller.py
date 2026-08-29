@@ -8,10 +8,13 @@ from pydantic import ValidationError
 from scholarpath.graph import (
     CANONICAL_NODE_NAMES,
     ReviewStatus,
+    SearchAttempt,
     build_walking_skeleton_fixtures,
     create_initial_state,
 )
+from scholarpath.tools import SearchProvider
 from scholarpath.ui import (
+    UiDiscoveryRoute,
     UiStage,
     build_candidate_submission,
     build_request_more_response,
@@ -198,3 +201,67 @@ def test_graph_state_projection_exposes_verified_evidence_but_not_raw_graph_data
     assert "raw_search_results" not in rendered
     assert "raw_state_dump" not in rendered
     assert "supporting_excerpt" not in rendered
+
+
+def test_discovery_diagnostics_expose_counts_but_drop_queries_and_result_content() -> None:
+    fixtures = build_walking_skeleton_fixtures()
+    state = create_initial_state(fixtures.candidate_profile)
+    private_query = 'site:private.example "Candidate research statement"'
+    state["discovery_round"] = 2
+    state["search_attempts"] = [
+        SearchAttempt(
+            provider_used=SearchProvider.YOU,
+            query="older private query",
+            attempt_number=1,
+            result_count=5,
+            plausible_supervisor_count=2,
+            discovery_round=1,
+        ),
+        SearchAttempt(
+            provider_used=SearchProvider.YOU,
+            query=private_query,
+            attempt_number=1,
+            result_count=0,
+            plausible_supervisor_count=0,
+            discovery_round=2,
+        ),
+        SearchAttempt(
+            provider_used=SearchProvider.TAVILY,
+            query=private_query,
+            attempt_number=1,
+            result_count=40,
+            plausible_supervisor_count=0,
+            discovery_round=2,
+        ),
+    ]
+    state["fallback_search_used"] = True
+    state["fallback_search_round"] = 2
+    state["review_status"] = ReviewStatus.DISCOVERY_INCOMPLETE
+    state["execution_log"] = [
+        "discover_prospective_supervisors",
+        "fallback_supervisor_search",
+        "enough_supervisors_found",
+    ]
+
+    snapshot = project_graph_state_to_ui(
+        state,
+        checkpoint_token="checkpoint-safe-discovery-diagnostics",
+        review_payload=None,
+    )
+
+    diagnostics = snapshot.discovery_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.raw_result_count == 40
+    assert diagnostics.plausible_supervisor_count == 0
+    assert diagnostics.retained_prospective_supervisor_count == 0
+    assert diagnostics.fallback_search_used is True
+    assert diagnostics.route is UiDiscoveryRoute.STOPPED_RECOVERABLY
+    assert [attempt.provider for attempt in diagnostics.attempts] == [
+        SearchProvider.YOU,
+        SearchProvider.TAVILY,
+    ]
+    rendered = snapshot.model_dump_json()
+    assert private_query not in rendered
+    assert "older private query" not in rendered
+    assert "originating_query" not in rendered
+    assert "raw_search_results" not in rendered

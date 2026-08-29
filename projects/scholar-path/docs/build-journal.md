@@ -1931,3 +1931,116 @@ The exact milestone prompt is archived as
   research runs that approach the fifteen-minute product target.
 - Define protected operational logging and support correlation IDs without exposing provider
   failures, personal data, secrets, full pages, or research statements to the browser.
+
+## M11.1 Repair: Discovery quality and safe diagnostics
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Repair the bounded live-discovery path after LangSmith showed a successful planning call,
+zero You.com results, and forty raw Tavily results from which no Prospective Supervisors
+were retained. Improve query portability and deterministic result interpretation without
+weakening identity checks, adding another reasoning model, or changing evidence, Research
+Fit, independent review, memory, and approval boundaries.
+
+### Prompt used
+
+The exact repair prompt is archived as
+[`m11-discovery-quality-repair.md`](prompts/m11-discovery-quality-repair.md).
+
+### Files changed
+
+- Versioned the Research Planning Agent as `research-planning-v2`; added deterministic
+  per-query limits for `site:` filters, explicit uppercase Boolean operators, and quoted
+  phrases; retained exactly one bounded invalid-output retry.
+- Added typed, bounded `SearchResult.snippets`; You.com preserves only the provider's
+  summary snippets, while full pages remain outside discovery.
+- Expanded deterministic `SupervisorDiscoveryAgent` handling for realistic academic title,
+  surname-first, staff-directory, role, and institution layouts. Added identity-coherence,
+  combined role/institution normalization, and false-positive controls.
+- Added aggregate discovery-attempt spans and fixed discovery-node metadata in
+  `src/observability/tracing.py`, advanced the graph version to `m11.1`, and kept trace
+  inputs and outputs hidden.
+- Added typed current-round diagnostic projections in `src/ui/` and precise Streamlit
+  messages for raw results, plausible profiles, and retained Prospective Supervisors.
+- Made `LANGSMITH_ENDPOINT` and optional `LANGSMITH_WORKSPACE_ID` typed settings passed
+  explicitly to the client, including EU-region support from the ignored `.env` file.
+- Updated `README.md`, `docs/architecture.md`, the current generated graph snapshot,
+  `.env.example`, and added
+  [`m11-discovery-quality-repair.mmd`](m11-discovery-quality-repair.mmd).
+
+### Tests added
+
+- Planning tests for every query-shape limit, natural-language conjunctions, nested schema
+  revalidation, and a repaired second response after one over-constrained response.
+- Search-result and You.com adapter tests for snippet normalization, deduplication, count and
+  character bounds, and explicit exclusion of full-page provider fields.
+- Discovery tests for six realistic academic profiles, title/snippet identity coherence,
+  role/institution normalization, acronym page-label rejection, and directory,
+  non-academic, and clinical false positives.
+- Graph regression proving realistic fallback summaries retain six Prospective Supervisors
+  and continue to evidence processing.
+- UI and AppTest coverage for current-round safe metrics and the exact
+  `40 raw -> 0 plausible -> 0 retained` stopped route.
+- Observability tests for the metadata allowlist, empty span payloads, discovery-node
+  metadata, regional client configuration, and secret exclusion.
+- A repository contract for prompt, diagram, journal, versions, regional tracing settings,
+  and forbidden trace keys.
+
+### Test results
+
+- Focused planning, discovery, graph, configuration, observability, controller, AppTest, and
+  contract regression set: `186 passed` before the adversarial hardening cases were added.
+- Identity-coherence, institution-normalization, and current generated-graph contract set:
+  `26 passed`.
+- Typed LangSmith endpoint/workspace configuration and tracing set: `72 passed`; focused
+  Ruff and mypy checks passed after formatting.
+- `venv/bin/ruff format --check .`: all 169 Python files formatted.
+- `venv/bin/ruff check --no-cache .`: all lint checks passed.
+- `venv/bin/mypy src tests`: no issues in 139 source files.
+- `venv/bin/pytest -q`: 858 non-live tests passed, seven live tests were deselected, 47
+  terminology subtests passed, and combined statement/branch coverage was 90.52 percent.
+- The exact three-test manual demonstration passed in 0.86 seconds.
+- `venv/bin/pip check` reported no broken requirements; Python compilation and
+  `git diff --check` passed.
+
+### Assumptions
+
+- Search snippets are provider summaries, not verified evidence. They may support discovery
+  of a Prospective Supervisor but never satisfy verification or availability rules.
+- Five snippets of at most 1,000 characters each provide enough discovery context without
+  storing a retrieved page.
+- Uppercase `AND`, `OR`, and `NOT` represent explicit Boolean syntax; ordinary lowercase
+  conjunctions remain natural-language query text.
+- Attempt numbers are scoped to a provider and exact query. UI record sequence distinguishes
+  separate first attempts for separate queries without revealing those queries.
+- An optional LangSmith workspace ID is required only for a key scoped to multiple
+  workspaces; an empty dotenv placeholder is treated as unset.
+
+### Lessons learned
+
+- Provider success and discovery success are different signals. Raw count, plausible count,
+  and retained count must remain separate to explain a quality stop accurately.
+- A strong structured-output schema still needs deterministic query-shape constraints;
+  semantically sensible but over-constrained searches can fail across providers.
+- Snippets improve recall only when title identity remains authoritative on a person-profile
+  URL. Otherwise one result can accidentally combine two different people.
+- An observability allowlist must cover both metadata and payloads. Empty custom-span inputs
+  and outputs plus a hiding client prevent aggregate diagnostics from becoming a data leak.
+- Dotenv parsing does not export variables into the process environment. Passing the parsed
+  regional endpoint and workspace ID directly to the LangSmith client avoids hidden US-region
+  defaults.
+
+### Remaining debt
+
+- Evaluate query and extraction thresholds against a consented, labelled cross-region
+  dataset before tuning recall or precision further.
+- Add protected operational dashboards for provider latency, empty-result rate, plausible
+  ratio, duplicate ratio, fallback rate, and recoverable-stop rate.
+- Consider first-class provider domain filters instead of `site:` syntax after the search
+  port exposes a provider-neutral typed filter contract.
+- Add authenticated support correlation IDs and trace access governance before production;
+  aggregate privacy controls do not replace authorization.
+- Confirm regional data residency, retention, deletion, and workspace policies for LangSmith
+  before tracing real Candidate workflows in production.

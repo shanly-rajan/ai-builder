@@ -15,6 +15,7 @@ from pydantic import (
     HttpUrl,
     StrictBool,
     StringConstraints,
+    field_validator,
     model_validator,
 )
 
@@ -35,6 +36,10 @@ from .enums import (
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 Score = Annotated[int, Field(strict=True, ge=0, le=100)]
 ActivityYear = Annotated[int, Field(strict=True, ge=1900, le=2100)]
+SearchSnippet = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=1000),
+]
 
 _ADMISSION_LIKELIHOOD_PATTERN = re.compile(
     r"\b(?:admission|admitted|admittance)\b|"
@@ -204,8 +209,32 @@ class SearchResult(DomainModel):
     url: HttpUrl
     title: NonEmptyString
     description: str = ""
+    snippets: tuple[SearchSnippet, ...] = Field(default=(), max_length=5)
     publication_date: datetime | None = None
     originating_query: NonEmptyString
+
+    @field_validator("snippets", mode="before")
+    @classmethod
+    def normalize_bounded_snippets(cls, value: object) -> tuple[str, ...]:
+        """Retain a small, normalized provider excerpt set rather than page content."""
+        if value is None:
+            return ()
+        if not isinstance(value, (list, tuple)):
+            raise ValueError("Search-result snippets must be a list or tuple")
+
+        snippets: list[str] = []
+        seen: set[str] = set()
+        for item in value:
+            if not isinstance(item, str):
+                raise ValueError("Every search-result snippet must be text")
+            normalized = " ".join(item.split())[:1000].rstrip()
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            snippets.append(normalized)
+            if len(snippets) == 5:
+                break
+        return tuple(snippets)
 
 
 class SupervisorDiscoveryProvenance(DomainModel):

@@ -344,11 +344,13 @@ flowchart LR
 ```
 
 The planner receives the Candidate's research statement and typed preferences but no
-search tool. `research-planning-v1` uses
+search tool. `research-planning-v2` uses
 `with_structured_output(..., method="json_schema", strict=True)`; prose JSON parsing
 is not used. Python and Pydantic enforce four-to-eight distinct queries, required
-source-category coverage, target regions, and query uniqueness. Malformed output has
-one explicit retry; provider failures stop cleanly. The OpenAI client has
+source-category coverage, target regions, query uniqueness, and provider-portable query
+shape: at most one `site:` filter, two explicit uppercase Boolean operators, and one
+quoted phrase per query. Malformed output has one explicit retry; provider failures stop
+cleanly. The OpenAI client has
 `max_retries=0`, so the application owns the visible retry policy.
 
 ## M4–M5 resilient discovery boundary
@@ -370,15 +372,53 @@ flowchart LR
 
 The search port executes one exact query at a time. Transport adapters normalize URL,
 title, description, optional publication date, and originating query; they contain no
-Supervisor reasoning. The discovery agent conservatively identifies plausible people
-and institutions, while deterministic deduplication merges exact source/query pairs.
-Discovery never produces Research Fit or availability claims.
+Supervisor reasoning. You.com snippets are typed, whitespace-normalized, deduplicated,
+and capped at five excerpts of 1,000 characters. Full pages remain outside discovery.
+The discovery agent conservatively identifies plausible people and institutions from
+bounded result context, while deterministic deduplication merges exact source/query
+pairs. Discovery never produces Research Fit or availability claims.
 
 `route_after_supervisor_discovery` remains pure. It uses only the current discovery
 round's typed `SearchAttempt` records and quality metrics to choose one You.com timeout
 retry, Tavily fallback, continuation, immediate stop for non-retryable errors, or a
 recoverable `discovery_incomplete` result. Useful partial results survive a later query
 failure and remain available to downstream deduplication.
+
+### M11.1 discovery-quality repair
+
+```mermaid
+flowchart LR
+    Profile[CandidateProfile + durable preferences] --> Planner[Planning prompt v2]
+    Planner --> Guard{Deterministic query guard}
+    Guard -->|invalid first response| Planner
+    Guard -->|valid| Providers{{SupervisorSearchPort}}
+    Providers --> You[You title description snippets]
+    Providers --> Tavily[Tavily title bounded content]
+    You --> Extract[Deterministic person institution extraction]
+    Tavily --> Extract
+    Extract --> Provenance[Prospective Supervisor + exact provenance]
+    Providers --> Attempts[SearchAttempt aggregates]
+    Extract --> Attempts
+    Attempts --> Policy[Pure bounded DiscoveryPolicy]
+    Attempts --> Projection[Privacy-safe UI projection]
+    Attempts --> Spans[Empty-payload LangSmith attempt spans]
+```
+
+This repair addresses the observed `0 You.com results -> 40 raw Tavily results -> 0
+plausible profiles` route without weakening the domain boundary. It improves recall for
+common academic-profile title layouts, surname-first names, staff-directory URLs, and
+bounded snippets, but a result still needs a plausible person, academic context, and an
+institution. A directory page or non-academic person is excluded.
+
+The diagnostics boundary is an explicit projection rather than a graph-state dump:
+
+| Consumer | Allowed discovery diagnostics | Explicitly excluded |
+|---|---|---|
+| Streamlit | provider, query-local attempt number, raw count, plausible count, retained count, typed error category, fallback flag, route | query, Candidate content, names, URLs, snippets, raw records, page content, secrets |
+| LangSmith | provider, attempt number, raw count, plausible count, typed error category, fallback flag, route | query, Candidate content, names, URLs, snippets, raw records, page content, secrets |
+
+The distinction between raw, plausible, and retained counts explains provider quality
+without implying that arbitrary search hits are partial Supervisor recommendations.
 
 ## M6 content-extraction transport boundary
 
@@ -689,13 +729,14 @@ flowchart LR
     Root --> EvidenceTrace[evidence node metadata]
     Root --> FitTrace[Research Fit node and rubric metadata]
     Root --> ReviewTrace[independent-review node metadata]
-    Tags[environment plus graph-version:m11] --> Root
+    Root --> Discovery[discovery node + aggregate attempt spans]
+    Tags[environment plus graph-version:m11.1] --> Root
 ```
 
-The graph version is `m11`. Root tags are
-`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m11`. Planning, evidence,
-Research Fit, and independent-review nodes add only safe component and version metadata. The fixed
-metadata allowlist is:
+The graph version is `m11.1`. Root tags are
+`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m11.1`. Planning, discovery,
+evidence, Research Fit, and independent-review nodes add only safe component and version
+metadata. The fixed metadata allowlist is:
 
 - `application`
 - `environment`
@@ -703,6 +744,13 @@ metadata allowlist is:
 - `component`
 - `prompt_version`
 - `rubric_version`
+- `provider`
+- `attempt_number`
+- `raw_result_count`
+- `plausible_supervisor_count`
+- `error_category`
+- `fallback_search_used`
+- `discovery_route`
 
 The evidence node records `component=evidence_verification_agent` and
 `prompt_version=evidence-verification-v1`. Source URLs, full page content, Candidate
@@ -718,6 +766,11 @@ The Research Fit node records `component=research_fit_evaluation_agent`,
 is trace metadata. The review node records `component=independent_review_agent` and
 `prompt_version=independent-review-v3`; Candidate and evidence payloads remain trace
 inputs rather than metadata, and the LangSmith client hides all inputs and outputs.
+
+Each discovery provider call creates an empty-input, empty-output child tool span. Only
+aggregate attempt metadata is added at completion. The configured `LANGSMITH_ENDPOINT`
+and optional `LANGSMITH_WORKSPACE_ID` are passed explicitly to the client, so regional
+settings loaded from `.env` do not depend on process-environment side effects.
 
 Tracing remains optional. When disabled, ScholarPath uses an explicitly disabled
 tracing context and constructs no LangSmith client.
@@ -912,7 +965,7 @@ already-running event-loop runtime.
 | Conflicts | Both affiliation claims and cross-referenced evidence IDs are preserved |
 | Retry | One deterministic alternate official-source search and extraction pass |
 | Network isolation | Default tests use fixed pages and fakes; `live` is excluded by default |
-| Observability | `graph-version:m11`, prompt and rubric versions, allowlisted metadata, hidden inputs and outputs |
+| Observability | `graph-version:m11.1`, prompt and rubric versions, allowlisted aggregate discovery metadata, hidden inputs and outputs |
 | Human authority | A real interrupt requires typed explicit approval before Shortlisted status or briefing generation |
 | Persistence | In-memory isolation in tests; ignored SQLite path for trusted local restart; opaque thread IDs partition runs |
 | Checkpoint serialization | Explicit MessagePack type allowlist, URL JSON projection, and no executable pickle fallback |

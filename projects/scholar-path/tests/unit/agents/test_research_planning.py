@@ -97,6 +97,64 @@ def test_structured_response_rejects_normalized_duplicate_queries() -> None:
         StructuredSearchPlanResponse.model_validate(payload)
 
 
+@pytest.mark.parametrize(
+    ("query", "message"),
+    (
+        (
+            "site:.edu OR site:.ac.uk enterprise architecture professor",
+            "at most one site: filter",
+        ),
+        (
+            "professor AND architecture OR governance NOT healthcare",
+            "at most two explicit Boolean operators",
+        ),
+        (
+            'professor "enterprise architecture" "responsible AI"',
+            "at most one quoted phrase",
+        ),
+    ),
+)
+def test_structured_response_rejects_overconstrained_query_syntax(
+    query: str,
+    message: str,
+) -> None:
+    payload = make_valid_planning_response().model_dump(mode="python")
+    search_queries = payload["search_queries"]
+    assert isinstance(search_queries, list)
+    first_query = search_queries[0]
+    assert isinstance(first_query, dict)
+    first_query["query"] = query
+
+    with pytest.raises(ValidationError, match=message):
+        StructuredSearchPlanResponse.model_validate(payload)
+
+
+def test_structured_response_accepts_bounded_provider_portable_query_syntax() -> None:
+    payload = make_valid_planning_response().model_dump(mode="python")
+    search_queries = payload["search_queries"]
+    assert isinstance(search_queries, list)
+    first_query = search_queries[0]
+    assert isinstance(first_query, dict)
+    first_query["query"] = 'site:example.edu professor "enterprise architecture" AND governance'
+
+    response = StructuredSearchPlanResponse.model_validate(payload)
+
+    assert response.search_queries[0].query == first_query["query"]
+
+
+def test_natural_language_conjunctions_are_not_treated_as_boolean_operators() -> None:
+    payload = make_valid_planning_response().model_dump(mode="python")
+    search_queries = payload["search_queries"]
+    assert isinstance(search_queries, list)
+    first_query = search_queries[0]
+    assert isinstance(first_query, dict)
+    first_query["query"] = "architecture and governance or resilience and responsible innovation"
+
+    response = StructuredSearchPlanResponse.model_validate(payload)
+
+    assert response.search_queries[0].query == first_query["query"]
+
+
 def test_malformed_output_is_retried_once_then_a_valid_response_is_accepted() -> None:
     model = FakePlanningModel(
         (
@@ -114,4 +172,31 @@ def test_malformed_output_is_retried_once_then_a_valid_response_is_accepted() ->
 
     assert model.call_count == 2
     assert len(plan.search_queries) == 4
+    assert model.inputs[0] == model.inputs[1]
+
+
+def test_overconstrained_query_output_is_retried_once_then_repaired() -> None:
+    valid_response = make_valid_planning_response()
+    overconstrained_query = valid_response.search_queries[0].model_copy(
+        update={"query": "site:.edu OR site:.ac.uk professor architecture"}
+    )
+    invalid_response = valid_response.model_copy(
+        update={
+            "search_queries": [
+                overconstrained_query,
+                *valid_response.search_queries[1:],
+            ]
+        }
+    )
+    model = FakePlanningModel((invalid_response, valid_response))
+
+    plan = ResearchPlanningAgent(model).plan(
+        make_candidate_profile(),
+        (),
+        target_regions=("South Africa",),
+        exclusions=(),
+    )
+
+    assert model.call_count == 2
+    assert plan.search_queries[0].query == valid_response.search_queries[0].query
     assert model.inputs[0] == model.inputs[1]

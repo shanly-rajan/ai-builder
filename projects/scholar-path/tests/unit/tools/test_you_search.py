@@ -76,6 +76,11 @@ def test_web_and_news_results_are_normalized_in_stable_order() -> None:
                             "url": "https://example.edu/people/dr-lee",
                             "title": "Dr Jordan Lee | Example University",
                             "description": "Academic profile.",
+                            "snippets": [
+                                "Jordan Lee is an associate professor.",
+                                " Researches   responsible AI. ",
+                            ],
+                            "full_page": "Provider page content that must not be retained.",
                         }
                     ],
                     "news": [
@@ -98,6 +103,11 @@ def test_web_and_news_results_are_normalized_in_stable_order() -> None:
     ]
     assert str(results[0].url) == "https://example.edu/people/dr-lee"
     assert results[0].description == "Academic profile."
+    assert results[0].snippets == (
+        "Jordan Lee is an associate professor.",
+        "Researches responsible AI.",
+    )
+    assert "full_page" not in results[0].model_dump()
     assert results[0].publication_date is None
     assert results[1].publication_date is not None
     assert results[1].publication_date.isoformat() == "2026-07-04T10:15:00"

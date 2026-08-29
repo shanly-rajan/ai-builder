@@ -23,6 +23,7 @@ from scholarpath.graph import (
     GraphFixtureConfig,
     ReviewStatus,
     ScholarPathState,
+    build_walking_skeleton_fixtures,
     default_review_decision,
     run_scholarpath_graph,
 )
@@ -115,6 +116,35 @@ def test_successful_you_route_does_not_call_tavily() -> None:
     assert {attempt.provider_used for attempt in final_state["search_attempts"]} == {
         SearchProvider.YOU
     }
+
+
+def test_realistic_fallback_summaries_reach_downstream_evidence_processing() -> None:
+    query = _queries()[0]
+    raw_profiles = build_walking_skeleton_fixtures().raw_search_results[:6]
+    realistic_results = tuple(
+        SearchResult(
+            url=profile.profile_url,
+            title=f"{profile.full_name} | Associate Professor | {profile.institution}",
+            description=(
+                f"Academic research profile for {profile.full_name}. Current faculty member "
+                f"at {profile.institution}."
+            ),
+            originating_query=query,
+        )
+        for profile in raw_profiles
+    )
+    tavily_outcomes = _empty_outcomes()
+    tavily_outcomes[query] = realistic_results
+
+    final_state = _run(
+        FakeSupervisorSearch(_empty_outcomes()),
+        FakeSupervisorSearch(tavily_outcomes),
+    )
+
+    assert final_state["fallback_search_used"] is True
+    assert len(final_state["prospective_supervisors"]) == 6
+    assert "deduplicate_supervisors" in final_state["execution_log"]
+    assert "extract_supervisor_evidence" in final_state["execution_log"]
 
 
 def test_successful_you_route_does_not_construct_or_validate_tavily(

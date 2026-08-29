@@ -16,7 +16,17 @@ from scholarpath.graph import (
     CandidateRejectResponse,
     CandidateRequestMoreResponse,
 )
-from scholarpath.ui import ScholarPathApplicationPort
+from scholarpath.tools import SearchProvider
+from scholarpath.ui import (
+    DiscoveryAttemptView,
+    DiscoveryDiagnosticsView,
+    GraphProgressEvent,
+    RecoverableUiError,
+    ScholarPathApplicationPort,
+    UiDiscoveryRoute,
+    UiRunSnapshot,
+    UiStage,
+)
 from tests.fakes.ui import FakeScholarPathApplication
 
 APP_PATH = Path(__file__).resolve().parents[2] / "streamlit_app.py"
@@ -235,6 +245,82 @@ def test_progress_state_shows_only_canonical_node_names(
     ]
     assert "chain-of-thought" not in repr(status).casefold()
     assert "raw_search_results" not in repr(status)
+
+
+def test_zero_retained_results_show_accurate_privacy_safe_discovery_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    diagnostics = DiscoveryDiagnosticsView(
+        attempts=(
+            DiscoveryAttemptView(
+                provider=SearchProvider.YOU,
+                attempt_number=1,
+                raw_result_count=0,
+                plausible_supervisor_count=0,
+                route=UiDiscoveryRoute.PRIMARY,
+            ),
+            DiscoveryAttemptView(
+                provider=SearchProvider.TAVILY,
+                attempt_number=1,
+                raw_result_count=40,
+                plausible_supervisor_count=0,
+                route=UiDiscoveryRoute.FALLBACK,
+            ),
+        ),
+        raw_result_count=40,
+        plausible_supervisor_count=0,
+        retained_prospective_supervisor_count=0,
+        fallback_search_used=True,
+        route=UiDiscoveryRoute.STOPPED_RECOVERABLY,
+    )
+    snapshot = UiRunSnapshot(
+        stage=UiStage.STOPPED,
+        checkpoint_token="ui-stopped-checkpoint",
+        progress_events=(
+            GraphProgressEvent(sequence=1, node_name="discover_prospective_supervisors"),
+            GraphProgressEvent(sequence=2, node_name="fallback_supervisor_search"),
+            GraphProgressEvent(sequence=3, node_name="enough_supervisors_found"),
+        ),
+        discovery_diagnostics=diagnostics,
+        errors=(
+            RecoverableUiError(
+                code="supervisor_discovery_incomplete",
+                message="Legacy partial-results wording must not be rendered.",
+                recoverable=True,
+            ),
+        ),
+    )
+    service = FakeScholarPathApplication(start_snapshot=snapshot)
+    _configure_ui_dependencies(monkeypatch, service)
+    app_test = _new_app()
+
+    _submit_candidate_profile(app_test)
+
+    rendered = "\n".join(
+        (
+            *(item.value for item in app_test.markdown),
+            *(item.value for item in app_test.info),
+            *(item.value for item in app_test.warning),
+            *(item.value for item in app_test.caption),
+        )
+    )
+    assert not app_test.exception
+    assert ("Raw provider results", "40") in [
+        (metric.label, metric.value) for metric in app_test.metric
+    ]
+    assert ("Plausible profiles before deduplication", "0") in [
+        (metric.label, metric.value) for metric in app_test.metric
+    ]
+    assert ("Retained Prospective Supervisors", "0") in [
+        (metric.label, metric.value) for metric in app_test.metric
+    ]
+    assert "Fallback search used: Yes" in rendered
+    assert "Discovery route: Stopped recoverably" in rendered
+    assert "Search providers returned 40 raw results" in rendered
+    assert "none passed the plausible person-and-institution checks" in rendered
+    assert "partial results" not in rendered.casefold()
+    assert "Legacy partial-results wording" not in rendered
+    assert "private query" not in rendered
 
 
 def test_verified_supervisor_evidence_and_review_fields_are_rendered(

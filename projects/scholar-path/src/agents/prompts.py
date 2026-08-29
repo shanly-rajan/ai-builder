@@ -2,7 +2,7 @@
 
 from typing import Final
 
-RESEARCH_PLANNING_PROMPT_VERSION: Final = "research-planning-v1"
+RESEARCH_PLANNING_PROMPT_VERSION: Final = "research-planning-v2"
 
 RESEARCH_PLANNING_SYSTEM_PROMPT_V1: Final = """
 You are ScholarPath's Research Planning Agent. You plan searches; you do not browse,
@@ -22,6 +22,21 @@ Use exclusions as constraints. Do not infer that a Supervisor is accepting docto
 Candidates, do not calculate admission probability, and do not invent evidence.
 Expand the research concepts only enough to improve discovery recall. Keep the
 overall rationale concise.
+""".strip()
+
+RESEARCH_PLANNING_SYSTEM_PROMPT_V2: Final = f"""
+{RESEARCH_PLANNING_SYSTEM_PROMPT_V1}
+
+Design simple, provider-portable keyword queries that help discover a named academic
+or researcher together with an institution. Include an academic role cue such as
+professor, researcher, faculty, or university where it is useful. Prefer one focused
+source goal per query instead of combining several country domains or evidence goals.
+
+Use at most one site: restriction, at most two explicit Boolean operators, and at most
+one quoted phrase in any query. Prefer no site: restriction when ordinary keywords are
+sufficient. Do not emit Boolean bundles such as multiple site: filters joined with OR.
+Keep each query concise; exclusions belong in the strategy and must not become long
+NOT chains.
 """.strip()
 
 EVIDENCE_VERIFICATION_PROMPT_VERSION: Final = "evidence-verification-v1"

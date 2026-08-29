@@ -61,7 +61,61 @@ def test_search_result_allows_absent_publication_date_and_description() -> None:
     )
 
     assert result.description == ""
+    assert result.snippets == ()
     assert result.publication_date is None
+
+
+def test_search_result_normalizes_and_bounds_provider_snippets() -> None:
+    result = SearchResult.model_validate(
+        {
+            "url": "https://example.edu/people/dr-lee",
+            "title": "Dr Jordan Lee | Example University",
+            "snippets": [
+                "  Jordan Lee   is a professor.  ",
+                "Jordan Lee is a professor.",
+                "Research topic one.",
+                "Research topic two.",
+                "Research topic three.",
+                "Research topic four.",
+                "This sixth distinct snippet is not retained.",
+            ],
+            "originating_query": "responsible AI university profile",
+        }
+    )
+
+    assert result.snippets == (
+        "Jordan Lee is a professor.",
+        "Research topic one.",
+        "Research topic two.",
+        "Research topic three.",
+        "Research topic four.",
+    )
+
+
+def test_search_result_bounds_each_snippet_without_retaining_full_page_content() -> None:
+    result = SearchResult.model_validate(
+        {
+            "url": "https://example.edu/people/dr-lee",
+            "title": "Dr Jordan Lee | Example University",
+            "snippets": ["x" * 1200],
+            "originating_query": "responsible AI university profile",
+        }
+    )
+
+    assert result.snippets == ("x" * 1000,)
+
+
+@pytest.mark.parametrize("snippets", ["not-a-list", ["valid", 42]])
+def test_search_result_rejects_malformed_provider_snippets(snippets: object) -> None:
+    with pytest.raises(ValidationError, match="snippet"):
+        SearchResult.model_validate(
+            {
+                "url": "https://example.edu/people/dr-lee",
+                "title": "Dr Jordan Lee | Example University",
+                "snippets": snippets,
+                "originating_query": "responsible AI university profile",
+            }
+        )
 
 
 def test_supervisor_discovery_provenance_rejects_duplicate_pairs() -> None:

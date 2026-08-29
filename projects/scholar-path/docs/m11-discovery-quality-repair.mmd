@@ -1,0 +1,24 @@
+flowchart LR
+    Profile[CandidateProfile + durable preferences] --> Planner[Research planning prompt v2]
+    Planner --> Guard{Portable query shape valid?}
+    Guard -->|No, first response| Planner
+    Guard -->|No, second response| Stop[Sanitized planning error]
+    Guard -->|Yes| Port{{SupervisorSearchPort}}
+
+    Port --> You[You.com title + description + bounded snippets]
+    Port --> Tavily[Tavily title + bounded content]
+    You --> Extract{Plausible person + academic context + institution?}
+    Tavily --> Extract
+    Extract -->|No| Exclude[Exclude result]
+    Extract -->|Yes| Dedupe[Deterministic deduplication]
+    Dedupe --> Prospective[Prospective Supervisor + exact provenance]
+
+    Port --> Attempt[Typed SearchAttempt aggregates]
+    Extract --> Attempt
+    Attempt --> Policy{Bounded DiscoveryPolicy}
+    Policy --> Route[Continue, retry, fallback, or stop]
+    Attempt --> UI[Privacy-safe Streamlit projection]
+    Attempt --> Trace[Empty-payload LangSmith tool span]
+
+    classDef external fill:#e8f1ff,stroke:#245a9b;
+    class You,Tavily,Trace external;

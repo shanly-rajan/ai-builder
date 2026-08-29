@@ -22,6 +22,7 @@ from ..domain import (
     SupervisorLifecycleStatus,
     VerificationStatus,
 )
+from ..tools import SearchErrorCategory, SearchProvider
 
 NonEmptyUiText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
@@ -72,6 +73,64 @@ class GraphProgressEvent(BaseModel):
 
     sequence: Annotated[int, Field(strict=True, ge=1)]
     node_name: NonEmptyUiText
+
+
+class UiDiscoveryRoute(StrEnum):
+    """Privacy-safe current-round discovery outcome shown without search content."""
+
+    PRIMARY = "primary"
+    FALLBACK = "fallback"
+    DOWNSTREAM = "downstream"
+    STOPPED = "stopped"
+    STOPPED_RECOVERABLY = "stopped_recoverably"
+
+
+class DiscoveryAttemptView(BaseModel):
+    """Aggregate facts for one provider attempt without its query or returned content."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
+
+    provider: SearchProvider
+    attempt_number: Annotated[int, Field(strict=True, ge=1)]
+    raw_result_count: Annotated[int, Field(strict=True, ge=0)]
+    plausible_supervisor_count: Annotated[int, Field(strict=True, ge=0)]
+    error_category: SearchErrorCategory | None = None
+    route: Literal[UiDiscoveryRoute.PRIMARY, UiDiscoveryRoute.FALLBACK]
+
+    @model_validator(mode="after")
+    def plausible_count_must_not_exceed_raw_count(self) -> DiscoveryAttemptView:
+        """Prevent an impossible diagnostic from reaching the interface."""
+        if self.plausible_supervisor_count > self.raw_result_count:
+            raise ValueError("plausible_supervisor_count must not exceed raw_result_count")
+        return self
+
+
+class DiscoveryDiagnosticsView(BaseModel):
+    """Current-round provider diagnostics with all search content deliberately omitted."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
+
+    attempts: tuple[DiscoveryAttemptView, ...] = Field(min_length=1)
+    raw_result_count: Annotated[int, Field(strict=True, ge=0)]
+    plausible_supervisor_count: Annotated[int, Field(strict=True, ge=0)]
+    retained_prospective_supervisor_count: Annotated[int, Field(strict=True, ge=0)]
+    fallback_search_used: bool
+    route: UiDiscoveryRoute
+
+    @model_validator(mode="after")
+    def totals_must_match_attempts(self) -> DiscoveryDiagnosticsView:
+        """Keep aggregate totals deterministic and auditable from attempt records."""
+        if self.raw_result_count != sum(item.raw_result_count for item in self.attempts):
+            raise ValueError("raw_result_count must equal the attempt total")
+        if self.plausible_supervisor_count != sum(
+            item.plausible_supervisor_count for item in self.attempts
+        ):
+            raise ValueError("plausible_supervisor_count must equal the attempt total")
+        if self.fallback_search_used != any(
+            item.route is UiDiscoveryRoute.FALLBACK for item in self.attempts
+        ):
+            raise ValueError("fallback_search_used must match the attempt routes")
+        return self
 
 
 class EvidenceSourceView(BaseModel):
@@ -140,6 +199,7 @@ class UiRunSnapshot(BaseModel):
     stage: UiStage
     checkpoint_token: NonEmptyUiText
     progress_events: tuple[GraphProgressEvent, ...] = ()
+    discovery_diagnostics: DiscoveryDiagnosticsView | None = None
     prospective_supervisors: tuple[ProspectiveSupervisorView, ...] = ()
     verified_supervisors: tuple[VerifiedSupervisorView, ...] = ()
     review_supervisors: tuple[VerifiedSupervisorView, ...] = ()

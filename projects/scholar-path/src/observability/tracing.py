@@ -1,11 +1,11 @@
 """Optional LangSmith tracing with privacy-safe metadata."""
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from typing import Final
 
 from langchain_core.runnables import RunnableConfig
-from langsmith import Client, tracing_context
+from langsmith import Client, trace, tracing_context
 
 from ..agents.prompts import (
     EVIDENCE_VERIFICATION_PROMPT_VERSION,
@@ -14,9 +14,11 @@ from ..agents.prompts import (
     RESEARCH_PLANNING_PROMPT_VERSION,
 )
 from ..config import Environment, LangSmithSettings
+from ..tools.supervisor_search import SearchErrorCategory, SearchProvider
 
-GRAPH_VERSION: Final = "m11"
+GRAPH_VERSION: Final = "m11.1"
 type TraceScalar = str | int | float | bool
+type DiscoveryTraceCompletion = Callable[[int, int, SearchErrorCategory | None], None]
 SAFE_TRACE_METADATA_KEYS: Final = (
     "application",
     "environment",
@@ -24,6 +26,13 @@ SAFE_TRACE_METADATA_KEYS: Final = (
     "component",
     "prompt_version",
     "rubric_version",
+    "provider",
+    "attempt_number",
+    "raw_result_count",
+    "plausible_supervisor_count",
+    "error_category",
+    "fallback_search_used",
+    "discovery_route",
 )
 
 
@@ -107,6 +116,108 @@ class LangSmithObservability:
             }
         )
 
+    def discovery_node_metadata(
+        self,
+        *,
+        provider: SearchProvider,
+        fallback_search_used: bool,
+    ) -> dict[str, TraceScalar]:
+        """Return fixed discovery-node metadata without query or result content."""
+        return sanitize_trace_metadata(
+            {
+                **self.graph_metadata,
+                "component": "supervisor_discovery_agent",
+                "provider": provider.value,
+                "fallback_search_used": fallback_search_used,
+                "discovery_route": "fallback" if fallback_search_used else "primary",
+            }
+        )
+
+    def discovery_attempt_metadata(
+        self,
+        *,
+        provider: SearchProvider,
+        attempt_number: int,
+        raw_result_count: int,
+        plausible_supervisor_count: int,
+        error_category: SearchErrorCategory | None,
+        fallback_search_used: bool,
+    ) -> dict[str, TraceScalar]:
+        """Build aggregate per-attempt metadata with all search content omitted."""
+        return sanitize_trace_metadata(
+            {
+                **self.discovery_node_metadata(
+                    provider=provider,
+                    fallback_search_used=fallback_search_used,
+                ),
+                "attempt_number": attempt_number,
+                "raw_result_count": raw_result_count,
+                "plausible_supervisor_count": plausible_supervisor_count,
+                "error_category": (error_category.value if error_category is not None else "none"),
+            }
+        )
+
+    @contextmanager
+    def discovery_attempt_span(
+        self,
+        *,
+        provider: SearchProvider,
+        attempt_number: int,
+        fallback_search_used: bool,
+    ) -> Iterator[DiscoveryTraceCompletion]:
+        """Trace one provider attempt using empty payloads and safe aggregate metadata only."""
+
+        def no_op_completion(
+            raw_result_count: int,
+            plausible_supervisor_count: int,
+            error_category: SearchErrorCategory | None,
+        ) -> None:
+            del raw_result_count, plausible_supervisor_count, error_category
+
+        if not self._settings.tracing:
+            yield no_op_completion
+            return
+
+        initial_metadata = self.discovery_attempt_metadata(
+            provider=provider,
+            attempt_number=attempt_number,
+            raw_result_count=0,
+            plausible_supervisor_count=0,
+            error_category=None,
+            fallback_search_used=fallback_search_used,
+        )
+        completed = False
+        with trace(
+            f"{provider.value}_supervisor_search_attempt",
+            run_type="tool",
+            inputs={},
+            tags=["component:supervisor-discovery", f"provider:{provider.value}"],
+            metadata=initial_metadata,
+        ) as run:
+
+            def complete(
+                raw_result_count: int,
+                plausible_supervisor_count: int,
+                error_category: SearchErrorCategory | None,
+            ) -> None:
+                nonlocal completed
+                completed = True
+                run.end(
+                    outputs={},
+                    metadata=self.discovery_attempt_metadata(
+                        provider=provider,
+                        attempt_number=attempt_number,
+                        raw_result_count=raw_result_count,
+                        plausible_supervisor_count=plausible_supervisor_count,
+                        error_category=error_category,
+                        fallback_search_used=fallback_search_used,
+                    ),
+                )
+
+            yield complete
+            if not completed:
+                complete(0, 0, SearchErrorCategory.UNKNOWN)
+
     def runnable_config(self, recursion_limit: int) -> RunnableConfig:
         """Build a privacy-safe root RunnableConfig for one graph execution."""
         return {
@@ -126,10 +237,12 @@ class LangSmithObservability:
 
         api_key = self._settings.require_api_key()
         client = Client(
+            api_url=str(self._settings.endpoint),
             api_key=api_key.get_secret_value(),
             hide_inputs=True,
             hide_outputs=True,
             omit_traced_runtime_info=True,
+            workspace_id=self._settings.workspace_id,
         )
         try:
             with tracing_context(

@@ -314,6 +314,7 @@ class DeterministicScholarPathNodes:
         candidate_preference_memory: CandidatePreferenceMemoryPort | None = None,
         alternate_evidence_search: SupervisorSearchPort | None = None,
         utc_clock: UtcClockPort | None = None,
+        observability: LangSmithObservability | None = None,
     ) -> None:
         self.config = config
         self.planning_agent = planning_agent
@@ -322,6 +323,7 @@ class DeterministicScholarPathNodes:
         self.content_extractor = content_extractor
         self.alternate_evidence_search = alternate_evidence_search
         self.utc_clock = utc_clock if utc_clock is not None else _SystemUtcClock()
+        self.observability = observability
         self.discovery_agent = SupervisorDiscoveryAgent()
         if evidence_model is None:
             raise ValueError("Evidence verification requires an injected model port")
@@ -512,6 +514,55 @@ class DeterministicScholarPathNodes:
         )
 
     def _execute_search_attempt(
+        self,
+        *,
+        node: str,
+        port: SupervisorSearchPort,
+        provider: SearchProvider,
+        query: str,
+        search_plan: SearchPlan,
+        attempt_number: int,
+        discovery_round: int,
+    ) -> tuple[
+        list[RawSupervisorSearchResult],
+        SearchAttempt,
+        ToolErrorRecord | None,
+        SearchProviderError | None,
+    ]:
+        if self.observability is None:
+            return self._execute_search_attempt_untraced(
+                node=node,
+                port=port,
+                provider=provider,
+                query=query,
+                search_plan=search_plan,
+                attempt_number=attempt_number,
+                discovery_round=discovery_round,
+            )
+        fallback_search_used = provider is SearchProvider.TAVILY
+        with self.observability.discovery_attempt_span(
+            provider=provider,
+            attempt_number=attempt_number,
+            fallback_search_used=fallback_search_used,
+        ) as complete_trace:
+            outcome = self._execute_search_attempt_untraced(
+                node=node,
+                port=port,
+                provider=provider,
+                query=query,
+                search_plan=search_plan,
+                attempt_number=attempt_number,
+                discovery_round=discovery_round,
+            )
+            attempt = outcome[1]
+            complete_trace(
+                attempt.result_count,
+                attempt.plausible_supervisor_count,
+                attempt.error_category,
+            )
+            return outcome
+
+    def _execute_search_attempt_untraced(
         self,
         *,
         node: str,
@@ -736,7 +787,13 @@ class DeterministicScholarPathNodes:
                 self._error(
                     ENOUGH_SUPERVISORS_FOUND,
                     "supervisor_discovery_incomplete",
-                    "Supervisor discovery exhausted its bounded providers with partial results.",
+                    (
+                        "Supervisor discovery exhausted its bounded providers without retaining "
+                        "a Prospective Supervisor."
+                        if not supervisors
+                        else "Supervisor discovery exhausted its bounded providers before "
+                        "retaining enough Prospective Supervisors."
+                    ),
                     recoverable=True,
                 )
             ]
@@ -1759,6 +1816,7 @@ def build_scholarpath_graph(
         resolved_candidate_preference_memory,
         resolved_alternate_search,
         utc_clock,
+        observability,
     )
     builder: StateGraph[ScholarPathState, None, ScholarPathState, ScholarPathState] = StateGraph(
         ScholarPathState
@@ -1778,9 +1836,43 @@ def build_scholarpath_graph(
         nodes.plan_supervisor_searches,
         metadata=planning_metadata,
     )
-    builder.add_node(DISCOVER_PROSPECTIVE_SUPERVISORS, nodes.discover_prospective_supervisors)
+    primary_discovery_metadata = (
+        observability.discovery_node_metadata(
+            provider=SearchProvider.YOU,
+            fallback_search_used=False,
+        )
+        if observability is not None
+        else {
+            "component": "supervisor_discovery_agent",
+            "provider": SearchProvider.YOU.value,
+            "fallback_search_used": False,
+            "discovery_route": "primary",
+        }
+    )
+    builder.add_node(
+        DISCOVER_PROSPECTIVE_SUPERVISORS,
+        nodes.discover_prospective_supervisors,
+        metadata=primary_discovery_metadata,
+    )
     builder.add_node(ENOUGH_SUPERVISORS_FOUND, nodes.enough_supervisors_found)
-    builder.add_node(FALLBACK_SUPERVISOR_SEARCH, nodes.fallback_supervisor_search)
+    fallback_discovery_metadata = (
+        observability.discovery_node_metadata(
+            provider=SearchProvider.TAVILY,
+            fallback_search_used=True,
+        )
+        if observability is not None
+        else {
+            "component": "supervisor_discovery_agent",
+            "provider": SearchProvider.TAVILY.value,
+            "fallback_search_used": True,
+            "discovery_route": "fallback",
+        }
+    )
+    builder.add_node(
+        FALLBACK_SUPERVISOR_SEARCH,
+        nodes.fallback_supervisor_search,
+        metadata=fallback_discovery_metadata,
+    )
     builder.add_node(DEDUPLICATE_SUPERVISORS, nodes.deduplicate_supervisors)
     builder.add_node(
         EXTRACT_SUPERVISOR_EVIDENCE,

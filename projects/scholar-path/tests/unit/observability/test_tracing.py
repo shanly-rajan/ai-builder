@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 import pytest
-from pydantic import SecretStr
+from pydantic import HttpUrl, SecretStr
 
 from scholarpath.config import Environment, LangSmithSettings
 from scholarpath.domain import ResearchFitRubric
@@ -16,6 +16,7 @@ from scholarpath.observability import (
     LangSmithObservability,
     sanitize_trace_metadata,
 )
+from scholarpath.tools import SearchProvider
 from tests.fakes import FakePlanningModel
 
 
@@ -31,7 +32,7 @@ def test_trace_metadata_uses_an_allowlist_and_redacts_sensitive_candidate_data()
             "environment": "test",
             "graph_version": GRAPH_VERSION,
             "component": "research_planning_agent",
-            "prompt_version": "research-planning-v1",
+            "prompt_version": "research-planning-v2",
             "candidate_name": candidate_name,
             "candidate_email": candidate_email,
             "candidate_id": "candidate-sensitive-001",
@@ -89,6 +90,100 @@ def test_observability_adds_environment_and_graph_version_without_secrets() -> N
     assert raw_api_key not in json.dumps(independent_review_metadata)
 
 
+def test_discovery_metadata_contains_only_safe_aggregate_routing_facts() -> None:
+    observability = LangSmithObservability(
+        LangSmithSettings(tracing=False),
+        Environment.TEST,
+    )
+    private_query = 'site:private.example "sensitive Candidate research"'
+    metadata = sanitize_trace_metadata(
+        {
+            **observability.discovery_attempt_metadata(
+                provider=SearchProvider.YOU,
+                attempt_number=2,
+                raw_result_count=10,
+                plausible_supervisor_count=3,
+                error_category=None,
+                fallback_search_used=False,
+            ),
+            "query": private_query,
+            "candidate_id": "candidate-private-001",
+            "raw_results": [{"url": "https://private.example/profile"}],
+            "supervisor_name": "Private Person",
+            "api_key": "private-provider-secret",
+        }
+    )
+
+    assert metadata == {
+        **observability.graph_metadata,
+        "component": "supervisor_discovery_agent",
+        "provider": "you.com",
+        "attempt_number": 2,
+        "raw_result_count": 10,
+        "plausible_supervisor_count": 3,
+        "error_category": "none",
+        "fallback_search_used": False,
+        "discovery_route": "primary",
+    }
+    serialized = json.dumps(metadata)
+    assert private_query not in serialized
+    assert "candidate-private-001" not in serialized
+    assert "private.example" not in serialized
+    assert "Private Person" not in serialized
+    assert "private-provider-secret" not in serialized
+
+
+def test_discovery_attempt_span_uses_empty_payloads_and_safe_final_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class RunDouble:
+        def end(
+            self,
+            *,
+            outputs: dict[str, object] | None = None,
+            metadata: dict[str, object] | None = None,
+        ) -> None:
+            captured["outputs"] = outputs
+            captured["final_metadata"] = metadata
+
+    @contextmanager
+    def capture_trace(name: str, **kwargs: object) -> Iterator[RunDouble]:
+        captured["name"] = name
+        captured.update(kwargs)
+        yield RunDouble()
+
+    monkeypatch.setattr("scholarpath.observability.tracing.trace", capture_trace)
+    observability = LangSmithObservability(
+        LangSmithSettings(
+            tracing=True,
+            api_key=SecretStr("unused-test-key"),
+            project="scholarpath-tests",
+        ),
+        Environment.TEST,
+    )
+
+    with observability.discovery_attempt_span(
+        provider=SearchProvider.YOU,
+        attempt_number=1,
+        fallback_search_used=False,
+    ) as complete:
+        complete(8, 2, None)
+
+    assert captured["name"] == "you.com_supervisor_search_attempt"
+    assert captured["inputs"] == {}
+    assert captured["outputs"] == {}
+    assert captured["final_metadata"] == observability.discovery_attempt_metadata(
+        provider=SearchProvider.YOU,
+        attempt_number=1,
+        raw_result_count=8,
+        plausible_supervisor_count=2,
+        error_category=None,
+        fallback_search_used=False,
+    )
+
+
 def test_planning_node_receives_only_the_sanitized_observability_metadata() -> None:
     observability = LangSmithObservability(
         LangSmithSettings(tracing=False),
@@ -111,6 +206,18 @@ def test_planning_node_receives_only_the_sanitized_observability_metadata() -> N
     )
     assert graph.nodes["review_fit_assessments"].metadata == (
         observability.independent_review_node_metadata
+    )
+    assert graph.nodes["discover_prospective_supervisors"].metadata == (
+        observability.discovery_node_metadata(
+            provider=SearchProvider.YOU,
+            fallback_search_used=False,
+        )
+    )
+    assert graph.nodes["fallback_supervisor_search"].metadata == (
+        observability.discovery_node_metadata(
+            provider=SearchProvider.TAVILY,
+            fallback_search_used=True,
+        )
     )
 
 
@@ -178,7 +285,9 @@ def test_enabled_tracing_hides_input_and_output_payloads(
         LangSmithSettings(
             tracing=True,
             api_key=SecretStr("not-a-real-langsmith-secret"),
+            endpoint=HttpUrl("https://eu.api.smith.langchain.com"),
             project="scholarpath-tests",
+            workspace_id="workspace-test-001",
         ),
         Environment.TEST,
     )
@@ -189,5 +298,7 @@ def test_enabled_tracing_hides_input_and_output_payloads(
     assert client_options["hide_inputs"] is True
     assert client_options["hide_outputs"] is True
     assert client_options["omit_traced_runtime_info"] is True
+    assert client_options["api_url"] == "https://eu.api.smith.langchain.com/"
+    assert client_options["workspace_id"] == "workspace-test-001"
     assert context_options["enabled"] is True
     assert context_options["metadata"] == observability.graph_metadata

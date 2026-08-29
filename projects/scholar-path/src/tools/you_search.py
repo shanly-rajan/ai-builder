@@ -98,6 +98,7 @@ class YouSearchAdapter:
                             "url": item.get("url"),
                             "title": item.get("title"),
                             "description": "" if description is None else description,
+                            "snippets": item.get("snippets"),
                             "publication_date": item.get("page_age"),
                             "originating_query": query,
                         }

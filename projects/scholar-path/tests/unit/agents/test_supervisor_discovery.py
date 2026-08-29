@@ -62,6 +62,7 @@ def _result(
     url: str = "https://example.edu/people/jane-doe",
     title: str = "Dr Jane Doe | Department of Information Systems | Example University",
     description: str = "Dr Jane Doe is an academic researcher at Example University.",
+    snippets: tuple[str, ...] = (),
     query: str = QUERY_ONE,
 ) -> SearchResult:
     return SearchResult.model_validate(
@@ -69,6 +70,7 @@ def _result(
             "url": url,
             "title": title,
             "description": description,
+            "snippets": snippets,
             "originating_query": query,
         }
     )
@@ -90,6 +92,226 @@ def test_valid_academic_profile_becomes_a_prospective_supervisor() -> None:
     assert supervisor.discovery_source == "https://example.edu/people/jane-doe"
     assert supervisor.discovery_query == QUERY_ONE
     assert supervisor.discovery_provenance[0].originating_query == QUERY_ONE
+
+
+def test_realistic_provider_layouts_retain_multiple_plausible_supervisors() -> None:
+    results = (
+        _result(
+            url="https://uct.example/staff-directory/jane-doe",
+            title="Jane Doe - Associate Professor - University of Cape Town",
+            description="Research profile for distributed systems and digital infrastructure.",
+        ),
+        _result(
+            url="https://wits.example/academic-staff/thabo-mokoena",
+            title="Mokoena, Thabo | Senior Lecturer | University of the Witwatersrand",
+            description="Faculty research profile in information systems.",
+        ),
+        _result(
+            url="https://unimelb.example/find-an-expert/priya-raman",
+            title="Priya Raman | Staff profile",
+            description="Staff profile.",
+            snippets=(
+                "Priya Raman is an Associate Professor in the School of Computing "
+                "at University of Melbourne.",
+            ),
+        ),
+        _result(
+            url="https://ethz.example/directory/jose-van-dijk",
+            title="José van Dijk | Professor of Information Systems | ETH Zürich",
+            description="Research profile in secure digital platforms.",
+        ),
+        _result(
+            url="https://imperial.example/experts/amina-bello",
+            title="Amina Bello | Reader in Computer Science | Imperial College London",
+            description="Academic profile in distributed computing.",
+        ),
+        _result(
+            url="https://nus.example/faculty/li-wei",
+            title="Professor Li Wei | School of Computing | National University of Singapore",
+            description="Researches dependable software architecture.",
+        ),
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), results)
+
+    assert discovery.result_count == 6
+    assert discovery.plausible_supervisor_count == 6
+    assert [item.full_name for item in discovery.prospective_supervisors] == [
+        "Jane Doe",
+        "Thabo Mokoena",
+        "Priya Raman",
+        "José van Dijk",
+        "Amina Bello",
+        "Professor Li Wei",
+    ]
+    assert [item.institution for item in discovery.prospective_supervisors] == [
+        "University of Cape Town",
+        "University of the Witwatersrand",
+        "University of Melbourne",
+        "ETH Zürich",
+        "Imperial College London",
+        "National University of Singapore",
+    ]
+
+
+def test_snippets_do_not_turn_non_academic_people_or_directories_into_supervisors() -> None:
+    results = (
+        _result(
+            url="https://example.edu/directory",
+            title="Staff Directory | Example University",
+            description="Browse academic researchers and faculty members.",
+        ),
+        _result(
+            url="https://example.edu/news/jane-doe",
+            title="Jane Doe | Example University",
+            description="University news.",
+            snippets=("Jane Doe is the Chief Executive of Example Ventures.",),
+        ),
+        _result(
+            url="https://example.edu/staff-directory/dr-jane-doe",
+            title="Dr Jane Doe | Example University Hospital",
+            description="Dr Jane Doe treats patients in the hospital.",
+        ),
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), results)
+
+    assert discovery.prospective_supervisors == ()
+
+
+def test_conflicting_snippet_person_does_not_create_a_mixed_profile_identity() -> None:
+    result = _result(
+        url="https://example.edu/people/jane-doe",
+        title="Jane Doe | Example University",
+        description="Academic staff profile.",
+        snippets=("Professor Alice Smith researches distributed systems at Example University.",),
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), (result,))
+
+    assert discovery.prospective_supervisors == ()
+
+
+def test_conflicting_snippet_person_excludes_a_non_profile_result() -> None:
+    result = _result(
+        url="https://example.edu/news/jane-doe",
+        title="Jane Doe | Example University",
+        description="University research news.",
+        snippets=("Professor Alice Smith discusses the work.",),
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), (result,))
+
+    assert discovery.prospective_supervisors == ()
+
+
+def test_combined_role_and_institution_segment_is_normalized_to_institution() -> None:
+    result = _result(
+        url="https://example.edu/people/jane-doe",
+        title="Jane Doe | Associate Professor at Example University",
+        description="Academic research profile.",
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), (result,))
+
+    assert discovery.prospective_supervisors[0].institution == "Example University"
+
+
+@pytest.mark.parametrize(
+    "description",
+    [
+        "Professor of Computer Science at Example University.",
+        "Associate Professor in Information Systems at Example University.",
+    ],
+)
+def test_singular_person_profile_accepts_unnamed_academic_role_summary(
+    description: str,
+) -> None:
+    result = _result(
+        url="https://example.edu/people/jane-doe",
+        title="Jane Doe | Example University",
+        description=description,
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), (result,))
+
+    assert [item.full_name for item in discovery.prospective_supervisors] == ["Jane Doe"]
+
+
+def test_affiliation_excludes_trailing_academic_activity_clause() -> None:
+    result = _result(
+        url="https://example.edu/people/jane-doe",
+        title="Jane Doe | Associate Professor",
+        description="Jane Doe is a professor at Example University and researches systems.",
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), (result,))
+
+    assert discovery.prospective_supervisors[0].institution == "Example University"
+
+
+@pytest.mark.parametrize(
+    "page_label",
+    [
+        "MIT News",
+        "IEEE Article",
+        "AI Research",
+        "Example University News",
+        "Institute Directory",
+    ],
+)
+def test_acronym_page_labels_are_not_treated_as_institutions(page_label: str) -> None:
+    result = _result(
+        url="https://example.org/news/jane-doe",
+        title=f"Jane Doe | Professor of Computing | {page_label}",
+        description="Jane Doe is an academic researcher.",
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), (result,))
+
+    assert discovery.prospective_supervisors == ()
+
+
+@pytest.mark.parametrize(
+    ("url", "title"),
+    [
+        (
+            "https://example.edu/team/digital-transformation",
+            "Digital Transformation | Example University",
+        ),
+        (
+            "https://example.edu/directory/artificial-intelligence",
+            "Artificial Intelligence | Example University",
+        ),
+        (
+            "https://example.edu/experts/responsible-innovation",
+            "Responsible Innovation | Example University",
+        ),
+    ],
+)
+def test_capitalized_topic_pages_are_not_treated_as_people(url: str, title: str) -> None:
+    result = _result(
+        url=url,
+        title=title,
+        description="Academic researcher profile.",
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), (result,))
+
+    assert discovery.prospective_supervisors == ()
+
+
+@pytest.mark.parametrize("institution", ["UJ", "TU Delft", "KU Leuven"])
+def test_short_acronym_institutions_are_retained(institution: str) -> None:
+    result = _result(
+        url="https://example.edu/people/jane-doe",
+        title=f"Jane Doe | Associate Professor | {institution}",
+        description=f"Jane Doe is an Associate Professor at {institution}.",
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), (result,))
+
+    assert discovery.prospective_supervisors[0].institution == institution
 
 
 def test_empty_result_set_returns_an_empty_structured_output() -> None:
@@ -226,7 +448,7 @@ def test_department_school_is_not_mistaken_for_the_institution(
         SupervisorDiscoveryAgent()
         .discover(
             _search_plan(),
-            (_result(title=title),),
+            (_result(title=title, description="Academic research profile."),),
         )
         .prospective_supervisors[0]
     )

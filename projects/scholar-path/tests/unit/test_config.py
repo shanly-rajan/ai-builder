@@ -618,7 +618,15 @@ def test_langsmith_defaults_to_disabled_without_credentials(
 
     assert settings.tracing is False
     assert settings.api_key is None
+    assert str(settings.endpoint) == "https://api.smith.langchain.com/"
     assert settings.project == "scholarpath"
+    assert settings.workspace_id is None
+
+
+def test_langsmith_blank_optional_workspace_id_is_treated_as_unset() -> None:
+    settings = LangSmithSettings(workspace_id="   ")
+
+    assert settings.workspace_id is None
 
 
 def test_langsmith_uses_canonical_environment_variables(
@@ -627,14 +635,19 @@ def test_langsmith_uses_canonical_environment_variables(
     isolate_settings_environment(monkeypatch, tmp_path)
     monkeypatch.setenv("LANGSMITH_TRACING", "true")
     monkeypatch.setenv("LANGSMITH_API_KEY", "not-a-real-langsmith-secret")
+    monkeypatch.setenv("LANGSMITH_ENDPOINT", "https://eu.api.smith.langchain.com")
     monkeypatch.setenv("LANGSMITH_PROJECT", "scholarpath-m3-tests")
+    monkeypatch.setenv("LANGSMITH_WORKSPACE_ID", "workspace-test-001")
 
     settings = load_langsmith_settings()
 
     assert settings.tracing is True
     assert settings.require_api_key().get_secret_value() == "not-a-real-langsmith-secret"
+    assert str(settings.endpoint) == "https://eu.api.smith.langchain.com/"
     assert settings.project == "scholarpath-m3-tests"
+    assert settings.workspace_id == "workspace-test-001"
     assert "not-a-real-langsmith-secret" not in repr(settings)
+    assert "workspace-test-001" not in repr(settings)
 
 
 def test_enabled_langsmith_tracing_defers_missing_key_validation(

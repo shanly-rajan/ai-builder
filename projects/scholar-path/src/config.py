@@ -573,7 +573,17 @@ class LangSmithSettings(BaseSettings):
 
     tracing: bool = False
     api_key: Annotated[SecretStr | None, Field(repr=False)] = None
+    endpoint: HttpUrl = HttpUrl("https://api.smith.langchain.com")
     project: str = Field(default="scholarpath", min_length=1)
+    workspace_id: str | None = Field(default=None, repr=False)
+
+    @field_validator("workspace_id", mode="before")
+    @classmethod
+    def blank_workspace_id_is_unset(cls, value: object) -> object:
+        """Treat an empty optional dotenv placeholder as an omitted workspace ID."""
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
     def require_api_key(self) -> SecretStr:
         """Return a tracing credential only when tracing is explicitly activated."""

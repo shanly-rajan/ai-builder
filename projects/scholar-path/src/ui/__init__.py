@@ -9,10 +9,13 @@ from .controller import (
 )
 from .models import (
     CandidateResearchProfileSubmission,
+    DiscoveryAttemptView,
+    DiscoveryDiagnosticsView,
     EvidenceSourceView,
     GraphProgressEvent,
     ProspectiveSupervisorView,
     RecoverableUiError,
+    UiDiscoveryRoute,
     UiRunSnapshot,
     UiStage,
     VerifiedSupervisorView,
@@ -26,6 +29,8 @@ from .service import (
 
 __all__ = [
     "CandidateResearchProfileSubmission",
+    "DiscoveryAttemptView",
+    "DiscoveryDiagnosticsView",
     "EvidenceSourceView",
     "GraphProgressEvent",
     "ProspectiveSupervisorView",
@@ -34,6 +39,7 @@ __all__ = [
     "ScholarPathApplicationPort",
     "ScholarPathApplicationService",
     "UiRunSnapshot",
+    "UiDiscoveryRoute",
     "UiStage",
     "VerifiedSupervisorView",
     "build_candidate_submission",

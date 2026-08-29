@@ -15,7 +15,13 @@ from ..graph import (
 )
 from . import dependencies
 from .controller import build_candidate_submission, build_request_more_response
-from .models import GraphProgressEvent, UiRunSnapshot, UiStage, VerifiedSupervisorView
+from .models import (
+    DiscoveryDiagnosticsView,
+    GraphProgressEvent,
+    UiRunSnapshot,
+    UiStage,
+    VerifiedSupervisorView,
+)
 from .service import ScholarPathApplicationPort
 
 STAGE_LABELS = (
@@ -157,12 +163,60 @@ def _render_progress(snapshot: UiRunSnapshot) -> None:
             st.write("Waiting for the first canonical workflow update.")
         for event in snapshot.progress_events:
             st.write(f"{event.sequence}. {event.node_name}")
+    if snapshot.discovery_diagnostics is not None:
+        _render_discovery_diagnostics(snapshot.discovery_diagnostics)
+
+
+def _render_discovery_diagnostics(diagnostics: DiscoveryDiagnosticsView) -> None:
+    """Render only aggregate provider-routing facts approved for Candidate display."""
+    st.subheader("Privacy-safe discovery diagnostics")
+    st.caption(
+        "Counts and routing outcomes only. Search queries, returned content, and Candidate "
+        "research content are not displayed."
+    )
+    raw_column, plausible_column, retained_column = st.columns(3)
+    raw_column.metric("Raw provider results", diagnostics.raw_result_count)
+    plausible_column.metric(
+        "Plausible profiles before deduplication",
+        diagnostics.plausible_supervisor_count,
+    )
+    retained_column.metric(
+        "Retained Prospective Supervisors",
+        diagnostics.retained_prospective_supervisor_count,
+    )
+    st.write(f"Fallback search used: {'Yes' if diagnostics.fallback_search_used else 'No'}")
+    st.write(f"Discovery route: {_humanize(diagnostics.route.value)}")
+    with st.expander("Provider attempts", expanded=False):
+        for sequence, attempt in enumerate(diagnostics.attempts, start=1):
+            error_category = (
+                _humanize(attempt.error_category.value)
+                if attempt.error_category is not None
+                else "None"
+            )
+            st.write(
+                f"Attempt record {sequence}: {attempt.provider.value}; query attempt number "
+                f"{attempt.attempt_number}; {attempt.raw_result_count} raw results; "
+                f"{attempt.plausible_supervisor_count} plausible Supervisor profiles; "
+                f"error category: {error_category}; route: {_humanize(attempt.route.value)}."
+            )
 
 
 def _render_prospective_supervisors(snapshot: UiRunSnapshot) -> None:
     st.header(STAGE_LABELS[2])
     if not snapshot.prospective_supervisors:
-        st.info("No Prospective Supervisors have been retained yet.")
+        diagnostics = snapshot.discovery_diagnostics
+        if diagnostics is not None and diagnostics.raw_result_count > 0:
+            st.info(
+                f"Search providers returned {diagnostics.raw_result_count} raw results, but "
+                "none passed the plausible person-and-institution checks required to create "
+                "a Prospective Supervisor."
+            )
+        elif diagnostics is not None:
+            st.info(
+                "Search providers returned no results, so no Prospective Supervisors were retained."
+            )
+        else:
+            st.info("No Prospective Supervisors have been retained yet.")
         return
     for supervisor in snapshot.prospective_supervisors:
         with st.container(border=True):
@@ -415,6 +469,18 @@ def _render_shortlist(snapshot: UiRunSnapshot) -> None:
 
 def _render_errors(snapshot: UiRunSnapshot) -> None:
     for error in snapshot.errors:
+        diagnostics = snapshot.discovery_diagnostics
+        if (
+            error.code == "supervisor_discovery_incomplete"
+            and diagnostics is not None
+            and diagnostics.retained_prospective_supervisor_count == 0
+        ):
+            st.warning(
+                "Supervisor discovery completed its bounded provider attempts without "
+                "retaining a Prospective Supervisor. Revise the search preferences and try "
+                "again."
+            )
+            continue
         if error.recoverable:
             st.warning(f"{error.message} You can revise the search and try again.")
         else:
