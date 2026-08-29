@@ -1,0 +1,32 @@
+flowchart TD
+    VS[Verified Supervisor + EvidenceClaim records] --> MAP[Privacy-minimized ResearchFitInput]
+    CP[CandidateProfile + latest preferences] --> MAP
+    RUBRIC[Configurable ResearchFitRubric = 100 points] --> PORT{{ResearchFitModelPort}}
+    MAP --> PORT
+    PORT --> FAKE[FakeResearchFitModel in default tests]
+    PORT --> OPENAI[OpenAIResearchFitAdapter]
+    OPENAI --> SCHEMA[Strict StructuredResearchFitResult]
+    FAKE --> SCHEMA
+    SCHEMA --> VALIDATE{Deterministic validation}
+    YEAR[Typed activity_year + configured recency window] --> VALIDATE
+    RUBRIC --> VALIDATE
+    VALIDATE -->|unknown, indirect, unsuitable, or availability citation| REJECT[Typed output error; one bounded retry]
+    VALIDATE -->|valid component citations and bounds| CONF[Cap confidence at weakest cited evidence]
+    CONF --> SUM[Python derives score and confidence aggregates]
+    SUM --> ASSESS[ResearchFitAssessment]
+    ASSESS --> SYNTH[ShortlistSynthesisAgent]
+    SYNTH --> RANK[Score desc; confidence desc; normalized name asc]
+    RANK --> PROPOSED[At most five proposed Supervisor recommendations]
+    CLOCK[Injected aware-UTC clock] --> PROPOSED
+    RUBRIC -. active version .-> TRACE[Safe Research Fit trace metadata]
+    PROPOSED --> GATE[Existing Candidate review gate stub]
+    GATE -->|explicit approval| SHORTLISTED[Shortlisted Supervisors]
+
+    AVAIL[AvailabilityStatus] -. reported separately .-> PROPOSED
+
+    classDef model fill:#e8f1ff,stroke:#245a9b,stroke-width:2px;
+    classDef deterministic fill:#e8f8ec,stroke:#287a3d,stroke-width:2px;
+    classDef human fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
+    class PORT,OPENAI,SCHEMA model;
+    class VALIDATE,SUM,SYNTH,RANK deterministic;
+    class GATE human;

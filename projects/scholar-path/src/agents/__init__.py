@@ -13,11 +13,28 @@ from .evidence_verification import (
 )
 from .openai_evidence import OpenAIEvidenceVerificationModelAdapter
 from .openai_planning import OpenAIPlanningModelAdapter
+from .openai_research_fit import OpenAIResearchFitAdapter
 from .prompts import (
     EVIDENCE_VERIFICATION_PROMPT_VERSION,
     EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V1,
+    RESEARCH_FIT_PROMPT_VERSION,
+    RESEARCH_FIT_SYSTEM_PROMPT_V1,
     RESEARCH_PLANNING_PROMPT_VERSION,
     RESEARCH_PLANNING_SYSTEM_PROMPT_V1,
+)
+from .research_fit import (
+    MAX_RESEARCH_FIT_OUTPUT_ATTEMPTS,
+    ResearchFitEvaluationAgent,
+    ResearchFitEvaluationError,
+    ResearchFitEvidenceSummary,
+    ResearchFitFailureKind,
+    ResearchFitInput,
+    ResearchFitModelError,
+    ResearchFitModelInvocationError,
+    ResearchFitModelOutputError,
+    ResearchFitModelPort,
+    StructuredResearchFitComponent,
+    StructuredResearchFitResult,
 )
 from .research_planning import (
     MAX_PLANNING_OUTPUT_ATTEMPTS,
@@ -32,6 +49,7 @@ from .research_planning import (
     ResearchPlanningError,
     StructuredSearchPlanResponse,
 )
+from .shortlist_synthesis import ShortlistSynthesisAgent
 from .supervisor_discovery import (
     SupervisorDiscoveryAgent,
     SupervisorDiscoveryResult,
@@ -42,6 +60,7 @@ from .supervisor_discovery import (
 
 __all__ = [
     "MAX_PLANNING_OUTPUT_ATTEMPTS",
+    "MAX_RESEARCH_FIT_OUTPUT_ATTEMPTS",
     "EVIDENCE_VERIFICATION_PROMPT_VERSION",
     "EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V1",
     "EvidenceExtractionInput",
@@ -51,6 +70,7 @@ __all__ = [
     "EvidenceVerificationAgent",
     "EvidenceVerificationModelPort",
     "OpenAIPlanningModelAdapter",
+    "OpenAIResearchFitAdapter",
     "OpenAIEvidenceVerificationModelAdapter",
     "PlanningFailureKind",
     "PlanningInput",
@@ -61,11 +81,25 @@ __all__ = [
     "PlanningSearchQueryResponse",
     "RESEARCH_PLANNING_PROMPT_VERSION",
     "RESEARCH_PLANNING_SYSTEM_PROMPT_V1",
+    "RESEARCH_FIT_PROMPT_VERSION",
+    "RESEARCH_FIT_SYSTEM_PROMPT_V1",
+    "ResearchFitEvaluationAgent",
+    "ResearchFitEvaluationError",
+    "ResearchFitEvidenceSummary",
+    "ResearchFitFailureKind",
+    "ResearchFitInput",
+    "ResearchFitModelError",
+    "ResearchFitModelInvocationError",
+    "ResearchFitModelOutputError",
+    "ResearchFitModelPort",
     "ResearchPlanningAgent",
     "ResearchPlanningError",
     "StructuredSearchPlanResponse",
     "StructuredEvidenceClaim",
     "StructuredEvidenceExtractionResult",
+    "StructuredResearchFitComponent",
+    "StructuredResearchFitResult",
+    "ShortlistSynthesisAgent",
     "SupervisorDiscoveryAgent",
     "SupervisorDiscoveryResult",
     "canonical_profile_url",

@@ -8,7 +8,8 @@ import pytest
 from pydantic import SecretStr
 
 from scholarpath.config import Environment, LangSmithSettings
-from scholarpath.graph import build_scholarpath_graph
+from scholarpath.domain import ResearchFitRubric
+from scholarpath.graph import GraphFixtureConfig, build_scholarpath_graph
 from scholarpath.observability import (
     GRAPH_VERSION,
     SAFE_TRACE_METADATA_KEYS,
@@ -69,8 +70,16 @@ def test_observability_adds_environment_and_graph_version_without_secrets() -> N
     assert observability.planning_node_metadata["component"] == "research_planning_agent"
     assert observability.evidence_node_metadata["component"] == "evidence_verification_agent"
     assert observability.evidence_node_metadata["prompt_version"] == "evidence-verification-v1"
+    research_fit_metadata = observability.research_fit_node_metadata("research-fit-rubric-v1")
+    assert research_fit_metadata == {
+        **observability.graph_metadata,
+        "component": "research_fit_evaluation_agent",
+        "prompt_version": "research-fit-evaluation-v1",
+        "rubric_version": "research-fit-rubric-v1",
+    }
     assert raw_api_key not in json.dumps(observability.planning_node_metadata)
     assert raw_api_key not in json.dumps(observability.evidence_node_metadata)
+    assert raw_api_key not in json.dumps(research_fit_metadata)
 
 
 def test_planning_node_receives_only_the_sanitized_observability_metadata() -> None:
@@ -90,6 +99,25 @@ def test_planning_node_receives_only_the_sanitized_observability_metadata() -> N
     assert graph.nodes["extract_supervisor_evidence"].metadata == (
         observability.evidence_node_metadata
     )
+    assert graph.nodes["evaluate_research_fit"].metadata == (
+        observability.research_fit_node_metadata("research-fit-rubric-v1")
+    )
+
+
+def test_research_fit_trace_metadata_uses_the_configured_rubric_version() -> None:
+    observability = LangSmithObservability(
+        LangSmithSettings(tracing=False),
+        Environment.TEST,
+    )
+    config = GraphFixtureConfig(
+        research_fit_rubric=ResearchFitRubric(version="research-fit-rubric-experiment")
+    )
+
+    graph = build_scholarpath_graph(config, observability=observability).get_graph()
+    metadata = graph.nodes["evaluate_research_fit"].metadata
+
+    assert metadata is not None
+    assert metadata["rubric_version"] == "research-fit-rubric-experiment"
 
 
 def test_disabled_tracing_never_constructs_a_langsmith_client(

@@ -12,6 +12,7 @@ from scholarpath.domain import (
     ProspectiveSupervisor,
     ResearchFitAssessment,
     ResearchFitBreakdown,
+    ResearchFitComponentAssessment,
     SearchPlan,
     SearchSourceType,
     SourceKind,
@@ -197,6 +198,7 @@ def _claim(
     asserted_name: str | None = None,
     asserted_institution: str | None = None,
     asserted_department: str | None = None,
+    activity_year: int | None = None,
     supporting_excerpt: str | None = None,
 ) -> EvidenceClaim:
     identifier = f"supervisor-{index:03d}"
@@ -215,6 +217,7 @@ def _claim(
             "asserted_name": asserted_name,
             "asserted_institution": asserted_institution,
             "asserted_department": asserted_department,
+            "activity_year": activity_year,
             "supporting_excerpt": supporting_excerpt,
         }
     )
@@ -281,8 +284,9 @@ def make_evidence_claims(index: int) -> tuple[EvidenceClaim, ...]:
             _PUBLICATION_CLAIMS[index - 1],
             SourceKind.PUBLICATION,
             asserted_name=prospective.full_name,
+            activity_year=2025,
             supporting_excerpt=(
-                f"{prospective.full_name}'s publication record states: "
+                f"{prospective.full_name}'s 2025 publication record states: "
                 f"{_PUBLICATION_CLAIMS[index - 1]}"
             ),
         ),
@@ -400,18 +404,18 @@ def make_verified_supervisors() -> tuple[VerifiedSupervisor, ...]:
 
 
 _FIT_SCORES = (
-    (87, (95, 90, 92, 88, 70), EvidenceConfidence.HIGH),
-    (82, (89, 82, 84, 80, 75), EvidenceConfidence.HIGH),
-    (72, (88, 84, 82, 81, 25), EvidenceConfidence.MEDIUM),
-    (75, (84, 78, 82, 86, 45), EvidenceConfidence.MEDIUM),
-    (68, (77, 70, 74, 74, 45), EvidenceConfidence.MEDIUM),
+    (87, (38, 19, 15, 15, 0), EvidenceConfidence.HIGH),
+    (82, (36, 18, 14, 14, 0), EvidenceConfidence.HIGH),
+    (72, (31, 16, 12, 13, 0), EvidenceConfidence.MEDIUM),
+    (75, (33, 16, 13, 13, 0), EvidenceConfidence.MEDIUM),
+    (68, (30, 14, 12, 12, 0), EvidenceConfidence.MEDIUM),
 )
 _FIT_CONCERNS: tuple[tuple[str, ...], ...] = (
-    ("Doctoral availability is not stated in the retrieved sources.",),
-    (),
-    ("The Supervisor is explicitly not accepting doctoral enquiries at retrieval time.",),
-    ("Sources conflict about doctoral availability.",),
-    ("Doctoral availability is not stated in the retrieved sources.",),
+    ("Direct region and study-mode evidence is missing.",),
+    ("Direct region and study-mode evidence is missing.",),
+    ("Direct region and study-mode evidence is missing.",),
+    ("Direct region and study-mode evidence is missing.",),
+    ("Direct region and study-mode evidence is missing.",),
 )
 _FIT_RATIONALES = (
     (
@@ -423,16 +427,16 @@ _FIT_RATIONALES = (
         "provide strong thematic and methodological fit."
     ),
     (
-        "AI assurance and design-science evidence align well, but confirmed "
-        "unavailability weakens practical fit."
+        "AI assurance and design-science evidence align, while direct practical-constraint "
+        "evidence is missing."
     ),
     (
-        "Enterprise strategy and mixed-method evidence align, while conflicting "
-        "availability evidence creates a practical concern."
+        "Enterprise strategy and mixed-method evidence align, while direct "
+        "practical-constraint evidence is missing."
     ),
     (
-        "Sociotechnical systems evidence is relevant, though the methods and unstated "
-        "availability provide a more moderate fit."
+        "Sociotechnical systems evidence is relevant, though the direct alignment is "
+        "more moderate and practical-constraint evidence is missing."
     ),
 )
 
@@ -441,30 +445,75 @@ def make_research_fit_assessment(index: int, **overrides: object) -> ResearchFit
     """Return one of five transparent, evidence-linked Research Fit fixtures."""
     if not 1 <= index <= 5:
         raise ValueError("Research Fit fixture index must be between 1 and 5")
-    overall, component_scores, confidence = _FIT_SCORES[index - 1]
+    overall, component_scores, _ = _FIT_SCORES[index - 1]
     supervisor = make_verified_supervisor(index)
-    fit_evidence_types = {
-        EvidenceClaimType.RESEARCH_INTEREST,
-        EvidenceClaimType.METHODOLOGY,
-        EvidenceClaimType.PUBLICATION,
-        EvidenceClaimType.AVAILABILITY,
-    }
-    evidence_ids = tuple(
-        claim.evidence_id for claim in supervisor.evidence if claim.claim_type in fit_evidence_types
-    )
+    evidence_by_type = {claim.claim_type: claim.evidence_id for claim in supervisor.evidence}
+    research_id = evidence_by_type[EvidenceClaimType.RESEARCH_INTEREST]
+    methodology_id = evidence_by_type[EvidenceClaimType.METHODOLOGY]
+    publication_id = evidence_by_type[EvidenceClaimType.PUBLICATION]
+    evidence_by_id = {claim.evidence_id: claim for claim in supervisor.evidence}
+
+    def component(
+        score: int,
+        rationale: str,
+        evidence_ids: tuple[str, ...],
+        *,
+        evidence_gap: str | None = None,
+    ) -> ResearchFitComponentAssessment:
+        confidence_rank = {
+            EvidenceConfidence.LOW: 1,
+            EvidenceConfidence.MEDIUM: 2,
+            EvidenceConfidence.HIGH: 3,
+        }
+        return ResearchFitComponentAssessment(
+            score=score,
+            rationale=rationale,
+            supporting_evidence_ids=evidence_ids,
+            confidence=(
+                EvidenceConfidence.LOW
+                if not evidence_ids
+                else min(
+                    (evidence_by_id[evidence_id].confidence for evidence_id in evidence_ids),
+                    key=confidence_rank.__getitem__,
+                )
+            ),
+            evidence_gap=evidence_gap,
+        )
+
     data: dict[str, object] = {
         "supervisor_id": supervisor.supervisor_id,
         "overall_score": overall,
         "breakdown": ResearchFitBreakdown(
-            topic_alignment=component_scores[0],
-            methodological_alignment=component_scores[1],
-            research_orientation_alignment=component_scores[2],
-            recent_research_alignment=component_scores[3],
-            practical_constraint_alignment=component_scores[4],
+            topic_alignment=component(
+                component_scores[0],
+                "Research-interest and publication claims support topic alignment.",
+                (research_id, publication_id),
+            ),
+            methodological_alignment=component(
+                component_scores[1],
+                "The methodology claim supports methodological alignment.",
+                (methodology_id,),
+            ),
+            research_orientation_alignment=component(
+                component_scores[2],
+                "Research and methodology claims support orientation alignment.",
+                (research_id, methodology_id),
+            ),
+            recent_research_alignment=component(
+                component_scores[3],
+                "The publication claim supports recent research alignment.",
+                (publication_id,),
+            ),
+            practical_constraint_alignment=component(
+                component_scores[4],
+                "No direct region or study-mode evidence was retrieved.",
+                (),
+                evidence_gap="Direct region and study-mode evidence is missing.",
+            ),
         ),
         "rationale": _FIT_RATIONALES[index - 1],
-        "supporting_evidence_ids": evidence_ids,
-        "confidence": confidence,
+        "supporting_evidence_ids": (research_id, publication_id, methodology_id),
+        "confidence": EvidenceConfidence.MEDIUM,
         "concerns": _FIT_CONCERNS[index - 1],
     }
     assessment = ResearchFitAssessment.model_validate({**data, **overrides})

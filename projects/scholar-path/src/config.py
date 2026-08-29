@@ -167,6 +167,56 @@ class OpenAIEvidenceSettings(BaseSettings):
         )
 
 
+class OpenAIResearchFitConfiguration(BaseModel):
+    """Validated settings passed only to the OpenAI Research Fit adapter."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        hide_input_in_errors=True,
+        str_strip_whitespace=True,
+    )
+
+    api_key: SecretStr
+    model: str = Field(min_length=1)
+    timeout_seconds: float = Field(gt=0)
+
+    @field_validator("api_key")
+    @classmethod
+    def api_key_must_not_be_blank(cls, value: SecretStr) -> SecretStr:
+        """Reject blank OpenAI credentials at Research Fit adapter activation."""
+        if not value.get_secret_value().strip():
+            raise ValueError("OpenAI API key must not be blank")
+        return value
+
+
+class OpenAIResearchFitSettings(BaseSettings):
+    """OpenAI Research Fit settings that remain inert until evaluation is requested."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="OPENAI_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        frozen=True,
+        hide_input_in_errors=True,
+        str_strip_whitespace=True,
+    )
+
+    api_key: Annotated[SecretStr | None, Field(repr=False)] = None
+    research_fit_model: str = "gpt-5.4-mini"
+    research_fit_timeout_seconds: float = Field(default=60.0, gt=0)
+
+    def for_research_fit_model(self) -> OpenAIResearchFitConfiguration:
+        """Validate credentials only when the Research Fit adapter is requested."""
+        if self.api_key is None or not self.api_key.get_secret_value().strip():
+            raise ProviderConfigurationError("Missing API key for provider 'openai'.")
+        return OpenAIResearchFitConfiguration(
+            api_key=self.api_key,
+            model=self.research_fit_model,
+            timeout_seconds=self.research_fit_timeout_seconds,
+        )
+
+
 class YouSearchConfiguration(BaseModel):
     """Validated settings passed only to the You.com Web Search adapter."""
 
@@ -471,6 +521,11 @@ def load_openai_planning_settings() -> OpenAIPlanningSettings:
 def load_openai_evidence_settings() -> OpenAIEvidenceSettings:
     """Load optional OpenAI evidence settings without requiring credentials."""
     return OpenAIEvidenceSettings()
+
+
+def load_openai_research_fit_settings() -> OpenAIResearchFitSettings:
+    """Load optional OpenAI Research Fit settings without requiring credentials."""
+    return OpenAIResearchFitSettings()
 
 
 def load_you_search_settings() -> YouSearchSettings:

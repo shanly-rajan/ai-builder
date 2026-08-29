@@ -36,6 +36,7 @@ from .verification import (
 from .workflow import (
     CANONICAL_NODE_NAMES,
     GraphFixtureConfig,
+    UtcClockPort,
     build_scholarpath_graph,
     render_scholarpath_mermaid,
     run_scholarpath_graph,
@@ -56,6 +57,7 @@ __all__ = [
     "SearchAttempt",
     "ScholarPathState",
     "ToolErrorRecord",
+    "UtcClockPort",
     "VerificationPolicy",
     "VerificationStoppingCondition",
     "SupervisorDiscoveryRoute",

@@ -90,6 +90,7 @@ def _publication_claim() -> StructuredEvidenceClaim:
         confidence=EvidenceConfidence.HIGH,
         directly_supported=True,
         asserted_name=EXPECTED_NAME,
+        activity_year=2025,
     )
 
 
@@ -110,6 +111,7 @@ def _project_claim(*, alternate: bool = False) -> StructuredEvidenceClaim:
         confidence=EvidenceConfidence.MEDIUM,
         directly_supported=True,
         asserted_name=EXPECTED_NAME,
+        activity_year=2025,
     )
 
 
@@ -312,6 +314,7 @@ def make_graph_evidence_outcomes() -> dict[str, StructuredEvidenceExtractionResu
                     confidence=EvidenceConfidence.HIGH,
                     directly_supported=True,
                     asserted_name=raw.full_name,
+                    activity_year=2025,
                 ),
             ]
         )

@@ -192,7 +192,7 @@ def test_evidence_direct_support_flag_rejects_coercible_values(
         (
             ResearchFitAssessment,
             _replace(make_research_fit_assessment(1), supporting_evidence_ids=()),
-            "supporting_evidence_ids",
+            "Assessment evidence identifiers",
         ),
         (
             CandidateReviewDecision,
@@ -392,11 +392,29 @@ def test_fit_evidence_validation_rejects_another_supervisor() -> None:
 
 def test_fit_evidence_validation_rejects_unknown_evidence_id() -> None:
     supervisor = make_verified_supervisor(1)
-    assessment = ResearchFitAssessment.model_validate(
-        _replace(
-            make_research_fit_assessment(1),
-            supporting_evidence_ids=("evidence-unknown",),
+    original = make_research_fit_assessment(1)
+    topic_alignment = original.breakdown.topic_alignment.model_copy(
+        update={"supporting_evidence_ids": ("evidence-unknown",)}
+    )
+    breakdown = original.breakdown.model_copy(update={"topic_alignment": topic_alignment})
+    supporting_evidence_ids = tuple(
+        dict.fromkeys(
+            evidence_id
+            for component in (
+                breakdown.topic_alignment,
+                breakdown.methodological_alignment,
+                breakdown.research_orientation_alignment,
+                breakdown.recent_research_alignment,
+                breakdown.practical_constraint_alignment,
+            )
+            for evidence_id in component.supporting_evidence_ids
         )
+    )
+    assessment = original.model_copy(
+        update={
+            "breakdown": breakdown,
+            "supporting_evidence_ids": supporting_evidence_ids,
+        }
     )
 
     with pytest.raises(ResearchFitEvidenceError, match="outside the Verified Supervisor"):

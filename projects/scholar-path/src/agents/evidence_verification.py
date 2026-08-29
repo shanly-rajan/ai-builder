@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Annotated, Protocol, Self
 
 from pydantic import (
@@ -11,6 +12,7 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
+    StrictInt,
     StringConstraints,
     ValidationError,
     field_validator,
@@ -81,6 +83,7 @@ class StructuredEvidenceClaim(BaseModel):
     asserted_institution: NonEmptyResponseText | None = None
     asserted_department: NonEmptyResponseText | None = None
     availability_status: AvailabilityStatus | None = None
+    activity_year: StrictInt | None = None
 
     @model_validator(mode="after")
     def typed_values_must_match_the_claim(self) -> Self:
@@ -94,6 +97,17 @@ class StructuredEvidenceClaim(BaseModel):
                 raise ValueError("Availability must be explicit and directly supported")
         elif self.availability_status is not None:
             raise ValueError("Only availability claims may set availability status")
+
+        if self.activity_year is not None:
+            if self.claim_type not in {
+                EvidenceClaimType.PUBLICATION,
+                EvidenceClaimType.PROJECT,
+            }:
+                raise ValueError("Only publication or project claims may set an activity year")
+            if not 1900 <= self.activity_year <= 2100:
+                raise ValueError("Research activity year must be between 1900 and 2100")
+            if re.search(rf"(?<!\d){self.activity_year}(?!\d)", self.supporting_excerpt) is None:
+                raise ValueError("Research activity year must be explicit in the excerpt")
 
         if self.directly_supported and self.asserted_name is None:
             raise ValueError("Every direct evidence claim must state the extracted person name")
@@ -192,6 +206,7 @@ def _evidence_identity_payload(
     asserted_name: str | None,
     asserted_institution: str | None,
     asserted_department: str | None,
+    activity_year: int | None,
 ) -> dict[str, str | bool | int | None]:
     """Return the canonical semantic fields owned by one evidence identifier."""
 
@@ -199,7 +214,7 @@ def _evidence_identity_payload(
         return _normalized_text(value) if value is not None else None
 
     return {
-        "identity_version": 2,
+        "identity_version": 3,
         "supervisor_id": supervisor_id,
         "source_url": source_url,
         "source_kind": source_kind.value,
@@ -212,6 +227,7 @@ def _evidence_identity_payload(
         "asserted_name": normalized_optional(asserted_name),
         "asserted_institution": normalized_optional(asserted_institution),
         "asserted_department": normalized_optional(asserted_department),
+        "activity_year": activity_year,
     }
 
 
@@ -237,6 +253,7 @@ def deterministic_evidence_id(
         draft.asserted_name,
         draft.asserted_institution,
         draft.asserted_department,
+        draft.activity_year,
     )
     identity = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
@@ -260,6 +277,7 @@ def _claim_identity_payload(
         claim.asserted_name,
         claim.asserted_institution,
         claim.asserted_department,
+        claim.activity_year,
     )
 
 
@@ -332,6 +350,7 @@ class EvidenceVerificationAgent:
                 asserted_name=draft.asserted_name,
                 asserted_institution=draft.asserted_institution,
                 asserted_department=draft.asserted_department,
+                activity_year=draft.activity_year,
                 supporting_excerpt=draft.supporting_excerpt,
             )
             direct_support = evidence_claim_is_grounded_for_supervisor(

@@ -9,11 +9,12 @@ from langsmith import Client, tracing_context
 
 from ..agents.prompts import (
     EVIDENCE_VERIFICATION_PROMPT_VERSION,
+    RESEARCH_FIT_PROMPT_VERSION,
     RESEARCH_PLANNING_PROMPT_VERSION,
 )
 from ..config import Environment, LangSmithSettings
 
-GRAPH_VERSION: Final = "m6"
+GRAPH_VERSION: Final = "m7"
 type TraceScalar = str | int | float | bool
 SAFE_TRACE_METADATA_KEYS: Final = (
     "application",
@@ -21,6 +22,7 @@ SAFE_TRACE_METADATA_KEYS: Final = (
     "graph_version",
     "component",
     "prompt_version",
+    "rubric_version",
 )
 
 
@@ -79,6 +81,17 @@ class LangSmithObservability:
                 **self.graph_metadata,
                 "component": "evidence_verification_agent",
                 "prompt_version": EVIDENCE_VERIFICATION_PROMPT_VERSION,
+            }
+        )
+
+    def research_fit_node_metadata(self, rubric_version: str) -> dict[str, TraceScalar]:
+        """Return safe scoring metadata for the rubric used by this graph."""
+        return sanitize_trace_metadata(
+            {
+                **self.graph_metadata,
+                "component": "research_fit_evaluation_agent",
+                "prompt_version": RESEARCH_FIT_PROMPT_VERSION,
+                "rubric_version": rubric_version,
             }
         )
 

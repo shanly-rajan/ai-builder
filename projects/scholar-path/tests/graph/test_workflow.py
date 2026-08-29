@@ -35,6 +35,7 @@ from tests.fakes import (
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
     FakePlanningModel,
+    FakeResearchFitModel,
     FakeSupervisorSearch,
     make_valid_planning_response,
 )
@@ -70,6 +71,7 @@ def _run_graph(
     tavily_search: FakeSupervisorSearch | None = None,
     content_extractor: FakeContentExtraction | None = None,
     evidence_model: FakeEvidenceVerificationModel | None = None,
+    research_fit_model: FakeResearchFitModel | None = None,
     alternate_evidence_search: FakeSupervisorSearch | None = None,
 ) -> ScholarPathState:
     return run_scholarpath_graph(
@@ -79,6 +81,7 @@ def _run_graph(
         tavily_search=tavily_search or FakeSupervisorSearch(),
         content_extractor=content_extractor or FakeContentExtraction(),
         evidence_model=evidence_model or FakeEvidenceVerificationModel(),
+        research_fit_model=research_fit_model or FakeResearchFitModel(),
         alternate_evidence_search=alternate_evidence_search,
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
@@ -342,10 +345,15 @@ def test_graph_paths_never_use_candidate_as_a_supervisor_label() -> None:
         assert banned_phrase not in mermaid
 
     final_state = _run_graph()
+    proposal = final_state["proposed_shortlist"]
+    assert proposal is not None
+    proposed_supervisors = [
+        recommendation.supervisor for recommendation in proposal.recommendations
+    ]
     supervisor_collections: tuple[list[ProspectiveSupervisor] | list[VerifiedSupervisor], ...] = (
         final_state["prospective_supervisors"],
         final_state["verified_supervisors"],
-        final_state["proposed_shortlist"],
+        proposed_supervisors,
         final_state["shortlisted_supervisors"],
         final_state["rejected_supervisors"],
     )

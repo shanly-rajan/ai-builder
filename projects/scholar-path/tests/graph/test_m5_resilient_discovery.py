@@ -34,6 +34,7 @@ from tests.fakes import (
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
     FakePlanningModel,
+    FakeResearchFitModel,
     FakeSupervisorSearch,
     make_fake_search_outcomes,
     make_valid_planning_response,
@@ -71,6 +72,7 @@ def _run(
         tavily_search=tavily_search,
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
+        research_fit_model=FakeResearchFitModel(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=failure_mode,
@@ -110,6 +112,7 @@ def test_successful_you_route_does_not_construct_or_validate_tavily(
         supervisor_search=FakeSupervisorSearch(),
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
+        research_fit_model=FakeResearchFitModel(),
         tavily_settings=TavilySearchSettings(api_key=None),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
@@ -128,6 +131,7 @@ def test_missing_tavily_key_is_typed_only_when_fallback_is_routed() -> None:
         supervisor_search=FakeSupervisorSearch(_empty_outcomes()),
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
+        research_fit_model=FakeResearchFitModel(),
         tavily_settings=TavilySearchSettings(api_key=None),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
@@ -164,6 +168,7 @@ def test_lazy_tavily_adapter_is_constructed_once_and_reused(
         supervisor_search=FakeSupervisorSearch(_empty_outcomes()),
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
+        research_fit_model=FakeResearchFitModel(),
         tavily_settings=TavilySearchSettings(api_key=SecretStr("not-a-real-tavily-secret")),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
@@ -420,6 +425,7 @@ def test_request_more_evaluates_duplicate_quality_within_the_new_round() -> None
         tavily_search=tavily_search,
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
+        research_fit_model=FakeResearchFitModel(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=DiscoveryFailureMode.OFF,

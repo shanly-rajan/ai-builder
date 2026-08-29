@@ -17,6 +17,8 @@ from scholarpath.config import (
     OpenAIEvidenceConfiguration,
     OpenAIEvidenceSettings,
     OpenAIPlanningSettings,
+    OpenAIResearchFitConfiguration,
+    OpenAIResearchFitSettings,
     ProviderConfiguration,
     ProviderConfigurationError,
     TavilyExtractionConfiguration,
@@ -28,6 +30,7 @@ from scholarpath.config import (
     load_langsmith_settings,
     load_openai_evidence_settings,
     load_openai_planning_settings,
+    load_openai_research_fit_settings,
     load_settings,
     load_tavily_extraction_settings,
     load_tavily_search_settings,
@@ -204,6 +207,53 @@ def test_openai_evidence_configuration_rejects_blank_secret() -> None:
         OpenAIEvidenceConfiguration(
             api_key=SecretStr("   "),
             model="synthetic-evidence-model",
+            timeout_seconds=10,
+        )
+
+
+def test_openai_research_fit_settings_defer_credentials_until_model_is_requested(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+
+    settings = load_openai_research_fit_settings()
+
+    assert settings.api_key is None
+    assert settings.research_fit_model == "gpt-5.4-mini"
+    assert settings.research_fit_timeout_seconds == 60.0
+    with pytest.raises(ProviderConfigurationError, match="provider 'openai'"):
+        settings.for_research_fit_model()
+
+
+def test_openai_research_fit_settings_use_canonical_environment_and_mask_secret(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+    raw_secret = "not-a-real-openai-fit-secret"
+    monkeypatch.setenv("OPENAI_API_KEY", raw_secret)
+    monkeypatch.setenv("OPENAI_RESEARCH_FIT_MODEL", "synthetic-fit-model")
+    monkeypatch.setenv("OPENAI_RESEARCH_FIT_TIMEOUT_SECONDS", "12.5")
+
+    configuration = load_openai_research_fit_settings().for_research_fit_model()
+
+    assert configuration.api_key.get_secret_value() == raw_secret
+    assert configuration.model == "synthetic-fit-model"
+    assert configuration.timeout_seconds == 12.5
+    assert raw_secret not in repr(configuration)
+    assert raw_secret not in str(configuration)
+
+
+@pytest.mark.parametrize("timeout", [0, -1])
+def test_openai_research_fit_settings_reject_invalid_timeout(timeout: float) -> None:
+    with pytest.raises(ValidationError):
+        OpenAIResearchFitSettings(research_fit_timeout_seconds=timeout)
+
+
+def test_openai_research_fit_configuration_rejects_blank_secret() -> None:
+    with pytest.raises(ValidationError, match="OpenAI API key must not be blank"):
+        OpenAIResearchFitConfiguration(
+            api_key=SecretStr("   "),
+            model="synthetic-fit-model",
             timeout_seconds=10,
         )
 

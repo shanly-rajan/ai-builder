@@ -1170,3 +1170,134 @@ without fabricating missing evidence.
   structured publication identifiers without weakening exact provenance.
 - Add LangSmith evaluation datasets and quality metrics for evidence precision, recall,
   conflict detection, and unsupported-claim rate.
+
+## Milestone M7: Research Fit evaluation and preliminary Supervisor shortlist synthesis
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Replace fixture Research Fit evaluation and proposal synthesis with an evidence-cited,
+structured model boundary plus deterministic validation, arithmetic, confidence
+handling, ranking, and a maximum-five proposal that remains outside the shortlisted
+lifecycle state until Candidate approval.
+
+### Prompt used
+
+[`docs/prompts/m7-research-fit-evaluation-and-shortlist-synthesis.md`](prompts/m7-research-fit-evaluation-and-shortlist-synthesis.md)
+
+### Files changed
+
+- Added `ResearchFitRubric`, evidence-cited component assessments, strengthened
+  cross-contract citation validation, typed research `activity_year`, deterministic
+  aggregate confidence, a configurable recency window, and proposal-only domain models
+  under `src/domain/`.
+- Added `ResearchFitModelPort`, `ResearchFitEvaluationAgent`, the versioned fit prompt,
+  `OpenAIResearchFitAdapter`, and deterministic `ShortlistSynthesisAgent` under
+  `src/agents/`.
+- Replaced the two fixture graph nodes, added fit dependency injection and lazy
+  production composition, changed `proposed_shortlist` to a typed proposal, and added
+  an injectable aware-UTC proposal clock plus privacy-safe, configured-rubric-version
+  LangSmith metadata under `src/graph/` and `src/observability/`.
+- Added deferred OpenAI Research Fit settings, `.env.example` variables, CLI injection,
+  deterministic fakes, and migrated historical fit fixtures to the component contract.
+- Updated README, terminology, current architecture, the M7 Mermaid diagram, prompt
+  archive, tests, and this journal.
+
+### Tests added
+
+- Domain tests for the 100-point rubric, component bounds, deterministic totals, exact
+  citation unions, suitable direct evidence, availability exclusion, proposal
+  validation, typed activity-year grounding, configurable recency, aggregate confidence,
+  and lifecycle preservation.
+- Agent tests for privacy-minimized inputs, strong, weak, and superficial-keyword
+  outcomes, evidence gaps, unknown citations, bounded malformed-output retry, score
+  caps, weakest-evidence confidence bounding, stale or missing activity years, and
+  prohibited admission or availability scoring prose.
+- OpenAI adapter tests for native strict JSON-schema output, disabled SDK retries,
+  structured validation, sanitized errors, and safe metadata.
+- Synthesis tests for score/confidence/name tie-breaking, strict Verified-only input,
+  maximum-five output, strengths, concerns, separate availability, stable lifecycle,
+  and missing-assessment handling.
+- Graph tests for fake-only evaluation, owned citations, deterministic arithmetic,
+  proposal ordering, injected aware-UTC proposal timestamps, partial model failure
+  retention, and prohibited admission outputs.
+- Configuration, tracing, contract, CLI, and one separately marked optional live OpenAI
+  smoke test guarded by a key and explicit opt-in, including configured rubric-version
+  trace metadata and network-free default-test enforcement.
+
+### Test results
+
+- Focused domain, Research Fit, adapter, synthesis, graph, configuration, tracing,
+  terminology, and documentation-contract suites passed without network access.
+- `venv/bin/ruff format --check .`: all 125 files were already formatted.
+- `venv/bin/ruff check .`: all lint checks passed.
+- `venv/bin/mypy src tests`: no issues found in 101 source files.
+- `venv/bin/pytest`: 655 non-live tests passed, five live tests were deselected, and
+  combined statement/branch coverage was 92.06 percent, above the 90 percent gate.
+- Strict editable reinstallation with local build isolation disabled and `--no-deps`
+  succeeded without downloading dependencies; `venv/bin/python -m pip check` reported
+  no broken requirements, and importing `scholarpath` reported version `0.1.0`.
+- Compilation under both the current project interpreter and Python 3.12 completed
+  successfully for `src` and `tests`.
+- Explicit live-test selection collected all five guarded smoke tests and skipped all
+  five without credentials or a network call.
+- The fake-backed CLI completed the graph and printed five Supervisors with scores
+  `87`, `82`, `75`, `72`, and `68` in deterministic rank order.
+- Terminology, prompt and documentation contracts, generated-diagram checks, and
+  `git diff --check` passed.
+
+### Assumptions
+
+- The model may assess semantic alignment but may cite only evidence already verified
+  for the same Supervisor; it never creates evidence or authoritative provenance.
+- The model output deliberately omits an overall score. Python owns arithmetic,
+  component bounds, citation validation, weakest-evidence confidence capping,
+  deterministic aggregate confidence, and ranking.
+- Publication or project evidence may establish recent activity only through a typed
+  `activity_year` grounded in its excerpt. The configurable M7 default freshness window
+  is five years from retrieval.
+- M7 has no typed region or study-mode evidence category. Current-affiliation prose is
+  therefore insufficient for practical points; that component remains zero and records
+  the evidence gap.
+- Availability remains a separate field on each recommendation. It never changes a
+  component score, admission likelihood is never calculated, and `not_stated` remains
+  unchanged.
+- The existing configured Candidate review stub is preserved only to keep the walking
+  skeleton executable. M7 does not implement a real human approval interface.
+- Proposal creation uses an injected clock that must return aware UTC. Production uses
+  current UTC; deterministic tests use a fixed timestamp. The configured rubric version,
+  not a hard-coded default, is attached to safe Research Fit trace metadata.
+
+### Lessons learned
+
+- Structured output constrains shape, but deterministic cross-contract validation is
+  still required to reject invented IDs, indirect claims, unsuitable evidence types,
+  and component scores above the configured weight.
+- Omitting the overall score from model output makes the arithmetic ownership boundary
+  unambiguous and keeps repeatable operations out of probabilistic execution.
+- A proposal needs its own typed aggregate. Reusing `SupervisorShortlist` before review
+  would silently bypass the lifecycle meaning of a Shortlisted Supervisor.
+- Evidence confidence is an auditable deterministic tie-breaker only when component
+  confidence cannot exceed the weakest cited claim and the assessment aggregate is
+  independently reproducible from the configured rubric.
+- Freshness must be a typed, excerpt-grounded fact plus a deterministic window; prose
+  such as "recent" cannot safely authorize recent-activity points.
+- Injecting the proposal clock prevents fixture timestamps or wall-clock calls from
+  leaking into deterministic graph tests while retaining accurate production audit time.
+- Trace metadata must use the rubric version actually configured for the graph so an
+  experimental rubric cannot be mislabeled as the default.
+- Historical Mermaid artifacts should be tested as milestone snapshots; the current
+  graph receives a new artifact when node metadata or implementation changes.
+
+### Remaining debt
+
+- Add Nebius independent review only in its requested milestone; M7 performs no second
+  model critique or score adjustment.
+- Add explicit region and study-mode evidence categories or deterministic institution
+  location data before awarding practical-constraint points in production.
+- Define empirical rubric calibration, inter-rater agreement, score stability,
+  multilingual evaluation, production freshness calibration and re-verification, and
+  LangSmith evaluation datasets.
+- Add durable assessment/proposal storage, concurrency, caching, cost controls, and a
+  real Candidate review interface in separately scoped milestones.

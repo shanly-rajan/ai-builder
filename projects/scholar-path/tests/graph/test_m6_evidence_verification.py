@@ -35,6 +35,7 @@ from tests.fakes import (
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
     FakePlanningModel,
+    FakeResearchFitModel,
     FakeSupervisorSearch,
     make_fixed_content_outcomes,
     make_fixed_evidence_outcomes,
@@ -86,6 +87,7 @@ def _run(
         tavily_search=FakeSupervisorSearch(),
         content_extractor=content_extractor or FakeContentExtraction(),
         evidence_model=evidence_model or FakeEvidenceVerificationModel(),
+        research_fit_model=FakeResearchFitModel(),
         alternate_evidence_search=alternate_search or FakeSupervisorSearch(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
@@ -430,13 +432,10 @@ def test_conflicting_affiliations_are_retained_cross_referenced_and_surfaced() -
     }
 
 
-def test_research_fit_scores_remain_fixture_backed_but_reference_current_evidence() -> None:
+def test_research_fit_assessments_reference_current_verified_evidence() -> None:
     final_state = _run()
-    fixtures = build_walking_skeleton_fixtures()
 
-    assert [assessment.overall_score for assessment in final_state["research_fit_assessments"]] == [
-        assessment.overall_score for assessment in fixtures.research_fit_assessments
-    ]
+    assert len(final_state["research_fit_assessments"]) == len(final_state["verified_supervisors"])
     supervisors = {
         supervisor.supervisor_id: supervisor for supervisor in final_state["verified_supervisors"]
     }
@@ -445,6 +444,15 @@ def test_research_fit_scores_remain_fixture_backed_but_reference_current_evidenc
             claim.evidence_id for claim in supervisors[assessment.supervisor_id].evidence
         }
         assert set(assessment.supporting_evidence_ids) <= evidence_ids
+        assert assessment.overall_score == sum(
+            (
+                assessment.breakdown.topic_alignment.score,
+                assessment.breakdown.methodological_alignment.score,
+                assessment.breakdown.research_orientation_alignment.score,
+                assessment.breakdown.recent_research_alignment.score,
+                assessment.breakdown.practical_constraint_alignment.score,
+            )
+        )
         assert assessment.confidence in {
             EvidenceConfidence.HIGH,
             EvidenceConfidence.MEDIUM,

@@ -14,6 +14,7 @@ workflow-state ambiguity and keep human approval boundaries explicit.
 | **Shortlisted Supervisor** | A Verified Supervisor explicitly approved by the Candidate. |
 | **Rejected Supervisor** | A Supervisor excluded by the Candidate. |
 | **Research Fit Score** | The assessed alignment between the Candidate's doctoral interests and a Supervisor's verified research profile. |
+| **Proposed Supervisor recommendation** | A ranked, evidence-backed Verified Supervisor presented for Candidate review; it is not yet a Shortlisted Supervisor. |
 
 The word **Candidate** always refers to the ScholarPath user. A Supervisor must always
 be described with the appropriate Supervisor lifecycle term. Ambiguous compound labels
@@ -34,6 +35,8 @@ flowchart LR
 
 Only explicit Candidate approval can create a Shortlisted Supervisor. A request for
 more information keeps the record verified while additional evidence is sought.
+The M7 preliminary proposal also keeps every included record verified; the word
+"shortlisted" describes only the post-approval lifecycle state.
 
 ## Typed lifecycle values
 
@@ -73,3 +76,23 @@ supported claims establish both outcomes; `not_stated` requires neither.
 
 ScholarPath never calculates an admission probability and never treats a Research Fit
 Score as proof of availability or admission likelihood.
+
+## Research Fit vocabulary
+
+The default M7 rubric is a 100-point decision-support contract: topic alignment 40,
+methodological or disciplinary alignment 20, research orientation 15, recent research
+activity 15, and practical constraints 10. Each positive component cites suitable,
+directly supported evidence IDs. A missing-evidence component receives zero points,
+low confidence, and an explicit evidence gap.
+
+"Recent research activity" requires a typed publication or project `activity_year`
+that is explicit in the supporting excerpt and inside the configured window; the M7
+default is five years from evidence retrieval. Component confidence cannot exceed the
+weakest cited evidence claim, and overall evidence confidence is derived
+deterministically across the weighted rubric. M7 does not yet have typed region or
+study-mode evidence, so current-affiliation prose cannot earn practical-constraint
+points and that component remains zero with a stated gap.
+
+Availability is reported next to a proposed recommendation but is not a scoring
+component. The Research Fit model proposes component values; deterministic application
+code validates citations and bounds, calculates the total, and ranks recommendations.

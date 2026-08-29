@@ -1,6 +1,7 @@
 """Unit tests for M2 graph reducers, state construction, and fixture controls."""
 
 from collections.abc import Callable
+from datetime import datetime
 
 import pytest
 from pydantic import ValidationError
@@ -24,6 +25,7 @@ from scholarpath.graph import (
     RawSupervisorSearchResult,
     ReviewStatus,
     ScholarPathState,
+    UtcClockPort,
     VerificationPolicy,
     append_items,
     build_walking_skeleton_fixtures,
@@ -36,6 +38,7 @@ from tests.fakes import (
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
     FakePlanningModel,
+    FakeResearchFitModel,
     FakeSupervisorSearch,
 )
 
@@ -45,18 +48,32 @@ FIXTURE_IDS = tuple(
 )
 
 
+class _FixedUtcClock:
+    """Keep offline walking-skeleton runs reproducible."""
+
+    def __init__(self, timestamp: datetime) -> None:
+        self._timestamp = timestamp
+
+    def now(self) -> datetime:
+        return self._timestamp
+
+
 def _run_graph(config: GraphFixtureConfig | None = None) -> ScholarPathState:
+    resolved_config = config or GraphFixtureConfig()
+    utc_clock: UtcClockPort = _FixedUtcClock(resolved_config.fixtures.generated_at)
     return run_scholarpath_graph(
-        config,
+        resolved_config,
         planning_model=FakePlanningModel(),
         supervisor_search=FakeSupervisorSearch(),
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
+        research_fit_model=FakeResearchFitModel(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=DiscoveryFailureMode.OFF,
         ),
         langsmith_settings=LangSmithSettings(tracing=False),
+        utc_clock=utc_clock,
     )
 
 
@@ -100,6 +117,7 @@ def test_initial_state_populates_every_channel_with_safe_defaults() -> None:
     assert state["review_status"] is ReviewStatus.PENDING
     assert state["search_plan"] is None
     assert state["supervisor_shortlist"] is None
+    assert state["proposed_shortlist"] is None
     assert state["search_attempts"] == []
     assert state["verification_records"] == []
     assert state["evidence_extraction_attempts"] == []
@@ -165,6 +183,7 @@ def test_planning_without_loaded_preferences_uses_candidate_profile_regions() ->
         config,
         ResearchPlanningAgent(planning_model),
         evidence_model=FakeEvidenceVerificationModel(),
+        research_fit_model=FakeResearchFitModel(),
     )
     state = create_initial_state(config.fixtures.candidate_profile)
 
@@ -231,6 +250,7 @@ def test_briefing_node_rejects_missing_shortlist() -> None:
         config,
         ResearchPlanningAgent(FakePlanningModel()),
         evidence_model=FakeEvidenceVerificationModel(),
+        research_fit_model=FakeResearchFitModel(),
     )
     state = create_initial_state(config.fixtures.candidate_profile)
 

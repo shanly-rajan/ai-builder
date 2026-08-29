@@ -16,7 +16,6 @@ from scholarpath.graph import (
     EvidenceExtractionAttempt,
     ScholarPathState,
     VerificationPolicy,
-    render_scholarpath_mermaid,
     route_after_evidence_sufficiency,
 )
 from scholarpath.graph.workflow import DeterministicScholarPathNodes
@@ -143,4 +142,12 @@ def test_m6_prompt_environment_diagram_and_journal_are_recorded() -> None:
         "TAVILY_EXTRACT_MAX_CONTENT_CHARACTERS=50000",
     ):
         assert setting in env_example
-    assert diagram.read_text(encoding="utf-8").strip() == render_scholarpath_mermaid().strip()
+    historical_diagram = diagram.read_text(encoding="utf-8")
+    assert "evidence_verification_agent" in historical_diagram
+    assert "research-fit-evaluation-v1" not in historical_diagram
+    for node_name in (
+        "extract_supervisor_evidence",
+        "supervisor_evidence_sufficient",
+        "retry_alternate_evidence_source",
+    ):
+        assert node_name in historical_diagram

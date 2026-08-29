@@ -22,6 +22,7 @@ from tests.fakes import (
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
     FakePlanningModel,
+    FakeResearchFitModel,
     FakeSupervisorSearch,
     make_valid_planning_response,
 )
@@ -39,6 +40,7 @@ def _run_with_fake(
         tavily_search=tavily_search or FakeSupervisorSearch(),
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
+        research_fit_model=FakeResearchFitModel(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=DiscoveryFailureMode.OFF,

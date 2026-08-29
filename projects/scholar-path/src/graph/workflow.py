@@ -1,7 +1,8 @@
 """ScholarPath graph with resilient, policy-routed Supervisor discovery."""
 
 from dataclasses import dataclass, field
-from typing import Final, Literal, cast
+from datetime import UTC, datetime, timedelta
+from typing import Final, Literal, Protocol, cast
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -9,6 +10,7 @@ from pydantic import HttpUrl
 
 from ..agents import (
     EVIDENCE_VERIFICATION_PROMPT_VERSION,
+    RESEARCH_FIT_PROMPT_VERSION,
     RESEARCH_PLANNING_PROMPT_VERSION,
     EvidenceExtractionInput,
     EvidenceModelInvocationError,
@@ -17,13 +19,21 @@ from ..agents import (
     EvidenceVerificationModelPort,
     OpenAIEvidenceVerificationModelAdapter,
     OpenAIPlanningModelAdapter,
+    OpenAIResearchFitAdapter,
     PlanningFailureKind,
     PlanningInput,
     PlanningModelInvocationError,
     PlanningModelPort,
+    ResearchFitEvaluationAgent,
+    ResearchFitEvaluationError,
+    ResearchFitInput,
+    ResearchFitModelInvocationError,
+    ResearchFitModelPort,
     ResearchPlanningAgent,
     ResearchPlanningError,
+    ShortlistSynthesisAgent,
     StructuredEvidenceExtractionResult,
+    StructuredResearchFitResult,
     StructuredSearchPlanResponse,
     SupervisorDiscoveryAgent,
     deduplicate_prospective_supervisors,
@@ -34,6 +44,7 @@ from ..config import (
     LangSmithSettings,
     OpenAIEvidenceSettings,
     OpenAIPlanningSettings,
+    OpenAIResearchFitSettings,
     ProviderConfigurationError,
     TavilyExtractionSettings,
     TavilySearchSettings,
@@ -41,6 +52,7 @@ from ..config import (
     load_langsmith_settings,
     load_openai_evidence_settings,
     load_openai_planning_settings,
+    load_openai_research_fit_settings,
     load_settings,
     load_tavily_extraction_settings,
     load_tavily_search_settings,
@@ -50,8 +62,8 @@ from ..domain import (
     CandidatePreferenceRevision,
     CandidateReviewAction,
     CandidateReviewDecision,
-    EvidenceClaimType,
     ProspectiveSupervisor,
+    ResearchFitRubric,
     SearchPlan,
     SearchResult,
     SupervisorVerificationRecord,
@@ -157,6 +169,30 @@ type ScholarPathGraph = CompiledStateGraph[
 ]
 
 
+class UtcClockPort(Protocol):
+    """Return an aware UTC timestamp without coupling graph nodes to wall-clock time."""
+
+    def now(self) -> datetime:
+        """Return the current UTC time."""
+        ...
+
+
+class _SystemUtcClock:
+    """Production clock used when callers do not inject a deterministic test clock."""
+
+    def now(self) -> datetime:
+        """Return the current aware UTC timestamp."""
+        return datetime.now(UTC)
+
+
+def _validated_utc_timestamp(clock: UtcClockPort) -> datetime:
+    """Reject naive or non-UTC clock values before they enter persisted graph state."""
+    timestamp = clock.now()
+    if timestamp.tzinfo is None or timestamp.utcoffset() != timedelta(0):
+        raise ValueError("The injected UTC clock must return an aware UTC timestamp")
+    return timestamp.astimezone(UTC)
+
+
 @dataclass(frozen=True, slots=True)
 class GraphFixtureConfig:
     """Immutable controls for deterministic walking-skeleton route scenarios."""
@@ -167,6 +203,7 @@ class GraphFixtureConfig:
         default_factory=lambda: (default_review_decision(),)
     )
     verification_policy: VerificationPolicy = field(default_factory=VerificationPolicy)
+    research_fit_rubric: ResearchFitRubric = field(default_factory=ResearchFitRubric)
     shortlist_size: int = REQUIRED_SHORTLIST_SIZE
     max_review_retries: int = 1
 
@@ -185,9 +222,6 @@ class GraphFixtureConfig:
             )
         if self.verification_policy.minimum_verified_supervisors < self.shortlist_size:
             raise ValueError("minimum_verified_supervisors must not be less than shortlist_size")
-        if len(self.fixtures.research_fit_assessments) < self.shortlist_size:
-            raise ValueError("fixtures must contain enough Research Fit assessments")
-
         retry_limits = {"max_review_retries": self.max_review_retries}
         for field_name, value in retry_limits.items():
             if value < 0:
@@ -207,7 +241,9 @@ class DeterministicScholarPathNodes:
         tavily_search: SupervisorSearchPort | None = None,
         content_extractor: ContentExtractionPort | None = None,
         evidence_model: EvidenceVerificationModelPort | None = None,
+        research_fit_model: ResearchFitModelPort | None = None,
         alternate_evidence_search: SupervisorSearchPort | None = None,
+        utc_clock: UtcClockPort | None = None,
     ) -> None:
         self.config = config
         self.planning_agent = planning_agent
@@ -215,10 +251,15 @@ class DeterministicScholarPathNodes:
         self.tavily_search = tavily_search
         self.content_extractor = content_extractor
         self.alternate_evidence_search = alternate_evidence_search
+        self.utc_clock = utc_clock if utc_clock is not None else _SystemUtcClock()
         self.discovery_agent = SupervisorDiscoveryAgent()
         if evidence_model is None:
             raise ValueError("Evidence verification requires an injected model port")
         self.evidence_agent = EvidenceVerificationAgent(evidence_model)
+        if research_fit_model is None:
+            raise ValueError("Research Fit evaluation requires an injected model port")
+        self.research_fit_agent = ResearchFitEvaluationAgent(research_fit_model)
+        self.shortlist_agent = ShortlistSynthesisAgent(max_results=config.shortlist_size)
 
     @staticmethod
     def _error(
@@ -983,39 +1024,43 @@ class DeterministicScholarPathNodes:
         return update
 
     def evaluate_research_fit(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Keep fixture scores while rebinding references to M6 verified evidence IDs."""
-        verified_by_id = {
-            supervisor.supervisor_id: supervisor for supervisor in state["verified_supervisors"]
-        }
-        fit_evidence_types = {
-            EvidenceClaimType.RESEARCH_INTEREST,
-            EvidenceClaimType.METHODOLOGY,
-            EvidenceClaimType.PUBLICATION,
-            EvidenceClaimType.PROJECT,
-            EvidenceClaimType.AVAILABILITY,
-        }
+        """Evaluate each Verified Supervisor through the evidence-bound model port."""
         assessments = []
-        for fixture_assessment in self.config.fixtures.research_fit_assessments:
-            supervisor = verified_by_id.get(fixture_assessment.supervisor_id)
-            if supervisor is None:
+        errors: list[ToolErrorRecord] = []
+        latest_preferences = (
+            state["candidate_preferences"][-1] if state["candidate_preferences"] else None
+        )
+        for supervisor in state["verified_supervisors"]:
+            try:
+                assessment = self.research_fit_agent.evaluate(
+                    state["candidate_profile"],
+                    supervisor,
+                    preferences=latest_preferences,
+                    rubric=self.config.research_fit_rubric,
+                )
+            except ResearchFitEvaluationError as error:
+                errors.append(
+                    self._error(
+                        EVALUATE_RESEARCH_FIT,
+                        f"research_fit_{error.kind.value}",
+                        "A Research Fit assessment failed at the typed model boundary "
+                        f"after {error.attempts} attempt(s).",
+                        recoverable=True,
+                    )
+                )
                 continue
-            supporting_ids = tuple(
-                claim.evidence_id
-                for claim in supervisor.evidence
-                if claim.claim_type in fit_evidence_types and claim.directly_supported
-            )
-            if not supporting_ids:
-                continue
-            assessments.append(
-                fixture_assessment.model_copy(update={"supporting_evidence_ids": supporting_ids})
-            )
-        return {
+            assessments.append(assessment)
+
+        update: ScholarPathStateUpdate = {
             "research_fit_assessments": assessments,
             "execution_log": [EVALUATE_RESEARCH_FIT],
         }
+        if errors:
+            update["tool_errors"] = errors
+        return update
 
     def review_fit_assessments(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Recheck every fixture assessment against its Verified Supervisor evidence."""
+        """Recheck every assessment against its Verified Supervisor evidence."""
         supervisors_by_id = {
             supervisor.supervisor_id: supervisor for supervisor in state["verified_supervisors"]
         }
@@ -1027,18 +1072,28 @@ class DeterministicScholarPathNodes:
         }
 
     def synthesize_supervisor_shortlist(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Rank Verified Supervisors by score and stable identifier tie-breaker."""
-        supervisors_by_id = {
-            supervisor.supervisor_id: supervisor for supervisor in state["verified_supervisors"]
-        }
-        ranked_assessments = sorted(
-            state["research_fit_assessments"],
-            key=lambda assessment: (-assessment.overall_score, assessment.supervisor_id),
-        )
-        proposed = [
-            supervisors_by_id[assessment.supervisor_id]
-            for assessment in ranked_assessments[: self.config.shortlist_size]
-        ]
+        """Create a deterministic, evidence-explained proposal for Candidate review."""
+        try:
+            proposed = self.shortlist_agent.synthesize(
+                state["candidate_profile"].candidate_id,
+                state["verified_supervisors"],
+                state["research_fit_assessments"],
+                _validated_utc_timestamp(self.utc_clock),
+            )
+        except ValueError:
+            return {
+                "proposed_shortlist": None,
+                "review_status": ReviewStatus.RETRY_EXHAUSTED,
+                "tool_errors": [
+                    self._error(
+                        SYNTHESIZE_SUPERVISOR_SHORTLIST,
+                        "research_fit_proposal_incomplete",
+                        "No valid preliminary Supervisor shortlist could be synthesized.",
+                        recoverable=True,
+                    )
+                ],
+                "execution_log": [SYNTHESIZE_SUPERVISOR_SHORTLIST],
+            }
         return {
             "proposed_shortlist": proposed,
             "review_status": ReviewStatus.PROPOSED,
@@ -1061,8 +1116,21 @@ class DeterministicScholarPathNodes:
             return update
 
         decision = self.config.review_decisions[attempt]
+        proposed_shortlist = state["proposed_shortlist"]
+        if proposed_shortlist is None:
+            update["review_status"] = ReviewStatus.RETRY_EXHAUSTED
+            update["tool_errors"] = [
+                self._error(
+                    CANDIDATE_REVIEW_GATE_STUB,
+                    "review_proposal_missing",
+                    "Candidate review requires a valid preliminary Supervisor shortlist.",
+                    recoverable=True,
+                )
+            ]
+            return update
         proposed_by_id = {
-            supervisor.supervisor_id: supervisor for supervisor in state["proposed_shortlist"]
+            recommendation.supervisor.supervisor_id: recommendation.supervisor
+            for recommendation in proposed_shortlist.recommendations
         }
         unknown_ids = [
             supervisor_id
@@ -1136,9 +1204,12 @@ class DeterministicScholarPathNodes:
     def save_shortlisted_supervisors(self, state: ScholarPathState) -> ScholarPathStateUpdate:
         """Persist the fixture shortlist only after the configured approval decision."""
         decision = state["candidate_feedback"][-1]
+        proposed_shortlist = state["proposed_shortlist"]
+        if proposed_shortlist is None:
+            raise ValueError("Candidate approval requires a preliminary Supervisor shortlist")
         shortlist = create_supervisor_shortlist(
             state["candidate_profile"].candidate_id,
-            state["proposed_shortlist"],
+            [recommendation.supervisor for recommendation in proposed_shortlist.recommendations],
             decision,
             generated_at=self.config.fixtures.generated_at,
             briefing="Candidate-approved shortlist awaiting its deterministic briefing.",
@@ -1218,6 +1289,18 @@ class _UnconfiguredEvidenceModel:
         raise EvidenceModelInvocationError("No evidence model was injected.")
 
 
+class _UnconfiguredResearchFitModel:
+    """Fail safely if a topology-only graph reaches Research Fit evaluation."""
+
+    def evaluate(
+        self,
+        fit_input: ResearchFitInput,
+        rubric: ResearchFitRubric,
+    ) -> StructuredResearchFitResult:
+        del fit_input, rubric
+        raise ResearchFitModelInvocationError("No Research Fit model was injected.")
+
+
 class _LazyTavilySearch:
     """Defer Tavily credential validation until the fallback is actually routed."""
 
@@ -1284,6 +1367,29 @@ class _LazyOpenAIEvidenceModel:
         return self._adapter.extract(extraction_input)
 
 
+class _LazyOpenAIResearchFitModel:
+    """Defer OpenAI Research Fit validation until a Verified Supervisor is evaluated."""
+
+    def __init__(self, settings: OpenAIResearchFitSettings) -> None:
+        self._settings = settings
+        self._adapter: OpenAIResearchFitAdapter | None = None
+
+    def evaluate(
+        self,
+        fit_input: ResearchFitInput,
+        rubric: ResearchFitRubric,
+    ) -> StructuredResearchFitResult:
+        if self._adapter is None:
+            try:
+                configuration = self._settings.for_research_fit_model()
+            except ProviderConfigurationError:
+                raise ResearchFitModelInvocationError(
+                    "OpenAI Research Fit credentials are not configured."
+                ) from None
+            self._adapter = OpenAIResearchFitAdapter(configuration)
+        return self._adapter.evaluate(fit_input, rubric)
+
+
 def _with_failure_injection(
     port: SupervisorSearchPort,
     provider: SearchProvider,
@@ -1303,24 +1409,30 @@ def build_scholarpath_graph(
     tavily_search: SupervisorSearchPort | None = None,
     content_extractor: ContentExtractionPort | None = None,
     evidence_model: EvidenceVerificationModelPort | None = None,
+    research_fit_model: ResearchFitModelPort | None = None,
     alternate_evidence_search: SupervisorSearchPort | None = None,
     observability: LangSmithObservability | None = None,
+    utc_clock: UtcClockPort | None = None,
 ) -> ScholarPathGraph:
     """Compile the graph without instantiating a provider or requiring credentials."""
+    resolved_config = config or GraphFixtureConfig()
     resolved_model = planning_model or _UnconfiguredPlanningModel()
     resolved_search = supervisor_search or _UnconfiguredSupervisorSearch(SearchProvider.YOU)
     resolved_tavily_search = tavily_search or _UnconfiguredSupervisorSearch(SearchProvider.TAVILY)
     resolved_content_extractor = content_extractor or _UnconfiguredContentExtraction()
     resolved_evidence_model = evidence_model or _UnconfiguredEvidenceModel()
+    resolved_research_fit_model = research_fit_model or _UnconfiguredResearchFitModel()
     resolved_alternate_search = alternate_evidence_search or resolved_tavily_search
     nodes = DeterministicScholarPathNodes(
-        config or GraphFixtureConfig(),
+        resolved_config,
         ResearchPlanningAgent(resolved_model),
         resolved_search,
         resolved_tavily_search,
         resolved_content_extractor,
         resolved_evidence_model,
+        resolved_research_fit_model,
         resolved_alternate_search,
+        utc_clock,
     )
     builder: StateGraph[ScholarPathState, None, ScholarPathState, ScholarPathState] = StateGraph(
         ScholarPathState
@@ -1358,7 +1470,19 @@ def build_scholarpath_graph(
     )
     builder.add_node(SUPERVISOR_EVIDENCE_SUFFICIENT, nodes.supervisor_evidence_sufficient)
     builder.add_node(RETRY_ALTERNATE_EVIDENCE_SOURCE, nodes.retry_alternate_evidence_source)
-    builder.add_node(EVALUATE_RESEARCH_FIT, nodes.evaluate_research_fit)
+    builder.add_node(
+        EVALUATE_RESEARCH_FIT,
+        nodes.evaluate_research_fit,
+        metadata=(
+            observability.research_fit_node_metadata(resolved_config.research_fit_rubric.version)
+            if observability is not None
+            else {
+                "component": "research_fit_evaluation_agent",
+                "prompt_version": RESEARCH_FIT_PROMPT_VERSION,
+                "rubric_version": resolved_config.research_fit_rubric.version,
+            }
+        ),
+    )
     builder.add_node(REVIEW_FIT_ASSESSMENTS, nodes.review_fit_assessments)
     builder.add_node(SYNTHESIZE_SUPERVISOR_SHORTLIST, nodes.synthesize_supervisor_shortlist)
     builder.add_node(CANDIDATE_REVIEW_GATE_STUB, nodes.candidate_review_gate_stub)
@@ -1402,7 +1526,7 @@ def build_scholarpath_graph(
     )
     builder.add_edge(SAVE_SHORTLISTED_SUPERVISORS, GENERATE_SHORTLIST_BRIEFING)
     builder.add_edge(GENERATE_SHORTLIST_BRIEFING, END)
-    return builder.compile(name="ScholarPath M6 Supervisor evidence verification graph")
+    return builder.compile(name="ScholarPath M7 Research Fit evaluation graph")
 
 
 def run_scholarpath_graph(
@@ -1413,6 +1537,7 @@ def run_scholarpath_graph(
     tavily_search: SupervisorSearchPort | None = None,
     content_extractor: ContentExtractionPort | None = None,
     evidence_model: EvidenceVerificationModelPort | None = None,
+    research_fit_model: ResearchFitModelPort | None = None,
     alternate_evidence_search: SupervisorSearchPort | None = None,
     application_settings: ApplicationSettings | None = None,
     openai_settings: OpenAIPlanningSettings | None = None,
@@ -1420,7 +1545,9 @@ def run_scholarpath_graph(
     tavily_settings: TavilySearchSettings | None = None,
     tavily_extraction_settings: TavilyExtractionSettings | None = None,
     openai_evidence_settings: OpenAIEvidenceSettings | None = None,
+    openai_research_fit_settings: OpenAIResearchFitSettings | None = None,
     langsmith_settings: LangSmithSettings | None = None,
+    utc_clock: UtcClockPort | None = None,
 ) -> ScholarPathState:
     """Compose providers lazily, then execute one optionally traced graph run."""
     resolved_config = config or GraphFixtureConfig()
@@ -1453,6 +1580,12 @@ def run_scholarpath_graph(
     if resolved_evidence_model is None:
         resolved_evidence_settings = openai_evidence_settings or load_openai_evidence_settings()
         resolved_evidence_model = _LazyOpenAIEvidenceModel(resolved_evidence_settings)
+    resolved_research_fit_model = research_fit_model
+    if resolved_research_fit_model is None:
+        resolved_research_fit_settings = (
+            openai_research_fit_settings or load_openai_research_fit_settings()
+        )
+        resolved_research_fit_model = _LazyOpenAIResearchFitModel(resolved_research_fit_settings)
     resolved_supervisor_search = _with_failure_injection(
         resolved_supervisor_search,
         SearchProvider.YOU,
@@ -1471,8 +1604,10 @@ def run_scholarpath_graph(
         tavily_search=resolved_tavily_search,
         content_extractor=resolved_content_extractor,
         evidence_model=resolved_evidence_model,
+        research_fit_model=resolved_research_fit_model,
         alternate_evidence_search=resolved_alternate_evidence_search,
         observability=observability,
+        utc_clock=utc_clock,
     )
     initial_state = create_initial_state(resolved_config.fixtures.candidate_profile)
     recursion_limit = (

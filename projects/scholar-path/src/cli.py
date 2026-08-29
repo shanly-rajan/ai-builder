@@ -1,6 +1,6 @@
 """Command-line demonstration for the ScholarPath graph."""
 
-from .agents import EvidenceVerificationModelPort, PlanningModelPort
+from .agents import EvidenceVerificationModelPort, PlanningModelPort, ResearchFitModelPort
 from .config import ProviderConfigurationError
 from .graph import ReviewStatus, run_scholarpath_graph
 from .tools import ContentExtractionPort, SupervisorSearchPort
@@ -12,6 +12,7 @@ def main(
     tavily_search: SupervisorSearchPort | None = None,
     content_extractor: ContentExtractionPort | None = None,
     evidence_model: EvidenceVerificationModelPort | None = None,
+    research_fit_model: ResearchFitModelPort | None = None,
     alternate_evidence_search: SupervisorSearchPort | None = None,
 ) -> int:
     """Run the graph and print five Shortlisted Supervisors."""
@@ -22,6 +23,7 @@ def main(
             tavily_search=tavily_search,
             content_extractor=content_extractor,
             evidence_model=evidence_model,
+            research_fit_model=research_fit_model,
             alternate_evidence_search=alternate_evidence_search,
         )
     except ProviderConfigurationError as error:

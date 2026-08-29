@@ -16,6 +16,7 @@ from tests.fakes import (
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
     FakePlanningModel,
+    FakeResearchFitModel,
     FakeSupervisorSearch,
 )
 
@@ -26,6 +27,7 @@ def _run_with_fake(model: FakePlanningModel) -> ScholarPathState:
         supervisor_search=FakeSupervisorSearch(),
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
+        research_fit_model=FakeResearchFitModel(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=DiscoveryFailureMode.OFF,

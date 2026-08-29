@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from typing import Annotated, Any, Literal, Self
 
@@ -31,6 +31,40 @@ from .enums import (
 
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 Score = Annotated[int, Field(strict=True, ge=0, le=100)]
+ActivityYear = Annotated[int, Field(strict=True, ge=1900, le=2100)]
+
+_ADMISSION_LIKELIHOOD_PATTERN = re.compile(
+    r"\b(?:admission|admitted|admittance)\b|"
+    r"\bacceptance\s+(?:chance|likelihood|odds|probability)\b|"
+    r"\bacceptance\s+(?:is|appears|seems)\s+(?:very\s+)?(?:likely|unlikely)\b|"
+    r"\b(?:chance|likelihood|odds|probability|percentage)\s+of\s+"
+    r"(?:acceptance|being\s+(?:accepted|admitted))\b|"
+    r"\b(?:likely|unlikely)\s+to\s+be\s+(?:accepted|admitted)\b|"
+    r"\b\d+(?:\.\d+)?\s*%[^.\n]{0,40}\b(?:accepted|admitted)\b",
+    re.IGNORECASE,
+)
+_AVAILABILITY_SCORING_PATTERN = re.compile(
+    r"\b(?:availability|accepting|not\s+accepting)\b|"
+    r"\bconfirmed[_\s-](?:not[_\s-])?accepting\b|"
+    r"\b(?:open|available)\s+(?:to|for)\s+[^.\n]{0,40}"
+    r"\b(?:supervis|doctoral|phd)\w*\b|"
+    r"\b(?:welcome|welcomes|welcoming|seek|seeks|seeking|recruit|recruits|recruiting|"
+    r"take|takes|taking)\b[^.\n]{0,50}\b(?:doctoral|phd)\b|"
+    r"\b(?:doctoral|phd)\s+(?:applications?|enquiries?|openings?|slots?)\b"
+    r"[^.\n]{0,24}\b(?:open|welcome|closed|paused|being\s+accepted)\b|"
+    r"\b(?:capacity|slots?)\s+(?:to|for)\s+[^.\n]{0,30}\bsupervis\w*\b",
+    re.IGNORECASE,
+)
+
+
+def validate_research_fit_scoring_prose(values: Iterable[str]) -> None:
+    """Reject admission and availability language from score-bearing fit prose."""
+    combined = "\n".join(values)
+    if _ADMISSION_LIKELIHOOD_PATTERN.search(combined):
+        raise ValueError("Research Fit output must not contain an admission likelihood")
+    if _AVAILABILITY_SCORING_PATTERN.search(combined):
+        raise ValueError("Supervisor availability must remain separate from Research Fit scoring")
+
 
 _AVAILABILITY_AUDIENCE_PATTERN = (
     r"(?:(?:new\s+)?(?:doctoral|phd)\s+"
@@ -223,6 +257,7 @@ class EvidenceClaim(DomainModel):
     asserted_name: NonEmptyString | None = None
     asserted_institution: NonEmptyString | None = None
     asserted_department: NonEmptyString | None = None
+    activity_year: ActivityYear | None = None
     supporting_excerpt: NonEmptyString | None = None
     conflicting_evidence_ids: tuple[NonEmptyString, ...] = ()
 
@@ -240,6 +275,21 @@ class EvidenceClaim(DomainModel):
                 )
         elif self.availability_status is not None:
             raise ValueError("Only availability evidence may assert an availability status")
+        if self.activity_year is not None:
+            if self.claim_type not in {
+                EvidenceClaimType.PUBLICATION,
+                EvidenceClaimType.PROJECT,
+            }:
+                raise ValueError("Only publication or project evidence may set an activity year")
+            if self.activity_year > self.retrieved_at.year:
+                raise ValueError("Research activity year cannot be later than retrieval year")
+            if (
+                self.supporting_excerpt is None
+                or re.search(rf"(?<!\d){self.activity_year}(?!\d)", self.supporting_excerpt) is None
+            ):
+                raise ValueError(
+                    "Research activity year must be explicit in the supporting excerpt"
+                )
         if len(self.conflicting_evidence_ids) != len(set(self.conflicting_evidence_ids)):
             raise ValueError("Conflicting evidence identifiers must be unique")
         if self.evidence_id in self.conflicting_evidence_ids:
@@ -632,32 +682,158 @@ class SupervisorVerificationRecord(DomainModel):
         return self
 
 
-class ResearchFitBreakdown(DomainModel):
-    """Dimension scores used to explain an overall Research Fit Score."""
+class ResearchFitRubric(DomainModel):
+    """Configurable Research Fit weights whose total is always 100 points."""
 
-    topic_alignment: Score
-    methodological_alignment: Score
-    research_orientation_alignment: Score
-    recent_research_alignment: Score
-    practical_constraint_alignment: Score
+    version: NonEmptyString = "research-fit-rubric-v1"
+    topic_alignment: Score = 40
+    methodological_alignment: Score = 20
+    research_orientation_alignment: Score = 15
+    recent_research_alignment: Score = 15
+    practical_constraint_alignment: Score = 10
+    recent_activity_window_years: Annotated[int, Field(strict=True, ge=1, le=20)] = 5
+
+    @model_validator(mode="after")
+    def weights_must_total_one_hundred(self) -> Self:
+        """Keep scoring arithmetic explicit and comparable across assessments."""
+        if sum(self.weights.values()) != 100:
+            raise ValueError("Research Fit rubric weights must sum to exactly 100")
+        return self
+
+    @property
+    def weights(self) -> dict[str, int]:
+        """Return dimension weights keyed exactly like ResearchFitBreakdown."""
+        return {
+            "topic_alignment": self.topic_alignment,
+            "methodological_alignment": self.methodological_alignment,
+            "research_orientation_alignment": self.research_orientation_alignment,
+            "recent_research_alignment": self.recent_research_alignment,
+            "practical_constraint_alignment": self.practical_constraint_alignment,
+        }
+
+
+class ResearchFitComponentAssessment(DomainModel):
+    """One bounded Research Fit component with its precise evidence citations."""
+
+    score: Score
+    rationale: NonEmptyString
+    supporting_evidence_ids: tuple[NonEmptyString, ...] = ()
+    confidence: EvidenceConfidence
+    evidence_gap: NonEmptyString | None = None
+
+    @model_validator(mode="after")
+    def score_must_be_supported_or_explicitly_missing(self) -> Self:
+        """Disallow unsupported points and make every absent-evidence outcome explicit."""
+        scoring_prose = [self.rationale]
+        if self.evidence_gap is not None:
+            scoring_prose.append(self.evidence_gap)
+        validate_research_fit_scoring_prose(scoring_prose)
+        if len(self.supporting_evidence_ids) != len(set(self.supporting_evidence_ids)):
+            raise ValueError("Component evidence identifiers must be unique")
+        if self.score > 0 and not self.supporting_evidence_ids:
+            raise ValueError("A positive component score requires supporting evidence")
+        if not self.supporting_evidence_ids:
+            if self.score != 0:
+                raise ValueError("A component without evidence must receive zero points")
+            if self.confidence is not EvidenceConfidence.LOW:
+                raise ValueError("A component without evidence must have low confidence")
+            if self.evidence_gap is None:
+                raise ValueError("A component without evidence must describe the evidence gap")
+        return self
+
+
+class ResearchFitBreakdown(DomainModel):
+    """Evidence-cited components used to explain an overall Research Fit Score."""
+
+    topic_alignment: ResearchFitComponentAssessment
+    methodological_alignment: ResearchFitComponentAssessment
+    research_orientation_alignment: ResearchFitComponentAssessment
+    recent_research_alignment: ResearchFitComponentAssessment
+    practical_constraint_alignment: ResearchFitComponentAssessment
+
+
+_EVIDENCE_CONFIDENCE_RANK = {
+    EvidenceConfidence.LOW: 1,
+    EvidenceConfidence.MEDIUM: 2,
+    EvidenceConfidence.HIGH: 3,
+}
+
+
+def derive_research_fit_confidence(
+    breakdown: ResearchFitBreakdown,
+    rubric: ResearchFitRubric,
+) -> EvidenceConfidence:
+    """Derive aggregate confidence deterministically from weighted components."""
+    components = {
+        "topic_alignment": breakdown.topic_alignment,
+        "methodological_alignment": breakdown.methodological_alignment,
+        "research_orientation_alignment": breakdown.research_orientation_alignment,
+        "recent_research_alignment": breakdown.recent_research_alignment,
+        "practical_constraint_alignment": breakdown.practical_constraint_alignment,
+    }
+    weighted_rank_total = sum(
+        rubric.weights[dimension] * _EVIDENCE_CONFIDENCE_RANK[component.confidence]
+        for dimension, component in components.items()
+    )
+    if weighted_rank_total >= 250:
+        return EvidenceConfidence.HIGH
+    if weighted_rank_total >= 150:
+        return EvidenceConfidence.MEDIUM
+    return EvidenceConfidence.LOW
 
 
 class ResearchFitAssessment(DomainModel):
     """Evidence-linked Research Fit evaluation for one Verified Supervisor."""
 
     supervisor_id: NonEmptyString
+    rubric: ResearchFitRubric = Field(default_factory=ResearchFitRubric)
     overall_score: Score
     breakdown: ResearchFitBreakdown
     rationale: NonEmptyString
-    supporting_evidence_ids: tuple[NonEmptyString, ...] = Field(min_length=1)
+    supporting_evidence_ids: tuple[NonEmptyString, ...] = ()
     confidence: EvidenceConfidence
     concerns: tuple[NonEmptyString, ...] = ()
 
     @model_validator(mode="after")
-    def supporting_evidence_ids_must_be_unique(self) -> Self:
-        """Prevent the same evidence reference from appearing more than once."""
+    def score_and_evidence_must_match_components(self) -> Self:
+        """Validate deterministic arithmetic, rubric bounds, and citation aggregation."""
+        validate_research_fit_scoring_prose((self.rationale, *self.concerns))
         if len(self.supporting_evidence_ids) != len(set(self.supporting_evidence_ids)):
             raise ValueError("Supporting evidence identifiers must be unique")
+
+        components = {
+            "topic_alignment": self.breakdown.topic_alignment,
+            "methodological_alignment": self.breakdown.methodological_alignment,
+            "research_orientation_alignment": self.breakdown.research_orientation_alignment,
+            "recent_research_alignment": self.breakdown.recent_research_alignment,
+            "practical_constraint_alignment": self.breakdown.practical_constraint_alignment,
+        }
+        for dimension, component in components.items():
+            if component.score > self.rubric.weights[dimension]:
+                raise ValueError(
+                    f"{dimension} score exceeds its configured Research Fit rubric weight"
+                )
+
+        deterministic_total = sum(component.score for component in components.values())
+        if self.overall_score != deterministic_total:
+            raise ValueError(
+                "Overall Research Fit Score must equal the deterministic component sum"
+            )
+
+        component_evidence_ids = {
+            evidence_id
+            for component in components.values()
+            for evidence_id in component.supporting_evidence_ids
+        }
+        if set(self.supporting_evidence_ids) != component_evidence_ids:
+            raise ValueError(
+                "Assessment evidence identifiers must exactly match component citations"
+            )
+        expected_confidence = derive_research_fit_confidence(self.breakdown, self.rubric)
+        if self.confidence is not expected_confidence:
+            raise ValueError(
+                "Assessment confidence must equal the deterministic component aggregate"
+            )
         return self
 
 
@@ -669,21 +845,168 @@ def validate_research_fit_evidence(
     supervisor: VerifiedSupervisor,
     assessment: ResearchFitAssessment,
 ) -> None:
-    """Validate assessment ownership and evidence references across two contracts."""
+    """Validate that every component cites suitable, direct, grounded evidence."""
     if assessment.supervisor_id != supervisor.supervisor_id:
         raise ResearchFitEvidenceError(
             "Research Fit assessment and Verified Supervisor identifiers must match."
         )
-    evidence_ids = {claim.evidence_id for claim in supervisor.evidence}
-    unknown_ids = [
-        evidence_id
-        for evidence_id in assessment.supporting_evidence_ids
-        if evidence_id not in evidence_ids
-    ]
-    if unknown_ids:
-        raise ResearchFitEvidenceError(
-            "Research Fit assessment references evidence outside the Verified Supervisor."
-        )
+
+    evidence_by_id = {claim.evidence_id: claim for claim in supervisor.evidence}
+    component_rules: tuple[
+        tuple[str, ResearchFitComponentAssessment, frozenset[EvidenceClaimType]], ...
+    ] = (
+        (
+            "topic_alignment",
+            assessment.breakdown.topic_alignment,
+            frozenset(
+                {
+                    EvidenceClaimType.RESEARCH_INTEREST,
+                    EvidenceClaimType.PUBLICATION,
+                    EvidenceClaimType.PROJECT,
+                }
+            ),
+        ),
+        (
+            "methodological_alignment",
+            assessment.breakdown.methodological_alignment,
+            frozenset(
+                {
+                    EvidenceClaimType.METHODOLOGY,
+                    EvidenceClaimType.RESEARCH_INTEREST,
+                    EvidenceClaimType.PUBLICATION,
+                    EvidenceClaimType.PROJECT,
+                }
+            ),
+        ),
+        (
+            "research_orientation_alignment",
+            assessment.breakdown.research_orientation_alignment,
+            frozenset(
+                {
+                    EvidenceClaimType.RESEARCH_INTEREST,
+                    EvidenceClaimType.METHODOLOGY,
+                    EvidenceClaimType.PUBLICATION,
+                    EvidenceClaimType.PROJECT,
+                }
+            ),
+        ),
+        (
+            "recent_research_alignment",
+            assessment.breakdown.recent_research_alignment,
+            frozenset({EvidenceClaimType.PUBLICATION, EvidenceClaimType.PROJECT}),
+        ),
+        (
+            "practical_constraint_alignment",
+            assessment.breakdown.practical_constraint_alignment,
+            frozenset({EvidenceClaimType.CURRENT_AFFILIATION}),
+        ),
+    )
+
+    for dimension, component, suitable_claim_types in component_rules:
+        if dimension == "practical_constraint_alignment" and component.score > 0:
+            raise ResearchFitEvidenceError(
+                "Practical-constraint points require typed region or study-mode evidence."
+            )
+        cited_claims: list[EvidenceClaim] = []
+        for evidence_id in component.supporting_evidence_ids:
+            claim = evidence_by_id.get(evidence_id)
+            if claim is None or claim.supervisor_id != supervisor.supervisor_id:
+                raise ResearchFitEvidenceError(
+                    f"{dimension} references evidence outside the Verified Supervisor."
+                )
+            if claim.claim_type is EvidenceClaimType.AVAILABILITY:
+                raise ResearchFitEvidenceError(
+                    "Supervisor availability evidence must not contribute to a Research Fit Score."
+                )
+            if claim.claim_type not in suitable_claim_types:
+                raise ResearchFitEvidenceError(
+                    f"{dimension} cites an unsuitable evidence claim type: "
+                    f"{claim.claim_type.value}."
+                )
+            if not claim.directly_supported or not evidence_claim_is_grounded_for_supervisor(
+                claim,
+                supervisor,
+            ):
+                raise ResearchFitEvidenceError(
+                    f"{dimension} must cite directly supported, grounded evidence."
+                )
+            cited_claims.append(claim)
+
+        if cited_claims:
+            weakest_claim_rank = min(
+                _EVIDENCE_CONFIDENCE_RANK[claim.confidence] for claim in cited_claims
+            )
+            if _EVIDENCE_CONFIDENCE_RANK[component.confidence] > weakest_claim_rank:
+                raise ResearchFitEvidenceError(
+                    f"{dimension} confidence exceeds its weakest cited evidence claim."
+                )
+
+        if dimension == "recent_research_alignment" and component.score > 0:
+            for claim in cited_claims:
+                if claim.activity_year is None:
+                    raise ResearchFitEvidenceError(
+                        "Recent-research points require an explicit typed activity year."
+                    )
+                if (
+                    claim.retrieved_at.year - claim.activity_year
+                    > assessment.rubric.recent_activity_window_years
+                ):
+                    raise ResearchFitEvidenceError(
+                        "Recent-research points cite activity outside the freshness window."
+                    )
+
+
+class ProposedSupervisorRecommendation(DomainModel):
+    """One evidence-backed ranking proposal awaiting explicit Candidate approval."""
+
+    rank: Annotated[int, Field(strict=True, ge=1)]
+    supervisor: VerifiedSupervisor
+    assessment: ResearchFitAssessment
+    strengths: tuple[NonEmptyString, ...] = Field(min_length=1)
+    concerns: tuple[NonEmptyString, ...] = ()
+    availability_status: AvailabilityStatus
+    evidence_confidence: EvidenceConfidence
+
+    @model_validator(mode="after")
+    def recommendation_must_remain_verified_and_evidence_backed(self) -> Self:
+        """Keep a proposal outside the shortlisted lifecycle state until approval."""
+        if self.supervisor.status is not SupervisorLifecycleStatus.VERIFIED:
+            raise ValueError("A proposed recommendation must contain a Verified Supervisor")
+        if self.assessment.supervisor_id != self.supervisor.supervisor_id:
+            raise ValueError("Proposed recommendation Supervisor identifiers must match")
+        if self.availability_status is not self.supervisor.availability_status:
+            raise ValueError("Proposed availability must mirror verified evidence status")
+        if self.evidence_confidence is not self.assessment.confidence:
+            raise ValueError("Proposed evidence confidence must mirror the assessment")
+        try:
+            validate_research_fit_evidence(self.supervisor, self.assessment)
+        except ResearchFitEvidenceError as error:
+            raise ValueError(str(error)) from error
+        return self
+
+
+class ProposedSupervisorShortlist(DomainModel):
+    """A ranked recommendation set that has not crossed the Candidate approval gate."""
+
+    candidate_id: NonEmptyString
+    recommendations: tuple[ProposedSupervisorRecommendation, ...] = Field(
+        min_length=1,
+        max_length=5,
+    )
+    generated_at: AwareDatetime
+    summary: NonEmptyString
+
+    @model_validator(mode="after")
+    def recommendations_must_be_unique_and_contiguously_ranked(self) -> Self:
+        """Ensure one stable proposal position per Verified Supervisor."""
+        supervisor_ids = [item.supervisor.supervisor_id for item in self.recommendations]
+        if len(supervisor_ids) != len(set(supervisor_ids)):
+            raise ValueError("Proposed Supervisor identifiers must be unique")
+        expected_ranks = list(range(1, len(self.recommendations) + 1))
+        actual_ranks = [item.rank for item in self.recommendations]
+        if actual_ranks != expected_ranks:
+            raise ValueError("Proposed recommendation ranks must be contiguous and ordered")
+        return self
 
 
 class SupervisorShortlist(DomainModel):
