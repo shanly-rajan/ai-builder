@@ -14,6 +14,8 @@ from scholarpath.config import (
     Environment,
     LangSmithSettings,
     LogLevel,
+    NebiusReviewConfiguration,
+    NebiusReviewSettings,
     OpenAIEvidenceConfiguration,
     OpenAIEvidenceSettings,
     OpenAIPlanningSettings,
@@ -28,6 +30,7 @@ from scholarpath.config import (
     YouSearchConfiguration,
     YouSearchSettings,
     load_langsmith_settings,
+    load_nebius_review_settings,
     load_openai_evidence_settings,
     load_openai_planning_settings,
     load_openai_research_fit_settings,
@@ -45,7 +48,15 @@ def isolate_settings_environment(
     monkeypatch.chdir(temporary_directory)
     for variable_name in tuple(os.environ):
         if variable_name.startswith(
-            ("SCHOLARPATH_", "OPENAI_", "LANGSMITH_", "YDC_", "YOU_", "TAVILY_")
+            (
+                "SCHOLARPATH_",
+                "OPENAI_",
+                "NEBIUS_",
+                "LANGSMITH_",
+                "YDC_",
+                "YOU_",
+                "TAVILY_",
+            )
         ):
             monkeypatch.delenv(variable_name, raising=False)
 
@@ -255,6 +266,71 @@ def test_openai_research_fit_configuration_rejects_blank_secret() -> None:
             api_key=SecretStr("   "),
             model="synthetic-fit-model",
             timeout_seconds=10,
+        )
+
+
+def test_nebius_review_settings_defer_credentials_until_model_is_requested(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+
+    settings = load_nebius_review_settings()
+
+    assert settings.api_key is None
+    assert settings.review_model == "Qwen/Qwen3-235B-A22B"
+    assert str(settings.endpoint) == "https://api.tokenfactory.nebius.com/v1/"
+    assert settings.review_timeout_seconds == 60.0
+    with pytest.raises(ProviderConfigurationError, match="provider 'nebius'"):
+        settings.for_review_model()
+
+
+def test_nebius_review_settings_use_canonical_environment_and_mask_secret(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+    raw_secret = "not-a-real-nebius-secret"
+    monkeypatch.setenv("NEBIUS_API_KEY", raw_secret)
+    monkeypatch.setenv("NEBIUS_REVIEW_MODEL", "synthetic-review-model")
+    monkeypatch.setenv("NEBIUS_ENDPOINT", "https://review.example.test/v1/")
+    monkeypatch.setenv("NEBIUS_REVIEW_TIMEOUT_SECONDS", "11.5")
+
+    configuration = load_nebius_review_settings().for_review_model()
+
+    assert configuration.api_key.get_secret_value() == raw_secret
+    assert configuration.model == "synthetic-review-model"
+    assert str(configuration.endpoint) == "https://review.example.test/v1/"
+    assert configuration.timeout_seconds == 11.5
+    assert raw_secret not in repr(configuration)
+    assert raw_secret not in str(configuration)
+
+
+@pytest.mark.parametrize("timeout", [0, -1])
+def test_nebius_review_settings_reject_invalid_timeout(timeout: float) -> None:
+    with pytest.raises(ValidationError):
+        NebiusReviewSettings(review_timeout_seconds=timeout)
+
+
+def test_nebius_review_configuration_rejects_blank_secret() -> None:
+    with pytest.raises(ValidationError, match="Nebius API key must not be blank"):
+        NebiusReviewConfiguration.model_validate(
+            {
+                "api_key": SecretStr("   "),
+                "model": "synthetic-review-model",
+                "endpoint": "https://api.tokenfactory.nebius.com/v1/",
+                "timeout_seconds": 10,
+            }
+        )
+
+
+def test_nebius_review_configuration_rejects_unencrypted_endpoint() -> None:
+    with pytest.raises(ValidationError, match="must use HTTPS"):
+        NebiusReviewConfiguration.model_validate(
+            {
+                "api_key": SecretStr("not-a-real-nebius-secret"),
+                "model": "synthetic-review-model",
+                "endpoint": "http://api.tokenfactory.nebius.com/v1/",
+                "timeout_seconds": 10,
+            }
         )
 
 

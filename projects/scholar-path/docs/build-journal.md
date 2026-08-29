@@ -1301,3 +1301,133 @@ lifecycle state until Candidate approval.
   LangSmith evaluation datasets.
 - Add durable assessment/proposal storage, concurrency, caching, cost controls, and a
   real Candidate review interface in separately scoped milestones.
+
+## Milestone M8: independent Research Fit review using Nebius
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Replace the fixture `review_fit_assessments` node with an injected, strict structured
+Nebius review boundary plus deterministic reconciliation that preserves the original
+M7 assessment, applies only valid evidence-bound revisions, degrades safely when review
+is unavailable, and updates proposal order without crossing the Candidate approval gate.
+
+### Prompt used
+
+[`docs/prompts/m8-independent-research-fit-review-nebius.md`](prompts/m8-independent-research-fit-review-nebius.md)
+
+### Files changed
+
+- Added `IndependentReviewModelPort`, `IndependentReviewInput`,
+  `IndependentReviewResult`, `IndependentReviewAgent`, `IndependentReviewPolicy`, typed
+  model errors, and the pure reconciliation function under `src/agents/`.
+- Added independent-review decision, status, and failure enums plus the immutable
+  `ReconciledResearchFitAssessment` audit overlay under `src/domain/`.
+- Added the versioned `independent-review-v1` prompt and
+  `NebiusReviewModelAdapter`, using native strict structured output with no provider
+  retries or prose JSON parsing.
+- Added deferred Nebius model, HTTPS endpoint, timeout, and credential settings under
+  `src/config.py` and documented their non-secret defaults in `.env.example`.
+- Replaced the graph review fixture, added typed review-record state, policy and model
+  injection, lazy production composition, sanitized recoverable errors, M8 LangSmith
+  metadata, deterministic effective-score ranking, and effective CLI output.
+- Added the M8 prompt archive, generated Mermaid snapshot, README guidance, current
+  architecture, terminology, contract coverage, fakes, unit tests, graph tests, guarded
+  live test, and this journal entry.
+
+### Tests added
+
+- Domain and agent coverage for accepted assessments, valid revisions, immutable
+  initial arithmetic, unsupported evidence removal, overlooked evidence validation,
+  nonexistent or unsuitable IDs, exact-threshold behavior, large-disagreement attention,
+  deterministic confidence degradation, and prohibited availability or admission prose.
+- Offline Nebius adapter coverage for configured base URL, model, timeout, strict native
+  JSON schema, disabled SDK retries, safe metadata, timeout mapping, malformed output,
+  and sanitized exception text.
+- Graph coverage for fake-only review of every assessment, deterministic shortlist
+  reordering after a valid revision, timeout and malformed-output continuity, recoverable
+  tool errors, configurable disagreement policy, missing credentials, and state reset
+  across refinement cycles.
+- Contract coverage for the provider-neutral port and schema, forbidden output fields,
+  configured endpoint/model ownership, prompt/environment/diagram audit artifacts, and
+  the guarded live-test boundary.
+- One `pytest.mark.live` Nebius smoke test requiring both `NEBIUS_API_KEY` and explicit
+  `SCHOLARPATH_RUN_LIVE_TESTS=true` opt-in.
+
+### Test results
+
+- Parallel focused domain, adapter, configuration, graph, CLI, tracing, Ruff, mypy, and
+  diff checks passed without network access.
+- The integrated pre-documentation suite passed 695 tests with six live tests
+  deselected and 91.02 percent combined statement/branch coverage; the remaining
+  documentation-contract failure was resolved by this M8 journal and artifact update.
+- `venv/bin/ruff format --check .`: all 134 Python files were already formatted after
+  the final formatting pass.
+- `venv/bin/ruff check --no-cache .`: all lint checks passed.
+- `venv/bin/mypy src tests`: no issues found in 109 source files.
+- `venv/bin/pytest -q`: 714 non-live tests passed, six live tests were deselected, 43
+  terminology subtests passed, and combined statement/branch coverage was 91.06 percent,
+  above the 90 percent gate.
+- Strict editable installation with local build isolation disabled and `--no-deps`
+  succeeded without downloading dependencies; `venv/bin/python -m pip check` reported
+  no broken requirements, and importing `scholarpath` reported version `0.1.0`.
+- Compilation under both the current Python 3.14.6 interpreter and Python 3.12.13,
+  generated M8 Mermaid equality, prompt and terminology contracts, default network
+  isolation, and `git diff --check` passed.
+- Explicit live-test selection skipped all six guarded provider tests without a network
+  call: 714 non-live tests were deselected and six live tests skipped.
+- `.env` and `venv/` remain ignored by the project `.gitignore`; no secret file was
+  staged or committed.
+- The fake-backed CLI completed M8 and printed five Supervisors with effective scores
+  `87`, `82`, `75`, `72`, and `68` in deterministic rank order.
+
+### Assumptions
+
+- The Nebius Token Factory OpenAI-compatible endpoint and a structured-output-capable
+  model are configuration defaults, not business-logic constants; operators may change
+  both through environment variables.
+- A reviewer may identify overlooked evidence only when that exact claim already exists
+  in the same Verified Supervisor evidence collection. This references existing evidence
+  and never creates a factual claim.
+- An overall reviewed score cannot be deterministically redistributed across the five
+  M7 components because the reviewer does not return component values. The initial
+  component assessment therefore remains immutable and a separate reconciled overlay
+  owns the effective score and explanation.
+- `accept` always preserves the original score, rationale, citations, and confidence.
+  The prompt asks the reviewer to echo the initial score, but deterministic reconciliation
+  ignores a contradictory recommended score rather than weakening an accepted assessment.
+- A provider or output failure is recoverable for each Supervisor: the original score
+  remains usable, confidence drops one level, and Candidate attention is required.
+
+### Lessons learned
+
+- Independent review is an audit overlay, not permission to weaken the original scoring
+  contract. Keeping both views preserves component arithmetic and reviewer accountability.
+- Native structured output constrains shape, but ordinary code must still validate that
+  every referenced ID belongs to the exact evidence set and is safe for Research Fit.
+- A reviewer can surface overlooked existing evidence without becoming an evidence
+  producer; provenance remains owned by the earlier verification boundary.
+- Provider failure should change confidence and audit status, not erase a usable initial
+  assessment or terminate recommendations that can still reach Candidate review.
+- Revised ordering remains deterministic when synthesis consumes effective score and
+  confidence, then applies the existing normalized-name and stable-ID tie-breakers.
+- Keeping model name and endpoint in deferred settings makes provider migration and
+  regional deployment possible without contaminating domain or reconciliation logic.
+
+### Remaining debt
+
+- Build a LangSmith evaluation dataset for reviewer agreement, unsupported-claim
+  precision, overlooked-evidence recall, revision magnitude, and safe-fallback rate.
+- Calibrate the disagreement threshold and reviewer confidence against expert human
+  judgments before production use.
+- Add explicit provider cost, latency, rate-limit, circuit-breaker, and batch/concurrency
+  controls before reviewing large Supervisor cohorts.
+- Define durable versioning and persistence for paired initial and reconciled assessments,
+  plus a Candidate-facing explanation of why attention is required.
+- Evaluate additional structured-output-capable Nebius models and regional endpoints
+  without changing the provider-neutral port or deterministic policy.
+- Add a compact provider projection so the nested `VerifiedSupervisor.evidence` and
+  explicit `evidence_claims` input contract do not duplicate evidence tokens on the wire.
+- Evaluate false-positive rates for the deliberately conservative availability-inference
+  prose guard, especially for Candidates whose research topic is doctoral supervision.

@@ -23,6 +23,9 @@ from .enums import (
     CandidateReviewAction,
     EvidenceClaimType,
     EvidenceConfidence,
+    IndependentReviewDecision,
+    IndependentReviewFailureKind,
+    IndependentReviewStatus,
     SearchSourceType,
     SourceKind,
     SupervisorLifecycleStatus,
@@ -837,6 +840,120 @@ class ResearchFitAssessment(DomainModel):
         return self
 
 
+def lower_evidence_confidence(confidence: EvidenceConfidence) -> EvidenceConfidence:
+    """Lower confidence by one deterministic level, with LOW as the floor."""
+    if confidence is EvidenceConfidence.HIGH:
+        return EvidenceConfidence.MEDIUM
+    return EvidenceConfidence.LOW
+
+
+class ReconciledResearchFitAssessment(DomainModel):
+    """Auditable independent-review overlay that preserves the M7 assessment."""
+
+    supervisor_id: NonEmptyString
+    initial_assessment: ResearchFitAssessment
+    effective_score: Score
+    effective_rationale: NonEmptyString
+    effective_supporting_evidence_ids: tuple[NonEmptyString, ...] = ()
+    effective_confidence: EvidenceConfidence
+    review_status: IndependentReviewStatus
+    decision: IndependentReviewDecision | None = None
+    reviewer_confidence: EvidenceConfidence | None = None
+    critique: NonEmptyString
+    unsupported_claim_ids: tuple[NonEmptyString, ...] = ()
+    overlooked_evidence_ids: tuple[NonEmptyString, ...] = ()
+    requires_candidate_attention: StrictBool = False
+    failure_kind: IndependentReviewFailureKind | None = None
+
+    @model_validator(mode="after")
+    def effective_view_must_match_reconciliation_status(self) -> Self:
+        """Keep accepted, revised, and unavailable outcomes internally consistent."""
+        validate_research_fit_scoring_prose((self.effective_rationale, self.critique))
+        if self.supervisor_id != self.initial_assessment.supervisor_id:
+            raise ValueError("Reconciled review and initial assessment identifiers must match")
+        for name, values in (
+            ("effective evidence", self.effective_supporting_evidence_ids),
+            ("unsupported claims", self.unsupported_claim_ids),
+            ("overlooked evidence", self.overlooked_evidence_ids),
+        ):
+            if len(values) != len(set(values)):
+                raise ValueError(f"{name.capitalize()} identifiers must be unique")
+        if set(self.unsupported_claim_ids) & set(self.overlooked_evidence_ids):
+            raise ValueError("The same evidence cannot be unsupported and overlooked")
+
+        initial_ids = self.initial_assessment.supporting_evidence_ids
+        initial_id_set = set(initial_ids)
+        if self.review_status is IndependentReviewStatus.ACCEPTED:
+            if self.decision is not IndependentReviewDecision.ACCEPT:
+                raise ValueError("An accepted review requires an accept decision")
+            if self.reviewer_confidence is None or self.failure_kind is not None:
+                raise ValueError("An accepted review requires reviewer confidence and no failure")
+            if self.unsupported_claim_ids or self.overlooked_evidence_ids:
+                raise ValueError("An accepted review cannot alter evidence references")
+            if self.requires_candidate_attention:
+                raise ValueError("An accepted review cannot require Candidate attention")
+            if (
+                self.effective_score != self.initial_assessment.overall_score
+                or self.effective_rationale != self.initial_assessment.rationale
+                or self.effective_supporting_evidence_ids != initial_ids
+                or self.effective_confidence is not self.initial_assessment.confidence
+            ):
+                raise ValueError("An accepted review must preserve the initial assessment")
+            return self
+
+        if self.review_status is IndependentReviewStatus.REVISED:
+            if self.decision is not IndependentReviewDecision.REVISE:
+                raise ValueError("A revised review requires a revise decision")
+            if self.reviewer_confidence is None or self.failure_kind is not None:
+                raise ValueError("A revised review requires reviewer confidence and no failure")
+            if not set(self.unsupported_claim_ids).issubset(initial_id_set):
+                raise ValueError("Unsupported claims must come from the initial assessment")
+            if set(self.overlooked_evidence_ids) & initial_id_set:
+                raise ValueError(
+                    "Overlooked evidence cannot already support the initial assessment"
+                )
+            expected_effective_ids = initial_id_set - set(self.unsupported_claim_ids)
+            expected_effective_ids.update(self.overlooked_evidence_ids)
+            if set(self.effective_supporting_evidence_ids) != expected_effective_ids:
+                raise ValueError(
+                    "Revised evidence must remove unsupported claims and add overlooked evidence"
+                )
+            if self.effective_rationale != self.critique:
+                raise ValueError(
+                    "A revised review must use the reviewer critique as its explanation"
+                )
+            if (
+                _EVIDENCE_CONFIDENCE_RANK[self.effective_confidence]
+                > _EVIDENCE_CONFIDENCE_RANK[self.initial_assessment.confidence]
+                or _EVIDENCE_CONFIDENCE_RANK[self.effective_confidence]
+                > _EVIDENCE_CONFIDENCE_RANK[self.reviewer_confidence]
+            ):
+                raise ValueError("A review cannot increase effective evidence confidence")
+            return self
+
+        if self.review_status is not IndependentReviewStatus.UNAVAILABLE:
+            raise ValueError("Unknown independent review status")
+        if self.decision is not None or self.reviewer_confidence is not None:
+            raise ValueError("An unavailable review cannot retain a model decision")
+        if self.failure_kind is None:
+            raise ValueError("An unavailable review must identify a failure category")
+        if self.unsupported_claim_ids or self.overlooked_evidence_ids:
+            raise ValueError("An unavailable review cannot alter evidence references")
+        if not self.requires_candidate_attention:
+            raise ValueError("An unavailable review must require Candidate attention")
+        if (
+            self.effective_score != self.initial_assessment.overall_score
+            or self.effective_rationale != self.initial_assessment.rationale
+            or self.effective_supporting_evidence_ids != initial_ids
+            or self.effective_confidence
+            is not lower_evidence_confidence(self.initial_assessment.confidence)
+        ):
+            raise ValueError(
+                "An unavailable review must preserve the assessment and lower confidence"
+            )
+        return self
+
+
 class ResearchFitEvidenceError(ValueError):
     """Raised when an assessment cites evidence outside its Supervisor record."""
 
@@ -966,6 +1083,7 @@ class ProposedSupervisorRecommendation(DomainModel):
     concerns: tuple[NonEmptyString, ...] = ()
     availability_status: AvailabilityStatus
     evidence_confidence: EvidenceConfidence
+    independent_review: ReconciledResearchFitAssessment | None = None
 
     @model_validator(mode="after")
     def recommendation_must_remain_verified_and_evidence_backed(self) -> Self:
@@ -976,13 +1094,35 @@ class ProposedSupervisorRecommendation(DomainModel):
             raise ValueError("Proposed recommendation Supervisor identifiers must match")
         if self.availability_status is not self.supervisor.availability_status:
             raise ValueError("Proposed availability must mirror verified evidence status")
-        if self.evidence_confidence is not self.assessment.confidence:
-            raise ValueError("Proposed evidence confidence must mirror the assessment")
+        if self.independent_review is None:
+            if self.evidence_confidence is not self.assessment.confidence:
+                raise ValueError("Proposed evidence confidence must mirror the assessment")
+        else:
+            if self.independent_review.supervisor_id != self.supervisor.supervisor_id:
+                raise ValueError("Independent review and proposed Supervisor must match")
+            if self.independent_review.initial_assessment != self.assessment:
+                raise ValueError("The proposal must retain the independently reviewed assessment")
+            if self.evidence_confidence is not self.independent_review.effective_confidence:
+                raise ValueError("Proposed confidence must mirror the independent review")
         try:
             validate_research_fit_evidence(self.supervisor, self.assessment)
         except ResearchFitEvidenceError as error:
             raise ValueError(str(error)) from error
         return self
+
+    @property
+    def effective_score(self) -> int:
+        """Return the independently reconciled score when review is available."""
+        if self.independent_review is not None:
+            return self.independent_review.effective_score
+        return self.assessment.overall_score
+
+    @property
+    def effective_rationale(self) -> str:
+        """Return the independently reconciled explanation when review is available."""
+        if self.independent_review is not None:
+            return self.independent_review.effective_rationale
+        return self.assessment.rationale
 
 
 class ProposedSupervisorShortlist(DomainModel):

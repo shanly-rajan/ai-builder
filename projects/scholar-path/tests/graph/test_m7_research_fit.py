@@ -26,6 +26,7 @@ from scholarpath.graph import (
 from tests.fakes import (
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
+    FakeIndependentReviewModel,
     FakePlanningModel,
     FakeResearchFitModel,
     FakeSupervisorSearch,
@@ -55,6 +56,7 @@ def _run(
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=model,
+        independent_review_model=FakeIndependentReviewModel(),
         alternate_evidence_search=FakeSupervisorSearch(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,

@@ -217,6 +217,67 @@ class OpenAIResearchFitSettings(BaseSettings):
         )
 
 
+class NebiusReviewConfiguration(BaseModel):
+    """Validated settings passed only to the Nebius independent-review adapter."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        hide_input_in_errors=True,
+        str_strip_whitespace=True,
+    )
+
+    api_key: SecretStr
+    model: str = Field(min_length=1)
+    endpoint: HttpUrl
+    timeout_seconds: float = Field(gt=0)
+
+    @field_validator("api_key")
+    @classmethod
+    def api_key_must_not_be_blank(cls, value: SecretStr) -> SecretStr:
+        """Reject blank Nebius credentials at independent-review activation."""
+        if not value.get_secret_value().strip():
+            raise ValueError("Nebius API key must not be blank")
+        return value
+
+    @field_validator("endpoint")
+    @classmethod
+    def endpoint_must_use_https(cls, value: HttpUrl) -> HttpUrl:
+        """Prevent a Nebius credential from being sent over an insecure connection."""
+        if value.scheme != "https":
+            raise ValueError("Nebius endpoint must use HTTPS")
+        return value
+
+
+class NebiusReviewSettings(BaseSettings):
+    """Nebius settings that remain inert until independent review is requested."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="NEBIUS_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        frozen=True,
+        hide_input_in_errors=True,
+        str_strip_whitespace=True,
+    )
+
+    api_key: Annotated[SecretStr | None, Field(repr=False)] = None
+    review_model: str = "Qwen/Qwen3-235B-A22B"
+    endpoint: HttpUrl = HttpUrl("https://api.tokenfactory.nebius.com/v1/")
+    review_timeout_seconds: float = Field(default=60.0, gt=0)
+
+    def for_review_model(self) -> NebiusReviewConfiguration:
+        """Validate credentials only when the Nebius reviewer is requested."""
+        if self.api_key is None or not self.api_key.get_secret_value().strip():
+            raise ProviderConfigurationError("Missing API key for provider 'nebius'.")
+        return NebiusReviewConfiguration(
+            api_key=self.api_key,
+            model=self.review_model,
+            endpoint=self.endpoint,
+            timeout_seconds=self.review_timeout_seconds,
+        )
+
+
 class YouSearchConfiguration(BaseModel):
     """Validated settings passed only to the You.com Web Search adapter."""
 
@@ -526,6 +587,11 @@ def load_openai_evidence_settings() -> OpenAIEvidenceSettings:
 def load_openai_research_fit_settings() -> OpenAIResearchFitSettings:
     """Load optional OpenAI Research Fit settings without requiring credentials."""
     return OpenAIResearchFitSettings()
+
+
+def load_nebius_review_settings() -> NebiusReviewSettings:
+    """Load optional Nebius review settings without requiring credentials."""
+    return NebiusReviewSettings()
 
 
 def load_you_search_settings() -> YouSearchSettings:

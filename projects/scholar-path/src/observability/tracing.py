@@ -9,12 +9,13 @@ from langsmith import Client, tracing_context
 
 from ..agents.prompts import (
     EVIDENCE_VERIFICATION_PROMPT_VERSION,
+    INDEPENDENT_REVIEW_PROMPT_VERSION,
     RESEARCH_FIT_PROMPT_VERSION,
     RESEARCH_PLANNING_PROMPT_VERSION,
 )
 from ..config import Environment, LangSmithSettings
 
-GRAPH_VERSION: Final = "m7"
+GRAPH_VERSION: Final = "m8"
 type TraceScalar = str | int | float | bool
 SAFE_TRACE_METADATA_KEYS: Final = (
     "application",
@@ -92,6 +93,17 @@ class LangSmithObservability:
                 "component": "research_fit_evaluation_agent",
                 "prompt_version": RESEARCH_FIT_PROMPT_VERSION,
                 "rubric_version": rubric_version,
+            }
+        )
+
+    @property
+    def independent_review_node_metadata(self) -> dict[str, TraceScalar]:
+        """Return safe reviewer metadata without Candidate or evidence payloads."""
+        return sanitize_trace_metadata(
+            {
+                **self.graph_metadata,
+                "component": "independent_review_agent",
+                "prompt_version": INDEPENDENT_REVIEW_PROMPT_VERSION,
             }
         )
 

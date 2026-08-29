@@ -1,5 +1,6 @@
 """Public API for the ScholarPath LangGraph workflow."""
 
+from ..agents.independent_review import IndependentReviewPolicy
 from .discovery import (
     DiscoveryPolicy,
     DiscoveryStoppingCondition,
@@ -52,6 +53,7 @@ __all__ = [
     "EvidenceVerificationRoute",
     "FIXTURE_RETRIEVED_AT",
     "GraphFixtureConfig",
+    "IndependentReviewPolicy",
     "RawSupervisorSearchResult",
     "ReviewStatus",
     "SearchAttempt",

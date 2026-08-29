@@ -1,8 +1,8 @@
-# ScholarPath M7 Architecture
+# ScholarPath M8 Architecture
 
-M7 replaces fixture Research Fit scoring and shortlist synthesis with an
-evidence-cited model boundary followed by deterministic arithmetic and ranking, while
-preserving the useful M3–M6 architecture:
+M8 replaces the fixture independent-review node with a configured Nebius model boundary
+followed by deterministic evidence-reference validation, reconciliation, and ranking,
+while preserving the useful M3–M7 architecture:
 
 - M3 plans searches through a structured OpenAI boundary.
 - M4 discovers Prospective Supervisors through You.com.
@@ -13,9 +13,12 @@ preserving the useful M3–M6 architecture:
 - M7 evaluates Research Fit through an injected structured-output model, validates
   every component citation against verified evidence, sums components in Python, and
   deterministically creates a five-result proposal for Candidate review.
+- M8 independently audits each initial assessment through Nebius, preserves that
+  immutable component assessment, and stores a reconciled effective score, explanation,
+  evidence view, confidence, and attention status.
 
 Availability remains a separate verified status and never contributes points. Candidate
-review remains the configured stub; M7 creates a proposal whose Supervisor records stay
+review remains the configured stub; M8 creates a proposal whose Supervisor records stay
 `verified`, and no Supervisor becomes Shortlisted without the existing approval gate.
 
 ## End-to-end milestone view
@@ -36,7 +39,9 @@ flowchart LR
     ALT --> TE
     VR -->|sufficient direct evidence| VS[Verified Supervisor]
     VS --> RF[Evidence-cited ResearchFitEvaluationAgent]
-    RF --> SYNTH[Deterministic ShortlistSynthesisAgent]
+    RF --> IR[IndependentReviewAgent via Nebius]
+    IR --> REC[Deterministic reconciliation]
+    REC --> SYNTH[Deterministic ShortlistSynthesisAgent]
     SYNTH --> GATE[Candidate review gate stub]
     GATE -->|approve| SS[Shortlisted Supervisor]
     GATE -->|reject| RS[Rejected Supervisor]
@@ -46,8 +51,9 @@ flowchart LR
 ```
 
 The LangGraph topology still contains the same fifteen canonical operational nodes.
-M7 changes only `evaluate_research_fit` and `synthesize_supervisor_shortlist`; it does
-not implement independent review, a real Candidate approval interface, or outreach.
+M8 replaces only `review_fit_assessments` and extends deterministic synthesis to consume
+its reconciled records; it does not implement a real Candidate approval interface,
+outreach, or preference memory.
 
 ## M7 Research Fit and proposal boundary
 
@@ -110,6 +116,59 @@ confidence. The returned records remain Verified until the Candidate approval ga
 production supplies current aware UTC time, while deterministic tests provide a fixed
 clock. The configured rubric version is also passed into Research Fit node trace
 metadata instead of being hard-coded.
+
+## M8 independent-review and reconciliation boundary
+
+```mermaid
+flowchart LR
+    CP[CandidateProfile] --> INPUT[IndependentReviewInput]
+    VS[VerifiedSupervisor] --> INPUT
+    EV[Complete EvidenceClaim collection] --> INPUT
+    IA[Initial ResearchFitAssessment] --> INPUT
+    INPUT --> AGENT[IndependentReviewAgent]
+    AGENT --> PORT{{IndependentReviewModelPort}}
+    PORT --> FAKE[FakeIndependentReviewModel]
+    PORT --> NEB[NebiusReviewModelAdapter]
+    NEB --> API[Nebius Token Factory endpoint]
+    FAKE --> RESULT[IndependentReviewResult]
+    API --> RESULT
+    RESULT --> VALID{Identifiers and prohibited inference valid?}
+    VALID -->|accept| KEEP[Preserve initial assessment]
+    VALID -->|revise| REC[ReconciledResearchFitAssessment]
+    VALID -->|invalid or provider failure| SAFE[Preserve score, lower confidence, mark attention]
+    KEEP --> SORT[Effective score and confidence ordering]
+    REC --> SORT
+    SAFE --> SORT
+    SORT --> PROPOSAL[ProposedSupervisorShortlist]
+```
+
+`IndependentReviewResult` is the only provider output. It contains `accept` or `revise`,
+a bounded recommended score, unsupported and overlooked evidence IDs, reviewer
+confidence, and a concise critique. It has no fields for availability, Candidate
+preferences, admission likelihood, ranking, or lifecycle state. The versioned prompt
+forbids browsing, tools, prior knowledge, new evidence, and shortlist mutation.
+
+Reconciliation is pure application code. An accepted review preserves every initial
+assessment field. A revision is applied only when unsupported IDs are citations from the
+initial assessment and overlooked IDs are existing, direct, grounded, non-availability
+claims for the same Verified Supervisor. Unsupported IDs are removed from the effective
+view. A disagreement strictly greater than `IndependentReviewPolicy.disagreement_threshold`
+lowers effective confidence and marks Candidate attention.
+
+The original `ResearchFitAssessment` remains immutable because its `overall_score` must
+continue to equal its five component values. The separate reconciled overlay therefore
+holds the effective reviewed score and explanation used by synthesis. This avoids
+inventing a component allocation for an overall revision and preserves both audit views.
+
+Synthesis uses effective values to reorder the proposal. The later Candidate decision
+remains authoritative for completed-shortlist membership and order; the independent
+reviewer cannot directly mutate either one.
+
+Nebius failure and malformed structured output are recoverable per-Supervisor outcomes.
+The graph retains the initial score, lowers confidence one level, marks review
+`unavailable`, appends a sanitized `tool_errors` record, and continues. The adapter has
+no hidden retries; model name, HTTPS base endpoint, and timeout are configuration values.
+Default tests inject a recording fake, so they cannot contact Nebius.
 
 ## M3 research-planning boundary
 
@@ -398,8 +457,9 @@ flowchart TD
     Alternate --> Extract
     Evidence -->|minimum Verified| Evaluate[evaluate_research_fit]
     Evidence -->|below minimum after retry| END
-    Evaluate --> Review[review_fit_assessments]
-    Review --> Synthesize[synthesize_supervisor_shortlist]
+    Evaluate --> Review[review_fit_assessments through Nebius]
+    Review -->|review applied| Synthesize[synthesize_supervisor_shortlist]
+    Review -->|unavailable, preserve and degrade| Synthesize
     Synthesize --> Gate[candidate_review_gate_stub]
     Gate -->|approve| Save[save_shortlisted_supervisors]
     Gate -->|reject or request more| Plan
@@ -415,7 +475,8 @@ The graph-derived M2 diagram remains the topology baseline in
 [`m2-walking-skeleton.mmd`](m2-walking-skeleton.mmd). M3 adds planning failure routing,
 M4 replaces discovery, M5 activates resilient search fallback, and M6 replaces the
 evidence path. M7 replaces Research Fit evaluation and shortlist proposal synthesis
-without introducing additional operational nodes.
+without introducing additional operational nodes. M8 replaces the independent-review
+implementation and extends synthesis without changing that topology.
 
 ## Typed state and reducers
 
@@ -432,17 +493,18 @@ flowchart LR
     SNAP --> VR[verification_records]
     SNAP --> VS[verified_supervisors]
     SNAP --> AES[alternate_evidence_sources]
+    SNAP --> IR[research_fit_review_records]
     CONTROL --> RETRY[retry_counts]
     CONTROL --> STATUS[review_status]
 ```
 
-| State category | M7 channels | Merge behavior |
+| State category | M8 channels | Merge behavior |
 |---|---|---|
 | Immutable Candidate input | `candidate_profile` | Preserved |
 | Append-only history | preferences, raw search results, feedback, errors, search attempts, evidence extraction attempts, execution log | Reducers append events |
 | Verification snapshots | `verification_records`, `verified_supervisors` | Node returns the complete current ordered snapshot |
 | Alternate-source selection | `alternate_evidence_sources` | Deterministic dictionary replacement keyed by `supervisor_id` |
-| Other entity snapshots | Prospective Supervisors, Research Fit assessments, the typed proposal, and Shortlisted Supervisors | Latest node output replaces prior snapshot |
+| Other entity snapshots | Prospective Supervisors, Research Fit assessments, reconciled review records, the typed proposal, and Shortlisted Supervisors | Latest node output replaces prior snapshot |
 | Unique terminal history | Rejected Supervisors | Reducer merges by `supervisor_id` |
 | Routing control | discovery round, retry counts, review status, fallback flags | Deterministic replacement |
 
@@ -452,7 +514,7 @@ error category. It does not store a full page or provider exception text. Planni
 new discovery round clears verification snapshots and the alternate-source map while
 retaining append-only attempt history.
 
-## Optional M7 LangSmith observability
+## Optional M8 LangSmith observability
 
 ```mermaid
 flowchart LR
@@ -464,12 +526,13 @@ flowchart LR
     Root --> PlanTrace[planning node metadata]
     Root --> EvidenceTrace[evidence node metadata]
     Root --> FitTrace[Research Fit node and rubric metadata]
-    Tags[environment plus graph-version:m7] --> Root
+    Root --> ReviewTrace[independent-review node metadata]
+    Tags[environment plus graph-version:m8] --> Root
 ```
 
-The graph version is `m7`. Root tags are
-`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m7`. Planning, evidence,
-and Research Fit nodes add only safe component and version metadata. The fixed
+The graph version is `m8`. Root tags are
+`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m8`. Planning, evidence,
+Research Fit, and independent-review nodes add only safe component and version metadata. The fixed
 metadata allowlist is:
 
 - `application`
@@ -490,7 +553,9 @@ The Research Fit node records `component=research_fit_evaluation_agent`,
 `prompt_version=research-fit-evaluation-v1`, and the active
 `ResearchFitRubric.version` as `rubric_version` (the default is
 `research-fit-rubric-v1`). Neither evidence text nor Candidate or Supervisor identity
-is trace metadata.
+is trace metadata. The review node records `component=independent_review_agent` and
+`prompt_version=independent-review-v1`; Candidate and evidence payloads remain trace
+inputs rather than metadata, and the LangSmith client hides all inputs and outputs.
 
 Tracing remains optional. When disabled, ScholarPath uses an explicitly disabled
 tracing context and constructs no LangSmith client.
@@ -505,6 +570,8 @@ flowchart TB
     OP -->|planning requested| OPA[Planning adapter]
     OE -->|retrieved page ready| OEA[Evidence adapter]
     ORF -->|Verified evidence ready| ORFA[Research Fit adapter]
+    NEB[NEBIUS_API_KEY and NEBIUS_*] --> NS[NebiusReviewSettings]
+    NS -->|assessment review requested| NRA[NebiusReviewModelAdapter]
     YDC[YDC_API_KEY and YOU_SEARCH_*] --> YOU[YouSearchAdapter]
     TKEY[TAVILY_API_KEY] --> TS[TavilySearchSettings]
     TKEY --> TE[TavilyExtractionSettings]
@@ -514,20 +581,22 @@ flowchart TB
 ```
 
 Provider-specific settings may load without credentials. Compiling the graph or
-importing ScholarPath does not validate OpenAI, You.com, Tavily, or LangSmith keys.
+importing ScholarPath does not validate OpenAI, Nebius, You.com, Tavily, or LangSmith keys.
 OpenAI evidence settings are validated only when a retrieved page reaches the lazy
 evidence adapter. OpenAI Research Fit settings are validated only when Verified
 evidence reaches the evaluation node. Tavily Extract settings are validated only when
 content extraction is requested. Tavily search remains lazy until discovery fallback
-or alternate official-source search requires it.
+or alternate official-source search requires it. Nebius settings are validated only
+when an assessment reaches independent review.
 
-M7 environment variables are:
+M8 environment variables are:
 
 | Boundary | Variables |
 |---|---|
 | OpenAI planning | `OPENAI_API_KEY`, `OPENAI_PLANNING_MODEL`, `OPENAI_PLANNING_TIMEOUT_SECONDS` |
 | OpenAI evidence | `OPENAI_API_KEY`, `OPENAI_EVIDENCE_MODEL`, `OPENAI_EVIDENCE_TIMEOUT_SECONDS` |
 | OpenAI Research Fit | `OPENAI_API_KEY`, `OPENAI_RESEARCH_FIT_MODEL`, `OPENAI_RESEARCH_FIT_TIMEOUT_SECONDS` |
+| Nebius independent review | `NEBIUS_API_KEY`, `NEBIUS_REVIEW_MODEL`, `NEBIUS_ENDPOINT`, `NEBIUS_REVIEW_TIMEOUT_SECONDS` |
 | You.com search | `YDC_API_KEY`, `YOU_SEARCH_ENDPOINT`, `YOU_SEARCH_TIMEOUT_SECONDS`, `YOU_SEARCH_RESULT_COUNT` |
 | Tavily search | `TAVILY_API_KEY`, `TAVILY_SEARCH_TIMEOUT_SECONDS`, `TAVILY_SEARCH_RESULT_COUNT` |
 | Tavily Extract | `TAVILY_API_KEY`, `TAVILY_EXTRACT_PROVIDER_TIMEOUT_SECONDS`, `TAVILY_EXTRACT_REQUEST_TIMEOUT_SECONDS`, `TAVILY_EXTRACT_DEPTH`, `TAVILY_EXTRACT_MAX_CONTENT_CHARACTERS` |
@@ -550,9 +619,11 @@ flowchart LR
     AGENTS --> PLANPORT[PlanningModelPort]
     AGENTS --> EVIDENCEPORT[EvidenceVerificationModelPort]
     AGENTS --> FITPORT[ResearchFitModelPort]
+    AGENTS --> REVIEWPORT[IndependentReviewModelPort]
     PLANPORT --> OPENAI[LangChain OpenAI]
     EVIDENCEPORT --> OPENAI
     FITPORT --> OPENAI
+    REVIEWPORT --> NEBIUS[NebiusReviewModelAdapter]
     SEARCHPORT --> YOU[YouSearchAdapter and httpx]
     SEARCHPORT --> TSEARCH[TavilySearchAdapter]
     CONTENTPORT --> TEXTRACT[TavilyExtractionAdapter]
@@ -561,6 +632,7 @@ flowchart LR
     GRAPH --> LANGGRAPH[LangGraph and LangChain Core]
     OBS[LangSmith observability] --> GRAPH
     CONFIG[config] -. settings .-> OPENAI
+    CONFIG -. settings .-> NEBIUS
     CONFIG -. settings .-> YOU
     CONFIG -. settings .-> TSEARCH
     CONFIG -. settings .-> TEXTRACT
@@ -587,6 +659,8 @@ src/
 │   └── models.py
 ├── agents/
 │   ├── evidence_verification.py
+│   ├── independent_review.py
+│   ├── nebius_review.py
 │   ├── openai_evidence.py
 │   ├── openai_planning.py
 │   ├── openai_research_fit.py
@@ -615,7 +689,7 @@ Setuptools maps these physical paths onto `scholarpath.*`; no additional physica
 
 ## Operational trade-offs and NFRs
 
-| Concern | M7 control | Trade-off or remaining risk |
+| Concern | M8 control | Trade-off or remaining risk |
 |---|---|---|
 | Evidence integrity | Every direct claim has a source URL, retrieval time, conservative source kind, matching asserted name, and checked excerpt; IDs hash all semantic fields | Textual grounding proves presence and subject binding, not that a page itself is truthful |
 | Availability safety | Only explicit typed accepting or not-accepting statements are retained; absence stays `not_stated` | Institutional pages may be stale, so freshness policy remains limited |
@@ -624,18 +698,19 @@ Setuptools maps these physical paths onto `scholarpath.*`; no additional physica
 | Security | Deferred secrets, public-URL checks, sanitized errors, bounded content, hidden trace inputs/outputs | Institution pages and model inputs still leave the application boundary and require governance review |
 | Privacy | Full page content is transient and excluded from state and trace metadata | Concise evidence excerpts remain persisted because they are required provenance |
 | Latency | Sequential known-URL extraction with explicit deadlines | Worst-case latency grows with the number of Prospective Supervisors and one alternate pass |
-| Cost | Extraction, evidence, and Research Fit model calls are bounded per processed Supervisor | M7 has no cross-run cache, batching, or provider budget accounting |
+| Cost | Extraction, evidence, Research Fit, and independent-review model calls are bounded per processed Supervisor | M8 has no cross-run cache, batching, or provider budget accounting |
 | Scalability | Provider ports support fakes and later alternative adapters | Current synchronous orchestration and sequential calls defer concurrency and backpressure |
-| Determinism | IDs, grounding, sufficiency, routing, arithmetic, score bounds, confidence caps, and shortlist ranking use Python | Evidence wording and semantic alignment remain model-variable |
+| Determinism | IDs, grounding, sufficiency, routing, arithmetic, review reconciliation, confidence degradation, and shortlist ranking use Python | Evidence wording, semantic alignment, and reviewer recommendations remain model-variable |
 | Research Fit integrity | Every positive component cites suitable direct evidence; availability is excluded; Python owns the total | Rubric calibration and model consistency still need empirical evaluation |
-| Observability | M7 graph, prompt, and rubric versions are traceable with safe metadata | Evaluation datasets, quality dashboards, and alerts remain deferred |
+| Independent review | Closed evidence input, strict result schema, valid-ID reconciliation, immutable initial assessment, and safe per-record failure | Reviewer calibration and disagreement metrics still need empirical evaluation |
+| Observability | M8 graph, prompt, and rubric versions are traceable with safe metadata | Evaluation datasets, quality dashboards, and alerts remain deferred |
 | Termination | Search, evidence, and review loops use validated finite budgets | LangGraph recursion limit remains defense-in-depth, not the primary termination rule |
 
 The synchronous Tavily adapters currently bridge the provider's async invocation with
 `asyncio.run()`. An async port is deferred before embedding ScholarPath inside an
 already-running event-loop runtime.
 
-## M7 quality boundaries
+## M8 quality boundaries
 
 | Concern | Control |
 |---|---|
@@ -651,10 +726,12 @@ already-running event-loop runtime.
 | Conflicts | Both affiliation claims and cross-referenced evidence IDs are preserved |
 | Retry | One deterministic alternate official-source search and extraction pass |
 | Network isolation | Default tests use fixed pages and fakes; `live` is excluded by default |
-| Observability | `graph-version:m7`, prompt and rubric versions, allowlisted metadata, hidden inputs and outputs |
+| Observability | `graph-version:m8`, prompt and rubric versions, allowlisted metadata, hidden inputs and outputs |
 | Human authority | Candidate approval remains mandatory before Shortlisted status |
 | Research Fit | Injected typed model port proposes evidence-cited components; Python validates, totals, and bounds them |
-| Proposal synthesis | Verified-only, deterministic score/confidence/name ordering, maximum five, and no lifecycle promotion before approval |
+| Independent review | Nebius behind an injected typed port; no tools or browsing; Python validates references and reconciles outcomes |
+| Failure handling | Provider, timeout, malformed-output, and invalid-reference outcomes preserve the original score, lower confidence, and continue |
+| Proposal synthesis | Verified-only, deterministic effective-score/confidence/name ordering, maximum five, and no lifecycle promotion before approval |
 
 ## Runtime and verification commands
 
@@ -673,11 +750,11 @@ mypy src tests
 pytest -m "not live"
 ```
 
-The production CLI path now requires the planning and discovery credentials and, when
-evidence processing begins, the evidence boundaries:
+The production CLI path now requires the planning, discovery, evidence, Research Fit,
+and independent-review credentials:
 
 ```bash
-# Set OPENAI_API_KEY, YDC_API_KEY, and TAVILY_API_KEY in ignored .env first.
+# Set OPENAI_API_KEY, NEBIUS_API_KEY, YDC_API_KEY, and TAVILY_API_KEY in ignored .env first.
 python -m scholarpath.cli
 ```
 
@@ -689,6 +766,9 @@ pytest -o addopts='' -q -m live tests/integration/test_openai_planning_live.py
 
 SCHOLARPATH_RUN_LIVE_TESTS=true \
 pytest -o addopts='' -q -m live tests/integration/test_openai_research_fit_live.py
+
+SCHOLARPATH_RUN_LIVE_TESTS=true \
+pytest -o addopts='' -q -m live tests/integration/test_nebius_review_live.py
 
 SCHOLARPATH_RUN_LIVE_TESTS=true \
 pytest -o addopts='' -q -m live tests/integration/test_you_search_live.py
@@ -706,10 +786,9 @@ The Tavily extraction smoke test retrieves one bounded public documentation page
 asserts normalized non-empty content, HTTPS provenance, the content cap, and an aware
 retrieval timestamp. Default test runs skip every live test and make no network call.
 
-## Deferred beyond M7
+## Deferred beyond M8
 
 - Empirical Research Fit rubric calibration and model-consistency evaluation
-- Independent evidence and fit review through Nebius
 - Multi-source freshness and source-authority weighting beyond one alternate page
 - Deterministic conflict adjudication with an explicit policy and Candidate visibility
 - Concurrent or batched extraction, caching, quotas, rate limiting, and circuit breakers

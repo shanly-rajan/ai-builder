@@ -77,9 +77,16 @@ def test_observability_adds_environment_and_graph_version_without_secrets() -> N
         "prompt_version": "research-fit-evaluation-v1",
         "rubric_version": "research-fit-rubric-v1",
     }
+    independent_review_metadata = observability.independent_review_node_metadata
+    assert independent_review_metadata == {
+        **observability.graph_metadata,
+        "component": "independent_review_agent",
+        "prompt_version": "independent-review-v1",
+    }
     assert raw_api_key not in json.dumps(observability.planning_node_metadata)
     assert raw_api_key not in json.dumps(observability.evidence_node_metadata)
     assert raw_api_key not in json.dumps(research_fit_metadata)
+    assert raw_api_key not in json.dumps(independent_review_metadata)
 
 
 def test_planning_node_receives_only_the_sanitized_observability_metadata() -> None:
@@ -101,6 +108,9 @@ def test_planning_node_receives_only_the_sanitized_observability_metadata() -> N
     )
     assert graph.nodes["evaluate_research_fit"].metadata == (
         observability.research_fit_node_metadata("research-fit-rubric-v1")
+    )
+    assert graph.nodes["review_fit_assessments"].metadata == (
+        observability.independent_review_node_metadata
     )
 
 

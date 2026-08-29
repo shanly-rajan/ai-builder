@@ -34,6 +34,7 @@ from scholarpath.tools import (
 from tests.fakes import (
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
+    FakeIndependentReviewModel,
     FakePlanningModel,
     FakeResearchFitModel,
     FakeSupervisorSearch,
@@ -88,6 +89,7 @@ def _run(
         content_extractor=content_extractor or FakeContentExtraction(),
         evidence_model=evidence_model or FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
+        independent_review_model=FakeIndependentReviewModel(),
         alternate_evidence_search=alternate_search or FakeSupervisorSearch(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,

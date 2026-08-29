@@ -38,10 +38,21 @@ from ..agents import (
     SupervisorDiscoveryAgent,
     deduplicate_prospective_supervisors,
 )
+from ..agents.independent_review import (
+    IndependentReviewAgent,
+    IndependentReviewInput,
+    IndependentReviewModelInvocationError,
+    IndependentReviewModelPort,
+    IndependentReviewPolicy,
+    IndependentReviewResult,
+)
+from ..agents.nebius_review import NebiusReviewModelAdapter
+from ..agents.prompts import INDEPENDENT_REVIEW_PROMPT_VERSION
 from ..config import (
     ApplicationSettings,
     DiscoveryFailureMode,
     LangSmithSettings,
+    NebiusReviewSettings,
     OpenAIEvidenceSettings,
     OpenAIPlanningSettings,
     OpenAIResearchFitSettings,
@@ -50,6 +61,7 @@ from ..config import (
     TavilySearchSettings,
     YouSearchSettings,
     load_langsmith_settings,
+    load_nebius_review_settings,
     load_openai_evidence_settings,
     load_openai_planning_settings,
     load_openai_research_fit_settings,
@@ -62,6 +74,7 @@ from ..domain import (
     CandidatePreferenceRevision,
     CandidateReviewAction,
     CandidateReviewDecision,
+    IndependentReviewStatus,
     ProspectiveSupervisor,
     ResearchFitRubric,
     SearchPlan,
@@ -70,7 +83,6 @@ from ..domain import (
     VerificationStatus,
     apply_candidate_review,
     create_supervisor_shortlist,
-    validate_research_fit_evidence,
 )
 from ..observability import LangSmithObservability
 from ..tools import (
@@ -204,6 +216,9 @@ class GraphFixtureConfig:
     )
     verification_policy: VerificationPolicy = field(default_factory=VerificationPolicy)
     research_fit_rubric: ResearchFitRubric = field(default_factory=ResearchFitRubric)
+    independent_review_policy: IndependentReviewPolicy = field(
+        default_factory=IndependentReviewPolicy
+    )
     shortlist_size: int = REQUIRED_SHORTLIST_SIZE
     max_review_retries: int = 1
 
@@ -242,6 +257,7 @@ class DeterministicScholarPathNodes:
         content_extractor: ContentExtractionPort | None = None,
         evidence_model: EvidenceVerificationModelPort | None = None,
         research_fit_model: ResearchFitModelPort | None = None,
+        independent_review_model: IndependentReviewModelPort | None = None,
         alternate_evidence_search: SupervisorSearchPort | None = None,
         utc_clock: UtcClockPort | None = None,
     ) -> None:
@@ -259,6 +275,12 @@ class DeterministicScholarPathNodes:
         if research_fit_model is None:
             raise ValueError("Research Fit evaluation requires an injected model port")
         self.research_fit_agent = ResearchFitEvaluationAgent(research_fit_model)
+        if independent_review_model is None:
+            raise ValueError("Independent review requires an injected model port")
+        self.independent_review_agent = IndependentReviewAgent(
+            independent_review_model,
+            policy=config.independent_review_policy,
+        )
         self.shortlist_agent = ShortlistSynthesisAgent(max_results=config.shortlist_size)
 
     @staticmethod
@@ -341,6 +363,9 @@ class DeterministicScholarPathNodes:
             "verified_supervisors": [],
             "verification_records": [],
             "alternate_evidence_sources": {},
+            "research_fit_assessments": [],
+            "research_fit_review_records": [],
+            "proposed_shortlist": None,
             "retry_counts": self._retry_counts(state, "evidence", 0),
             "execution_log": [PLAN_SUPERVISOR_SEARCHES],
         }
@@ -1060,16 +1085,52 @@ class DeterministicScholarPathNodes:
         return update
 
     def review_fit_assessments(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Recheck every assessment against its Verified Supervisor evidence."""
+        """Independently review each assessment without mutating its M7 score contract."""
         supervisors_by_id = {
             supervisor.supervisor_id: supervisor for supervisor in state["verified_supervisors"]
         }
+        records = []
+        errors: list[ToolErrorRecord] = []
         for assessment in state["research_fit_assessments"]:
-            validate_research_fit_evidence(supervisors_by_id[assessment.supervisor_id], assessment)
-        return {
-            "research_fit_assessments": list(state["research_fit_assessments"]),
+            supervisor = supervisors_by_id.get(assessment.supervisor_id)
+            if supervisor is None:
+                errors.append(
+                    self._error(
+                        REVIEW_FIT_ASSESSMENTS,
+                        "independent_review_supervisor_missing",
+                        "Independent review could not match an assessment to a Verified "
+                        "Supervisor.",
+                        recoverable=True,
+                    )
+                )
+                continue
+            record = self.independent_review_agent.review(
+                state["candidate_profile"],
+                supervisor,
+                assessment,
+            )
+            records.append(record)
+            if record.review_status is IndependentReviewStatus.UNAVAILABLE:
+                failure_kind = (
+                    record.failure_kind.value if record.failure_kind is not None else "unavailable"
+                )
+                errors.append(
+                    self._error(
+                        REVIEW_FIT_ASSESSMENTS,
+                        f"independent_review_{failure_kind}",
+                        "Independent Research Fit review was unavailable; the original "
+                        "assessment was preserved with reduced confidence.",
+                        recoverable=True,
+                    )
+                )
+
+        update: ScholarPathStateUpdate = {
+            "research_fit_review_records": records,
             "execution_log": [REVIEW_FIT_ASSESSMENTS],
         }
+        if errors:
+            update["tool_errors"] = errors
+        return update
 
     def synthesize_supervisor_shortlist(self, state: ScholarPathState) -> ScholarPathStateUpdate:
         """Create a deterministic, evidence-explained proposal for Candidate review."""
@@ -1079,6 +1140,7 @@ class DeterministicScholarPathNodes:
                 state["verified_supervisors"],
                 state["research_fit_assessments"],
                 _validated_utc_timestamp(self.utc_clock),
+                state["research_fit_review_records"],
             )
         except ValueError:
             return {
@@ -1301,6 +1363,14 @@ class _UnconfiguredResearchFitModel:
         raise ResearchFitModelInvocationError("No Research Fit model was injected.")
 
 
+class _UnconfiguredIndependentReviewModel:
+    """Fail safely if a topology-only graph reaches independent review."""
+
+    def review(self, review_input: IndependentReviewInput) -> IndependentReviewResult:
+        del review_input
+        raise IndependentReviewModelInvocationError("No independent-review model was injected.")
+
+
 class _LazyTavilySearch:
     """Defer Tavily credential validation until the fallback is actually routed."""
 
@@ -1390,6 +1460,25 @@ class _LazyOpenAIResearchFitModel:
         return self._adapter.evaluate(fit_input, rubric)
 
 
+class _LazyNebiusReviewModel:
+    """Defer Nebius credential validation until an assessment is reviewed."""
+
+    def __init__(self, settings: NebiusReviewSettings) -> None:
+        self._settings = settings
+        self._adapter: NebiusReviewModelAdapter | None = None
+
+    def review(self, review_input: IndependentReviewInput) -> IndependentReviewResult:
+        if self._adapter is None:
+            try:
+                configuration = self._settings.for_review_model()
+            except ProviderConfigurationError:
+                raise IndependentReviewModelInvocationError(
+                    "Nebius independent-review credentials are not configured."
+                ) from None
+            self._adapter = NebiusReviewModelAdapter(configuration)
+        return self._adapter.review(review_input)
+
+
 def _with_failure_injection(
     port: SupervisorSearchPort,
     provider: SearchProvider,
@@ -1410,6 +1499,7 @@ def build_scholarpath_graph(
     content_extractor: ContentExtractionPort | None = None,
     evidence_model: EvidenceVerificationModelPort | None = None,
     research_fit_model: ResearchFitModelPort | None = None,
+    independent_review_model: IndependentReviewModelPort | None = None,
     alternate_evidence_search: SupervisorSearchPort | None = None,
     observability: LangSmithObservability | None = None,
     utc_clock: UtcClockPort | None = None,
@@ -1422,6 +1512,9 @@ def build_scholarpath_graph(
     resolved_content_extractor = content_extractor or _UnconfiguredContentExtraction()
     resolved_evidence_model = evidence_model or _UnconfiguredEvidenceModel()
     resolved_research_fit_model = research_fit_model or _UnconfiguredResearchFitModel()
+    resolved_independent_review_model = (
+        independent_review_model or _UnconfiguredIndependentReviewModel()
+    )
     resolved_alternate_search = alternate_evidence_search or resolved_tavily_search
     nodes = DeterministicScholarPathNodes(
         resolved_config,
@@ -1431,6 +1524,7 @@ def build_scholarpath_graph(
         resolved_content_extractor,
         resolved_evidence_model,
         resolved_research_fit_model,
+        resolved_independent_review_model,
         resolved_alternate_search,
         utc_clock,
     )
@@ -1483,7 +1577,18 @@ def build_scholarpath_graph(
             }
         ),
     )
-    builder.add_node(REVIEW_FIT_ASSESSMENTS, nodes.review_fit_assessments)
+    builder.add_node(
+        REVIEW_FIT_ASSESSMENTS,
+        nodes.review_fit_assessments,
+        metadata=(
+            observability.independent_review_node_metadata
+            if observability is not None
+            else {
+                "component": "independent_review_agent",
+                "prompt_version": INDEPENDENT_REVIEW_PROMPT_VERSION,
+            }
+        ),
+    )
     builder.add_node(SYNTHESIZE_SUPERVISOR_SHORTLIST, nodes.synthesize_supervisor_shortlist)
     builder.add_node(CANDIDATE_REVIEW_GATE_STUB, nodes.candidate_review_gate_stub)
     builder.add_node(SAVE_SHORTLISTED_SUPERVISORS, nodes.save_shortlisted_supervisors)
@@ -1526,7 +1631,7 @@ def build_scholarpath_graph(
     )
     builder.add_edge(SAVE_SHORTLISTED_SUPERVISORS, GENERATE_SHORTLIST_BRIEFING)
     builder.add_edge(GENERATE_SHORTLIST_BRIEFING, END)
-    return builder.compile(name="ScholarPath M7 Research Fit evaluation graph")
+    return builder.compile(name="ScholarPath M8 independent Research Fit review graph")
 
 
 def run_scholarpath_graph(
@@ -1538,6 +1643,7 @@ def run_scholarpath_graph(
     content_extractor: ContentExtractionPort | None = None,
     evidence_model: EvidenceVerificationModelPort | None = None,
     research_fit_model: ResearchFitModelPort | None = None,
+    independent_review_model: IndependentReviewModelPort | None = None,
     alternate_evidence_search: SupervisorSearchPort | None = None,
     application_settings: ApplicationSettings | None = None,
     openai_settings: OpenAIPlanningSettings | None = None,
@@ -1546,6 +1652,7 @@ def run_scholarpath_graph(
     tavily_extraction_settings: TavilyExtractionSettings | None = None,
     openai_evidence_settings: OpenAIEvidenceSettings | None = None,
     openai_research_fit_settings: OpenAIResearchFitSettings | None = None,
+    nebius_review_settings: NebiusReviewSettings | None = None,
     langsmith_settings: LangSmithSettings | None = None,
     utc_clock: UtcClockPort | None = None,
 ) -> ScholarPathState:
@@ -1586,6 +1693,10 @@ def run_scholarpath_graph(
             openai_research_fit_settings or load_openai_research_fit_settings()
         )
         resolved_research_fit_model = _LazyOpenAIResearchFitModel(resolved_research_fit_settings)
+    resolved_independent_review_model = independent_review_model
+    if resolved_independent_review_model is None:
+        resolved_nebius_review_settings = nebius_review_settings or load_nebius_review_settings()
+        resolved_independent_review_model = _LazyNebiusReviewModel(resolved_nebius_review_settings)
     resolved_supervisor_search = _with_failure_injection(
         resolved_supervisor_search,
         SearchProvider.YOU,
@@ -1605,6 +1716,7 @@ def run_scholarpath_graph(
         content_extractor=resolved_content_extractor,
         evidence_model=resolved_evidence_model,
         research_fit_model=resolved_research_fit_model,
+        independent_review_model=resolved_independent_review_model,
         alternate_evidence_search=resolved_alternate_evidence_search,
         observability=observability,
         utc_clock=utc_clock,

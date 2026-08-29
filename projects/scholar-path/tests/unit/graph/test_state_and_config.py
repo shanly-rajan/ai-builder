@@ -37,6 +37,7 @@ from scholarpath.graph.workflow import DeterministicScholarPathNodes
 from tests.fakes import (
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
+    FakeIndependentReviewModel,
     FakePlanningModel,
     FakeResearchFitModel,
     FakeSupervisorSearch,
@@ -68,6 +69,7 @@ def _run_graph(config: GraphFixtureConfig | None = None) -> ScholarPathState:
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
+        independent_review_model=FakeIndependentReviewModel(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=DiscoveryFailureMode.OFF,
@@ -120,6 +122,7 @@ def test_initial_state_populates_every_channel_with_safe_defaults() -> None:
     assert state["proposed_shortlist"] is None
     assert state["search_attempts"] == []
     assert state["verification_records"] == []
+    assert state["research_fit_review_records"] == []
     assert state["evidence_extraction_attempts"] == []
     assert state["alternate_evidence_sources"] == {}
     assert state["fallback_search_used"] is False
@@ -184,6 +187,7 @@ def test_planning_without_loaded_preferences_uses_candidate_profile_regions() ->
         ResearchPlanningAgent(planning_model),
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
+        independent_review_model=FakeIndependentReviewModel(),
     )
     state = create_initial_state(config.fixtures.candidate_profile)
 
@@ -251,6 +255,7 @@ def test_briefing_node_rejects_missing_shortlist() -> None:
         ResearchPlanningAgent(FakePlanningModel()),
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
+        independent_review_model=FakeIndependentReviewModel(),
     )
     state = create_initial_state(config.fixtures.candidate_profile)
 

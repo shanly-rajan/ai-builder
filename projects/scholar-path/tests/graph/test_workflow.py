@@ -34,6 +34,7 @@ from scholarpath.tools import SearchErrorCategory, SearchProvider, SearchProvide
 from tests.fakes import (
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
+    FakeIndependentReviewModel,
     FakePlanningModel,
     FakeResearchFitModel,
     FakeSupervisorSearch,
@@ -82,6 +83,7 @@ def _run_graph(
         content_extractor=content_extractor or FakeContentExtraction(),
         evidence_model=evidence_model or FakeEvidenceVerificationModel(),
         research_fit_model=research_fit_model or FakeResearchFitModel(),
+        independent_review_model=FakeIndependentReviewModel(),
         alternate_evidence_search=alternate_evidence_search,
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
@@ -215,6 +217,9 @@ def test_request_more_records_preferences_and_returns_to_search_planning() -> No
     assert final_state["rejected_supervisors"] == []
     assert final_state["review_status"] is ReviewStatus.COMPLETED
     assert len({item.supervisor_id for item in final_state["shortlisted_supervisors"]}) == 5
+    assert len(final_state["research_fit_review_records"]) == len(
+        final_state["research_fit_assessments"]
+    )
 
 
 @pytest.mark.parametrize(

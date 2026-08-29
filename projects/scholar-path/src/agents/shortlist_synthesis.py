@@ -10,8 +10,10 @@ from fractions import Fraction
 
 from ..domain import (
     EvidenceConfidence,
+    IndependentReviewStatus,
     ProposedSupervisorRecommendation,
     ProposedSupervisorShortlist,
+    ReconciledResearchFitAssessment,
     ResearchFitAssessment,
     ResearchFitComponentAssessment,
     SupervisorLifecycleStatus,
@@ -81,12 +83,27 @@ def _components(
     )
 
 
-def _strengths(assessment: ResearchFitAssessment) -> tuple[str, ...]:
-    """Select up to three strongest rationales by percentage of configured weight."""
+def _strengths(
+    assessment: ResearchFitAssessment,
+    independent_review: ReconciledResearchFitAssessment | None = None,
+) -> tuple[str, ...]:
+    """Select strong rationales only when review retained all of their citations."""
+    if (
+        independent_review is not None
+        and independent_review.review_status is IndependentReviewStatus.REVISED
+        and independent_review.requires_candidate_attention
+    ):
+        return (
+            "Independent review requires Candidate attention before relying on the "
+            "initial Research Fit strengths.",
+        )
+    unsupported_ids = (
+        set(independent_review.unsupported_claim_ids) if independent_review is not None else set()
+    )
     scored = [
         (Fraction(component.score, weight), position, component.rationale)
         for position, weight, component in _components(assessment)
-        if component.score > 0
+        if component.score > 0 and unsupported_ids.isdisjoint(component.supporting_evidence_ids)
     ]
     scored.sort(key=lambda item: (-item[0], item[1]))
     strengths = _unique_text(item[2] for item in scored)
@@ -98,6 +115,7 @@ def _strengths(assessment: ResearchFitAssessment) -> tuple[str, ...]:
 def _concerns(
     supervisor: VerifiedSupervisor,
     assessment: ResearchFitAssessment,
+    independent_review: ReconciledResearchFitAssessment | None = None,
 ) -> tuple[str, ...]:
     """Combine recorded concerns and evidence gaps without changing availability."""
     evidence_gaps = (
@@ -105,11 +123,24 @@ def _concerns(
         for _, _, component in _components(assessment)
         if component.evidence_gap is not None
     )
+    review_concerns: tuple[str, ...] = ()
+    if independent_review is not None and (
+        independent_review.review_status is IndependentReviewStatus.UNAVAILABLE
+        or independent_review.requires_candidate_attention
+        or bool(independent_review.unsupported_claim_ids)
+    ):
+        attention = (
+            ("Independent review requires Candidate attention.",)
+            if independent_review.requires_candidate_attention
+            else ()
+        )
+        review_concerns = (independent_review.critique, *attention)
     return _unique_text(
         (
             *assessment.concerns,
             *evidence_gaps,
             *supervisor.verification_concerns,
+            *review_concerns,
         )
     )
 
@@ -130,6 +161,7 @@ class ShortlistSynthesisAgent:
         verified_supervisors: Iterable[VerifiedSupervisor],
         assessments: Iterable[ResearchFitAssessment],
         generated_at: datetime,
+        independent_reviews: Iterable[ReconciledResearchFitAssessment] = (),
     ) -> ProposedSupervisorShortlist:
         """Build a stable proposal without moving any Supervisor through the lifecycle."""
         supervisors_by_id: dict[str, VerifiedSupervisor] = {}
@@ -146,15 +178,32 @@ class ShortlistSynthesisAgent:
                 raise ValueError("Research Fit assessment Supervisor identifiers must be unique")
             assessments_by_id[assessment.supervisor_id] = assessment
 
+        reviews_by_id: dict[str, ReconciledResearchFitAssessment] = {}
+        for review in independent_reviews:
+            if review.supervisor_id in reviews_by_id:
+                raise ValueError("Independent-review Supervisor identifiers must be unique")
+            reviewed_assessment = assessments_by_id.get(review.supervisor_id)
+            if reviewed_assessment is None or review.initial_assessment != reviewed_assessment:
+                raise ValueError(
+                    "Every independent review must match its initial Research Fit assessment"
+                )
+            reviews_by_id[review.supervisor_id] = review
+
         ranked_pairs = [
-            (supervisor, assessments_by_id[supervisor_id])
+            (
+                supervisor,
+                assessments_by_id[supervisor_id],
+                reviews_by_id.get(supervisor_id),
+            )
             for supervisor_id, supervisor in supervisors_by_id.items()
             if supervisor_id in assessments_by_id
         ]
         ranked_pairs.sort(
             key=lambda item: (
-                -item[1].overall_score,
-                -_CONFIDENCE_RANK[item[1].confidence],
+                -(item[2].effective_score if item[2] is not None else item[1].overall_score),
+                -_CONFIDENCE_RANK[
+                    item[2].effective_confidence if item[2] is not None else item[1].confidence
+                ],
                 _normalized_supervisor_name(item[0].full_name),
                 item[0].supervisor_id,
             )
@@ -171,12 +220,20 @@ class ShortlistSynthesisAgent:
                 rank=rank,
                 supervisor=supervisor,
                 assessment=assessment,
-                strengths=_strengths(assessment),
-                concerns=_concerns(supervisor, assessment),
+                strengths=_strengths(assessment, independent_review),
+                concerns=_concerns(supervisor, assessment, independent_review),
                 availability_status=supervisor.availability_status,
-                evidence_confidence=assessment.confidence,
+                evidence_confidence=(
+                    independent_review.effective_confidence
+                    if independent_review is not None
+                    else assessment.confidence
+                ),
+                independent_review=independent_review,
             )
-            for rank, (supervisor, assessment) in enumerate(selected, start=1)
+            for rank, (supervisor, assessment, independent_review) in enumerate(selected, start=1)
+        )
+        score_label = (
+            "independently reconciled Research Fit Score" if reviews_by_id else "Research Fit Score"
         )
         return ProposedSupervisorShortlist(
             candidate_id=candidate_id,
@@ -184,7 +241,8 @@ class ShortlistSynthesisAgent:
             generated_at=generated_at,
             summary=(
                 f"Proposed {len(recommendations)} evidence-backed Supervisor "
-                "recommendation(s), ranked by Research Fit Score, evidence confidence, "
+                f"recommendation(s), ranked by {score_label}, "
+                "evidence confidence, "
                 "and normalized name. Candidate approval is required before lifecycle change."
             ),
         )

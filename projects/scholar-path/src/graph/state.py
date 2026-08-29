@@ -11,6 +11,7 @@ from ..domain import (
     CandidateReviewDecision,
     ProposedSupervisorShortlist,
     ProspectiveSupervisor,
+    ReconciledResearchFitAssessment,
     ResearchFitAssessment,
     SearchPlan,
     SupervisorDiscoveryProvenance,
@@ -117,6 +118,7 @@ class ScholarPathState(TypedDict):
     evidence_extraction_attempts: Annotated[list[EvidenceExtractionAttempt], append_items]
     alternate_evidence_sources: dict[str, EvidenceSourceReference]
     research_fit_assessments: list[ResearchFitAssessment]
+    research_fit_review_records: list[ReconciledResearchFitAssessment]
     proposed_shortlist: ProposedSupervisorShortlist | None
     shortlisted_supervisors: list[VerifiedSupervisor]
     rejected_supervisors: Annotated[list[VerifiedSupervisor], merge_supervisors_by_id]
@@ -146,6 +148,7 @@ class ScholarPathStateUpdate(TypedDict, total=False):
     evidence_extraction_attempts: list[EvidenceExtractionAttempt]
     alternate_evidence_sources: dict[str, EvidenceSourceReference]
     research_fit_assessments: list[ResearchFitAssessment]
+    research_fit_review_records: list[ReconciledResearchFitAssessment]
     proposed_shortlist: ProposedSupervisorShortlist | None
     shortlisted_supervisors: list[VerifiedSupervisor]
     rejected_supervisors: list[VerifiedSupervisor]
@@ -175,6 +178,7 @@ def create_initial_state(candidate_profile: CandidateProfile) -> ScholarPathStat
         evidence_extraction_attempts=[],
         alternate_evidence_sources={},
         research_fit_assessments=[],
+        research_fit_review_records=[],
         proposed_shortlist=None,
         shortlisted_supervisors=[],
         rejected_supervisors=[],

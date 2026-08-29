@@ -11,12 +11,26 @@ from .evidence_verification import (
     StructuredEvidenceExtractionResult,
     deterministic_evidence_id,
 )
+from .independent_review import (
+    IndependentReviewAgent,
+    IndependentReviewInput,
+    IndependentReviewModelError,
+    IndependentReviewModelInvocationError,
+    IndependentReviewModelOutputError,
+    IndependentReviewModelPort,
+    IndependentReviewPolicy,
+    IndependentReviewResult,
+    reconcile_research_fit_assessment,
+)
+from .nebius_review import NebiusReviewModelAdapter
 from .openai_evidence import OpenAIEvidenceVerificationModelAdapter
 from .openai_planning import OpenAIPlanningModelAdapter
 from .openai_research_fit import OpenAIResearchFitAdapter
 from .prompts import (
     EVIDENCE_VERIFICATION_PROMPT_VERSION,
     EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V1,
+    INDEPENDENT_REVIEW_PROMPT_VERSION,
+    INDEPENDENT_REVIEW_SYSTEM_PROMPT_V1,
     RESEARCH_FIT_PROMPT_VERSION,
     RESEARCH_FIT_SYSTEM_PROMPT_V1,
     RESEARCH_PLANNING_PROMPT_VERSION,
@@ -69,6 +83,17 @@ __all__ = [
     "EvidenceModelOutputError",
     "EvidenceVerificationAgent",
     "EvidenceVerificationModelPort",
+    "INDEPENDENT_REVIEW_PROMPT_VERSION",
+    "INDEPENDENT_REVIEW_SYSTEM_PROMPT_V1",
+    "IndependentReviewAgent",
+    "IndependentReviewInput",
+    "IndependentReviewModelError",
+    "IndependentReviewModelInvocationError",
+    "IndependentReviewModelOutputError",
+    "IndependentReviewModelPort",
+    "IndependentReviewPolicy",
+    "IndependentReviewResult",
+    "NebiusReviewModelAdapter",
     "OpenAIPlanningModelAdapter",
     "OpenAIResearchFitAdapter",
     "OpenAIEvidenceVerificationModelAdapter",
@@ -106,4 +131,5 @@ __all__ = [
     "deduplicate_prospective_supervisors",
     "deterministic_supervisor_id",
     "deterministic_evidence_id",
+    "reconcile_research_fit_assessment",
 ]

@@ -1,6 +1,7 @@
 """Command-line demonstration for the ScholarPath graph."""
 
 from .agents import EvidenceVerificationModelPort, PlanningModelPort, ResearchFitModelPort
+from .agents.independent_review import IndependentReviewModelPort
 from .config import ProviderConfigurationError
 from .graph import ReviewStatus, run_scholarpath_graph
 from .tools import ContentExtractionPort, SupervisorSearchPort
@@ -13,6 +14,7 @@ def main(
     content_extractor: ContentExtractionPort | None = None,
     evidence_model: EvidenceVerificationModelPort | None = None,
     research_fit_model: ResearchFitModelPort | None = None,
+    independent_review_model: IndependentReviewModelPort | None = None,
     alternate_evidence_search: SupervisorSearchPort | None = None,
 ) -> int:
     """Run the graph and print five Shortlisted Supervisors."""
@@ -24,6 +26,7 @@ def main(
             content_extractor=content_extractor,
             evidence_model=evidence_model,
             research_fit_model=research_fit_model,
+            independent_review_model=independent_review_model,
             alternate_evidence_search=alternate_evidence_search,
         )
     except ProviderConfigurationError as error:
@@ -38,6 +41,12 @@ def main(
         assessment.supervisor_id: assessment.overall_score
         for assessment in final_state["research_fit_assessments"]
     }
+    scores.update(
+        {
+            review.supervisor_id: review.effective_score
+            for review in final_state["research_fit_review_records"]
+        }
+    )
     print(f"ScholarPath Shortlist: {len(shortlist.shortlisted_supervisors)} Supervisors")
     for position, supervisor in enumerate(shortlist.shortlisted_supervisors, start=1):
         score = scores[supervisor.supervisor_id]

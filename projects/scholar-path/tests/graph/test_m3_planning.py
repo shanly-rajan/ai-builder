@@ -15,6 +15,7 @@ from scholarpath.graph import ReviewStatus, ScholarPathState, run_scholarpath_gr
 from tests.fakes import (
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
+    FakeIndependentReviewModel,
     FakePlanningModel,
     FakeResearchFitModel,
     FakeSupervisorSearch,
@@ -28,6 +29,7 @@ def _run_with_fake(model: FakePlanningModel) -> ScholarPathState:
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
+        independent_review_model=FakeIndependentReviewModel(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=DiscoveryFailureMode.OFF,

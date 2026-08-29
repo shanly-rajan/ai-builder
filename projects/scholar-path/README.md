@@ -14,17 +14,17 @@ any Supervisor is shortlisted or any outreach is drafted.
 
 ## Project status
 
-Milestone M7 replaces fixture Research Fit scoring and synthesis. An injected
-structured-output model proposes evidence-cited component scores; Pydantic and ordinary
-Python enforce the rubric, reject unsupported citations, calculate the total, and rank
-at most five proposed recommendations deterministically. Availability remains separate.
+Milestone M8 replaces the fixture Research Fit review node. An injected Nebius reviewer
+audits each evidence-cited M7 assessment through strict structured output; ordinary
+Python validates evidence references and creates a separate reconciled score, confidence,
+critique, and Candidate-attention flag without changing the original component arithmetic.
+Availability remains separate.
 
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
-evidence, and Research Fit nodes with fixed environment and graph-version tags,
-allowlisted metadata,
-and hidden trace inputs and outputs. The Candidate review gate remains a configured
-fixture stub rather than a user interface. Independent review, memory, Streamlit,
-and the remaining model-backed agents remain deferred.
+evidence, Research Fit, and independent-review nodes with fixed environment and
+graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. The
+Candidate review gate remains a configured fixture stub rather than a user interface.
+Memory, Streamlit, and the remaining model-backed agents remain deferred.
 
 ## M0 foundation
 
@@ -43,7 +43,8 @@ See [current architecture](docs/architecture.md), the historical
 [M4 generated graph](docs/m4-you-com-discovery-graph.mmd), the historical
 [M5 generated graph](docs/m5-resilient-discovery-graph.mmd), the historical
 [M6 generated graph](docs/m6-evidence-verification-graph.mmd), the current
-[M7 Research Fit graph](docs/m7-research-fit-graph.mmd), and
+[M7 Research Fit graph](docs/m7-research-fit-graph.mmd), the current
+[M8 independent-review graph](docs/m8-independent-review-graph.mmd), and
 [canonical terminology](docs/terminology.md) for the current boundaries.
 
 ## M1 domain contracts
@@ -78,7 +79,7 @@ verified = make_verified_supervisors()  # 6 records
 assessments = make_research_fit_assessments()  # 5 records
 ```
 
-## M2 walking skeleton, extended through M7
+## M2 walking skeleton, extended through M8
 
 ```mermaid
 flowchart TD
@@ -98,8 +99,10 @@ flowchart TD
     Evidence -->|any partial record, retry unused| Alternate[retry_alternate_evidence_source]
     Evidence -->|retry exhausted below minimum| END
     Alternate --> Extract
-    Evaluate --> Review[review_fit_assessments]
-    Review --> Synthesize[synthesize_supervisor_shortlist]
+    Evaluate --> Review[review_fit_assessments via Nebius]
+    Review -->|accepted or valid revision| Synthesize[synthesize_supervisor_shortlist]
+    Review -->|unavailable| Preserve[Preserve original and reduce confidence]
+    Preserve --> Synthesize
     Synthesize --> Gate[candidate_review_gate_stub]
     Gate -->|approve| Save[save_shortlisted_supervisors]
     Gate -->|reject or request_more| Plan
@@ -338,6 +341,45 @@ current aware UTC time and tests inject a fixed clock. The Research Fit trace me
 uses the configured rubric's version rather than a hard-coded label, without adding
 evidence text or Candidate identity to metadata.
 
+## M8 independent Research Fit review
+
+```mermaid
+flowchart LR
+    CP[CandidateProfile] --> IN[IndependentReviewInput]
+    VS[Verified Supervisor and EvidenceClaims] --> IN
+    IA[Initial ResearchFitAssessment] --> IN
+    IN --> PORT{{IndependentReviewModelPort}}
+    PORT --> FAKE[Fake reviewer in default tests]
+    PORT --> NEB[NebiusReviewModelAdapter]
+    FAKE --> OUT[IndependentReviewResult]
+    NEB --> OUT
+    OUT --> RULES{Deterministic reconciliation}
+    RULES -->|accept| KEEP[Preserve original assessment]
+    RULES -->|valid revise| REV[Effective reviewed score and explanation]
+    RULES -->|invalid or unavailable| SAFE[Preserve score and reduce confidence]
+    REV --> RANK[Deterministic proposal ranking]
+    KEEP --> RANK
+    SAFE --> RANK
+```
+
+The reviewer receives a closed evidence record and cannot browse, add factual evidence,
+change Candidate preferences, infer availability, estimate admission probability, or
+modify the shortlist. A valid revision may reference only existing grounded evidence
+IDs. Unsupported IDs are removed from the effective evidence view; overlooked IDs must
+already exist in the same Verified Supervisor record.
+
+`ReconciledResearchFitAssessment` overlays the immutable M7 assessment. Its effective
+score and confidence drive deterministic shortlist ordering, while the original
+five-component assessment remains available for audit. Disagreement above the configured
+threshold lowers confidence and requires Candidate attention. A timeout, malformed
+response, or invalid evidence reference records a recoverable tool error, preserves the
+original score, and lowers confidence rather than stopping the graph.
+
+The effective values reorder only the proposal awaiting review. If the Candidate
+approves those Supervisors in a different explicit order, the Candidate decision remains
+authoritative for the completed shortlist; independent review never reorders an already
+approved shortlist.
+
 ## Setup
 
 Run these commands from the repository root:
@@ -353,9 +395,9 @@ cp .env.example .env
 
 No API key is required to install the package, import `scholarpath`, render the graph,
 or run the default non-live test suite. The copied `.env` contains placeholders only
-and is ignored by Git. OpenAI and You.com keys are validated only when their respective
-adapters are instantiated. The shared Tavily key is validated only when fallback
-search or evidence extraction is actually reached.
+and is ignored by Git. OpenAI, You.com, and Nebius keys are validated only when their
+respective adapters are instantiated. The shared Tavily key is validated only when
+fallback search or evidence extraction is actually reached.
 
 Run commands from `projects/scholar-path`, because the application resolves `.env`
 relative to the current working directory. Keep the local file private:
@@ -376,6 +418,10 @@ OPENAI_EVIDENCE_MODEL=gpt-5.4-mini
 OPENAI_EVIDENCE_TIMEOUT_SECONDS=60
 OPENAI_RESEARCH_FIT_MODEL=gpt-5.4-mini
 OPENAI_RESEARCH_FIT_TIMEOUT_SECONDS=60
+NEBIUS_API_KEY=your-nebius-key
+NEBIUS_REVIEW_MODEL=Qwen/Qwen3-235B-A22B
+NEBIUS_ENDPOINT=https://api.tokenfactory.nebius.com/v1/
+NEBIUS_REVIEW_TIMEOUT_SECONDS=60
 YDC_API_KEY=your-you-com-key
 YOU_SEARCH_ENDPOINT=https://ydc-index.io/v1/search
 YOU_SEARCH_TIMEOUT_SECONDS=20
@@ -390,10 +436,10 @@ TAVILY_EXTRACT_MAX_CONTENT_CHARACTERS=50000
 SCHOLARPATH_DISCOVERY_FAILURE_MODE=off
 ```
 
-`OPENAI_API_KEY`, `YDC_API_KEY`, and `TAVILY_API_KEY` are required for a complete live
-M7 graph path: OpenAI plans searches, extracts typed evidence, and evaluates Research
-Fit; You.com performs primary discovery; and Tavily retrieves known evidence pages or
-handles search fallback.
+`OPENAI_API_KEY`, `NEBIUS_API_KEY`, `YDC_API_KEY`, and `TAVILY_API_KEY` are required for
+a complete live M8 graph path: OpenAI plans searches, extracts typed evidence, and
+evaluates Research Fit; Nebius independently reviews each assessment; You.com performs
+primary discovery; and Tavily retrieves known evidence pages or handles search fallback.
 Endpoint, model, timeout, result-count, extraction, and failure-mode values shown are
 the current non-secret defaults.
 
@@ -407,7 +453,7 @@ LANGSMITH_PROJECT=scholarpath
 
 To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_API_KEY`. `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag;
-the implementation supplies the fixed `graph-version:m7` tag. Disabling tracing does
+the implementation supplies the fixed `graph-version:m8` tag. Disabling tracing does
 not construct a LangSmith client, even if another process has globally enabled
 tracing.
 
@@ -446,16 +492,17 @@ python -m pip check
 python -c "import scholarpath; print(scholarpath.__version__)"
 ```
 
-Run the live graph path after configuring OpenAI, You.com, and Tavily:
+Run the live graph path after configuring OpenAI, Nebius, You.com, and Tavily:
 
 ```bash
 python -m scholarpath.cli
 ```
 
 It uses OpenAI for research planning, typed evidence extraction, and structured
-Research Fit component proposals; You.com handles primary discovery; and Tavily handles
-page extraction and conditional search fallback. ScholarPath validates citations,
-calculates Research Fit totals, and ranks proposals deterministically.
+Research Fit component proposals; Nebius independently reviews the evidence-bound
+assessments; You.com handles primary discovery; and Tavily handles page extraction and
+conditional search fallback. ScholarPath validates citations, calculates initial totals,
+reconciles reviews, and ranks proposals deterministically.
 The CLI prints five Shortlisted Supervisors only when a complete shortlist exists and
 otherwise reports the recoverable incomplete run.
 
@@ -463,14 +510,14 @@ To exercise the same full graph without secrets, provider calls, or network acce
 inject the test fake from the CLI:
 
 ```bash
-LANGSMITH_TRACING=false python -c 'from scholarpath.cli import main; from tests.fakes import FakeContentExtraction, FakeEvidenceVerificationModel, FakePlanningModel, FakeResearchFitModel, FakeSupervisorSearch; search=FakeSupervisorSearch(); raise SystemExit(main(FakePlanningModel(), search, search, FakeContentExtraction(), FakeEvidenceVerificationModel(), FakeResearchFitModel(), search))'
+LANGSMITH_TRACING=false python -c 'from scholarpath.cli import main; from tests.fakes import FakeContentExtraction, FakeEvidenceVerificationModel, FakeIndependentReviewModel, FakePlanningModel, FakeResearchFitModel, FakeSupervisorSearch; search=FakeSupervisorSearch(); raise SystemExit(main(planning_model=FakePlanningModel(), supervisor_search=search, tavily_search=search, content_extractor=FakeContentExtraction(), evidence_model=FakeEvidenceVerificationModel(), research_fit_model=FakeResearchFitModel(), independent_review_model=FakeIndependentReviewModel(), alternate_evidence_search=search))'
 ```
 
 To demonstrate an offline, deterministic You.com failure followed by successful
 Tavily routing, inject both fakes and enable the failure mode for one process:
 
 ```bash
-SCHOLARPATH_DISCOVERY_FAILURE_MODE=you_retryable_error LANGSMITH_TRACING=false python -c 'from scholarpath.graph import run_scholarpath_graph; from tests.fakes import FakeContentExtraction, FakeEvidenceVerificationModel, FakePlanningModel, FakeResearchFitModel, FakeSupervisorSearch; search=FakeSupervisorSearch(); state=run_scholarpath_graph(planning_model=FakePlanningModel(), supervisor_search=search, tavily_search=search, content_extractor=FakeContentExtraction(), evidence_model=FakeEvidenceVerificationModel(), research_fit_model=FakeResearchFitModel(), alternate_evidence_search=search); print("fallback_search_used:", state["fallback_search_used"]); print([(a.provider_used.value, a.attempt_number, a.error_category.value if a.error_category else None) for a in state["search_attempts"]])'
+SCHOLARPATH_DISCOVERY_FAILURE_MODE=you_retryable_error LANGSMITH_TRACING=false python -c 'from scholarpath.graph import run_scholarpath_graph; from tests.fakes import FakeContentExtraction, FakeEvidenceVerificationModel, FakeIndependentReviewModel, FakePlanningModel, FakeResearchFitModel, FakeSupervisorSearch; search=FakeSupervisorSearch(); state=run_scholarpath_graph(planning_model=FakePlanningModel(), supervisor_search=search, tavily_search=search, content_extractor=FakeContentExtraction(), evidence_model=FakeEvidenceVerificationModel(), research_fit_model=FakeResearchFitModel(), independent_review_model=FakeIndependentReviewModel(), alternate_evidence_search=search); print("fallback_search_used:", state["fallback_search_used"]); print([(a.provider_used.value, a.attempt_number, a.error_category.value if a.error_category else None) for a in state["search_attempts"]])'
 ```
 
 Use `you_timeout_once` to demonstrate a successful single retry, or
@@ -513,6 +560,16 @@ set -a
 source .env
 set +a
 LANGSMITH_TRACING=false SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_openai_research_fit_live.py
+```
+
+The optional Nebius smoke test reviews that fixed evidence record through strict
+structured output and validates the score bounds and evidence references locally:
+
+```bash
+set -a
+source .env
+set +a
+LANGSMITH_TRACING=false SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_nebius_review_live.py
 ```
 
 The optional You.com smoke test follows the same opt-in policy and performs one bounded
@@ -609,7 +666,8 @@ flowchart TD
     A[Raw Search Result] --> B[Prospective Supervisor]
     B --> C[Verified Supervisor]
     C --> D[Research Fit Evaluation]
-    D --> E{Candidate Review}
+    D --> R[Independent Research Fit Review]
+    R --> E{Candidate Review}
     E -->|Reject| F[Rejected Supervisor]
     E -->|Approve| G[Shortlisted Supervisor]
 
@@ -643,19 +701,19 @@ execute, coordinate, remember, or observe those responsibilities.
 | **OpenAI** | Current native structured-output model for research planning, page-grounded claim extraction, and evidence-cited Research Fit components; no tools or browsing. |
 | **You.com** | Current primary Supervisor discovery search through the official Web Search API. |
 | **Tavily** | Current bounded fallback search and known-page evidence extraction through official LangChain integrations. |
-| **Nebius** | Independent evidence and Research Fit review. |
+| **Nebius** | Current independent Research Fit review through the Token Factory OpenAI-compatible endpoint; no browsing or tools. |
 | **Mem0** | Candidate preference and feedback memory. |
 | **LangGraph** | Current deterministic state orchestration and future human approval flow. |
-| **LangSmith** | Current optional graph, planning, evidence, and Research Fit node tracing; evaluation datasets remain planned. |
+| **LangSmith** | Current optional graph, planning, evidence, Research Fit, and independent-review node tracing; evaluation datasets remain planned. |
 
 Streamlit is the planned Candidate-facing web interface.
 
 ## Future production evolution
 
-M7 keeps feedback capture inside `candidate_review_gate_stub` and reruns planning,
+M8 keeps feedback capture inside `candidate_review_gate_stub` and reruns planning,
 resilient discovery, verification, and Research Fit evaluation after rejection or
 `request_more`. Later milestones may split feedback persistence and search refinement
 into provider-backed responsibilities. Source freshness and authority weighting,
-independent review, trace evaluation, and data-retention policy remain deferred. Retry
+trace evaluation, and data-retention policy remain deferred. Retry
 limits, sufficiency thresholds, arithmetic, and ranking remain explicit deterministic
 configuration rather than model decisions.

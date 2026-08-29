@@ -33,6 +33,7 @@ from scholarpath.tools import (
 from tests.fakes import (
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
+    FakeIndependentReviewModel,
     FakePlanningModel,
     FakeResearchFitModel,
     FakeSupervisorSearch,
@@ -73,6 +74,7 @@ def _run(
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
+        independent_review_model=FakeIndependentReviewModel(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=failure_mode,
@@ -113,6 +115,7 @@ def test_successful_you_route_does_not_construct_or_validate_tavily(
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
+        independent_review_model=FakeIndependentReviewModel(),
         tavily_settings=TavilySearchSettings(api_key=None),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
@@ -132,6 +135,7 @@ def test_missing_tavily_key_is_typed_only_when_fallback_is_routed() -> None:
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
+        independent_review_model=FakeIndependentReviewModel(),
         tavily_settings=TavilySearchSettings(api_key=None),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
@@ -169,6 +173,7 @@ def test_lazy_tavily_adapter_is_constructed_once_and_reused(
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
+        independent_review_model=FakeIndependentReviewModel(),
         tavily_settings=TavilySearchSettings(api_key=SecretStr("not-a-real-tavily-secret")),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
@@ -426,6 +431,7 @@ def test_request_more_evaluates_duplicate_quality_within_the_new_round() -> None
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
+        independent_review_model=FakeIndependentReviewModel(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=DiscoveryFailureMode.OFF,

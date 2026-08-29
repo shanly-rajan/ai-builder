@@ -27,7 +27,8 @@ flowchart LR
     A[Raw Search Result] --> B[Prospective Supervisor]
     B --> C[Verified Supervisor]
     C --> D[Research Fit Evaluation]
-    D --> E{Candidate Review}
+    D --> R[Independent Research Fit Review]
+    R --> E{Candidate Review}
     E -->|Reject| F[Rejected Supervisor]
     E -->|Approve| G[Shortlisted Supervisor]
     E -->|Request more| C
@@ -35,7 +36,7 @@ flowchart LR
 
 Only explicit Candidate approval can create a Shortlisted Supervisor. A request for
 more information keeps the record verified while additional evidence is sought.
-The M7 preliminary proposal also keeps every included record verified; the word
+The M8 preliminary proposal also keeps every included record verified; the word
 "shortlisted" describes only the post-approval lifecycle state.
 
 ## Typed lifecycle values
@@ -96,3 +97,21 @@ points and that component remains zero with a stated gap.
 Availability is reported next to a proposed recommendation but is not a scoring
 component. The Research Fit model proposes component values; deterministic application
 code validates citations and bounds, calculates the total, and ranks recommendations.
+
+## Independent-review vocabulary
+
+| Term | Meaning |
+|---|---|
+| **Initial assessment** | The immutable M7 component assessment whose score is the deterministic component sum. |
+| **Independent review** | A closed-record Nebius audit of one initial assessment; it cannot browse or create evidence. |
+| **Reconciled assessment** | The deterministic overlay containing the effective score, explanation, evidence IDs, confidence, and review outcome. |
+| `accepted` | The reviewer accepted the assessment; the initial score, rationale, citations, and confidence are preserved. |
+| `revised` | A valid review proposed a new effective score and explanation using only evidence IDs in the same Verified Supervisor record. |
+| `unavailable` | The provider failed or the output was invalid; the initial score is preserved, confidence is lowered, and Candidate attention is required. |
+
+An unsupported claim ID is removed only from the reconciled evidence view; the initial
+assessment remains immutable for audit. An overlooked evidence ID must already be a
+directly supported, grounded, non-availability claim for that Verified Supervisor.
+Independent review never changes availability, Candidate preferences, lifecycle status,
+or shortlist membership. Its effective score remains a Research Fit decision-support
+signal and never represents admission probability.

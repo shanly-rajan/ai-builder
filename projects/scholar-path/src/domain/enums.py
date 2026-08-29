@@ -77,3 +77,26 @@ class VerificationStatus(StrEnum):
     VERIFIED = "verified"
     VERIFIED_WITH_CONCERNS = "verified_with_concerns"
     PARTIALLY_VERIFIED = "partially_verified"
+
+
+class IndependentReviewDecision(StrEnum):
+    """A model-proposed disposition for one Research Fit assessment."""
+
+    ACCEPT = "accept"
+    REVISE = "revise"
+
+
+class IndependentReviewStatus(StrEnum):
+    """The deterministic outcome of reconciling an independent review."""
+
+    ACCEPTED = "accepted"
+    REVISED = "revised"
+    UNAVAILABLE = "unavailable"
+
+
+class IndependentReviewFailureKind(StrEnum):
+    """Sanitized reasons why an independent review could not be applied."""
+
+    MODEL_INVOCATION = "model_invocation"
+    INVALID_OUTPUT = "invalid_output"
+    INVALID_EVIDENCE_REFERENCE = "invalid_evidence_reference"
