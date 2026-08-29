@@ -16,6 +16,7 @@ from ..domain import (
     SupervisorShortlist,
     VerifiedSupervisor,
 )
+from .discovery import SearchAttempt
 
 
 def append_items[T](left: list[T], right: list[T]) -> list[T]:
@@ -48,6 +49,7 @@ class ReviewStatus(StrEnum):
     REQUEST_MORE = "request_more"
     COMPLETED = "completed"
     RETRY_EXHAUSTED = "retry_exhausted"
+    DISCOVERY_INCOMPLETE = "discovery_incomplete"
 
 
 class RawSupervisorSearchResult(BaseModel):
@@ -63,17 +65,28 @@ class RawSupervisorSearchResult(BaseModel):
     discovery_source: str = Field(min_length=1)
     discovery_query: str = Field(min_length=1)
     discovery_provenance: tuple[SupervisorDiscoveryProvenance, ...] = ()
+    discovery_round: int = Field(default=1, ge=1)
 
     @classmethod
     def from_prospective_supervisor(
-        cls, supervisor: ProspectiveSupervisor
+        cls,
+        supervisor: ProspectiveSupervisor,
+        *,
+        discovery_round: int = 1,
     ) -> "RawSupervisorSearchResult":
         """Project a validated Prospective Supervisor into the append-only raw channel."""
-        return cls.model_validate(supervisor.model_dump(mode="python", exclude={"status"}))
+        return cls.model_validate(
+            {
+                **supervisor.model_dump(mode="python", exclude={"status"}),
+                "discovery_round": discovery_round,
+            }
+        )
 
     def to_prospective_supervisor(self) -> ProspectiveSupervisor:
         """Convert the raw fixture result through the domain validation boundary."""
-        return ProspectiveSupervisor.model_validate(self.model_dump(mode="python"))
+        return ProspectiveSupervisor.model_validate(
+            self.model_dump(mode="python", exclude={"discovery_round"})
+        )
 
 
 class ToolErrorRecord(BaseModel):
@@ -102,6 +115,10 @@ class ScholarPathState(TypedDict):
     rejected_supervisors: Annotated[list[VerifiedSupervisor], merge_supervisors_by_id]
     candidate_feedback: Annotated[list[CandidateReviewDecision], append_items]
     tool_errors: Annotated[list[ToolErrorRecord], append_items]
+    search_attempts: Annotated[list[SearchAttempt], append_items]
+    fallback_search_used: bool
+    fallback_search_round: int | None
+    discovery_round: int
     retry_counts: dict[str, int]
     review_status: ReviewStatus
     execution_log: Annotated[list[str], append_items]
@@ -124,6 +141,10 @@ class ScholarPathStateUpdate(TypedDict, total=False):
     rejected_supervisors: list[VerifiedSupervisor]
     candidate_feedback: list[CandidateReviewDecision]
     tool_errors: list[ToolErrorRecord]
+    search_attempts: list[SearchAttempt]
+    fallback_search_used: bool
+    fallback_search_round: int | None
+    discovery_round: int
     retry_counts: dict[str, int]
     review_status: ReviewStatus
     execution_log: list[str]
@@ -146,6 +167,10 @@ def create_initial_state(candidate_profile: CandidateProfile) -> ScholarPathStat
         rejected_supervisors=[],
         candidate_feedback=[],
         tool_errors=[],
+        search_attempts=[],
+        fallback_search_used=False,
+        fallback_search_round=None,
+        discovery_round=0,
         retry_counts={"discovery": 0, "evidence": 0, "review": 0},
         review_status=ReviewStatus.PENDING,
         execution_log=[],

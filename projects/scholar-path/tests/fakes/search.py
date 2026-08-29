@@ -31,14 +31,21 @@ def make_fake_search_outcomes() -> dict[str, tuple[SearchResult, ...]]:
 class FakeSupervisorSearch:
     """Return scripted SearchResult batches and record every exact query."""
 
-    def __init__(self, outcomes: Mapping[str, SearchOutcome] | None = None) -> None:
+    def __init__(
+        self,
+        outcomes: Mapping[str, SearchOutcome] | None = None,
+        *,
+        scripts: Mapping[str, list[SearchOutcome]] | None = None,
+    ) -> None:
         self._outcomes = dict(outcomes or make_fake_search_outcomes())
+        self._scripts = {query: list(items) for query, items in (scripts or {}).items()}
         self.calls: list[str] = []
 
     def search(self, query: str) -> tuple[SearchResult, ...]:
         """Record one query, then return or raise its configured outcome."""
         self.calls.append(query)
-        outcome = self._outcomes.get(query, ())
+        scripted = self._scripts.get(query)
+        outcome = scripted.pop(0) if scripted else self._outcomes.get(query, ())
         if isinstance(outcome, Exception):
             raise outcome
         return outcome

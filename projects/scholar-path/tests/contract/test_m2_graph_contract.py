@@ -27,6 +27,8 @@ REQUIRED_STATE_FIELDS = {
     "rejected_supervisors",
     "candidate_feedback",
     "tool_errors",
+    "search_attempts",
+    "fallback_search_used",
     "retry_counts",
     "review_status",
     "execution_log",
@@ -46,6 +48,7 @@ def test_append_only_history_channels_have_reducers() -> None:
         "rejected_supervisors",
         "candidate_feedback",
         "tool_errors",
+        "search_attempts",
         "execution_log",
     ):
         annotation = annotations[field_name]
@@ -61,7 +64,7 @@ def test_compiled_graph_contains_exactly_the_fifteen_canonical_nodes() -> None:
 
 
 def test_current_mermaid_matches_the_compiled_graph_structure() -> None:
-    saved = (PROJECT_ROOT / "docs" / "m3-research-planning-graph.mmd").read_text(encoding="utf-8")
+    saved = (PROJECT_ROOT / "docs" / "m5-resilient-discovery-graph.mmd").read_text(encoding="utf-8")
     generated = render_scholarpath_mermaid()
 
     assert saved.strip() == generated.strip()
@@ -82,9 +85,10 @@ def test_runtime_does_not_import_test_fixtures_or_deferred_integrations() -> Non
     assert "tests.fixtures" not in graph_source
     assert "langchain-core>=1.6.0,<2" in dependencies
     assert "langchain-openai>=1.6.0,<2" in dependencies
+    assert "langchain-tavily==0.2.17" in dependencies
     assert "langgraph>=1.2.11,<2" in dependencies
     assert "langsmith>=0.11.2,<1" in dependencies
-    for deferred_dependency in ("streamlit", "mem0", "tavily"):
+    for deferred_dependency in ("streamlit", "mem0"):
         assert deferred_dependency not in normalized_dependencies
 
 

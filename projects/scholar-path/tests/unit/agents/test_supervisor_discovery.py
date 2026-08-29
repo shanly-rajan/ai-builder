@@ -3,6 +3,7 @@
 import json
 
 import pytest
+from pydantic import ValidationError
 
 from scholarpath.agents import (
     SupervisorDiscoveryAgent,
@@ -78,6 +79,9 @@ def test_valid_academic_profile_becomes_a_prospective_supervisor() -> None:
 
     assert isinstance(discovery, SupervisorDiscoveryResult)
     assert len(discovery.prospective_supervisors) == 1
+    assert discovery.result_count == 1
+    assert discovery.plausible_supervisor_count == 1
+    assert discovery.duplicate_result_count == 0
     supervisor = discovery.prospective_supervisors[0]
     assert supervisor.full_name == "Dr Jane Doe"
     assert supervisor.institution == "Example University"
@@ -92,6 +96,25 @@ def test_empty_result_set_returns_an_empty_structured_output() -> None:
     discovery = SupervisorDiscoveryAgent().discover(_search_plan(), ())
 
     assert discovery == SupervisorDiscoveryResult()
+
+
+@pytest.mark.parametrize(
+    "counts",
+    [
+        {"result_count": 0, "plausible_supervisor_count": 1},
+        {
+            "result_count": 1,
+            "plausible_supervisor_count": 1,
+            "duplicate_result_count": 2,
+        },
+        {"result_count": 1, "plausible_supervisor_count": 1},
+    ],
+)
+def test_structured_discovery_output_rejects_inconsistent_quality_counts(
+    counts: dict[str, int],
+) -> None:
+    with pytest.raises(ValidationError):
+        SupervisorDiscoveryResult.model_validate(counts)
 
 
 def test_normalized_identity_and_canonical_url_duplicates_are_merged() -> None:
@@ -109,6 +132,9 @@ def test_normalized_identity_and_canonical_url_duplicates_are_merged() -> None:
     discovery = SupervisorDiscoveryAgent().discover(_search_plan(), (first, second))
 
     assert len(discovery.prospective_supervisors) == 1
+    assert discovery.result_count == 2
+    assert discovery.plausible_supervisor_count == 2
+    assert discovery.duplicate_result_count == 1
     supervisor = discovery.prospective_supervisors[0]
     assert supervisor.full_name == "Dr Jane Doe"
     assert [item.originating_query for item in supervisor.discovery_provenance] == [

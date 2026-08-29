@@ -10,7 +10,7 @@ from langsmith import Client, tracing_context
 from ..agents.prompts import RESEARCH_PLANNING_PROMPT_VERSION
 from ..config import Environment, LangSmithSettings
 
-GRAPH_VERSION: Final = "m4"
+GRAPH_VERSION: Final = "m5"
 type TraceScalar = str | int | float | bool
 SAFE_TRACE_METADATA_KEYS: Final = (
     "application",

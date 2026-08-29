@@ -6,7 +6,12 @@ import pytest
 from pydantic import ValidationError
 
 from scholarpath.agents import ResearchPlanningAgent
-from scholarpath.config import ApplicationSettings, Environment, LangSmithSettings
+from scholarpath.config import (
+    ApplicationSettings,
+    DiscoveryFailureMode,
+    Environment,
+    LangSmithSettings,
+)
 from scholarpath.domain import (
     CandidateReviewAction,
     CandidateReviewDecision,
@@ -14,6 +19,7 @@ from scholarpath.domain import (
     apply_candidate_review,
 )
 from scholarpath.graph import (
+    DiscoveryPolicy,
     GraphFixtureConfig,
     RawSupervisorSearchResult,
     ReviewStatus,
@@ -38,7 +44,10 @@ def _run_graph(config: GraphFixtureConfig | None = None) -> ScholarPathState:
         config,
         planning_model=FakePlanningModel(),
         supervisor_search=FakeSupervisorSearch(),
-        application_settings=ApplicationSettings(environment=Environment.TEST),
+        application_settings=ApplicationSettings(
+            environment=Environment.TEST,
+            discovery_failure_mode=DiscoveryFailureMode.OFF,
+        ),
         langsmith_settings=LangSmithSettings(tracing=False),
     )
 
@@ -83,6 +92,10 @@ def test_initial_state_populates_every_channel_with_safe_defaults() -> None:
     assert state["review_status"] is ReviewStatus.PENDING
     assert state["search_plan"] is None
     assert state["supervisor_shortlist"] is None
+    assert state["search_attempts"] == []
+    assert state["fallback_search_used"] is False
+    assert state["fallback_search_round"] is None
+    assert state["discovery_round"] == 0
     assert state["execution_log"] == []
 
 
@@ -94,6 +107,7 @@ def test_raw_search_result_revalidates_during_domain_conversion() -> None:
 
     assert prospective.supervisor_id == raw.supervisor_id
     assert str(prospective.profile_url) == str(raw.profile_url)
+    assert raw.discovery_round == 1
 
     with pytest.raises(ValidationError, match="profile_url"):
         RawSupervisorSearchResult.model_validate(
@@ -104,8 +118,18 @@ def test_raw_search_result_revalidates_during_domain_conversion() -> None:
 @pytest.mark.parametrize(
     ("config_factory", "message"),
     [
-        (lambda: GraphFixtureConfig(primary_discovery_count=9), "between 0 and 8"),
-        (lambda: GraphFixtureConfig(minimum_discovery_results=0), "must be at least 1"),
+        (
+            lambda: GraphFixtureConfig(
+                discovery_policy=DiscoveryPolicy(minimum_unique_supervisors=0)
+            ),
+            "greater than or equal to 1",
+        ),
+        (
+            lambda: GraphFixtureConfig(
+                discovery_policy=DiscoveryPolicy(maximum_tavily_fallback_count=101)
+            ),
+            "less than or equal to 100",
+        ),
         (
             lambda: GraphFixtureConfig(minimum_verified_supervisors=4),
             "must not be less than shortlist_size",

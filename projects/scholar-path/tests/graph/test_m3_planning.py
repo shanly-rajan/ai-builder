@@ -5,7 +5,12 @@ import json
 import pytest
 
 from scholarpath.agents import PlanningModelInvocationError, PlanningModelOutputError
-from scholarpath.config import ApplicationSettings, Environment, LangSmithSettings
+from scholarpath.config import (
+    ApplicationSettings,
+    DiscoveryFailureMode,
+    Environment,
+    LangSmithSettings,
+)
 from scholarpath.graph import ReviewStatus, ScholarPathState, run_scholarpath_graph
 from tests.fakes import FakePlanningModel, FakeSupervisorSearch
 
@@ -14,7 +19,10 @@ def _run_with_fake(model: FakePlanningModel) -> ScholarPathState:
     return run_scholarpath_graph(
         planning_model=model,
         supervisor_search=FakeSupervisorSearch(),
-        application_settings=ApplicationSettings(environment=Environment.TEST),
+        application_settings=ApplicationSettings(
+            environment=Environment.TEST,
+            discovery_failure_mode=DiscoveryFailureMode.OFF,
+        ),
         langsmith_settings=LangSmithSettings(tracing=False),
     )
 

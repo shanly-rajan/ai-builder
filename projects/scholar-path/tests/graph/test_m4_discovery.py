@@ -4,8 +4,14 @@ import json
 
 import pytest
 
-from scholarpath.config import ApplicationSettings, Environment, LangSmithSettings
+from scholarpath.config import (
+    ApplicationSettings,
+    DiscoveryFailureMode,
+    Environment,
+    LangSmithSettings,
+)
 from scholarpath.graph import (
+    DiscoveryPolicy,
     GraphFixtureConfig,
     ReviewStatus,
     ScholarPathState,
@@ -22,12 +28,17 @@ from tests.fakes import (
 def _run_with_fake(
     supervisor_search: FakeSupervisorSearch,
     config: GraphFixtureConfig | None = None,
+    tavily_search: FakeSupervisorSearch | None = None,
 ) -> ScholarPathState:
     return run_scholarpath_graph(
         config,
         planning_model=FakePlanningModel(),
         supervisor_search=supervisor_search,
-        application_settings=ApplicationSettings(environment=Environment.TEST),
+        tavily_search=tavily_search or FakeSupervisorSearch(),
+        application_settings=ApplicationSettings(
+            environment=Environment.TEST,
+            discovery_failure_mode=DiscoveryFailureMode.OFF,
+        ),
         langsmith_settings=LangSmithSettings(tracing=False),
     )
 
@@ -70,10 +81,15 @@ def test_search_failures_are_sanitized_and_stop_through_bounded_routing() -> Non
 
     final_state = _run_with_fake(
         FakeSupervisorSearch(outcomes),
-        GraphFixtureConfig(max_discovery_retries=0),
+        GraphFixtureConfig(
+            discovery_policy=DiscoveryPolicy(
+                maximum_you_retry_count=0,
+                maximum_tavily_fallback_count=0,
+            )
+        ),
     )
 
-    assert final_state["review_status"] is ReviewStatus.RETRY_EXHAUSTED
+    assert final_state["review_status"] is ReviewStatus.DISCOVERY_INCOMPLETE
     assert final_state["execution_log"] == [
         "load_candidate_preferences",
         "plan_supervisor_searches",
@@ -81,13 +97,10 @@ def test_search_failures_are_sanitized_and_stop_through_bounded_routing() -> Non
         "enough_supervisors_found",
     ]
     assert [error.code for error in final_state["tool_errors"]] == [
-        "supervisor_search_failed",
-        "supervisor_search_failed",
-        "supervisor_search_failed",
-        "supervisor_search_failed",
-        "discovery_retry_exhausted",
+        "you_search_timeout",
+        "supervisor_discovery_incomplete",
     ]
-    assert all(error.recoverable for error in final_state["tool_errors"][:-1])
+    assert all(error.recoverable for error in final_state["tool_errors"])
     serialized_errors = json.dumps(
         [error.model_dump(mode="json") for error in final_state["tool_errors"]]
     )
@@ -98,12 +111,7 @@ def test_empty_search_results_follow_existing_fallback_route() -> None:
     empty_search = FakeSupervisorSearch(
         {item.query: () for item in make_valid_planning_response().search_queries}
     )
-    config = GraphFixtureConfig(
-        primary_discovery_count=3,
-        fallback_discovery_count=5,
-    )
-
-    final_state = _run_with_fake(empty_search, config)
+    final_state = _run_with_fake(empty_search, tavily_search=FakeSupervisorSearch())
 
     assert final_state["execution_log"][:6] == [
         "load_candidate_preferences",
@@ -113,5 +121,5 @@ def test_empty_search_results_follow_existing_fallback_route() -> None:
         "fallback_supervisor_search",
         "enough_supervisors_found",
     ]
-    assert final_state["retry_counts"]["discovery"] == 1
-    assert len(final_state["prospective_supervisors"]) == 5
+    assert final_state["retry_counts"]["discovery"] == 3
+    assert len(final_state["prospective_supervisors"]) == 6

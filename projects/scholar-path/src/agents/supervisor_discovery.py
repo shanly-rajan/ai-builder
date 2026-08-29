@@ -8,7 +8,7 @@ import unicodedata
 from collections.abc import Iterable
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from ..domain import (
     ProspectiveSupervisor,
@@ -81,6 +81,21 @@ class SupervisorDiscoveryResult(BaseModel):
     )
 
     prospective_supervisors: tuple[ProspectiveSupervisor, ...] = ()
+    result_count: int = Field(default=0, ge=0)
+    plausible_supervisor_count: int = Field(default=0, ge=0)
+    duplicate_result_count: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def quality_counts_are_consistent(self) -> SupervisorDiscoveryResult:
+        """Keep every routing metric consistent with the structured collection."""
+        if self.plausible_supervisor_count > self.result_count:
+            raise ValueError("plausible_supervisor_count must not exceed result_count")
+        if self.duplicate_result_count > self.plausible_supervisor_count:
+            raise ValueError("duplicate_result_count must not exceed plausible_supervisor_count")
+        unique_count = self.plausible_supervisor_count - self.duplicate_result_count
+        if len(self.prospective_supervisors) != unique_count:
+            raise ValueError("prospective_supervisors must match the unique quality count")
+        return self
 
 
 def _normalized_identity_text(value: str, *, remove_title: bool = False) -> str:
@@ -303,8 +318,9 @@ class SupervisorDiscoveryAgent:
     ) -> SupervisorDiscoveryResult:
         """Extract typed people, reject weak identities, and merge exact provenance."""
         planned_queries = {item.query for item in search_plan.search_queries}
+        result_items = tuple(search_results)
         prospective: list[ProspectiveSupervisor] = []
-        for result in search_results:
+        for result in result_items:
             if result.originating_query not in planned_queries:
                 raise ValueError("SearchResult originating query is not present in SearchPlan")
             title_segments = tuple(
@@ -345,6 +361,10 @@ class SupervisorDiscoveryAgent:
                     discovery_provenance=(provenance,),
                 )
             )
+        unique_supervisors = deduplicate_prospective_supervisors(prospective)
         return SupervisorDiscoveryResult(
-            prospective_supervisors=deduplicate_prospective_supervisors(prospective)
+            prospective_supervisors=unique_supervisors,
+            result_count=len(result_items),
+            plausible_supervisor_count=len(prospective),
+            duplicate_result_count=len(prospective) - len(unique_supervisors),
         )

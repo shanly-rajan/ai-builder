@@ -879,3 +879,154 @@ nodes, canonical terminology, and Candidate approval control.
   and explicit HTTP-client lifecycle management before production-scale use.
 - Revisit web-first combined result capping if publication/news coverage is starved by
   a full web section.
+
+## Milestone M5: Resilient Supervisor discovery with Tavily fallback
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Make Supervisor discovery resilient by retaining You.com as the primary search
+provider, adding the current official Tavily integration as a bounded fallback, and
+routing deterministically from typed provider attempts, partial results, and explicit
+quality thresholds. Preserve all useful Prospective Supervisors across later failures,
+stop safely when providers are exhausted, and leave evidence extraction unchanged.
+
+### Prompt used
+
+[`docs/prompts/m5-resilient-supervisor-discovery.md`](prompts/m5-resilient-supervisor-discovery.md)
+
+### Files changed
+
+- Added the official `langchain-tavily==0.2.17` dependency to `pyproject.toml`; this is
+  the newest release compatible with the existing LangChain Core/OpenAI range.
+- Added deferred Tavily settings, timeout/result limits, and the default-off
+  `SCHOLARPATH_DISCOVERY_FAILURE_MODE` in `src/config.py` and `.env.example`.
+- Added provider/category-aware `SearchProviderError` contracts and preserved the M4
+  typed search-error subclasses in `src/tools/supervisor_search.py`.
+- Added the transport-only `TavilySearchAdapter` using the official
+  `langchain_tavily.TavilySearch` import and an application-enforced async deadline.
+- Added deterministic, default-off provider failure injection for local routing
+  demonstrations.
+- Added frozen `SearchAttempt`, validated `DiscoveryPolicy`, routing enums, and pure
+  `route_after_supervisor_discovery` under `src/graph/discovery.py`.
+- Extended typed graph state with append-only search attempts, discovery rounds, and
+  fallback activation fields; the existing retry-count keys remain stable.
+- Integrated one bounded You.com timeout retry, Tavily fallback, partial-success
+  retention, sanitized terminal errors, and lazy Tavily construction into the existing
+  fifteen-node graph. Evidence extraction remains fixture-backed.
+- Extended the CLI injection seam to accept separate primary and fallback fakes, and
+  updated the LangSmith graph tag to `graph-version:m5`.
+- Updated fake search scripting, configuration tests, historical milestone contracts,
+  README, architecture/NFR documentation, generated Mermaid, and this journal.
+- Added a local blank `TAVILY_API_KEY` slot and non-secret Tavily defaults to the
+  ignored `.env` without reading, printing, or changing existing secret values.
+
+### Tests added
+
+- Official Tavily tool construction, exact one-query invocation, normalized URL/title/
+  description/date/query fields, configured result limits, empty results, cancellation,
+  malformed payloads, and sanitized HTTP/provider/transport errors.
+- Pure policy validation for one You.com retry, direct fallback, timeout behavior,
+  minimum unique results, duplicate-heavy results, too few plausible profiles,
+  non-retryable authentication, current-round isolation, partial-success continuation,
+  and recoverable Tavily exhaustion.
+- Graph scenarios for successful You.com without Tavily, timeout then retry, retry
+  failure then Tavily, empty results, duplicate-heavy results, immediate authentication
+  stop, a retained six-Supervisor partial cohort, both providers failing, exact retry
+  budgets, and persisted attempt fields.
+- Lazy-boundary coverage proving a healthy You.com route neither validates a Tavily key
+  nor constructs its adapter, while a missing key becomes a typed authentication
+  attempt only after fallback is selected.
+- Failure-injection unit coverage for `off`, `you_timeout_once`,
+  `you_retryable_error`, and `both_providers_retryable_error` modes.
+- Repository contracts for the official non-community import, exact dependency,
+  default-off demonstration mode, new state fields, unchanged fixture evidence node,
+  archived prompt, generated graph, environment example, and guarded live test.
+- One optional `pytest.mark.live` Tavily smoke test requiring both `TAVILY_API_KEY` and
+  explicit `SCHOLARPATH_RUN_LIVE_TESTS=true` opt-in.
+
+### Test results
+
+- `venv/bin/python -m pip install -e . --no-build-isolation --config-settings
+  editable_mode=strict`: passed after approved package-index access and refreshed the
+  flattened strict-editable mapping for the new modules.
+- `venv/bin/python -m pip check`: no broken requirements found.
+- Focused routing, adapter, failure-injection, and M5 graph scenarios passed without
+  network access.
+- The first complete run exposed 13 historical contracts that still described the M4
+  no-Tavily boundary; those tests were updated to preserve their original invariants
+  while recognizing the newly authorized M5 dependency and route.
+- A later complete run passed all behavior and quality checks and exposed only the
+  expected missing journal link for the newly archived prompt; this entry closes that
+  governance check.
+- `venv/bin/ruff format --check .`: all files formatted.
+- `venv/bin/ruff check --no-cache .`: all checks passed.
+- `venv/bin/mypy src tests`: no issues found in 74 source files.
+- `SCHOLARPATH_DISCOVERY_FAILURE_MODE=both_providers_retryable_error venv/bin/pytest
+  -m "not live"`: 392 tests passed, three live tests were deselected, and combined
+  statement/branch coverage was 94.89 percent, above the 90 percent gate. Explicit
+  test settings remained deterministic despite the process-level demonstration mode.
+- Generated-Mermaid equality, terminology, prompt audit linkage, default network
+  blocking, key-free import, test discovery, and `git diff --check` passed.
+- The deterministic failure demonstration routed an injected You.com provider error to
+  the fake Tavily port, retained typed attempt history, and completed without network
+  access.
+- The explicitly selected Tavily smoke test skipped cleanly without both required
+  opt-ins; no live provider request was made during milestone validation.
+
+### Assumptions
+
+- `langchain-tavily==0.2.17` is pinned because the newer 0.2.18 release constrains
+  LangChain Core to a version incompatible with the project's current
+  `langchain-openai` range. The pin is deliberate dependency governance, not a
+  deprecated integration choice.
+- The official Tavily tool does not expose a per-call timeout option in this compatible
+  release, so ScholarPath invokes its public async boundary inside `asyncio.timeout`
+  and cancels the call when the application deadline expires.
+- A maximum Tavily fallback count is a call budget. If it exceeds the four-to-eight
+  query-plan length, fallback cycles through queries deterministically while consuming
+  that finite budget.
+- Search result quality is evaluated from provider result count, plausible profile
+  count, and unique Prospective Supervisor count. Research Fit and doctoral
+  availability remain outside discovery.
+- A missing Tavily credential is non-retryable authentication configuration and stops
+  only if fallback is actually required; a successful primary path requires no Tavily
+  credential.
+- Partial success may continue after a fallback attempt when the current-round minimum
+  and quality gates are retained. It does not bypass later verification, Research Fit,
+  or Candidate approval gates.
+
+### Lessons learned
+
+- Provider resilience is easier to reason about when attempts are immutable audit data
+  and routing is a pure function rather than mixed into network adapters.
+- Attempt history must be scoped by discovery round; otherwise an old outage can
+  incorrectly route a later Candidate-requested refinement.
+- Lazy fallback construction matters operationally: backup-provider credentials should
+  not become a new startup dependency for a healthy primary route.
+- Partial search success should be appended before the next call. Treating a multi-query
+  search as one transaction would discard useful records when only a later query fails.
+- A fallback budget larger than the query count needs explicit cycling or an exhaustion
+  marker; otherwise a graph can keep revisiting a fallback node without consuming
+  budget.
+- Compatibility between provider packages must be verified across their complete
+  dependency ranges, not inferred from package names or latest-version ordering.
+
+### Remaining debt
+
+- Replace fixture-backed evidence retrieval before expecting arbitrary live discoveries
+  to reach Research Fit evaluation or Candidate review.
+- Add source authority, freshness, page retrieval, robots/terms governance, and
+  conflicting-evidence policies in the evidence milestone.
+- Add rate limiting, bounded concurrency, caching, circuit breakers, provider metrics,
+  and explicit reusable client lifecycle management before production-scale use.
+- Add an async search-port variant before a future async UI or service invokes Tavily;
+  the current synchronous port intentionally owns its event loop through `asyncio.run`.
+- Tune discovery thresholds and provider budgets from LangSmith evaluation datasets;
+  current defaults are deterministic engineering baselines rather than empirical
+  production values.
+- Improve multilingual person/institution extraction and canonical cross-provider URL
+  matching while preserving source/query provenance.
+- Evaluate dependency locking or constraints so the compatible Tavily/Core/OpenAI set
+  cannot drift during future installs.

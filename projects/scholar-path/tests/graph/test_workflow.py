@@ -4,7 +4,12 @@ from collections.abc import Callable
 
 import pytest
 
-from scholarpath.config import ApplicationSettings, Environment, LangSmithSettings
+from scholarpath.config import (
+    ApplicationSettings,
+    DiscoveryFailureMode,
+    Environment,
+    LangSmithSettings,
+)
 from scholarpath.domain import (
     CandidatePreferenceRevision,
     CandidateReviewAction,
@@ -16,6 +21,7 @@ from scholarpath.domain import (
 )
 from scholarpath.graph import (
     CANONICAL_NODE_NAMES,
+    DiscoveryPolicy,
     GraphFixtureConfig,
     ReviewStatus,
     ScholarPathState,
@@ -24,7 +30,8 @@ from scholarpath.graph import (
     render_scholarpath_mermaid,
     run_scholarpath_graph,
 )
-from tests.fakes import FakePlanningModel, FakeSupervisorSearch
+from scholarpath.tools import SearchErrorCategory, SearchProvider, SearchProviderError
+from tests.fakes import FakePlanningModel, FakeSupervisorSearch, make_valid_planning_response
 
 HAPPY_PATH_LOG = [
     "load_candidate_preferences",
@@ -54,12 +61,17 @@ def _run_graph(
     *,
     planning_model: FakePlanningModel | None = None,
     supervisor_search: FakeSupervisorSearch | None = None,
+    tavily_search: FakeSupervisorSearch | None = None,
 ) -> ScholarPathState:
     return run_scholarpath_graph(
         config,
         planning_model=planning_model or FakePlanningModel(),
         supervisor_search=supervisor_search or FakeSupervisorSearch(),
-        application_settings=ApplicationSettings(environment=Environment.TEST),
+        tavily_search=tavily_search or FakeSupervisorSearch(),
+        application_settings=ApplicationSettings(
+            environment=Environment.TEST,
+            discovery_failure_mode=DiscoveryFailureMode.OFF,
+        ),
         langsmith_settings=LangSmithSettings(tracing=False),
     )
 
@@ -88,9 +100,14 @@ def test_normal_happy_path_has_the_exact_node_sequence() -> None:
 
 
 def test_insufficient_results_route_through_fallback_search() -> None:
-    config = GraphFixtureConfig(primary_discovery_count=3, fallback_discovery_count=5)
+    empty_search = FakeSupervisorSearch(
+        {item.query: () for item in make_valid_planning_response().search_queries}
+    )
 
-    final_state = _run_graph(config)
+    final_state = _run_graph(
+        supervisor_search=empty_search,
+        tavily_search=FakeSupervisorSearch(),
+    )
 
     log = final_state["execution_log"]
     assert log[:7] == [
@@ -102,10 +119,10 @@ def test_insufficient_results_route_through_fallback_search() -> None:
         "enough_supervisors_found",
         "deduplicate_supervisors",
     ]
-    assert final_state["retry_counts"]["discovery"] == 1
-    assert len(final_state["raw_search_results"]) == 8
-    assert len(final_state["prospective_supervisors"]) == 8
-    assert len({item.supervisor_id for item in final_state["prospective_supervisors"]}) == 8
+    assert final_state["retry_counts"]["discovery"] == 3
+    assert len(final_state["raw_search_results"]) == 6
+    assert len(final_state["prospective_supervisors"]) == 6
+    assert len({item.supervisor_id for item in final_state["prospective_supervisors"]}) == 6
 
 
 def test_insufficient_evidence_routes_through_alternate_retrieval() -> None:
@@ -209,18 +226,6 @@ def test_request_more_records_preferences_and_returns_to_search_planning() -> No
     [
         (
             lambda: GraphFixtureConfig(
-                primary_discovery_count=2,
-                fallback_discovery_count=0,
-                max_discovery_retries=1,
-            ),
-            "discovery_retry_exhausted",
-            "enough_supervisors_found",
-            "discovery",
-            "fallback_supervisor_search",
-            1,
-        ),
-        (
-            lambda: GraphFixtureConfig(
                 initial_evidence_count=2,
                 alternate_evidence_count=2,
                 max_evidence_retries=1,
@@ -270,18 +275,53 @@ def test_retry_exhaustion_stops_cleanly_without_recursion_failure(
 
 def test_maximum_configured_discovery_retries_exhaust_through_domain_state() -> None:
     config = GraphFixtureConfig(
-        primary_discovery_count=2,
-        fallback_discovery_count=0,
-        max_discovery_retries=5,
+        discovery_policy=DiscoveryPolicy(
+            maximum_you_retry_count=1,
+            maximum_tavily_fallback_count=5,
+        )
+    )
+    first_query = make_valid_planning_response().search_queries[0].query
+    you_search = FakeSupervisorSearch(
+        scripts={
+            first_query: [
+                SearchProviderError(
+                    "First bounded timeout.",
+                    provider=SearchProvider.YOU,
+                    category=SearchErrorCategory.TIMEOUT,
+                    retryable=True,
+                ),
+                SearchProviderError(
+                    "Second bounded timeout.",
+                    provider=SearchProvider.YOU,
+                    category=SearchErrorCategory.TIMEOUT,
+                    retryable=True,
+                ),
+            ]
+        }
+    )
+    tavily_search = FakeSupervisorSearch(
+        {
+            item.query: SearchProviderError(
+                "Bounded Tavily provider failure.",
+                provider=SearchProvider.TAVILY,
+                category=SearchErrorCategory.PROVIDER,
+                retryable=True,
+            )
+            for item in make_valid_planning_response().search_queries
+        }
     )
 
-    final_state = _run_graph(config)
+    final_state = _run_graph(
+        config,
+        supervisor_search=you_search,
+        tavily_search=tavily_search,
+    )
 
-    assert final_state["review_status"] is ReviewStatus.RETRY_EXHAUSTED
-    assert final_state["retry_counts"]["discovery"] == 5
-    assert final_state["execution_log"].count("fallback_supervisor_search") == 5
-    assert final_state["execution_log"].count("enough_supervisors_found") == 6
-    assert final_state["tool_errors"][0].code == "discovery_retry_exhausted"
+    assert final_state["review_status"] is ReviewStatus.DISCOVERY_INCOMPLETE
+    assert final_state["retry_counts"]["discovery"] == 6
+    assert final_state["execution_log"].count("fallback_supervisor_search") == 1
+    assert final_state["execution_log"].count("enough_supervisors_found") == 2
+    assert final_state["tool_errors"][-1].code == "supervisor_discovery_incomplete"
 
 
 def test_maximum_configured_review_retries_exhaust_through_domain_state() -> None:

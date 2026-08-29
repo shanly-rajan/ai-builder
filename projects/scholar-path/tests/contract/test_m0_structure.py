@@ -59,6 +59,7 @@ def test_runtime_dependencies_match_the_current_milestone() -> None:
         "httpx>=0.28,<1",
         "langchain-core>=1.6.0,<2",
         "langchain-openai>=1.6.0,<2",
+        "langchain-tavily==0.2.17",
         "langgraph>=1.2.11,<2",
         "langsmith>=0.11.2,<1",
         "pydantic>=2.10,<3",
@@ -72,7 +73,7 @@ def test_runtime_dependencies_match_the_current_milestone() -> None:
             *pyproject["project"]["optional-dependencies"]["dev"],
         ]
     ).lower()
-    for deferred_dependency in ("streamlit", "mem0", "tavily"):
+    for deferred_dependency in ("streamlit", "mem0"):
         assert deferred_dependency not in all_dependencies
 
 

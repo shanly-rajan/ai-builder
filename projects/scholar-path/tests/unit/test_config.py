@@ -10,17 +10,21 @@ from pydantic import SecretStr, ValidationError
 
 from scholarpath.config import (
     ApplicationSettings,
+    DiscoveryFailureMode,
     Environment,
     LangSmithSettings,
     LogLevel,
     OpenAIPlanningSettings,
     ProviderConfiguration,
     ProviderConfigurationError,
+    TavilySearchConfiguration,
+    TavilySearchSettings,
     YouSearchConfiguration,
     YouSearchSettings,
     load_langsmith_settings,
     load_openai_planning_settings,
     load_settings,
+    load_tavily_search_settings,
     load_you_search_settings,
 )
 
@@ -31,7 +35,9 @@ def isolate_settings_environment(
     """Remove local environment and dotenv influence from a settings test."""
     monkeypatch.chdir(temporary_directory)
     for variable_name in tuple(os.environ):
-        if variable_name.startswith(("SCHOLARPATH_", "OPENAI_", "LANGSMITH_", "YDC_", "YOU_")):
+        if variable_name.startswith(
+            ("SCHOLARPATH_", "OPENAI_", "LANGSMITH_", "YDC_", "YOU_", "TAVILY_")
+        ):
             monkeypatch.delenv(variable_name, raising=False)
 
 
@@ -62,6 +68,7 @@ def test_settings_load_non_secret_defaults(monkeypatch: pytest.MonkeyPatch, tmp_
     assert settings.app_name == "ScholarPath"
     assert settings.environment is Environment.DEVELOPMENT
     assert settings.log_level is LogLevel.INFO
+    assert settings.discovery_failure_mode is DiscoveryFailureMode.OFF
     assert settings.provider_api_keys == {}
 
 
@@ -188,6 +195,68 @@ def test_you_search_settings_reject_invalid_non_secret_options(
 ) -> None:
     with pytest.raises(ValidationError):
         YouSearchSettings.model_validate(values)
+
+
+def test_tavily_settings_defer_credentials_until_fallback_is_requested(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+
+    settings = load_tavily_search_settings()
+
+    assert settings.api_key is None
+    assert settings.timeout_seconds == 20.0
+    assert settings.result_count == 10
+    with pytest.raises(ProviderConfigurationError, match="provider 'tavily'"):
+        settings.for_search_adapter()
+
+
+def test_tavily_settings_use_official_credential_and_bounded_options(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+    monkeypatch.setenv("TAVILY_API_KEY", "not-a-real-tavily-secret")
+    monkeypatch.setenv("TAVILY_SEARCH_TIMEOUT_SECONDS", "8.5")
+    monkeypatch.setenv("TAVILY_SEARCH_RESULT_COUNT", "12")
+
+    configuration = load_tavily_search_settings().for_search_adapter()
+
+    assert configuration.api_key.get_secret_value() == "not-a-real-tavily-secret"
+    assert configuration.timeout_seconds == 8.5
+    assert configuration.result_count == 12
+    assert "not-a-real-tavily-secret" not in repr(configuration)
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"timeout_seconds": 0},
+        {"timeout_seconds": 61},
+        {"result_count": 0},
+        {"result_count": 21},
+    ],
+)
+def test_tavily_search_settings_reject_invalid_options(values: dict[str, object]) -> None:
+    with pytest.raises(ValidationError):
+        TavilySearchSettings.model_validate(values)
+
+
+def test_tavily_configuration_rejects_blank_secret() -> None:
+    with pytest.raises(ValidationError, match="Tavily API key must not be blank"):
+        TavilySearchConfiguration(
+            api_key=SecretStr("   "),
+            timeout_seconds=20,
+            result_count=10,
+        )
+
+
+def test_failure_injection_mode_is_loaded_deterministically(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+    monkeypatch.setenv("SCHOLARPATH_DISCOVERY_FAILURE_MODE", "you_timeout_once")
+
+    assert load_settings().discovery_failure_mode is DiscoveryFailureMode.YOU_TIMEOUT_ONCE
 
 
 def test_langsmith_defaults_to_disabled_without_credentials(

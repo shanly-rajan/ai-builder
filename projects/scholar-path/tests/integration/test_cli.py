@@ -10,6 +10,7 @@ import pytest
 from scholarpath import cli
 from scholarpath.config import (
     ApplicationSettings,
+    DiscoveryFailureMode,
     Environment,
     LangSmithSettings,
     ProviderConfigurationError,
@@ -29,12 +30,22 @@ def test_cli_prints_five_ranked_shortlisted_supervisors(
 ) -> None:
     model = FakePlanningModel()
 
-    def run_offline_graph(*, planning_model: FakePlanningModel) -> ScholarPathState:
+    def run_offline_graph(
+        *,
+        planning_model: FakePlanningModel,
+        supervisor_search: None,
+        tavily_search: None,
+    ) -> ScholarPathState:
         assert planning_model is model
+        assert supervisor_search is None
+        assert tavily_search is None
         return run_scholarpath_graph(
             planning_model=planning_model,
             supervisor_search=FakeSupervisorSearch(),
-            application_settings=ApplicationSettings(environment=Environment.TEST),
+            application_settings=ApplicationSettings(
+                environment=Environment.TEST,
+                discovery_failure_mode=DiscoveryFailureMode.OFF,
+            ),
             langsmith_settings=LangSmithSettings(tracing=False),
         )
 

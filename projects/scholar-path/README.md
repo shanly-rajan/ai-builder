@@ -14,19 +14,18 @@ any Supervisor is shortlisted or any outreach is drafted.
 
 ## Project status
 
-Milestone M4 replaces only `discover_prospective_supervisors` with an injected
-Supervisor Discovery Agent. The production adapter executes each planned query through
-the current You.com Web Search API; the agent conservatively extracts Prospective
-Supervisors, and deterministic code merges normalized identities and paired
-source/query provenance. Research planning remains the M3 OpenAI structured-output
-integration. Verification, Research Fit, review, and shortlist nodes remain
-fixture-backed.
+Milestone M5 makes Supervisor discovery resilient without changing downstream domain
+behavior. You.com remains the primary provider; a pure `DiscoveryPolicy` routes one
+bounded You.com retry or the official Tavily fallback when provider health, result
+volume, duplicate rate, or profile plausibility is insufficient. Typed
+`SearchAttempt` records retain sanitized provider, query, attempt, result, and error
+data. Partial discovery survives later failures.
 
 Baseline LangSmith tracing is optional. When enabled, it traces the graph and planning
 node with fixed environment and graph-version tags, allowlisted metadata, and hidden
 trace inputs and outputs. The Candidate review gate remains a configured fixture stub
-rather than a user interface. Tavily, memory, Streamlit, and other model-backed agents
-are not implemented yet.
+rather than a user interface. Evidence extraction, memory, Streamlit, and other
+model-backed agents remain fixture-backed or deferred.
 
 ## M0 foundation
 
@@ -41,8 +40,9 @@ are not implemented yet.
 
 See [current architecture](docs/architecture.md), the historical
 [M2 generated graph](docs/m2-walking-skeleton.mmd), the historical
-[M3 generated graph](docs/m3-research-planning-graph.mmd), the current
-[M4 generated graph](docs/m4-you-com-discovery-graph.mmd), and
+[M3 generated graph](docs/m3-research-planning-graph.mmd), the historical
+[M4 generated graph](docs/m4-you-com-discovery-graph.mmd), the current
+[M5 generated graph](docs/m5-resilient-discovery-graph.mmd), and
 [canonical terminology](docs/terminology.md) for the current boundaries.
 
 ## M1 domain contracts
@@ -77,7 +77,7 @@ verified = make_verified_supervisors()  # 6 records
 assessments = make_research_fit_assessments()  # 5 records
 ```
 
-## M2 walking skeleton, extended through M4
+## M2 walking skeleton, extended through M5
 
 ```mermaid
 flowchart TD
@@ -86,9 +86,10 @@ flowchart TD
     Plan -->|validated SearchPlan| Discover[discover_prospective_supervisors]
     Plan -->|planning failure| END([END])
     Discover --> Found[enough_supervisors_found]
-    Found -->|enough| Dedupe[deduplicate_supervisors]
-    Found -->|insufficient and retries remain| Fallback[fallback_supervisor_search]
-    Found -->|retry exhausted| END
+    Found -->|policy satisfied| Dedupe[deduplicate_supervisors]
+    Found -->|retryable or low-quality You.com outcome| Fallback[fallback_supervisor_search]
+    Found -->|one You.com timeout retry| Discover
+    Found -->|bounded providers exhausted or auth failure| END
     Fallback --> Found
     Dedupe --> Extract[extract_supervisor_evidence]
     Extract --> Evidence[supervisor_evidence_sufficient]
@@ -108,8 +109,9 @@ flowchart TD
 
 The successful path yields five ranked, evidence-backed records. Rejection and
 `request_more` return to planning only while the explicit review retry budget remains.
-Discovery and evidence retries follow the same bounded rule, so the graph never relies
-on LangGraph's recursion limit for normal termination.
+Discovery uses explicit per-provider budgets; evidence and review retain their own
+bounded controls. The graph never relies on LangGraph's recursion limit for normal
+termination.
 
 ## M3 Research Planning Agent
 
@@ -198,7 +200,48 @@ represented and every output remains prospective.
 
 Production composition lazily validates `YDC_API_KEY` only when `YouSearchAdapter` is
 requested. Default tests inject `FakeSupervisorSearch`, mock HTTP only at the adapter
-boundary, and make no external requests. Tavily remains deferred.
+boundary, and make no external requests. This was the M4 boundary; M5 adds the fallback
+below without changing the adapter.
+
+## M5 resilient Supervisor discovery
+
+```mermaid
+flowchart TD
+    Plan[SearchPlan] --> You[You.com attempts]
+    You --> Policy{Pure DiscoveryPolicy}
+    Policy -->|healthy, enough, plausible, distinct| Continue[Deduplicate and continue]
+    Policy -->|first timeout| Retry[Retry You.com once]
+    Retry --> Policy
+    Policy -->|retryable failure or quality gap| Tavily[Tavily fallback attempts]
+    Tavily --> Policy
+    Policy -->|non-retryable authentication error| Stop[Stop]
+    Policy -->|both bounded providers exhausted| Recoverable[discovery_incomplete]
+
+    classDef external fill:#e8f1ff,stroke:#245a9b;
+    class You,Tavily external;
+```
+
+`TavilySearchAdapter` implements the same `SupervisorSearchPort` as You.com and uses
+the official top-level `langchain_tavily.TavilySearch` integration. It invokes one
+exact query at a time, applies an application deadline, and normalizes only URL,
+title, description, optional publication date, and originating query. The exact
+`langchain-tavily==0.2.17` pin is the newest compatible release for the project's
+current LangChain Core/OpenAI dependency range; no deprecated community import is
+used.
+
+Routing is ordinary deterministic code. `DiscoveryPolicy` owns the minimum unique
+count, one You.com timeout retry, Tavily call budget, timeout behavior,
+duplicate-result threshold, plausible-profile ratio, and stopping condition. Every
+provider call appends a typed `SearchAttempt` to graph state. Provider exception text,
+credentials, and result content are not copied into the audit record.
+
+You.com results accumulate in a typed node-local buffer before later queries execute,
+so a caught later failure does not erase useful Prospective Supervisors when the node
+commits its update. A non-retryable authentication error stops
+immediately. Exhausting both providers below the minimum ends with
+`review_status=discovery_incomplete` and a recoverable tool error rather than looping
+or raising an unhandled exception. Tavily credentials are validated lazily only if the
+policy actually selects the fallback.
 
 ## Setup
 
@@ -216,7 +259,7 @@ cp .env.example .env
 No API key is required to install the package, import `scholarpath`, render the graph,
 or run the default non-live test suite. The copied `.env` contains placeholders only
 and is ignored by Git. OpenAI and You.com keys are validated only when their respective
-adapters are instantiated.
+adapters are instantiated; the Tavily key is validated only when fallback is routed.
 
 Run commands from `projects/scholar-path`, because the application resolves `.env`
 relative to the current working directory. Keep the local file private:
@@ -237,10 +280,15 @@ YDC_API_KEY=your-you-com-key
 YOU_SEARCH_ENDPOINT=https://ydc-index.io/v1/search
 YOU_SEARCH_TIMEOUT_SECONDS=20
 YOU_SEARCH_RESULT_COUNT=10
+TAVILY_API_KEY=your-tavily-key
+TAVILY_SEARCH_TIMEOUT_SECONDS=20
+TAVILY_SEARCH_RESULT_COUNT=10
+SCHOLARPATH_DISCOVERY_FAILURE_MODE=off
 ```
 
-`OPENAI_API_KEY` and `YDC_API_KEY` are required for the live M4 graph path. Endpoint,
-model, timeout, and result-count values shown are the current non-secret defaults.
+`OPENAI_API_KEY` and `YDC_API_KEY` are required for the primary live graph path.
+`TAVILY_API_KEY` is required only if M5 routes to fallback. Endpoint, model, timeout,
+result-count, and failure-mode values shown are the current non-secret defaults.
 
 LangSmith is optional and disabled by default:
 
@@ -252,7 +300,7 @@ LANGSMITH_PROJECT=scholarpath
 
 To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_API_KEY`. `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag;
-the implementation supplies the fixed `graph-version:m4` tag. Disabling tracing does
+the implementation supplies the fixed `graph-version:m5` tag. Disabling tracing does
 not construct a LangSmith client, even if another process has globally enabled
 tracing.
 
@@ -291,17 +339,19 @@ python -m pip check
 python -c "import scholarpath; print(scholarpath.__version__)"
 ```
 
-Run the live graph path after configuring OpenAI and You.com:
+Run the live graph path after configuring OpenAI, You.com, and the conditional Tavily
+fallback:
 
 ```bash
 python -m scholarpath.cli
 ```
 
-It uses OpenAI for research planning and You.com for primary discovery. Later nodes are
-still fixture-backed, so arbitrary live discoveries generally stop cleanly at the
-evidence-sufficiency boundary rather than being matched to invented evidence. The CLI
-prints five Shortlisted Supervisors only when a complete shortlist exists and otherwise
-reports the incomplete run.
+It uses OpenAI for research planning, You.com for primary discovery, and Tavily only
+when the deterministic policy selects fallback. Later nodes are still fixture-backed,
+so arbitrary live discoveries generally stop cleanly at the evidence-sufficiency
+boundary rather than being matched to invented evidence. The CLI prints five
+Shortlisted Supervisors only when a complete shortlist exists and otherwise reports
+the incomplete run.
 
 To exercise the same full graph without secrets, provider calls, or network access,
 inject the test fake from the CLI:
@@ -309,6 +359,17 @@ inject the test fake from the CLI:
 ```bash
 LANGSMITH_TRACING=false python -c 'from scholarpath.cli import main; from tests.fakes import FakePlanningModel, FakeSupervisorSearch; raise SystemExit(main(FakePlanningModel(), FakeSupervisorSearch()))'
 ```
+
+To demonstrate an offline, deterministic You.com failure followed by successful
+Tavily routing, inject both fakes and enable the failure mode for one process:
+
+```bash
+SCHOLARPATH_DISCOVERY_FAILURE_MODE=you_retryable_error LANGSMITH_TRACING=false python -c 'from scholarpath.graph import run_scholarpath_graph; from tests.fakes import FakePlanningModel, FakeSupervisorSearch; state=run_scholarpath_graph(planning_model=FakePlanningModel(), supervisor_search=FakeSupervisorSearch(), tavily_search=FakeSupervisorSearch()); print("fallback_search_used:", state["fallback_search_used"]); print([(a.provider_used.value, a.attempt_number, a.error_category.value if a.error_category else None) for a in state["search_attempts"]])'
+```
+
+Use `you_timeout_once` to demonstrate a successful single retry, or
+`both_providers_retryable_error` to demonstrate the recoverable terminal state. The
+default is always `off`.
 
 ## Quality and test commands
 
@@ -346,6 +407,15 @@ set -a
 source .env
 set +a
 SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_you_search_live.py
+```
+
+The optional Tavily smoke test uses the official package and the same explicit guard:
+
+```bash
+set -a
+source .env
+set +a
+SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_tavily_search_live.py
 ```
 
 The GitHub Actions workflow runs the same installation and quality commands on Python
@@ -429,7 +499,7 @@ Only the Candidate Review decision can create a Shortlisted Supervisor.
 |---|---|
 | **Candidate Intake Agent** | Captures and structures the Candidate's proposed research area, preferences, and constraints. |
 | **Research Planning Agent** | Produces a structured, source-diverse SearchPlan through an injected model port. |
-| **Supervisor Discovery Agent** | Current M4 agent: identifies Prospective Supervisors from typed You.com results; Tavily is not implemented yet. |
+| **Supervisor Discovery Agent** | Identifies Prospective Supervisors from typed You.com or Tavily results; provider routing stays outside the agent. |
 | **Evidence Verification Agent** | Verifies Supervisor identity, affiliation, research interests, publications, and stated supervisor availability. |
 | **Research Fit Evaluation Agent** | Calculates and explains the Research Fit between the Candidate and each Verified Supervisor. |
 | **Independent Review Agent** | Reviews the evidence and fit assessment using Nebius, identifying unsupported claims or inflated scores. |
@@ -446,7 +516,7 @@ execute, coordinate, remember, or observe those responsibilities.
 |---|---|
 | **OpenAI** | Current native structured-output model for research planning; no tools or browsing. |
 | **You.com** | Current primary Supervisor discovery search through the official Web Search API. |
-| **Tavily** | Planned fallback Supervisor discovery search; not implemented in M4. |
+| **Tavily** | Current bounded fallback Supervisor discovery search through the official LangChain integration. |
 | **Nebius** | Independent evidence and Research Fit review. |
 | **Mem0** | Candidate preference and feedback memory. |
 | **LangGraph** | Current deterministic state orchestration and future human approval flow. |
@@ -456,10 +526,10 @@ Streamlit is the planned Candidate-facing web interface.
 
 ## Future production evolution
 
-M3 keeps feedback capture inside `candidate_review_gate_stub` and deterministically
-replays the fixture discovery path after rejection or `request_more`; only the search
-plan is regenerated. Later milestones may split feedback persistence and search
-refinement into provider-backed responsibilities. An alternate planning-model failover,
+M5 keeps feedback capture inside `candidate_review_gate_stub` and reruns planning and
+resilient discovery after rejection or `request_more`; downstream evaluation remains
+fixture-backed. Later milestones may split feedback persistence and search refinement
+into provider-backed responsibilities. An alternate planning-model failover,
 source-authority rules, Research Fit calculation policy, trace evaluation, and
 data-retention policy remain deferred. Retry limits and sufficiency thresholds are
 explicit configuration rather than model decisions.

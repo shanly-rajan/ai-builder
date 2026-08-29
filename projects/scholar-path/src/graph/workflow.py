@@ -1,4 +1,4 @@
-"""ScholarPath graph with an injected M3 Research Planning Agent."""
+"""ScholarPath graph with resilient, policy-routed Supervisor discovery."""
 
 from dataclasses import dataclass, field
 from typing import Final, Literal, cast
@@ -21,12 +21,16 @@ from ..agents import (
 )
 from ..config import (
     ApplicationSettings,
+    DiscoveryFailureMode,
     LangSmithSettings,
     OpenAIPlanningSettings,
+    ProviderConfigurationError,
+    TavilySearchSettings,
     YouSearchSettings,
     load_langsmith_settings,
     load_openai_planning_settings,
     load_settings,
+    load_tavily_search_settings,
     load_you_search_settings,
 )
 from ..domain import (
@@ -34,6 +38,7 @@ from ..domain import (
     CandidateReviewAction,
     CandidateReviewDecision,
     ProspectiveSupervisor,
+    SearchPlan,
     SearchResult,
     apply_candidate_review,
     create_supervisor_shortlist,
@@ -41,12 +46,20 @@ from ..domain import (
 )
 from ..observability import LangSmithObservability
 from ..tools import (
+    FailureInjectingSupervisorSearch,
+    SearchErrorCategory,
+    SearchProvider,
+    SearchProviderError,
     SupervisorSearchError,
     SupervisorSearchPort,
-    SupervisorSearchResponseError,
-    SupervisorSearchTimeoutError,
-    SupervisorSearchTransportError,
+    TavilySearchAdapter,
     YouSearchAdapter,
+)
+from .discovery import (
+    DiscoveryPolicy,
+    SearchAttempt,
+    SupervisorDiscoveryRoute,
+    route_after_supervisor_discovery,
 )
 from .fixtures import (
     WalkingSkeletonFixtures,
@@ -99,7 +112,12 @@ CANONICAL_NODE_NAMES = (
 REQUIRED_SHORTLIST_SIZE: Final = 5
 MAX_CONFIGURED_RETRIES: Final = 5
 
-type DiscoveryRoute = Literal["fallback_supervisor_search", "deduplicate_supervisors", "__end__"]
+type DiscoveryRoute = Literal[
+    "discover_prospective_supervisors",
+    "fallback_supervisor_search",
+    "deduplicate_supervisors",
+    "__end__",
+]
 type EvidenceRoute = Literal["retry_alternate_evidence_source", "evaluate_research_fit", "__end__"]
 type ReviewRoute = Literal["save_shortlisted_supervisors", "plan_supervisor_searches", "__end__"]
 type PlanningRoute = Literal["discover_prospective_supervisors", "__end__"]
@@ -113,31 +131,20 @@ class GraphFixtureConfig:
     """Immutable controls for deterministic walking-skeleton route scenarios."""
 
     fixtures: WalkingSkeletonFixtures = field(default_factory=build_walking_skeleton_fixtures)
+    discovery_policy: DiscoveryPolicy = field(default_factory=DiscoveryPolicy)
     review_decisions: tuple[CandidateReviewDecision, ...] = field(
         default_factory=lambda: (default_review_decision(),)
     )
-    primary_discovery_count: int = 8
-    fallback_discovery_count: int = 0
-    minimum_discovery_results: int = 5
     initial_evidence_count: int = 6
     alternate_evidence_count: int = 6
     minimum_verified_supervisors: int = 5
     shortlist_size: int = REQUIRED_SHORTLIST_SIZE
-    max_discovery_retries: int = 1
     max_evidence_retries: int = 1
     max_review_retries: int = 1
 
     def __post_init__(self) -> None:
         """Reject invalid fixture controls before graph construction."""
         fixture_limits = {
-            "primary_discovery_count": (
-                self.primary_discovery_count,
-                len(self.fixtures.raw_search_results),
-            ),
-            "fallback_discovery_count": (
-                self.fallback_discovery_count,
-                len(self.fixtures.raw_search_results),
-            ),
             "initial_evidence_count": (
                 self.initial_evidence_count,
                 len(self.fixtures.verified_supervisors),
@@ -152,7 +159,6 @@ class GraphFixtureConfig:
                 raise ValueError(f"{field_name} must be between 0 and {maximum}")
 
         positive_values = {
-            "minimum_discovery_results": self.minimum_discovery_results,
             "minimum_verified_supervisors": self.minimum_verified_supervisors,
             "shortlist_size": self.shortlist_size,
         }
@@ -165,7 +171,6 @@ class GraphFixtureConfig:
                 f"shortlist_size must be {REQUIRED_SHORTLIST_SIZE} for the M2 walking skeleton"
             )
         for field_name, value in (
-            ("minimum_discovery_results", self.minimum_discovery_results),
             ("minimum_verified_supervisors", self.minimum_verified_supervisors),
         ):
             if value < self.shortlist_size:
@@ -174,7 +179,6 @@ class GraphFixtureConfig:
             raise ValueError("fixtures must contain enough Research Fit assessments")
 
         retry_limits = {
-            "max_discovery_retries": self.max_discovery_retries,
             "max_evidence_retries": self.max_evidence_retries,
             "max_review_retries": self.max_review_retries,
         }
@@ -186,17 +190,19 @@ class GraphFixtureConfig:
 
 
 class DeterministicScholarPathNodes:
-    """Walking-skeleton nodes with injected planning and primary discovery boundaries."""
+    """Walking-skeleton nodes with injected planning and resilient search boundaries."""
 
     def __init__(
         self,
         config: GraphFixtureConfig,
         planning_agent: ResearchPlanningAgent,
         supervisor_search: SupervisorSearchPort | None = None,
+        tavily_search: SupervisorSearchPort | None = None,
     ) -> None:
         self.config = config
         self.planning_agent = planning_agent
         self.supervisor_search = supervisor_search
+        self.tavily_search = tavily_search
         self.discovery_agent = SupervisorDiscoveryAgent()
 
     @staticmethod
@@ -273,7 +279,11 @@ class DeterministicScholarPathNodes:
                 ],
                 "execution_log": [PLAN_SUPERVISOR_SEARCHES],
             }
-        return {"search_plan": plan, "execution_log": [PLAN_SUPERVISOR_SEARCHES]}
+        return {
+            "search_plan": plan,
+            "discovery_round": state["discovery_round"] + 1,
+            "execution_log": [PLAN_SUPERVISOR_SEARCHES],
+        }
 
     @staticmethod
     def route_after_planning(state: ScholarPathState) -> PlanningRoute:
@@ -282,10 +292,179 @@ class DeterministicScholarPathNodes:
             return DISCOVER_PROSPECTIVE_SUPERVISORS
         return "__end__"
 
+    @staticmethod
+    def _attempt_number(
+        attempts: list[SearchAttempt],
+        provider: SearchProvider,
+        query: str,
+        discovery_round: int,
+    ) -> int:
+        return (
+            sum(
+                attempt.provider_used is provider
+                and attempt.query == query
+                and attempt.discovery_round == discovery_round
+                for attempt in attempts
+            )
+            + 1
+        )
+
+    @staticmethod
+    def _normalize_search_error(
+        error: Exception,
+        provider: SearchProvider,
+    ) -> SearchProviderError:
+        if isinstance(error, SearchProviderError):
+            return error
+        if isinstance(error, SupervisorSearchError):
+            return SearchProviderError(
+                "Supervisor search failed before returning normalized results.",
+                provider=provider,
+                category=SearchErrorCategory.UNKNOWN,
+                retryable=False,
+            )
+        return SearchProviderError(
+            "Supervisor search failed unexpectedly.",
+            provider=provider,
+            category=SearchErrorCategory.UNKNOWN,
+            retryable=False,
+        )
+
+    def _search_error_record(
+        self,
+        node: str,
+        provider: SearchProvider,
+        error: SearchProviderError,
+    ) -> ToolErrorRecord:
+        provider_code = "you" if provider is SearchProvider.YOU else "tavily"
+        return self._error(
+            node,
+            f"{provider_code}_search_{error.category.value}",
+            f"{provider.value} Supervisor search failed with a sanitized provider error.",
+            recoverable=error.retryable,
+        )
+
+    def _execute_search_attempt(
+        self,
+        *,
+        node: str,
+        port: SupervisorSearchPort,
+        provider: SearchProvider,
+        query: str,
+        search_plan: SearchPlan,
+        attempt_number: int,
+        discovery_round: int,
+    ) -> tuple[
+        list[RawSupervisorSearchResult],
+        SearchAttempt,
+        ToolErrorRecord | None,
+        SearchProviderError | None,
+    ]:
+        try:
+            results = port.search(query)
+        except Exception as caught_error:
+            error = self._normalize_search_error(caught_error, provider)
+            attempt = SearchAttempt(
+                provider_used=provider,
+                query=query,
+                attempt_number=attempt_number,
+                result_count=0,
+                plausible_supervisor_count=0,
+                error_category=error.category,
+                retryable=error.retryable,
+                discovery_round=discovery_round,
+            )
+            return [], attempt, self._search_error_record(node, provider, error), error
+
+        try:
+            discovery = self.discovery_agent.discover(search_plan, results)
+        except Exception:
+            error = SearchProviderError(
+                "Search results could not satisfy the Supervisor discovery contract.",
+                provider=provider,
+                category=SearchErrorCategory.RESPONSE_CONTRACT,
+                retryable=False,
+            )
+            attempt = SearchAttempt(
+                provider_used=provider,
+                query=query,
+                attempt_number=attempt_number,
+                result_count=len(results),
+                plausible_supervisor_count=0,
+                error_category=error.category,
+                retryable=False,
+                discovery_round=discovery_round,
+            )
+            return [], attempt, self._search_error_record(node, provider, error), error
+
+        attempt = SearchAttempt(
+            provider_used=provider,
+            query=query,
+            attempt_number=attempt_number,
+            result_count=len(results),
+            plausible_supervisor_count=discovery.plausible_supervisor_count,
+            discovery_round=discovery_round,
+        )
+        raw_results = [
+            RawSupervisorSearchResult.from_prospective_supervisor(
+                supervisor,
+                discovery_round=discovery_round,
+            )
+            for supervisor in discovery.prospective_supervisors
+        ]
+        return raw_results, attempt, None, None
+
+    def _available_prospective_supervisors(
+        self,
+        state: ScholarPathState,
+        additional_results: list[RawSupervisorSearchResult] | None = None,
+        *,
+        discovery_round: int | None = None,
+    ) -> tuple[ProspectiveSupervisor, ...]:
+        rejected_ids = {supervisor.supervisor_id for supervisor in state["rejected_supervisors"]}
+        combined = [*state["raw_search_results"], *(additional_results or [])]
+        available = (
+            result.to_prospective_supervisor()
+            for result in combined
+            if result.supervisor_id not in rejected_ids
+            and (discovery_round is None or result.discovery_round == discovery_round)
+        )
+        return deduplicate_prospective_supervisors(available)
+
+    def _policy_route(
+        self,
+        state: ScholarPathState,
+        *,
+        additional_attempts: list[SearchAttempt] | None = None,
+        additional_results: list[RawSupervisorSearchResult] | None = None,
+        fallback_search_used: bool | None = None,
+    ) -> SupervisorDiscoveryRoute:
+        attempts = [*state["search_attempts"], *(additional_attempts or [])]
+        unique_count = len(
+            self._available_prospective_supervisors(
+                state,
+                additional_results,
+                discovery_round=state["discovery_round"],
+            )
+        )
+        fallback_used_current_round = (
+            state["fallback_search_round"] == state["discovery_round"]
+            if fallback_search_used is None
+            else fallback_search_used
+        )
+        return route_after_supervisor_discovery(
+            self.config.discovery_policy,
+            attempts,
+            unique_supervisor_count=unique_count,
+            fallback_search_used=fallback_used_current_round,
+            discovery_round=state["discovery_round"],
+        )
+
     def discover_prospective_supervisors(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Execute planned You.com queries and append typed discovery output."""
+        """Execute You.com queries with policy-bounded timeout retries and partial success."""
         update: ScholarPathStateUpdate = {
             "raw_search_results": [],
+            "search_attempts": [],
             "execution_log": [DISCOVER_PROSPECTIVE_SUPERVISORS],
         }
         search_plan = state["search_plan"]
@@ -303,113 +482,189 @@ class DeterministicScholarPathNodes:
                 self._error(
                     DISCOVER_PROSPECTIVE_SUPERVISORS,
                     "supervisor_search_not_configured",
-                    "Supervisor discovery has no configured search adapter.",
+                    "Supervisor discovery has no configured You.com search adapter.",
                 )
             ]
             return update
 
-        search_results: list[SearchResult] = []
-        search_errors: list[ToolErrorRecord] = []
+        raw_results: list[RawSupervisorSearchResult] = []
+        attempts: list[SearchAttempt] = []
+        errors: list[ToolErrorRecord] = []
+        prior_attempts = list(state["search_attempts"])
+        halt_primary = False
         for planned_query in search_plan.search_queries:
-            try:
-                search_results.extend(self.supervisor_search.search(planned_query.query))
-            except SupervisorSearchError as error:
-                retryable = isinstance(
-                    error,
-                    (SupervisorSearchTimeoutError, SupervisorSearchTransportError),
-                ) or (isinstance(error, SupervisorSearchResponseError) and error.retryable)
-                search_errors.append(
-                    self._error(
-                        DISCOVER_PROSPECTIVE_SUPERVISORS,
-                        "supervisor_search_failed",
-                        "A planned Supervisor search could not return normalized results.",
-                        recoverable=retryable,
-                    )
+            query = planned_query.query
+            while True:
+                attempt_number = self._attempt_number(
+                    [*prior_attempts, *attempts],
+                    SearchProvider.YOU,
+                    query,
+                    state["discovery_round"],
                 )
-            except Exception:
-                search_errors.append(
-                    self._error(
-                        DISCOVER_PROSPECTIVE_SUPERVISORS,
-                        "supervisor_search_failed",
-                        "A planned Supervisor search could not return normalized results.",
-                    )
+                discovered, attempt, tool_error, provider_error = self._execute_search_attempt(
+                    node=DISCOVER_PROSPECTIVE_SUPERVISORS,
+                    port=self.supervisor_search,
+                    provider=SearchProvider.YOU,
+                    query=query,
+                    search_plan=search_plan,
+                    attempt_number=attempt_number,
+                    discovery_round=state["discovery_round"],
                 )
+                raw_results.extend(discovered)
+                attempts.append(attempt)
+                if tool_error is not None:
+                    errors.append(tool_error)
+                if provider_error is None:
+                    break
 
-        try:
-            discovery = self.discovery_agent.discover(search_plan, search_results)
-        except (TypeError, ValueError):
-            update["tool_errors"] = [
-                *search_errors,
-                self._error(
-                    DISCOVER_PROSPECTIVE_SUPERVISORS,
-                    "supervisor_discovery_output_invalid",
-                    "Supervisor discovery could not produce a valid structured result.",
-                ),
-            ]
-            return update
+                route = self._policy_route(
+                    state,
+                    additional_attempts=attempts,
+                    additional_results=raw_results,
+                    fallback_search_used=False,
+                )
+                if route is SupervisorDiscoveryRoute.RETRY_YOU:
+                    continue
+                halt_primary = True
+                break
+            if halt_primary:
+                break
 
-        selected = discovery.prospective_supervisors[: self.config.primary_discovery_count]
-        update["raw_search_results"] = [
-            RawSupervisorSearchResult.from_prospective_supervisor(supervisor)
-            for supervisor in selected
-        ]
-        if search_errors:
-            update["tool_errors"] = search_errors
+        update["raw_search_results"] = raw_results
+        update["search_attempts"] = attempts
+        you_retry_count = sum(
+            attempt.provider_used is SearchProvider.YOU and attempt.attempt_number > 1
+            for attempt in attempts
+        )
+        if you_retry_count:
+            update["retry_counts"] = self._retry_counts(
+                state,
+                "discovery",
+                state["retry_counts"]["discovery"] + you_retry_count,
+            )
+        if errors:
+            update["tool_errors"] = errors
         return update
 
-    def _available_prospective_supervisors(
-        self, state: ScholarPathState
-    ) -> tuple[ProspectiveSupervisor, ...]:
-        rejected_ids = {supervisor.supervisor_id for supervisor in state["rejected_supervisors"]}
-        available = (
-            result.to_prospective_supervisor()
-            for result in state["raw_search_results"]
-            if result.supervisor_id not in rejected_ids
-        )
-        return deduplicate_prospective_supervisors(available)
-
     def enough_supervisors_found(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Log discovery sufficiency and record bounded exhaustion when necessary."""
-        update: ScholarPathStateUpdate = {"execution_log": [ENOUGH_SUPERVISORS_FOUND]}
-        enough = (
-            len(self._available_prospective_supervisors(state))
-            >= self.config.minimum_discovery_results
-        )
-        exhausted = state["retry_counts"]["discovery"] >= self.config.max_discovery_retries
-        if not enough and exhausted:
+        """Materialize partial discovery and record a clear terminal policy outcome."""
+        supervisors = list(self._available_prospective_supervisors(state))
+        update: ScholarPathStateUpdate = {
+            "prospective_supervisors": supervisors,
+            "execution_log": [ENOUGH_SUPERVISORS_FOUND],
+        }
+        route = self._policy_route(state)
+        if route is SupervisorDiscoveryRoute.STOP:
             update["review_status"] = ReviewStatus.RETRY_EXHAUSTED
             update["tool_errors"] = [
                 self._error(
                     ENOUGH_SUPERVISORS_FOUND,
-                    "discovery_retry_exhausted",
-                    "Supervisor discovery remained below the configured minimum.",
+                    "supervisor_discovery_stopped",
+                    "Supervisor discovery stopped after a non-retryable provider error.",
+                )
+            ]
+        elif route is SupervisorDiscoveryRoute.STOP_RECOVERABLY:
+            update["review_status"] = ReviewStatus.DISCOVERY_INCOMPLETE
+            update["tool_errors"] = [
+                self._error(
+                    ENOUGH_SUPERVISORS_FOUND,
+                    "supervisor_discovery_incomplete",
+                    "Supervisor discovery exhausted its bounded providers with partial results.",
+                    recoverable=True,
                 )
             ]
         return update
 
     def route_after_discovery(self, state: ScholarPathState) -> DiscoveryRoute:
-        """Route deterministically after the logged discovery sufficiency check."""
-        if (
-            len(self._available_prospective_supervisors(state))
-            >= self.config.minimum_discovery_results
-        ):
+        """Map the pure policy decision onto existing canonical graph nodes."""
+        route = self._policy_route(state)
+        if route is SupervisorDiscoveryRoute.RETRY_YOU:
+            return DISCOVER_PROSPECTIVE_SUPERVISORS
+        if route is SupervisorDiscoveryRoute.USE_TAVILY:
+            return FALLBACK_SUPERVISOR_SEARCH
+        if route is SupervisorDiscoveryRoute.CONTINUE:
             return DEDUPLICATE_SUPERVISORS
-        if state["review_status"] is ReviewStatus.RETRY_EXHAUSTED:
-            return "__end__"
-        return FALLBACK_SUPERVISOR_SEARCH
+        return "__end__"
 
     def fallback_supervisor_search(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Append one configured fallback fixture batch and increment its retry count."""
-        current_retry = state["retry_counts"]["discovery"]
-        start = self.config.primary_discovery_count + (
-            current_retry * self.config.fallback_discovery_count
-        )
-        stop = start + self.config.fallback_discovery_count
-        return {
-            "raw_search_results": list(self.config.fixtures.raw_search_results[start:stop]),
-            "retry_counts": self._retry_counts(state, "discovery", current_retry + 1),
+        """Execute a bounded set of Tavily queries while retaining You.com partial success."""
+        update: ScholarPathStateUpdate = {
+            "raw_search_results": [],
+            "search_attempts": [],
+            "fallback_search_used": True,
+            "fallback_search_round": state["discovery_round"],
             "execution_log": [FALLBACK_SUPERVISOR_SEARCH],
         }
+        search_plan = state["search_plan"]
+        if search_plan is None or self.tavily_search is None:
+            update["tool_errors"] = [
+                self._error(
+                    FALLBACK_SUPERVISOR_SEARCH,
+                    "tavily_search_not_configured",
+                    "Tavily fallback search is not configured.",
+                )
+            ]
+            return update
+
+        current_attempts = [
+            attempt
+            for attempt in state["search_attempts"]
+            if attempt.discovery_round == state["discovery_round"]
+            and attempt.provider_used is SearchProvider.TAVILY
+        ]
+        remaining_budget = self.config.discovery_policy.maximum_tavily_fallback_count - len(
+            current_attempts
+        )
+        raw_results: list[RawSupervisorSearchResult] = []
+        attempts: list[SearchAttempt] = []
+        errors: list[ToolErrorRecord] = []
+        planned_queries = search_plan.search_queries
+        for fallback_index in range(remaining_budget):
+            planned_query = planned_queries[
+                (len(current_attempts) + fallback_index) % len(planned_queries)
+            ]
+            query = planned_query.query
+            attempt_number = self._attempt_number(
+                [*state["search_attempts"], *attempts],
+                SearchProvider.TAVILY,
+                query,
+                state["discovery_round"],
+            )
+            discovered, attempt, tool_error, provider_error = self._execute_search_attempt(
+                node=FALLBACK_SUPERVISOR_SEARCH,
+                port=self.tavily_search,
+                provider=SearchProvider.TAVILY,
+                query=query,
+                search_plan=search_plan,
+                attempt_number=attempt_number,
+                discovery_round=state["discovery_round"],
+            )
+            raw_results.extend(discovered)
+            attempts.append(attempt)
+            if tool_error is not None:
+                errors.append(tool_error)
+            if provider_error is not None and not provider_error.retryable:
+                break
+
+            route = self._policy_route(
+                state,
+                additional_attempts=attempts,
+                additional_results=raw_results,
+                fallback_search_used=True,
+            )
+            if route is not SupervisorDiscoveryRoute.USE_TAVILY:
+                break
+
+        update["raw_search_results"] = raw_results
+        update["search_attempts"] = attempts
+        update["retry_counts"] = self._retry_counts(
+            state,
+            "discovery",
+            state["retry_counts"]["discovery"] + len(attempts),
+        )
+        if errors:
+            update["tool_errors"] = errors
+        return update
 
     def deduplicate_supervisors(self, state: ScholarPathState) -> ScholarPathStateUpdate:
         """Create a stable, unique Prospective Supervisor snapshot."""
@@ -654,9 +909,50 @@ class _UnconfiguredPlanningModel:
 class _UnconfiguredSupervisorSearch:
     """Fail safely if a topology-only graph is accidentally executed."""
 
+    def __init__(self, provider: SearchProvider) -> None:
+        self._provider = provider
+
     def search(self, query: str) -> tuple[SearchResult, ...]:
         del query
-        raise SupervisorSearchTransportError("No Supervisor search adapter was injected.")
+        raise SearchProviderError(
+            "No Supervisor search adapter was injected.",
+            provider=self._provider,
+            category=SearchErrorCategory.AUTHENTICATION,
+            retryable=False,
+        )
+
+
+class _LazyTavilySearch:
+    """Defer Tavily credential validation until the fallback is actually routed."""
+
+    def __init__(self, settings: TavilySearchSettings) -> None:
+        self._settings = settings
+        self._adapter: TavilySearchAdapter | None = None
+
+    def search(self, query: str) -> tuple[SearchResult, ...]:
+        if self._adapter is None:
+            try:
+                configuration = self._settings.for_search_adapter()
+            except ProviderConfigurationError:
+                raise SearchProviderError(
+                    "Tavily fallback credentials are not configured.",
+                    provider=SearchProvider.TAVILY,
+                    category=SearchErrorCategory.AUTHENTICATION,
+                    retryable=False,
+                ) from None
+            self._adapter = TavilySearchAdapter(configuration)
+        return self._adapter.search(query)
+
+
+def _with_failure_injection(
+    port: SupervisorSearchPort,
+    provider: SearchProvider,
+    mode: DiscoveryFailureMode,
+) -> SupervisorSearchPort:
+    """Enable deterministic failures only when explicitly configured."""
+    if mode is DiscoveryFailureMode.OFF:
+        return port
+    return FailureInjectingSupervisorSearch(port, provider, mode)
 
 
 def build_scholarpath_graph(
@@ -664,15 +960,18 @@ def build_scholarpath_graph(
     *,
     planning_model: PlanningModelPort | None = None,
     supervisor_search: SupervisorSearchPort | None = None,
+    tavily_search: SupervisorSearchPort | None = None,
     observability: LangSmithObservability | None = None,
 ) -> ScholarPathGraph:
     """Compile the graph without instantiating a provider or requiring credentials."""
     resolved_model = planning_model or _UnconfiguredPlanningModel()
-    resolved_search = supervisor_search or _UnconfiguredSupervisorSearch()
+    resolved_search = supervisor_search or _UnconfiguredSupervisorSearch(SearchProvider.YOU)
+    resolved_tavily_search = tavily_search or _UnconfiguredSupervisorSearch(SearchProvider.TAVILY)
     nodes = DeterministicScholarPathNodes(
         config or GraphFixtureConfig(),
         ResearchPlanningAgent(resolved_model),
         resolved_search,
+        resolved_tavily_search,
     )
     builder: StateGraph[ScholarPathState, None, ScholarPathState, ScholarPathState] = StateGraph(
         ScholarPathState
@@ -717,7 +1016,12 @@ def build_scholarpath_graph(
     builder.add_conditional_edges(
         ENOUGH_SUPERVISORS_FOUND,
         nodes.route_after_discovery,
-        [FALLBACK_SUPERVISOR_SEARCH, DEDUPLICATE_SUPERVISORS, END],
+        [
+            DISCOVER_PROSPECTIVE_SUPERVISORS,
+            FALLBACK_SUPERVISOR_SEARCH,
+            DEDUPLICATE_SUPERVISORS,
+            END,
+        ],
     )
     builder.add_edge(FALLBACK_SUPERVISOR_SEARCH, ENOUGH_SUPERVISORS_FOUND)
     builder.add_edge(DEDUPLICATE_SUPERVISORS, EXTRACT_SUPERVISOR_EVIDENCE)
@@ -738,7 +1042,7 @@ def build_scholarpath_graph(
     )
     builder.add_edge(SAVE_SHORTLISTED_SUPERVISORS, GENERATE_SHORTLIST_BRIEFING)
     builder.add_edge(GENERATE_SHORTLIST_BRIEFING, END)
-    return builder.compile(name="ScholarPath M4 You.com discovery graph")
+    return builder.compile(name="ScholarPath M5 resilient Supervisor discovery graph")
 
 
 def run_scholarpath_graph(
@@ -746,9 +1050,11 @@ def run_scholarpath_graph(
     *,
     planning_model: PlanningModelPort | None = None,
     supervisor_search: SupervisorSearchPort | None = None,
+    tavily_search: SupervisorSearchPort | None = None,
     application_settings: ApplicationSettings | None = None,
     openai_settings: OpenAIPlanningSettings | None = None,
     you_settings: YouSearchSettings | None = None,
+    tavily_settings: TavilySearchSettings | None = None,
     langsmith_settings: LangSmithSettings | None = None,
 ) -> ScholarPathState:
     """Compose providers lazily, then execute one optionally traced graph run."""
@@ -768,16 +1074,32 @@ def run_scholarpath_graph(
     if resolved_supervisor_search is None:
         resolved_you_settings = you_settings or load_you_search_settings()
         resolved_supervisor_search = YouSearchAdapter(resolved_you_settings.for_search_adapter())
+    resolved_tavily_search = tavily_search
+    if resolved_tavily_search is None:
+        resolved_tavily_settings = tavily_settings or load_tavily_search_settings()
+        resolved_tavily_search = _LazyTavilySearch(resolved_tavily_settings)
+    resolved_supervisor_search = _with_failure_injection(
+        resolved_supervisor_search,
+        SearchProvider.YOU,
+        resolved_application_settings.discovery_failure_mode,
+    )
+    resolved_tavily_search = _with_failure_injection(
+        resolved_tavily_search,
+        SearchProvider.TAVILY,
+        resolved_application_settings.discovery_failure_mode,
+    )
     graph = build_scholarpath_graph(
         resolved_config,
         planning_model=resolved_planning_model,
         supervisor_search=resolved_supervisor_search,
+        tavily_search=resolved_tavily_search,
         observability=observability,
     )
     initial_state = create_initial_state(resolved_config.fixtures.candidate_profile)
     recursion_limit = (
         32
-        + (4 * resolved_config.max_discovery_retries)
+        + (2 * resolved_config.discovery_policy.maximum_you_retry_count)
+        + (2 * resolved_config.discovery_policy.maximum_tavily_fallback_count)
         + (4 * resolved_config.max_evidence_retries)
         + (16 * resolved_config.max_review_retries)
     )

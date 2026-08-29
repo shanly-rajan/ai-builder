@@ -32,6 +32,15 @@ class LogLevel(StrEnum):
     ERROR = "ERROR"
 
 
+class DiscoveryFailureMode(StrEnum):
+    """Deterministic provider failures available for local routing demonstrations."""
+
+    OFF = "off"
+    YOU_TIMEOUT_ONCE = "you_timeout_once"
+    YOU_RETRYABLE_ERROR = "you_retryable_error"
+    BOTH_PROVIDERS_RETRYABLE_ERROR = "both_providers_retryable_error"
+
+
 class ProviderConfigurationError(ValueError):
     """Raised when a requested provider lacks valid credentials."""
 
@@ -186,6 +195,69 @@ class YouSearchSettings(BaseSettings):
         )
 
 
+class TavilySearchConfiguration(BaseModel):
+    """Validated settings passed only to the official Tavily search adapter."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        hide_input_in_errors=True,
+        str_strip_whitespace=True,
+    )
+
+    api_key: SecretStr
+    timeout_seconds: float = Field(gt=0, le=60)
+    result_count: int = Field(ge=1, le=20)
+
+    @field_validator("api_key")
+    @classmethod
+    def api_key_must_not_be_blank(cls, value: SecretStr) -> SecretStr:
+        """Reject blank Tavily credentials at adapter activation."""
+        if not value.get_secret_value().strip():
+            raise ValueError("Tavily API key must not be blank")
+        return value
+
+
+class TavilySearchSettings(BaseSettings):
+    """Tavily settings that remain inert until fallback search is requested."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        frozen=True,
+        hide_input_in_errors=True,
+        populate_by_name=True,
+        str_strip_whitespace=True,
+    )
+
+    api_key: Annotated[
+        SecretStr | None,
+        Field(repr=False, validation_alias="TAVILY_API_KEY"),
+    ] = None
+    timeout_seconds: float = Field(
+        default=20.0,
+        gt=0,
+        le=60,
+        validation_alias="TAVILY_SEARCH_TIMEOUT_SECONDS",
+    )
+    result_count: int = Field(
+        default=10,
+        ge=1,
+        le=20,
+        validation_alias="TAVILY_SEARCH_RESULT_COUNT",
+    )
+
+    def for_search_adapter(self) -> TavilySearchConfiguration:
+        """Validate credentials only when the Tavily fallback is requested."""
+        if self.api_key is None or not self.api_key.get_secret_value().strip():
+            raise ProviderConfigurationError("Missing API key for provider 'tavily'.")
+        return TavilySearchConfiguration(
+            api_key=self.api_key,
+            timeout_seconds=self.timeout_seconds,
+            result_count=self.result_count,
+        )
+
+
 class LangSmithSettings(BaseSettings):
     """Optional LangSmith settings loaded from the provider's canonical variables."""
 
@@ -230,6 +302,7 @@ class ApplicationSettings(BaseSettings):
     app_name: str = "ScholarPath"
     environment: Environment = Environment.DEVELOPMENT
     log_level: LogLevel = LogLevel.INFO
+    discovery_failure_mode: DiscoveryFailureMode = DiscoveryFailureMode.OFF
     provider_api_keys: dict[str, SecretStr] = Field(default_factory=dict, repr=False)
 
     def for_provider(self, provider: str) -> ProviderConfiguration:
@@ -263,6 +336,11 @@ def load_openai_planning_settings() -> OpenAIPlanningSettings:
 def load_you_search_settings() -> YouSearchSettings:
     """Load optional You.com settings without requiring credentials."""
     return YouSearchSettings()
+
+
+def load_tavily_search_settings() -> TavilySearchSettings:
+    """Load optional Tavily settings without requiring credentials."""
+    return TavilySearchSettings()
 
 
 def load_langsmith_settings() -> LangSmithSettings:

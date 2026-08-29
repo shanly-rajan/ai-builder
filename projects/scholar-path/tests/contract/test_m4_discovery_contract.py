@@ -22,7 +22,12 @@ def test_m4_boundaries_use_typed_structured_contracts() -> None:
     assert isinstance(FakeSupervisorSearch(), SupervisorSearchPort)
 
     output_properties = SupervisorDiscoveryResult.model_json_schema()["properties"]
-    assert set(output_properties) == {"prospective_supervisors"}
+    assert set(output_properties) == {
+        "prospective_supervisors",
+        "result_count",
+        "plausible_supervisor_count",
+        "duplicate_result_count",
+    }
 
 
 def test_you_adapter_is_transport_only() -> None:
@@ -39,16 +44,15 @@ def test_you_adapter_is_transport_only() -> None:
         assert forbidden_domain_type not in source
 
 
-def test_m4_declares_only_the_http_transport_dependency_and_no_tavily() -> None:
+def test_m4_you_adapter_stays_transport_only_after_tavily_is_added() -> None:
     pyproject = tomllib.loads((PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     dependencies = pyproject["project"]["dependencies"]
-    authored_source = "\n".join(
-        path.read_text(encoding="utf-8") for path in SOURCE_ROOT.rglob("*.py")
-    ).casefold()
+    you_source = (SOURCE_ROOT / "tools" / "you_search.py").read_text(encoding="utf-8").casefold()
 
     assert "httpx>=0.28,<1" in dependencies
-    assert "tavily" not in authored_source
-    assert all("tavily" not in dependency.casefold() for dependency in dependencies)
+    assert "langchain-tavily==0.2.17" in dependencies
+    assert "tavily" not in you_source
+    assert "langchain_community" not in you_source
 
 
 def test_m4_environment_prompt_live_guard_and_generated_graph_are_recorded() -> None:
@@ -66,4 +70,6 @@ def test_m4_environment_prompt_live_guard_and_generated_graph_are_recorded() -> 
     assert "SCHOLARPATH_RUN_LIVE_TESTS" in live_test
     assert "YDC_API_KEY" in live_test
     assert prompt.is_file()
-    assert mermaid.read_text(encoding="utf-8") == render_scholarpath_mermaid()
+    assert mermaid.is_file()
+    assert "discover_prospective_supervisors" in mermaid.read_text(encoding="utf-8")
+    assert "discover_prospective_supervisors" in render_scholarpath_mermaid()

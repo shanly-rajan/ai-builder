@@ -1,5 +1,13 @@
 """Public API for the ScholarPath LangGraph workflow."""
 
+from .discovery import (
+    DiscoveryPolicy,
+    DiscoveryStoppingCondition,
+    DiscoveryTimeoutBehavior,
+    SearchAttempt,
+    SupervisorDiscoveryRoute,
+    route_after_supervisor_discovery,
+)
 from .fixtures import (
     FIXTURE_RETRIEVED_AT,
     WalkingSkeletonFixtures,
@@ -25,12 +33,17 @@ from .workflow import (
 
 __all__ = [
     "CANONICAL_NODE_NAMES",
+    "DiscoveryPolicy",
+    "DiscoveryStoppingCondition",
+    "DiscoveryTimeoutBehavior",
     "FIXTURE_RETRIEVED_AT",
     "GraphFixtureConfig",
     "RawSupervisorSearchResult",
     "ReviewStatus",
+    "SearchAttempt",
     "ScholarPathState",
     "ToolErrorRecord",
+    "SupervisorDiscoveryRoute",
     "WalkingSkeletonFixtures",
     "append_items",
     "build_scholarpath_graph",
@@ -39,5 +52,6 @@ __all__ = [
     "default_review_decision",
     "merge_supervisors_by_id",
     "render_scholarpath_mermaid",
+    "route_after_supervisor_discovery",
     "run_scholarpath_graph",
 ]
