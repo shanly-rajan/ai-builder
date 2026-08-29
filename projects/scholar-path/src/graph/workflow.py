@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any, Final, Literal, Protocol, cast
 
+from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -210,6 +211,26 @@ type PlanningRoute = Literal["discover_prospective_supervisors", "__end__"]
 type ScholarPathGraph = CompiledStateGraph[
     ScholarPathState, None, ScholarPathState, ScholarPathState
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class ScholarPathRuntime:
+    """One compiled graph plus its privacy-safe execution configuration boundary."""
+
+    graph: ScholarPathGraph
+    observability: LangSmithObservability
+    recursion_limit: int
+
+    def runnable_config(self, thread_id: str) -> RunnableConfig:
+        """Build an isolated config for one opaque Candidate research thread."""
+        normalized_thread_id = thread_id.strip()
+        if not normalized_thread_id:
+            raise ValueError("thread_id must not be empty")
+        if len(normalized_thread_id) > 255:
+            raise ValueError("thread_id must not exceed 255 characters")
+        config = self.observability.runnable_config(self.recursion_limit)
+        config["configurable"] = {"thread_id": normalized_thread_id}
+        return config
 
 
 class UtcClockPort(Protocol):
@@ -1850,15 +1871,13 @@ def build_scholarpath_graph(
     builder.add_edge(GENERATE_SHORTLIST_BRIEFING, END)
     return builder.compile(
         checkpointer=checkpointer,
-        name="ScholarPath M10 persistent Candidate preference memory graph",
+        name="ScholarPath M11 Streamlit application graph",
     )
 
 
-def run_scholarpath_graph(
+def build_scholarpath_runtime(
     config: GraphFixtureConfig | None = None,
     *,
-    thread_id: str,
-    candidate_review_responses: Sequence[CandidateReviewResponse | Mapping[str, object]] = (),
     checkpointer: BaseCheckpointSaver[Any] | None = None,
     planning_model: PlanningModelPort | None = None,
     supervisor_search: SupervisorSearchPort | None = None,
@@ -1880,13 +1899,8 @@ def run_scholarpath_graph(
     mem0_memory_settings: Mem0MemorySettings | None = None,
     langsmith_settings: LangSmithSettings | None = None,
     utc_clock: UtcClockPort | None = None,
-) -> ScholarPathState | dict[str, object]:
-    """Execute or resume one isolated thread, stopping if no review response remains."""
-    normalized_thread_id = thread_id.strip()
-    if not normalized_thread_id:
-        raise ValueError("thread_id must not be empty")
-    if len(normalized_thread_id) > 255:
-        raise ValueError("thread_id must not exceed 255 characters")
+) -> ScholarPathRuntime:
+    """Resolve production adapters once and compile a reusable graph runtime."""
     resolved_config = config or GraphFixtureConfig()
     resolved_application_settings = application_settings or load_settings()
     resolved_langsmith_settings = langsmith_settings or load_langsmith_settings()
@@ -1959,7 +1973,6 @@ def run_scholarpath_graph(
         observability=observability,
         utc_clock=utc_clock,
     )
-    initial_state = create_initial_state(resolved_config.fixtures.candidate_profile)
     recursion_limit = (
         32
         + (2 * resolved_config.discovery_policy.maximum_you_retry_count)
@@ -1968,10 +1981,70 @@ def run_scholarpath_graph(
         + (16 * resolved_config.max_review_retries)
         + (2 * resolved_config.max_review_input_retries)
     )
-    runnable_config = observability.runnable_config(recursion_limit)
-    runnable_config["configurable"] = {"thread_id": normalized_thread_id}
-    with observability.activate():
-        output: object = graph.invoke(initial_state, config=runnable_config)
+    return ScholarPathRuntime(
+        graph=graph,
+        observability=observability,
+        recursion_limit=recursion_limit,
+    )
+
+
+def run_scholarpath_graph(
+    config: GraphFixtureConfig | None = None,
+    *,
+    thread_id: str,
+    candidate_review_responses: Sequence[CandidateReviewResponse | Mapping[str, object]] = (),
+    checkpointer: BaseCheckpointSaver[Any] | None = None,
+    planning_model: PlanningModelPort | None = None,
+    supervisor_search: SupervisorSearchPort | None = None,
+    tavily_search: SupervisorSearchPort | None = None,
+    content_extractor: ContentExtractionPort | None = None,
+    evidence_model: EvidenceVerificationModelPort | None = None,
+    research_fit_model: ResearchFitModelPort | None = None,
+    independent_review_model: IndependentReviewModelPort | None = None,
+    candidate_preference_memory: CandidatePreferenceMemoryPort | None = None,
+    alternate_evidence_search: SupervisorSearchPort | None = None,
+    application_settings: ApplicationSettings | None = None,
+    openai_settings: OpenAIPlanningSettings | None = None,
+    you_settings: YouSearchSettings | None = None,
+    tavily_settings: TavilySearchSettings | None = None,
+    tavily_extraction_settings: TavilyExtractionSettings | None = None,
+    openai_evidence_settings: OpenAIEvidenceSettings | None = None,
+    openai_research_fit_settings: OpenAIResearchFitSettings | None = None,
+    nebius_review_settings: NebiusReviewSettings | None = None,
+    mem0_memory_settings: Mem0MemorySettings | None = None,
+    langsmith_settings: LangSmithSettings | None = None,
+    utc_clock: UtcClockPort | None = None,
+) -> ScholarPathState | dict[str, object]:
+    """Execute or resume one isolated thread, stopping if no review response remains."""
+    resolved_config = config or GraphFixtureConfig()
+    runtime = build_scholarpath_runtime(
+        resolved_config,
+        checkpointer=checkpointer,
+        planning_model=planning_model,
+        supervisor_search=supervisor_search,
+        tavily_search=tavily_search,
+        content_extractor=content_extractor,
+        evidence_model=evidence_model,
+        research_fit_model=research_fit_model,
+        independent_review_model=independent_review_model,
+        candidate_preference_memory=candidate_preference_memory,
+        alternate_evidence_search=alternate_evidence_search,
+        application_settings=application_settings,
+        openai_settings=openai_settings,
+        you_settings=you_settings,
+        tavily_settings=tavily_settings,
+        tavily_extraction_settings=tavily_extraction_settings,
+        openai_evidence_settings=openai_evidence_settings,
+        openai_research_fit_settings=openai_research_fit_settings,
+        nebius_review_settings=nebius_review_settings,
+        mem0_memory_settings=mem0_memory_settings,
+        langsmith_settings=langsmith_settings,
+        utc_clock=utc_clock,
+    )
+    runnable_config = runtime.runnable_config(thread_id)
+    initial_state = create_initial_state(resolved_config.fixtures.candidate_profile)
+    with runtime.observability.activate():
+        output: object = runtime.graph.invoke(initial_state, config=runnable_config)
         for response in candidate_review_responses:
             if not isinstance(output, Mapping):
                 break
@@ -1989,7 +2062,7 @@ def run_scholarpath_graph(
                 )
                 else dict(response)
             )
-            output = graph.invoke(Command(resume=resume_value), config=runnable_config)
+            output = runtime.graph.invoke(Command(resume=resume_value), config=runnable_config)
     return cast(ScholarPathState | dict[str, object], output)
 
 

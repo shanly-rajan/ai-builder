@@ -19,6 +19,7 @@ dependencies = [
     "mem0ai==2.0.19",
     "pydantic>=2.10,<3",
     "pydantic-settings>=2.7,<3",
+    "streamlit==1.62.0",
 ]
 
 [project.optional-dependencies]

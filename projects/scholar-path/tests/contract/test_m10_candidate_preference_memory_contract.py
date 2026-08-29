@@ -48,7 +48,7 @@ def test_m10_updates_trace_version_without_adding_outreach() -> None:
     source_files = tuple((PROJECT_ROOT / "src").rglob("*.py"))
     source = "\n".join(path.read_text(encoding="utf-8") for path in source_files)
 
-    assert GRAPH_VERSION == "m10"
+    assert int(GRAPH_VERSION.removeprefix("m")) >= 10
     assert "outreach draft" not in source.casefold()
 
 

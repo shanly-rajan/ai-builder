@@ -104,8 +104,7 @@ def test_runtime_does_not_import_test_fixtures_or_deferred_integrations() -> Non
     assert "langchain-tavily==0.2.17" in dependencies
     assert "langgraph>=1.2.11,<2" in dependencies
     assert "langsmith>=0.11.2,<1" in dependencies
-    for deferred_dependency in ("streamlit",):
-        assert deferred_dependency not in normalized_dependencies
+    assert "streamlit==1.62.0" in normalized_dependencies
 
 
 def test_m2_cli_prompt_and_diagram_are_documented() -> None:

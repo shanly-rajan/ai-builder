@@ -14,17 +14,20 @@ any Supervisor is shortlisted or any outreach is drafted.
 
 ## Project status
 
-Milestone M10 adds persistent Candidate preference memory through the official Mem0 SDK.
-Each run loads versioned, Candidate-scoped preference records before planning. A dedicated
-post-review learning node writes only after a typed `approve`, `reject`, or `request_more`
-action; merely viewing the proposed shortlist causes no memory write.
+Milestone M11 adds a focused Streamlit application over the durable LangGraph workflow.
+It captures a Candidate's doctoral research profile, streams allowlisted canonical node
+names as progress, presents Prospective and Verified Supervisors with evidence-backed
+Research Fit details, and resumes the exact checkpointed thread after an explicit
+`approve`, `reject`, or `request_more` action.
 
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
 graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. Unit and
 graph tests use an isolated in-memory checkpointer; trusted local development can use the
 SQLite checkpointer at the ignored configured path. Mem0 failure is non-fatal and the
-current CandidateProfile remains available. Streamlit and outreach drafting remain deferred.
+current CandidateProfile remains available. Streamlit stores only interface controls and
+the opaque LangGraph thread ID in Session State; the complete graph state remains in the
+checkpointer. Outreach drafting remains deferred.
 
 ## M0 foundation
 
@@ -46,7 +49,8 @@ See [current architecture](docs/architecture.md), the historical
 [M7 Research Fit graph](docs/m7-research-fit-graph.mmd), the historical
 [M8 independent-review graph](docs/m8-independent-review-graph.mmd), the historical
 [M9 Candidate-review persistence graph](docs/m9-candidate-review-persistence-graph.mmd),
-the current [M10 Candidate-memory graph](docs/m10-candidate-preference-memory-graph.mmd), and
+the current [M10 Candidate-memory graph](docs/m10-candidate-preference-memory-graph.mmd),
+the [M11 Streamlit application boundary](docs/m11-streamlit-interface.mmd), and
 [canonical terminology](docs/terminology.md) for the current boundaries.
 
 ## M1 domain contracts
@@ -81,7 +85,7 @@ verified = make_verified_supervisors()  # 6 records
 assessments = make_research_fit_assessments()  # 5 records
 ```
 
-## M2 walking skeleton, extended through M10
+## M2 walking skeleton, extended through M11
 
 ```mermaid
 flowchart TD
@@ -475,6 +479,35 @@ model to infer or broaden a preference. Case-and-whitespace-normalized semantic 
 pre-write scoped lookup, and a checkpointed feedback cursor suppress duplicates across
 normal resumes and repeated actions.
 
+## M11 Streamlit user interface
+
+```mermaid
+flowchart LR
+    Browser[Candidate browser] --> UI[Streamlit interface]
+    UI --> Service{{ScholarPathApplicationPort}}
+    Service --> Graph[LangGraph runtime]
+    Graph --> Checkpoint[(SQLite checkpoint)]
+    Graph --> Providers[Typed provider adapters]
+    Graph -->|canonical node updates only| Service
+    Service -->|safe UI projection| UI
+    UI -. Session State .-> Session[Interface controls + thread ID only]
+```
+
+The single application walks through six visible stages: **Your Doctoral Research
+Profile**, **Supervisor Search Progress**, **Prospective Supervisors**, **Verified
+Supervisors**, **Review Supervisors**, and **Your Supervisor Shortlist**. The form captures
+the research statement, topics, regions, study mode, research orientation, methods, and
+exclusions. Results expose verification status, Research Fit Score and explanation,
+evidence confidence and source links, availability, concerns, and independent-review
+status.
+
+`ScholarPathApplicationPort` keeps graph construction, checkpoint access, resume commands,
+and business rules outside the Streamlit module. Streaming uses LangGraph update events,
+allowlists canonical node names, and discards raw state deltas before they reach the UI.
+The UI can approve selected Supervisor IDs, reject one Supervisor with a required reason,
+or request more research with typed revisions. Merely rendering results never creates a
+shortlist or a memory write.
+
 ## Setup
 
 Run these commands from the repository root:
@@ -538,7 +571,7 @@ SCHOLARPATH_CHECKPOINT_DATABASE_PATH=.scholarpath/checkpoints.sqlite3
 ```
 
 `OPENAI_API_KEY`, `NEBIUS_API_KEY`, `YDC_API_KEY`, and `TAVILY_API_KEY` are required for
-a complete live M10 graph path: OpenAI plans searches, extracts typed evidence, and
+a complete live M11 graph path: OpenAI plans searches, extracts typed evidence, and
 evaluates Research Fit; Nebius independently reviews each assessment; You.com performs
 primary discovery; and Tavily retrieves known evidence pages or handles search fallback.
 `MEM0_API_KEY` is optional: when present it enables cross-run preference recall; when
@@ -556,9 +589,34 @@ LANGSMITH_PROJECT=scholarpath
 
 To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_API_KEY`. `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag;
-the implementation supplies the fixed `graph-version:m10` tag. Disabling tracing does
+the implementation supplies the fixed `graph-version:m11` tag. Disabling tracing does
 not construct a LangSmith client, even if another process has globally enabled
 tracing.
+
+### Run the Streamlit application locally
+
+Complete the setup above, add the required provider credentials to the ignored `.env`,
+then run these exact commands from `projects/scholar-path`:
+
+```bash
+source venv/bin/activate
+set -a
+source .env
+set +a
+streamlit run streamlit_app.py
+```
+
+Open `http://localhost:8501` if Streamlit does not open it automatically. Complete **Your
+Doctoral Research Profile**, choose **Start Supervisor Research**, watch the canonical
+node names under **Supervisor Search Progress**, and use the review controls only after
+the graph pauses. The application persists local threads at
+`SCHOLARPATH_CHECKPOINT_DATABASE_PATH`; keep that ignored database private.
+
+For an installation-independent invocation, the equivalent command is:
+
+```bash
+venv/bin/streamlit run streamlit_app.py
+```
 
 ### Editor interpreter
 
@@ -662,6 +720,19 @@ pytest -o addopts='' -q -s \
 Both use `FakeCandidatePreferenceMemory`, so the demonstration is deterministic and has
 no network access. Inspect the matching tests to see the stable Candidate scope and exact
 record kinds asserted at the boundary.
+
+### 60-second M11 interface demonstration
+
+Run the focused AppTest workflow. It renders the Candidate form, starts an injected
+offline research run, displays evidence, and resumes the same thread after approval:
+
+```bash
+pytest -o addopts='' -q -s tests/integration/test_streamlit_app.py
+```
+
+The test uses `FakeScholarPathApplication`, so it requires no provider key, network call,
+browser automation, or local checkpoint file. It also verifies recoverable error display,
+secret redaction, and independent session isolation.
 
 ## Quality and test commands
 
@@ -852,19 +923,19 @@ execute, coordinate, remember, or observe those responsibilities.
 | **Tavily** | Current bounded fallback search and known-page evidence extraction through official LangChain integrations. |
 | **Nebius** | Current independent Research Fit review through the Token Factory OpenAI-compatible endpoint; no browsing or tools. |
 | **Mem0** | Candidate preference and feedback memory. |
-| **LangGraph** | Current deterministic state orchestration and future human approval flow. |
+| **LangGraph** | Current deterministic state orchestration, durable interrupt, and Candidate approval flow. |
 | **LangSmith** | Current optional graph, planning, evidence, Research Fit, and independent-review node tracing; evaluation datasets remain planned. |
-
-Streamlit is the planned Candidate-facing web interface.
+| **Streamlit** | Current Candidate-facing interface for profile intake, safe progress, evidence review, and thread-correct interrupt resume. |
 
 ## Future production evolution
 
-M10 keeps Candidate feedback in thread-scoped graph state and also persists the permitted
+M11 keeps Candidate feedback in thread-scoped graph state and also persists the permitted
 durable preference projection through Mem0. The graph state remains authoritative for the
 current position, while Supervisor facts remain authoritative only in verified evidence.
-Streamlit must render the interrupt payload and resume the same thread; it must never
-translate viewing a proposal into approval. Mem0 consent, retention, deletion, residency,
-and access controls; source freshness and authority weighting; trace evaluation; checkpoint
-encryption and retention; and multi-process persistence remain deferred. Retry limits,
-sufficiency thresholds, arithmetic, routing, and ranking remain explicit deterministic
-configuration rather than model decisions.
+Streamlit renders only a safe projection and resumes the same opaque thread; viewing a
+proposal never translates into approval. Authenticated Candidate identity and authorization
+over thread ownership; Mem0 consent, retention, deletion, residency, and access controls;
+source freshness and authority weighting; trace evaluation; checkpoint encryption and
+retention; and multi-process persistence remain deferred. Retry limits, sufficiency
+thresholds, arithmetic, routing, and ranking remain explicit deterministic configuration
+rather than model decisions.

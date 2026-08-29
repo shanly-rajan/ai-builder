@@ -30,6 +30,7 @@ from tests.fakes.research_fit import (
     make_weak_research_fit_response,
 )
 from tests.fakes.search import FakeSupervisorSearch, make_fake_search_outcomes
+from tests.fakes.ui import FakeScholarPathApplication, make_ui_review_snapshot
 
 __all__ = [
     "FakeContentExtraction",
@@ -39,6 +40,7 @@ __all__ = [
     "FakePlanningModel",
     "FakeResearchFitModel",
     "FakeSupervisorSearch",
+    "FakeScholarPathApplication",
     "make_alternate_official_response",
     "make_accepted_review",
     "make_complete_evidence_response",
@@ -56,5 +58,6 @@ __all__ = [
     "make_superficial_keyword_research_fit_response",
     "make_valid_planning_response",
     "make_weak_research_fit_response",
+    "make_ui_review_snapshot",
     "unavailable_candidate_memory",
 ]

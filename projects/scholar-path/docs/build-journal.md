@@ -1815,3 +1815,119 @@ The exact milestone prompt is archived as
   M10 deduplicates additive records but does not implement deletion or conflict resolution.
 - Add production metrics for memory availability, duplicate suppression, write latency,
   and the effect of recalled preferences on recommendation relevance.
+
+## Milestone M11: Streamlit user interface
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Deliver one focused Candidate-facing Streamlit application for doctoral research-profile
+intake, safe graph progress, Prospective and Verified Supervisor evidence, explicit review,
+and the approved shortlist. Keep graph state in the durable checkpointer, retain only the
+opaque thread ID and interface controls in Session State, and expose no hidden reasoning or
+provider secrets.
+
+### Prompt used
+
+The exact milestone prompt is archived as
+[`m11-streamlit-user-interface.md`](prompts/m11-streamlit-user-interface.md).
+
+### Files changed
+
+- Added the pinned `streamlit==1.62.0` runtime dependency and root `streamlit_app.py`
+  entrypoint.
+- Added `src/ui/models.py` with typed Candidate submission, progress, evidence, Supervisor,
+  error, and safe run-projection contracts.
+- Added `src/ui/controller.py` with deterministic form normalization, request-more
+  construction, canonical progress allowlisting, interrupt recovery, and graph-to-UI
+  projection.
+- Added `src/ui/service.py` and `src/ui/dependencies.py` with the typed
+  `ScholarPathApplicationPort`, start/inspect/resume operations, stale-checkpoint protection,
+  SQLite-backed local composition, and opaque identifier generation.
+- Added `src/ui/app.py` with the six canonical stages, profile form, safe progress status,
+  evidence-backed results, approval, required-reason rejection, request-more refinement,
+  recoverable error display, and thread-correct resume.
+- Extracted reusable `ScholarPathRuntime` construction from `run_scholarpath_graph` so the
+  UI service can compile the graph once without moving composition into Streamlit.
+- Advanced safe trace metadata to `graph-version:m11`, updated public exports and historical
+  dependency contracts, and added `FakeScholarPathApplication` for browser-independent UI
+  tests.
+- Updated `README.md`, current architecture, the
+  [`m11-streamlit-interface.mmd`](m11-streamlit-interface.mmd) diagram, and this journal.
+
+### Tests added
+
+- `tests/unit/ui/test_controller.py` validates required form fields, deterministic list
+  normalization, typed refinement, raw-update filtering, canonical progress, and privacy-safe
+  Supervisor projections.
+- `tests/integration/test_m11_ui_graph_service.py` runs the real graph offline with injected
+  fakes and validates start, streamed progress, pause, persisted inspection, thread isolation,
+  explicit approval, stale checkpoints, and wrong-thread rejection.
+- `tests/integration/test_streamlit_app.py` provides thirteen AppTest cases for form rendering,
+  required validation, terminology, run start, progress, verified evidence, all three review
+  actions, correct-thread resume, recoverable failures, secret redaction, and session isolation.
+- `tests/contract/test_m11_streamlit_ui_contract.py` locks the dependency, entrypoint,
+  six-stage labels, v2 streaming allowlist, Session State boundary, archived prompt, README
+  command, graph version, and no-outreach boundary.
+- Historical M0, M2, and M10 contracts were advanced only where they describe the current
+  dependency and graph-version composition.
+
+### Test results
+
+- Focused controller and real offline service tests: `16 passed`.
+- Focused M11 architecture contracts: `5 passed`.
+- Focused AppTest suite: `13 passed`; it executes entirely against
+  `FakeScholarPathApplication`, so no provider or network is used.
+- The first complete suite run passed 807 tests but correctly failed the audit link and
+  coverage gates before this journal entry and the AppTest suite were finalized.
+- `venv/bin/ruff format --check .`: all 167 Python files formatted.
+- `venv/bin/ruff check --no-cache .`: all lint checks passed.
+- `venv/bin/mypy src tests`: no issues in 138 source files.
+- `venv/bin/pytest -q`: 820 non-live tests passed, seven live tests were deselected, 46
+  terminology subtests passed, and combined statement/branch coverage was 90.21 percent.
+- `venv/bin/pip check` reported no broken requirements; Python compilation and
+  `git diff --check` passed.
+- A headless `venv/bin/streamlit run streamlit_app.py` smoke test started the local server
+  successfully and exited cleanly; no provider was instantiated during initial rendering.
+
+### Assumptions
+
+- Until authentication is introduced, the UI creates an opaque Candidate ID for each new
+  research run. The opaque LangGraph thread ID is separate and remains the checkpoint key.
+- A single cached local application service is suitable for trusted single-process
+  development; its lock serializes the shared SQLite connection. Production requires a
+  concurrent checkpoint store and authenticated ownership checks.
+- Showing progress by canonical node name is sufficient for M11. Raw stream update bodies,
+  model messages, and provider payloads have no Candidate-facing diagnostic value.
+- Prospective and Verified Supervisor lists remain visible on the review and shortlist
+  screens to preserve the requested stage progression; they are read-only projections.
+- Provider setup failures are rendered as generic recoverable guidance. Detailed operational
+  diagnostics belong in protected logs and traces, not the Candidate browser.
+
+### Lessons learned
+
+- A delivery adapter stays testable when start, inspect, and resume are a small typed port;
+  AppTest can replace infrastructure without patching graph business rules.
+- LangGraph v2 update events contain useful progress and sensitive state in the same envelope.
+  An explicit node-name allowlist provides progress while discarding the raw delta.
+- A checkpoint token complements the thread ID: the thread selects a run and the token
+  prevents stale browser tabs from applying an action to a newer review checkpoint.
+- Streamlit widget values are interface state, while Candidate research and Supervisor
+  evidence are workflow state. Keeping that distinction prevents a browser rerun from
+  becoming a second source of truth.
+- Candidate approval remains structurally downstream of the interrupt; rendering, refreshing,
+  or reopening a page cannot save a shortlist or create outreach.
+
+### Remaining debt
+
+- Add authentication and authorization that bind a verified Candidate identity to permitted
+  thread IDs; opaque identifiers are isolation keys, not access control.
+- Replace the single-process SQLite resource with an encrypted, concurrent production
+  checkpointer with retention, deletion, backup, monitoring, and disaster recovery.
+- Perform accessibility, responsive-layout, browser-security, and usability testing with
+  representative Candidates and assistive technologies.
+- Add cancellation, background execution, reconnect status, quotas, and backpressure for
+  research runs that approach the fifteen-minute product target.
+- Define protected operational logging and support correlation IDs without exposing provider
+  failures, personal data, secrets, full pages, or research statements to the browser.

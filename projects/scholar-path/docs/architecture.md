@@ -1,8 +1,9 @@
-# ScholarPath M10 Architecture
+# ScholarPath M11 Architecture
 
-M10 adds persistent, Candidate-scoped preference memory behind a typed Mem0 port while
-preserving the durable LangGraph interrupt, checkpoints, and deterministic routing from
-M9 and the useful M3–M8 architecture:
+M11 adds a Candidate-facing Streamlit delivery layer over the durable LangGraph workflow.
+The UI depends on a typed application port, streams only canonical node names, and reads a
+safe projection while complete workflow state remains in the checkpointer. It preserves
+M10 Candidate-scoped preference memory, the M9 interrupt, and the useful M3–M8 boundaries:
 
 - M3 plans searches through a structured OpenAI boundary.
 - M4 discovers Prospective Supervisors through You.com.
@@ -20,10 +21,57 @@ M9 and the useful M3–M8 architecture:
   resumes approval or refinement on the same isolated thread.
 - M10 recalls typed durable preferences before planning and learns only after an explicit
   approval, rejection, or direct preference submission.
+- M11 captures the research profile, reports safe progress, renders evidence-backed
+  results, and resumes the exact thread after explicit Candidate review.
 
 Availability remains a separate verified status and never contributes points. Candidate
 review is now a real interrupt; every proposed record stays `verified`, and no Supervisor
 becomes Shortlisted until a validated approval names its exact Supervisor ID.
+
+## M11 Streamlit application boundary
+
+```mermaid
+flowchart LR
+    Browser[Candidate browser] --> App[Streamlit app]
+    App --> Port{{ScholarPathApplicationPort}}
+    Port --> Service[ScholarPathApplicationService]
+    Service --> Runtime[ScholarPathRuntime]
+    Runtime --> Graph[Compiled LangGraph]
+    Graph <--> Store[(SQLite checkpoint)]
+    Graph --> External[Typed provider ports]
+    Graph -->|v2 update events| Service
+    Service -->|allowlisted node names| App
+    Service -->|safe UiRunSnapshot| App
+    App -. only interface controls + thread_id .-> Session[Streamlit Session State]
+```
+
+The Streamlit module is a delivery adapter. It does not construct the graph, interpret
+business state transitions, validate Supervisor lifecycle changes, or retain a copy of
+LangGraph state. `ScholarPathApplicationService` owns start, inspect, and resume operations;
+`ScholarPathApplicationPort` lets AppTest replace it with an in-memory fake.
+
+```mermaid
+flowchart LR
+    P[1. Your Doctoral Research Profile] --> X[2. Supervisor Search Progress]
+    X --> PS[3. Prospective Supervisors]
+    PS --> VS[4. Verified Supervisors]
+    VS --> R[5. Review Supervisors]
+    R -->|approve explicit IDs| S[6. Your Supervisor Shortlist]
+    R -->|reject with reason| X
+    R -->|request more + revised preferences| X
+```
+
+The service consumes LangGraph v2 `updates` events but retains only canonical node names
+from an explicit allowlist. Raw update bodies, model messages, and hidden reasoning are
+discarded before the UI projection. Checkpoint snapshots are transformed into typed view
+models containing only the fields required to show Prospective Supervisors, verified
+evidence, Research Fit, availability, concerns, and independent-review status.
+
+`thread_id` is the durable run boundary. Streamlit Session State holds that opaque ID and
+widget/interface state only; the checkpointer owns the Candidate profile, evidence,
+assessments, proposed shortlist, feedback, and graph position. A stale checkpoint token or
+unknown thread is rejected as a recoverable application error rather than resuming a
+different state.
 
 ## End-to-end milestone view
 
@@ -60,11 +108,11 @@ flowchart LR
     class GATE human;
 ```
 
-The LangGraph topology now contains sixteen canonical operational nodes. M10 inserts
+The LangGraph topology contains sixteen canonical operational nodes. M10 inserts
 `learn_candidate_preferences` after a valid interrupt response. The paused view path
 performs no memory write; the learning node checkpoints a processed-feedback cursor and
-then routes approval or refinement. It does not implement outreach or the Candidate-facing
-Streamlit interface.
+then routes approval or refinement. M11 exposes that workflow through Streamlit without
+changing graph topology or adding outreach.
 
 ## M10 Candidate preference memory boundary
 
@@ -610,7 +658,7 @@ flowchart LR
     CONTROL --> STATUS[review_status]
 ```
 
-| State category | M10 channels | Merge behavior |
+| State category | M11 channels | Merge behavior |
 |---|---|---|
 | Immutable Candidate input | `candidate_profile` | Preserved |
 | Append-only history | preferences, raw search results, feedback, errors, search attempts, evidence extraction attempts, execution log | Reducers append events |
@@ -628,7 +676,7 @@ error category. It does not store a full page or provider exception text. Planni
 new discovery round clears verification snapshots and the alternate-source map while
 retaining append-only attempt history.
 
-## Optional M10 LangSmith observability
+## Optional M11 LangSmith observability
 
 ```mermaid
 flowchart LR
@@ -641,11 +689,11 @@ flowchart LR
     Root --> EvidenceTrace[evidence node metadata]
     Root --> FitTrace[Research Fit node and rubric metadata]
     Root --> ReviewTrace[independent-review node metadata]
-    Tags[environment plus graph-version:m10] --> Root
+    Tags[environment plus graph-version:m11] --> Root
 ```
 
-The graph version is `m10`. Root tags are
-`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m10`. Planning, evidence,
+The graph version is `m11`. Root tags are
+`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m11`. Planning, evidence,
 Research Fit, and independent-review nodes add only safe component and version metadata. The fixed
 metadata allowlist is:
 
@@ -710,7 +758,7 @@ Mem0 settings and the SDK import remain lazy until the graph loads long-term pre
 Missing or invalid Mem0 credentials become a recoverable graph error rather than a startup
 failure. `MEM0_TELEMETRY` defaults to false and is set before the dynamic SDK import.
 
-M10 environment variables are:
+M11 environment variables are:
 
 | Boundary | Variables |
 |---|---|
@@ -823,7 +871,7 @@ Setuptools maps these physical paths onto `scholarpath.*`; no additional physica
 
 ## Operational trade-offs and NFRs
 
-| Concern | M10 control | Trade-off or remaining risk |
+| Concern | M11 control | Trade-off or remaining risk |
 |---|---|---|
 | Evidence integrity | Every direct claim has a source URL, retrieval time, conservative source kind, matching asserted name, and checked excerpt; IDs hash all semantic fields | Textual grounding proves presence and subject binding, not that a page itself is truthful |
 | Availability safety | Only explicit typed accepting or not-accepting statements are retained; absence stays `not_stated` | Institutional pages may be stale, so freshness policy remains limited |
@@ -833,21 +881,22 @@ Setuptools maps these physical paths onto `scholarpath.*`; no additional physica
 | Privacy | Full page content is transient and excluded from state and trace metadata | Concise evidence excerpts remain persisted because they are required provenance |
 | Latency | Sequential known-URL extraction with explicit deadlines | Worst-case latency grows with the number of Prospective Supervisors and one alternate pass |
 | Cost | Extraction, evidence, Research Fit, and independent-review model calls are bounded per processed Supervisor | Mem0 adds one scoped read per run and bounded direct-import writes after explicit actions |
-| Scalability | Provider ports support fakes and later alternative adapters | Current synchronous orchestration and sequential calls defer concurrency and backpressure |
+| Scalability | Provider and application ports support fakes and later alternative adapters | Current synchronous Streamlit process and sequential graph calls defer concurrency and backpressure |
 | Determinism | IDs, grounding, sufficiency, routing, arithmetic, review reconciliation, confidence degradation, and shortlist ranking use Python | Evidence wording, semantic alignment, and reviewer recommendations remain model-variable |
 | Research Fit integrity | Every positive component cites suitable direct evidence; availability is excluded; Python owns the total | Rubric calibration and model consistency still need empirical evaluation |
 | Independent review | Closed evidence input, strict result schema, valid-ID reconciliation, immutable initial assessment, and safe per-record failure | Reviewer calibration and disagreement metrics still need empirical evaluation |
-| Observability | M10 graph, prompt, and rubric versions are traceable with safe metadata | Evaluation datasets, quality dashboards, and alerts remain deferred |
+| Observability | M11 graph, prompt, and rubric versions are traceable with safe metadata; the UI exposes only canonical node progress | Evaluation datasets, quality dashboards, and alerts remain deferred |
 | Persistence | Thread-scoped in-memory tests and restart-safe local SQLite checkpoints | Encryption, retention automation, multi-process writers, and production database selection remain deferred |
 | Preference memory | Stable Candidate scope, finite typed allowlist, deterministic duplicate suppression, no provider inference, non-fatal failure | Mem0 is an external processor; retention, deletion, residency, and consent controls need production governance |
-| Human authority | A typed interrupt blocks lifecycle promotion; approval names exact IDs | Streamlit rendering, authentication, authorization, and session-to-thread ownership remain deferred |
+| Human authority | Streamlit resumes a typed interrupt; approval names exact IDs and viewing is side-effect free | Authentication, authorization, and verified session-to-thread ownership remain deferred |
+| UI privacy | Session State contains only interface controls and an opaque thread ID; the UI uses safe typed projections and generic provider errors | Browser/session hardening, CSP, authenticated identity, and production privacy review remain deferred |
 | Termination | Search, evidence, review, and invalid-input loops use validated finite budgets | LangGraph recursion limit remains defense-in-depth, not the primary termination rule |
 
 The synchronous Tavily adapters currently bridge the provider's async invocation with
 `asyncio.run()`. An async port is deferred before embedding ScholarPath inside an
 already-running event-loop runtime.
 
-## M10 quality boundaries
+## M11 quality boundaries
 
 | Concern | Control |
 |---|---|
@@ -863,11 +912,13 @@ already-running event-loop runtime.
 | Conflicts | Both affiliation claims and cross-referenced evidence IDs are preserved |
 | Retry | One deterministic alternate official-source search and extraction pass |
 | Network isolation | Default tests use fixed pages and fakes; `live` is excluded by default |
-| Observability | `graph-version:m10`, prompt and rubric versions, allowlisted metadata, hidden inputs and outputs |
+| Observability | `graph-version:m11`, prompt and rubric versions, allowlisted metadata, hidden inputs and outputs |
 | Human authority | A real interrupt requires typed explicit approval before Shortlisted status or briefing generation |
 | Persistence | In-memory isolation in tests; ignored SQLite path for trusted local restart; opaque thread IDs partition runs |
 | Checkpoint serialization | Explicit MessagePack type allowlist, URL JSON projection, and no executable pickle fallback |
 | Preference memory | Typed port, exact `infer=False` records, Candidate-ID scope, explicit-action writes, deterministic semantic IDs, and non-fatal fallback |
+| User interface | Thin Streamlit adapter, typed application port, safe view models, canonical progress allowlist, and recoverable errors without stack traces |
+| Session isolation | Opaque thread ID only in Session State; checkpoint owns graph state; AppTest starts fresh isolated sessions |
 | Research Fit | Injected typed model port proposes evidence-cited components; Python validates, totals, and bounds them |
 | Independent review | Nebius behind an injected typed port; no tools or browsing; Python validates references and reconciles outcomes |
 | Failure handling | Provider, timeout, malformed-output, and invalid-reference outcomes preserve the original score, lower confidence, and continue |
@@ -883,6 +934,12 @@ source venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]" --config-settings editable_mode=strict
 cp .env.example .env
+
+# After adding provider credentials to the ignored .env:
+set -a
+source .env
+set +a
+streamlit run streamlit_app.py
 
 ruff format --check .
 ruff check .
@@ -931,7 +988,7 @@ The Tavily extraction smoke test retrieves one bounded public documentation page
 asserts normalized non-empty content, HTTPS provenance, the content cap, and an aware
 retrieval timestamp. Default test runs skip every live test and make no network call.
 
-## Deferred beyond M10
+## Deferred beyond M11
 
 - Empirical Research Fit rubric calibration and model-consistency evaluation
 - Multi-source freshness and source-authority weighting beyond one alternate page
@@ -939,7 +996,8 @@ retrieval timestamp. Default test runs skip every live test and make no network 
 - Concurrent or batched extraction, caching, quotas, rate limiting, and circuit breakers
 - Per-Supervisor durable checkpoints inside a long extraction node
 - An async provider-port variant for already-running event loops
-- Streamlit user experience
+- Authenticated Candidate identity and authorization over checkpoint thread ownership
+- Streamlit production hardening, accessibility evaluation, browser security policy, and load testing
 - Mem0 consent, retention, right-to-delete, residency, and production access controls
 - Production checkpoint encryption, retention, access control, and a multi-process store
 - LangSmith evaluation datasets, scoring, dashboards, and alerting

@@ -1,0 +1,15 @@
+flowchart LR
+    Browser[Candidate browser] --> App[Streamlit app]
+    App --> Port{{ScholarPathApplicationPort}}
+    Port --> Service[ScholarPathApplicationService]
+    Service --> Runtime[ScholarPathRuntime]
+    Runtime --> Graph[Compiled LangGraph]
+    Graph <--> Store[(SQLite checkpoint)]
+    Graph --> Providers[Typed provider ports]
+    Graph -->|v2 update events| Service
+    Service -->|canonical node names| App
+    Service -->|safe UI projection| App
+    App -. interface controls + thread_id only .-> Session[Streamlit Session State]
+
+    classDef human fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
+    class Browser human;

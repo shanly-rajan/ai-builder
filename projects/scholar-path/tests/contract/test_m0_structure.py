@@ -66,6 +66,7 @@ def test_runtime_dependencies_match_the_current_milestone() -> None:
         "mem0ai==2.0.19",
         "pydantic>=2.10,<3",
         "pydantic-settings>=2.7,<3",
+        "streamlit==1.62.0",
     ]
     assert pyproject["project"]["requires-python"] == ">=3.12"
 
@@ -75,8 +76,7 @@ def test_runtime_dependencies_match_the_current_milestone() -> None:
             *pyproject["project"]["optional-dependencies"]["dev"],
         ]
     ).lower()
-    for deferred_dependency in ("streamlit",):
-        assert deferred_dependency not in all_dependencies
+    assert "streamlit==1.62.0" in all_dependencies
 
 
 def test_physical_src_root_maps_to_the_scholarpath_package() -> None:
