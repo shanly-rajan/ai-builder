@@ -56,6 +56,7 @@ def test_runtime_dependencies_match_the_current_milestone() -> None:
         pyproject = tomllib.load(pyproject_file)
 
     assert pyproject["project"]["dependencies"] == [
+        "httpx>=0.28,<1",
         "langchain-core>=1.6.0,<2",
         "langchain-openai>=1.6.0,<2",
         "langgraph>=1.2.11,<2",

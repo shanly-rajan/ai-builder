@@ -745,3 +745,137 @@ secret slots, and document verified offline and explicitly opted-in live CLI pat
 - The live OpenAI and optional LangSmith paths still require the user to add personal
   credentials and explicitly opt in; this repair deliberately made no paid or external
   request.
+
+## Milestone M4: You.com Supervisor discovery
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Replace only the fixture-backed `discover_prospective_supervisors` implementation with
+a typed You.com Web Search boundary and deterministic Supervisor Discovery Agent while
+preserving the existing graph topology, bounded fallback routes, downstream fixture
+nodes, canonical terminology, and Candidate approval control.
+
+### Prompt used
+
+[`docs/prompts/m4-you-com-supervisor-discovery.md`](prompts/m4-you-com-supervisor-discovery.md)
+
+### Files changed
+
+- Added the provider-neutral `SearchResult` and paired
+  `SupervisorDiscoveryProvenance` domain contracts and preserved provenance through
+  the existing Supervisor lifecycle models.
+- Added deferred You.com settings in `src/config.py` and documented `YDC_API_KEY`, the
+  official endpoint, timeout, and result-count options in `.env.example`.
+- Added `SupervisorSearchPort`, typed search failures, and the transport-only
+  `YouSearchAdapter` under `src/tools/`, with `httpx` as the only new runtime
+  dependency.
+- Added `SupervisorDiscoveryAgent`, structured `SupervisorDiscoveryResult`,
+  conservative person/institution extraction, canonical URL normalization, stable
+  identifiers, deterministic deduplication, and provenance merging under
+  `src/agents/`.
+- Replaced the graph's primary discovery fixture with injected search execution while
+  retaining every existing node and edge; production lazily constructs You.com and
+  default tests inject `FakeSupervisorSearch`.
+- Updated the CLI injection seam, graph-version trace tag, graph fixtures, state
+  projection, exports, README, and architecture documentation.
+- Saved the generated M4 graph in `docs/m4-you-com-discovery-graph.mmd` and archived
+  this milestone prompt.
+- Added domain, adapter, agent, graph, configuration, contract, and explicitly gated
+  live-test coverage for M4.
+
+### Tests added
+
+- Official You.com POST request construction with a mocked HTTP transport, including
+  exact query, API-key header, JSON count, endpoint, timeout, and secret-free URL.
+- Stable web/news normalization, configured result capping, empty responses, optional
+  publication timestamps, malformed-response handling, and SearchResult JSON round
+  trips.
+- Typed timeout, transport, non-success HTTP, rate-limit, provider, and response-schema
+  errors without response-body or provider-exception leakage into graph state.
+- Conservative academic-person and institution extraction, non-person exclusion,
+  rejection of `Dr`-only clinical profiles without academic context, normalized
+  identity and canonical-URL deduplication, stable identifiers, and exact multi-query
+  provenance merging.
+- Structural assertions that discovery produces neither Research Fit scores nor
+  availability inference, even when an input snippet mentions doctoral availability.
+- Graph integration proving every planned query is called once and in order, injected
+  fakes prevent You.com construction, sanitized failures exhaust cleanly, and empty
+  results retain the existing fallback route.
+- Deferred-key configuration, bounded timeout/count settings, transport-only adapter,
+  no-Tavily, generated-Mermaid, prompt, dependency, environment, and audit contracts.
+- One `pytest.mark.live` You.com smoke test requiring both `YDC_API_KEY` and explicit
+  `SCHOLARPATH_RUN_LIVE_TESTS=true` opt-in.
+
+### Test results
+
+- `venv/bin/python -m pip install -e . --no-build-isolation --config-settings
+  editable_mode=strict`: passed and refreshed the strict editable package mapping for
+  the new source modules. The initial build-isolated attempt could not resolve PyPI in
+  the sandbox; no new download was needed because `httpx 0.28.1` was already installed.
+- Focused adapter, discovery-agent, domain, graph, and configuration run: 57 tests
+  passed without coverage or network access.
+- The first complete non-live run passed 266 tests and exposed only the expected
+  missing prompt-journal link plus the M0 dependency allowlist that needed the explicit
+  M4 `httpx` dependency. Both governance contracts were then updated.
+- `venv/bin/ruff format --check .`: all files formatted.
+- `venv/bin/ruff check --no-cache .`: all checks passed.
+- `venv/bin/mypy src tests`: no issues found in 65 source files.
+- `venv/bin/pytest -m "not live"`: 272 tests passed, two live tests were deselected,
+  and statement/branch coverage was 93.96 percent, above the 90 percent gate.
+- `venv/bin/python -m pip check`: no broken requirements found.
+- Generated-Mermaid equality, terminology, offline network blocking, test discovery,
+  key-free import, dependency boundaries, prompt audit linkage, and `git diff --check`
+  passed.
+- The offline CLI demonstration with `FakePlanningModel` and `FakeSupervisorSearch`
+  traversed the unchanged happy path and printed five Shortlisted Supervisors.
+- The explicitly selected You.com live smoke test skipped cleanly when its key and
+  opt-in flag were removed; no live provider call was made during milestone validation.
+
+### Assumptions
+
+- The current official You.com Web Search contract is `POST
+  https://ydc-index.io/v1/search` with `X-API-Key`, JSON `query` and `count`, and the
+  documented `YDC_API_KEY` credential convention.
+- M4 authorizes a search provider, not another model-backed agent. Conservative
+  deterministic extraction therefore satisfies the discovery boundary without adding
+  an unrequested model port, prompt, cost, or retry policy.
+- You.com's `page_age` field represents the optional publication timestamp and maps to
+  `SearchResult.publication_date`; missing values remain `None`.
+- The configured result count is sent to You.com and also caps the combined normalized
+  web/news collection so graph state has a deterministic upper bound.
+- Invented fixture records and live discoveries use the same composite hash of
+  normalized name, institution, and canonical profile URL; fixture URLs use stable
+  `profile-NNN` paths only as synthetic source locations.
+- The existing fallback node remains fixture-backed because Tavily is explicitly
+  outside M4. A production You.com result will usually stop at fixture-backed evidence
+  sufficiency until evidence retrieval is replaced in a later milestone.
+
+### Lessons learned
+
+- A transport adapter stays reusable and testable when it normalizes provider shape but
+  knows nothing about academic people, Research Fit, or availability.
+- Provenance must be stored as source/query pairs; parallel source and query lists could
+  silently lose their association during deduplication.
+- Search-provider result limits and the normalized application-state limit are distinct
+  concerns because You.com applies `count` per response section.
+- Replacing one walking-skeleton node can preserve all established route tests when
+  the provider is injected at the composition root and fallback behavior remains
+  behind the existing edges.
+- Strict editable installs must be refreshed after adding a physical module to this
+  flattened package mapping; otherwise Python resolves the old symlink manifest.
+
+### Remaining debt
+
+- Replace the fixture fallback with Tavily only in an explicit future milestone, with
+  its own typed adapter, failure policy, and live-test gate.
+- Replace fixture-backed evidence retrieval before expecting arbitrary live discoveries
+  to reach Research Fit evaluation or the Candidate review gate.
+- Improve multilingual name, institution, department, and publication-page extraction
+  recall through an explicitly designed typed model boundary or richer deterministic
+  parsers; current extraction intentionally prefers precision.
+- Add rate limiting, bounded concurrency, caching, circuit breaking, provider metrics,
+  and explicit HTTP-client lifecycle management before production-scale use.
+- Revisit web-first combined result capping if publication/news coverage is starved by
+  a full web section.

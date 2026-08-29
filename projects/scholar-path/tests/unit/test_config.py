@@ -16,9 +16,12 @@ from scholarpath.config import (
     OpenAIPlanningSettings,
     ProviderConfiguration,
     ProviderConfigurationError,
+    YouSearchConfiguration,
+    YouSearchSettings,
     load_langsmith_settings,
     load_openai_planning_settings,
     load_settings,
+    load_you_search_settings,
 )
 
 
@@ -28,7 +31,7 @@ def isolate_settings_environment(
     """Remove local environment and dotenv influence from a settings test."""
     monkeypatch.chdir(temporary_directory)
     for variable_name in tuple(os.environ):
-        if variable_name.startswith(("SCHOLARPATH_", "OPENAI_", "LANGSMITH_")):
+        if variable_name.startswith(("SCHOLARPATH_", "OPENAI_", "LANGSMITH_", "YDC_", "YOU_")):
             monkeypatch.delenv(variable_name, raising=False)
 
 
@@ -128,6 +131,65 @@ def test_openai_settings_do_not_require_a_key_until_planning_is_requested(
         settings.for_planning_model()
 
 
+def test_you_search_settings_defer_credentials_until_adapter_is_requested(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+
+    settings = load_you_search_settings()
+
+    assert settings.api_key is None
+    assert str(settings.endpoint) == "https://ydc-index.io/v1/search"
+    assert settings.timeout_seconds == 20.0
+    assert settings.result_count == 10
+    with pytest.raises(ProviderConfigurationError, match="provider 'you.com'"):
+        settings.for_search_adapter()
+
+
+def test_you_search_settings_use_official_credential_and_bounded_options(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+    monkeypatch.setenv("YDC_API_KEY", "not-a-real-you-secret")
+    monkeypatch.setenv("YOU_SEARCH_TIMEOUT_SECONDS", "7.5")
+    monkeypatch.setenv("YOU_SEARCH_RESULT_COUNT", "12")
+
+    configuration = load_you_search_settings().for_search_adapter()
+
+    assert configuration.api_key.get_secret_value() == "not-a-real-you-secret"
+    assert configuration.timeout_seconds == 7.5
+    assert configuration.result_count == 12
+    assert "not-a-real-you-secret" not in repr(configuration)
+
+
+def test_you_search_configuration_rejects_an_unencrypted_endpoint() -> None:
+    with pytest.raises(ValidationError, match="must use HTTPS"):
+        YouSearchConfiguration.model_validate(
+            {
+                "api_key": SecretStr("not-a-real-you-secret"),
+                "endpoint": "http://ydc-index.io/v1/search",
+                "timeout_seconds": 5,
+                "result_count": 5,
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"timeout_seconds": 0},
+        {"result_count": 0},
+        {"result_count": 101},
+        {"endpoint": "not-a-url"},
+    ],
+)
+def test_you_search_settings_reject_invalid_non_secret_options(
+    values: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError):
+        YouSearchSettings.model_validate(values)
+
+
 def test_langsmith_defaults_to_disabled_without_credentials(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -156,7 +218,10 @@ def test_langsmith_uses_canonical_environment_variables(
     assert "not-a-real-langsmith-secret" not in repr(settings)
 
 
-def test_enabled_langsmith_tracing_defers_missing_key_validation() -> None:
+def test_enabled_langsmith_tracing_defers_missing_key_validation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
     settings = LangSmithSettings(tracing=True)
 
     with pytest.raises(ProviderConfigurationError, match="provider 'langsmith'"):

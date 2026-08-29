@@ -3,15 +3,26 @@
 from .agents import PlanningModelPort
 from .config import ProviderConfigurationError
 from .graph import ReviewStatus, run_scholarpath_graph
+from .tools import SupervisorSearchPort
 
 
-def main(planning_model: PlanningModelPort | None = None) -> int:
+def main(
+    planning_model: PlanningModelPort | None = None,
+    supervisor_search: SupervisorSearchPort | None = None,
+) -> int:
     """Run the graph and print five Shortlisted Supervisors."""
     try:
-        if planning_model is None:
+        if planning_model is None and supervisor_search is None:
             final_state = run_scholarpath_graph()
-        else:
+        elif planning_model is None:
+            final_state = run_scholarpath_graph(supervisor_search=supervisor_search)
+        elif supervisor_search is None:
             final_state = run_scholarpath_graph(planning_model=planning_model)
+        else:
+            final_state = run_scholarpath_graph(
+                planning_model=planning_model,
+                supervisor_search=supervisor_search,
+            )
     except ProviderConfigurationError as error:
         print(f"ScholarPath provider configuration error: {error}")
         return 2

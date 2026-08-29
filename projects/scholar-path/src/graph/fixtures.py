@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from ..agents import deterministic_supervisor_id
 from ..domain import (
     AvailabilityStatus,
     CandidatePreferenceRevision,
@@ -15,6 +16,7 @@ from ..domain import (
     ResearchFitAssessment,
     ResearchFitBreakdown,
     SourceKind,
+    SupervisorDiscoveryProvenance,
     VerifiedSupervisor,
     validate_research_fit_evidence,
     verify_supervisor,
@@ -142,6 +144,19 @@ class WalkingSkeletonFixtures:
     generated_at: datetime
 
 
+def _profile_url(index: int) -> str:
+    return f"https://profiles.scholarpath.example/profile-{index:03d}"
+
+
+def _supervisor_identifier(index: int) -> str:
+    offset = index - 1
+    return deterministic_supervisor_id(
+        _SUPERVISOR_NAMES[offset],
+        _INSTITUTIONS[offset],
+        _profile_url(index),
+    )
+
+
 def _candidate_profile() -> CandidateProfile:
     return CandidateProfile(
         candidate_id="candidate-001",
@@ -165,16 +180,25 @@ def _candidate_profile() -> CandidateProfile:
 
 def _raw_search_result(index: int) -> RawSupervisorSearchResult:
     offset = index - 1
-    identifier = f"supervisor-{index:03d}"
+    identifier = _supervisor_identifier(index)
+    profile_url = _profile_url(index)
     return RawSupervisorSearchResult.model_validate(
         {
             "supervisor_id": identifier,
             "full_name": _SUPERVISOR_NAMES[offset],
             "institution": _INSTITUTIONS[offset],
             "department": _DEPARTMENTS[offset],
-            "profile_url": f"https://profiles.scholarpath.example/{identifier}",
+            "profile_url": profile_url,
             "discovery_source": "synthetic academic index",
             "discovery_query": _DISCOVERY_QUERIES[offset],
+            "discovery_provenance": (
+                SupervisorDiscoveryProvenance.model_validate(
+                    {
+                        "source_url": profile_url,
+                        "originating_query": _DISCOVERY_QUERIES[offset],
+                    }
+                ),
+            ),
         }
     )
 
@@ -189,7 +213,7 @@ def _claim(
     confidence: EvidenceConfidence = EvidenceConfidence.HIGH,
     availability_status: AvailabilityStatus | None = None,
 ) -> EvidenceClaim:
-    identifier = f"supervisor-{index:03d}"
+    identifier = _supervisor_identifier(index)
     return EvidenceClaim.model_validate(
         {
             "evidence_id": f"evidence-{index:03d}-{suffix}",
@@ -357,13 +381,7 @@ def default_review_decision() -> CandidateReviewDecision:
     """Return the configured approval used by the default fixture-backed review path."""
     return CandidateReviewDecision(
         action=CandidateReviewAction.APPROVE,
-        supervisor_ids=(
-            "supervisor-001",
-            "supervisor-002",
-            "supervisor-004",
-            "supervisor-003",
-            "supervisor-005",
-        ),
+        supervisor_ids=tuple(_supervisor_identifier(index) for index in (1, 2, 4, 3, 5)),
         reason="The Candidate approved all five fixture-backed recommendations.",
     )
 

@@ -12,6 +12,7 @@ from ..domain import (
     ProspectiveSupervisor,
     ResearchFitAssessment,
     SearchPlan,
+    SupervisorDiscoveryProvenance,
     SupervisorShortlist,
     VerifiedSupervisor,
 )
@@ -61,6 +62,14 @@ class RawSupervisorSearchResult(BaseModel):
     profile_url: HttpUrl
     discovery_source: str = Field(min_length=1)
     discovery_query: str = Field(min_length=1)
+    discovery_provenance: tuple[SupervisorDiscoveryProvenance, ...] = ()
+
+    @classmethod
+    def from_prospective_supervisor(
+        cls, supervisor: ProspectiveSupervisor
+    ) -> "RawSupervisorSearchResult":
+        """Project a validated Prospective Supervisor into the append-only raw channel."""
+        return cls.model_validate(supervisor.model_dump(mode="python", exclude={"status"}))
 
     def to_prospective_supervisor(self) -> ProspectiveSupervisor:
         """Convert the raw fixture result through the domain validation boundary."""

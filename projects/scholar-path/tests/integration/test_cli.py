@@ -20,7 +20,7 @@ from scholarpath.graph import (
     create_initial_state,
     run_scholarpath_graph,
 )
-from tests.fakes import FakePlanningModel
+from tests.fakes import FakePlanningModel, FakeSupervisorSearch
 
 
 def test_cli_prints_five_ranked_shortlisted_supervisors(
@@ -33,6 +33,7 @@ def test_cli_prints_five_ranked_shortlisted_supervisors(
         assert planning_model is model
         return run_scholarpath_graph(
             planning_model=planning_model,
+            supervisor_search=FakeSupervisorSearch(),
             application_settings=ApplicationSettings(environment=Environment.TEST),
             langsmith_settings=LangSmithSettings(tracing=False),
         )

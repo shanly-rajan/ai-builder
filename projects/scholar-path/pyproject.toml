@@ -9,6 +9,7 @@ description = "Evidence-backed doctoral Supervisor discovery and Research Fit sy
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "httpx>=0.28,<1",
     "langchain-core>=1.6.0,<2",
     "langchain-openai>=1.6.0,<2",
     "langgraph>=1.2.11,<2",

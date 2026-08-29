@@ -1,13 +1,15 @@
-# ScholarPath M3 Architecture
+# ScholarPath M4 Architecture
 
-M3 retains the M2 typed LangGraph walking skeleton and replaces only
-`plan_supervisor_searches`. That node now delegates to a Research Planning Agent
-through an injected `PlanningModelPort`. The production adapter uses OpenAI native
-structured output without tools or web access; every downstream node remains
-fixture-backed. Optional LangSmith observability traces the graph and planning node.
+M4 retains the M3 research-planning boundary and replaces only
+`discover_prospective_supervisors`. That node now executes the typed `SearchPlan`
+through an injected `SupervisorSearchPort`, normalizes You.com Web Search responses,
+and delegates conservative extraction to `SupervisorDiscoveryAgent`. Deduplication and
+provenance merging remain deterministic. Optional LangSmith observability traces the
+graph and planning node.
 
-Search providers, evidence retrieval, Research Fit calculation, Candidate interaction,
-memory, and the web interface remain outside M3.
+Evidence retrieval, Research Fit calculation, Candidate interaction, Tavily fallback,
+memory, and the web interface remain outside M4. Those graph nodes continue to use
+fixtures.
 
 ## Research-planning boundary
 
@@ -83,6 +85,62 @@ records use fixed sanitized messages rather than provider exception text. Planni
 failure terminates before discovery, so no stale or absent SearchPlan can drive the
 workflow.
 
+## Supervisor-discovery boundary
+
+```mermaid
+flowchart LR
+    Plan[SearchPlan] --> Node[discover_prospective_supervisors]
+    Node -->|one exact query| Port{{SupervisorSearchPort}}
+    Port --> Fake[FakeSupervisorSearch]
+    Port --> Adapter[YouSearchAdapter]
+    Adapter --> API[POST ydc-index.io/v1/search]
+    API --> Raw[Web + news response]
+    Raw --> Normalize[Transport normalization]
+    Normalize --> Results[SearchResult]
+    Fake --> Results
+    Results --> Agent[SupervisorDiscoveryAgent]
+    Agent --> Filter{Plausible person and institution?}
+    Filter -->|no| Drop[Exclude]
+    Filter -->|yes| Merge[Normalize identity + canonicalize URL]
+    Merge --> Output[SupervisorDiscoveryResult]
+    Output --> Prospective[ProspectiveSupervisor]
+
+    classDef boundary fill:#e8f1ff,stroke:#245a9b,stroke-width:2px;
+    class Port,Adapter,API boundary;
+```
+
+The port receives one query and returns `tuple[SearchResult, ...]`. Production
+composition lazily creates `YouSearchAdapter`; tests inject a recording fake. The
+adapter uses the current official POST endpoint with `X-API-Key`, a JSON body containing
+`query` and `count`, and an explicit HTTP timeout. It combines web and news sections in
+stable order and preserves URL, title, description, optional publication timestamp,
+and the exact originating query. It contains no academic classification, Supervisor
+identity logic, Research Fit evaluation, or availability reasoning.
+
+```mermaid
+flowchart TD
+    Result[SearchResult] --> Name{Plausible person name?}
+    Name -->|no| Exclude[Exclude]
+    Name -->|yes| Institution{Plausible institution?}
+    Institution -->|no| Exclude
+    Institution -->|yes| Key[Normalized name + institution + canonical profile URL]
+    Key --> Seen{Key already seen?}
+    Seen -->|no| Add[Add Prospective Supervisor]
+    Seen -->|yes| Provenance[Merge unique source URL + query pairs]
+    Add --> Structured[SupervisorDiscoveryResult]
+    Provenance --> Structured
+```
+
+M4 deliberately uses conservative deterministic extraction rather than introducing a
+second model integration. The output schema structurally contains no Research Fit
+Score or availability field. Even if a search snippet mentions doctoral availability,
+the discovery result remains prospective and carries no availability assertion.
+
+Adapter errors are typed as timeout, transport, non-success response, or response
+contract failures. The graph stores fixed sanitized error messages and lets its
+existing discovery sufficiency and retry limit determine whether to continue. The
+adapter performs no hidden retries. Tavily is not added in M4.
+
 ## Walking-skeleton orchestration
 
 ```mermaid
@@ -118,7 +176,8 @@ flowchart TD
 The original graph-derived M2 Mermaid source remains at
 [`docs/m2-walking-skeleton.mmd`](m2-walking-skeleton.mmd) as the walking-skeleton
 baseline. M3 adds the conditional planning-success edge shown above; all downstream
-routing remains unchanged.
+routing remains unchanged. M4 replaces the primary discovery implementation behind the
+same node and retains every existing edge, fallback route, and retry bound.
 
 ## Typed state and reducer policy
 
@@ -183,7 +242,7 @@ flowchart LR
     Client --> Root[scholarpath_graph trace]
     Root --> Node[plan_supervisor_searches child trace]
     Root --> Other[Other LangGraph node traces]
-    Tags[environment:* + graph-version:m3] --> Root
+    Tags[environment:* + graph-version:m4] --> Root
     Metadata[Allowlisted metadata] --> Root
     Metadata --> Node
 ```
@@ -193,7 +252,7 @@ execution explicitly uses `enabled=False` and does not construct a LangSmith cli
 Enabled execution validates the key at activation, sends traces to
 `LANGSMITH_PROJECT`, flushes them, and closes the client.
 
-Graph tags are `environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m3`. The
+Graph tags are `environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m4`. The
 planning node additionally records its component and prompt version. Metadata passes a
 fixed scalar allowlist only:
 
@@ -215,7 +274,9 @@ as trace payloads.
 flowchart LR
     CP[CandidateProfile] --> RP[ResearchPlanningAgent]
     RP --> SP[SearchPlan]
-    SP -->|fixture discovery| PS[ProspectiveSupervisor]
+    SP --> SD[SupervisorDiscoveryAgent]
+    SR[SearchResult collection] --> SD
+    SD --> PS[ProspectiveSupervisor]
     EC[EvidenceClaim collection] --> VERIFY{Evidence sufficient?}
     PS --> VERIFY
     VERIFY -->|Identity + current affiliation + research profile| VS[VerifiedSupervisor]
@@ -232,9 +293,9 @@ flowchart LR
 ```
 
 M1 defines the core payloads on these boundaries. M3 generates `SearchPlan` through the
-typed model boundary and exercises every later boundary with deterministic fixture
-data. It still does not calculate scores, perform live discovery, or present a review
-interface.
+typed model boundary. M4 performs live primary discovery when configured, while every
+later boundary continues to use deterministic fixture data. It still does not retrieve
+evidence, calculate scores, infer availability, or present a review interface.
 
 ## Verification boundary
 
@@ -278,6 +339,8 @@ flowchart TB
     CFG --> DEFAULTS[Safe non-secret defaults]
     OAIENV[OPENAI_*] --> OAICFG[OpenAIPlanningSettings]
     OAICFG -->|Only when adapter requested| OAIADAPTER[OpenAI planning adapter]
+    YDCENV[YDC_API_KEY + YOU_SEARCH_*] --> YOUCFG[YouSearchSettings]
+    YOUCFG -->|Only when adapter requested| YOUADAPTER[You.com search adapter]
     LSENV[LANGSMITH_*] --> LSCFG[LangSmithSettings]
     LSCFG -->|Only when tracing enabled| LSCLIENT[LangSmith client]
 
@@ -294,9 +357,10 @@ flowchart TB
 
 Importing `scholarpath` does not instantiate providers or validate credentials.
 `ApplicationSettings` supplies application defaults, while provider-specific settings
-use the canonical `OPENAI_*` and `LANGSMITH_*` variables. OpenAI validation occurs only
-when `for_planning_model()` is requested. LangSmith validation occurs only when tracing
-is enabled and its activation scope begins.
+use canonical provider variables. OpenAI validation occurs only when
+`for_planning_model()` is requested; You.com validation occurs only when
+`for_search_adapter()` is requested. LangSmith validation occurs only when tracing is
+enabled and its activation scope begins.
 
 ## Dependency direction
 
@@ -306,22 +370,27 @@ flowchart LR
     CLI[cli] --> GRAPH
     GRAPH --> LANGGRAPH[LangGraph and LangChain Core]
     GRAPH --> DOMAIN[domain]
-    GRAPH --> AGENTS[ResearchPlanningAgent]
-    AGENTS --> PORT[PlanningModelPort]
-    PORT --> OPENAI[LangChain OpenAI adapter]
+    GRAPH --> AGENTS[Planning + discovery agents]
+    AGENTS --> MODELPORT[PlanningModelPort]
+    MODELPORT --> OPENAI[LangChain OpenAI adapter]
+    GRAPH --> SEARCHPORT[SupervisorSearchPort]
+    SEARCHPORT --> YOU[YouSearchAdapter + httpx]
+    YOU --> YDC[You.com Web Search API]
     AGENTS --> DOMAIN
-    AGENTS -. no M3 dependency .-> TOOLS[tools]
+    AGENTS --> TOOLS[tools]
     MEMORY[memory] --> DOMAIN
     OBS[LangSmith observability] --> GRAPH
     OBS --> LANGSMITH[LangSmith]
     CONFIG[config] -. configuration .-> UI
     CONFIG --> OPENAI
+    CONFIG --> YOU
     CONFIG --> OBS
 ```
 
-Solid arrows include implemented M3 dependencies; the dashed tools edge emphasizes
-that the planner cannot search. Domain rules stay independent of LangGraph, provider
-SDKs, tracing, and user-interface code.
+Solid arrows include implemented M4 dependencies. The planner still has no search
+tool; the graph executes its typed query plan through `SupervisorSearchPort`, then
+passes normalized results to the discovery agent. Domain rules stay independent of
+LangGraph, provider SDKs, tracing, and user-interface code.
 
 ## Physical package layout
 
@@ -347,12 +416,15 @@ src/
 ├── agents/
 │   ├── openai_planning.py
 │   ├── prompts.py
-│   └── research_planning.py
+│   ├── research_planning.py
+│   └── supervisor_discovery.py
 ├── graph/
 ├── memory/
 ├── observability/
 │   └── tracing.py
 ├── tools/
+│   ├── supervisor_search.py
+│   └── you_search.py
 └── ui/
 ```
 
@@ -361,30 +433,31 @@ analysis while source files remain in the flattened structure.
 
 ## Operational trade-offs and NFRs
 
-| Concern | M3 decision | Trade-off or remaining risk |
+| Concern | M4 decision | Trade-off or remaining risk |
 |---|---|---|
-| Latency | One OpenAI call on the happy path; at most two for malformed output; 60-second configurable timeout | Candidate refinement invokes planning again; provider failure currently ends the run |
-| Cost | Only the planning node uses a model; all later nodes remain fixtures | One extra model charge is possible for malformed output and for each rejection or `request_more` refinement cycle |
-| Failover | One bounded malformed-output retry; fixed error and clean END on failure | No alternate model/provider fallback yet; retrying invocation failures could amplify outages and cost |
-| Security | Secrets use environment variables and `SecretStr`; trace metadata is allowlisted; trace inputs and outputs are hidden | The full statement must still be sent to OpenAI to plan effectively; provider data-governance review remains necessary |
-| Reliability | Native strict structured output is converted through a stricter domain contract | Schema or model-version changes require adapter contract tests and prompt-version governance |
-| Scalability | Planning is stateless behind a port and graph state remains typed | Concurrency, rate limiting, backpressure, and provider quotas are not yet managed |
+| Latency | Four to eight sequential planned searches, each with an explicit 20-second default timeout | Sequential execution is simple and bounded but increases end-to-end latency; safe concurrency is deferred |
+| Cost | Plain You.com snippets only; no full-page extraction or extra discovery model | Every Candidate refinement repeats planned searches and consumes provider quota |
+| Failover | Existing graph fallback and retry limits remain; adapter performs no hidden retries | Fallback is still a fixture seam and Tavily is not implemented, so live provider outage ends cleanly |
+| Security | You.com and OpenAI keys use environment variables and `SecretStr`; errors are sanitized | Search queries leave the application boundary and require provider governance review |
+| Reliability | Typed response normalization, conservative extraction, and deterministic provenance merge | Website title formats vary; conservative extraction can trade recall for fewer false people |
+| Scalability | Search and model providers are isolated behind independent ports | Rate limiting, backpressure, caching, and provider-wide circuit breaking are deferred |
 | Observability | Optional graph/node traces carry environment, graph, component, and prompt versions | The LangSmith service is not contacted when disabled; evaluation datasets and alerting are deferred |
-| Determinism | Input mapping, validation, uniqueness, source coverage, routing, and retry arithmetic stay in Python | Expanded concepts and query wording remain probabilistic in live OpenAI runs |
+| Determinism | Extraction, URL canonicalization, identity deduplication, provenance merge, routing, and arithmetic stay in Python | OpenAI query wording and You.com ranking remain externally variable |
 
-## M3 quality boundaries
+## M4 quality boundaries
 
-| Concern | M3 control |
+| Concern | M4 control |
 |---|---|
 | Packaging | Flattened physical `src/` mapped to the `scholarpath` namespace |
 | Configuration | Pydantic settings with deferred secret validation |
 | Data contracts | Frozen Pydantic models reject unknown fields and invalid values |
-| Provenance | Each evidence claim carries source URL, kind, retrieval time, and confidence |
+| Provenance | Every discovered Supervisor retains paired source URL and exact originating query records |
 | Planning | Injected model port; versioned prompt; native structured output; no tools or search |
+| Discovery | Injected one-query search port; typed SearchResult and SupervisorDiscoveryResult; no fit or availability fields |
 | Determinism | Validation, query uniqueness, source coverage, deduplication, sorting, routing, retry arithmetic, and transitions use ordinary Python logic |
 | Human authority | Terminal records retain the matching Candidate review decision |
-| Network isolation | Default pytest selection excludes `live`; fakes replace OpenAI in non-live tests |
-| Orchestration | LangGraph coordinates one model-backed planning node and 14 fixture-backed nodes |
+| Network isolation | Default pytest selection excludes `live`; fakes replace OpenAI and You.com in non-live tests |
+| Orchestration | LangGraph coordinates model-backed planning, You.com-backed primary discovery, and 13 fixture-backed nodes |
 | Termination | Planning failure has an END edge; discovery, evidence, and review loops have explicit retry limits |
 | Observability | Scoped optional LangSmith graph/node traces with safe tags, allowlisted metadata, and hidden inputs |
 | Quality | Ruff formatting/linting, strict mypy, pytest, and branch coverage |
@@ -408,31 +481,36 @@ mypy src tests
 pytest -m "not live"
 ```
 
-The live CLI requires `OPENAI_API_KEY` in `.env` or the process environment:
+The live graph path requires `OPENAI_API_KEY` and `YDC_API_KEY` in `.env` or the
+process environment:
 
 ```bash
 python -m scholarpath.cli
 ```
 
-The optional smoke test requires both credential and explicit opt-in:
+Each optional smoke test requires its credential and explicit opt-in:
 
 ```bash
 export OPENAI_API_KEY="your-openai-key"
 SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_openai_planning_live.py
+
+export YDC_API_KEY="your-you-com-key"
+SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_you_search_live.py
 ```
 
 Optional tracing uses the exact variables `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`,
 and `LANGSMITH_PROJECT`. The OpenAI planning adapter additionally recognizes
-`OPENAI_PLANNING_MODEL` and `OPENAI_PLANNING_TIMEOUT_SECONDS`.
+`OPENAI_PLANNING_MODEL` and `OPENAI_PLANNING_TIMEOUT_SECONDS`. You.com search recognizes
+`YOU_SEARCH_ENDPOINT`, `YOU_SEARCH_TIMEOUT_SECONDS`, and `YOU_SEARCH_RESULT_COUNT`.
 
-## Deferred beyond M3
+## Deferred beyond M4
 
-- Search clients and evidence retrieval
+- Tavily fallback and evidence retrieval
 - Research Fit calculation policy and ranking
 - Source authority, freshness, and conflict-resolution policy
 - Real Candidate interaction and graph interruption/resumption
-- Preference-only `request_more` refinement currently replays the same synthetic cohort
+- Preference-only `request_more` refinement currently repeats primary searches
 - Streamlit user experience
 - Preference-memory services
-- Alternate planning-provider failover, rate limiting, and circuit breaking
+- Alternate provider failover, rate limiting, caching, and circuit breaking
 - LangSmith evaluation datasets, scoring, dashboards, and alerting

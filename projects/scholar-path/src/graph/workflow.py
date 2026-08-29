@@ -16,24 +16,38 @@ from ..agents import (
     ResearchPlanningAgent,
     ResearchPlanningError,
     StructuredSearchPlanResponse,
+    SupervisorDiscoveryAgent,
+    deduplicate_prospective_supervisors,
 )
 from ..config import (
     ApplicationSettings,
     LangSmithSettings,
     OpenAIPlanningSettings,
+    YouSearchSettings,
     load_langsmith_settings,
     load_openai_planning_settings,
     load_settings,
+    load_you_search_settings,
 )
 from ..domain import (
     CandidatePreferenceRevision,
     CandidateReviewAction,
     CandidateReviewDecision,
+    ProspectiveSupervisor,
+    SearchResult,
     apply_candidate_review,
     create_supervisor_shortlist,
     validate_research_fit_evidence,
 )
 from ..observability import LangSmithObservability
+from ..tools import (
+    SupervisorSearchError,
+    SupervisorSearchPort,
+    SupervisorSearchResponseError,
+    SupervisorSearchTimeoutError,
+    SupervisorSearchTransportError,
+    YouSearchAdapter,
+)
 from .fixtures import (
     WalkingSkeletonFixtures,
     build_walking_skeleton_fixtures,
@@ -172,15 +186,33 @@ class GraphFixtureConfig:
 
 
 class DeterministicScholarPathNodes:
-    """Fixture-backed nodes with one injected Research Planning Agent boundary."""
+    """Walking-skeleton nodes with injected planning and primary discovery boundaries."""
 
-    def __init__(self, config: GraphFixtureConfig, planning_agent: ResearchPlanningAgent) -> None:
+    def __init__(
+        self,
+        config: GraphFixtureConfig,
+        planning_agent: ResearchPlanningAgent,
+        supervisor_search: SupervisorSearchPort | None = None,
+    ) -> None:
         self.config = config
         self.planning_agent = planning_agent
+        self.supervisor_search = supervisor_search
+        self.discovery_agent = SupervisorDiscoveryAgent()
 
     @staticmethod
-    def _error(node: str, code: str, message: str) -> ToolErrorRecord:
-        return ToolErrorRecord(node=node, code=code, message=message, recoverable=False)
+    def _error(
+        node: str,
+        code: str,
+        message: str,
+        *,
+        recoverable: bool = False,
+    ) -> ToolErrorRecord:
+        return ToolErrorRecord(
+            node=node,
+            code=code,
+            message=message,
+            recoverable=recoverable,
+        )
 
     @staticmethod
     def _retry_counts(state: ScholarPathState, key: str, value: int) -> dict[str, int]:
@@ -251,30 +283,98 @@ class DeterministicScholarPathNodes:
         return "__end__"
 
     def discover_prospective_supervisors(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Append the configured primary fixture search batch."""
-        del state
-        results = list(
-            self.config.fixtures.raw_search_results[: self.config.primary_discovery_count]
-        )
-        return {
-            "raw_search_results": results,
+        """Execute planned You.com queries and append typed discovery output."""
+        update: ScholarPathStateUpdate = {
+            "raw_search_results": [],
             "execution_log": [DISCOVER_PROSPECTIVE_SUPERVISORS],
         }
+        search_plan = state["search_plan"]
+        if search_plan is None:
+            update["tool_errors"] = [
+                self._error(
+                    DISCOVER_PROSPECTIVE_SUPERVISORS,
+                    "search_plan_missing",
+                    "Supervisor discovery requires a validated SearchPlan.",
+                )
+            ]
+            return update
+        if self.supervisor_search is None:
+            update["tool_errors"] = [
+                self._error(
+                    DISCOVER_PROSPECTIVE_SUPERVISORS,
+                    "supervisor_search_not_configured",
+                    "Supervisor discovery has no configured search adapter.",
+                )
+            ]
+            return update
 
-    def _available_raw_results(
+        search_results: list[SearchResult] = []
+        search_errors: list[ToolErrorRecord] = []
+        for planned_query in search_plan.search_queries:
+            try:
+                search_results.extend(self.supervisor_search.search(planned_query.query))
+            except SupervisorSearchError as error:
+                retryable = isinstance(
+                    error,
+                    (SupervisorSearchTimeoutError, SupervisorSearchTransportError),
+                ) or (isinstance(error, SupervisorSearchResponseError) and error.retryable)
+                search_errors.append(
+                    self._error(
+                        DISCOVER_PROSPECTIVE_SUPERVISORS,
+                        "supervisor_search_failed",
+                        "A planned Supervisor search could not return normalized results.",
+                        recoverable=retryable,
+                    )
+                )
+            except Exception:
+                search_errors.append(
+                    self._error(
+                        DISCOVER_PROSPECTIVE_SUPERVISORS,
+                        "supervisor_search_failed",
+                        "A planned Supervisor search could not return normalized results.",
+                    )
+                )
+
+        try:
+            discovery = self.discovery_agent.discover(search_plan, search_results)
+        except (TypeError, ValueError):
+            update["tool_errors"] = [
+                *search_errors,
+                self._error(
+                    DISCOVER_PROSPECTIVE_SUPERVISORS,
+                    "supervisor_discovery_output_invalid",
+                    "Supervisor discovery could not produce a valid structured result.",
+                ),
+            ]
+            return update
+
+        selected = discovery.prospective_supervisors[: self.config.primary_discovery_count]
+        update["raw_search_results"] = [
+            RawSupervisorSearchResult.from_prospective_supervisor(supervisor)
+            for supervisor in selected
+        ]
+        if search_errors:
+            update["tool_errors"] = search_errors
+        return update
+
+    def _available_prospective_supervisors(
         self, state: ScholarPathState
-    ) -> dict[str, RawSupervisorSearchResult]:
+    ) -> tuple[ProspectiveSupervisor, ...]:
         rejected_ids = {supervisor.supervisor_id for supervisor in state["rejected_supervisors"]}
-        return {
-            result.supervisor_id: result
+        available = (
+            result.to_prospective_supervisor()
             for result in state["raw_search_results"]
             if result.supervisor_id not in rejected_ids
-        }
+        )
+        return deduplicate_prospective_supervisors(available)
 
     def enough_supervisors_found(self, state: ScholarPathState) -> ScholarPathStateUpdate:
         """Log discovery sufficiency and record bounded exhaustion when necessary."""
         update: ScholarPathStateUpdate = {"execution_log": [ENOUGH_SUPERVISORS_FOUND]}
-        enough = len(self._available_raw_results(state)) >= self.config.minimum_discovery_results
+        enough = (
+            len(self._available_prospective_supervisors(state))
+            >= self.config.minimum_discovery_results
+        )
         exhausted = state["retry_counts"]["discovery"] >= self.config.max_discovery_retries
         if not enough and exhausted:
             update["review_status"] = ReviewStatus.RETRY_EXHAUSTED
@@ -289,7 +389,10 @@ class DeterministicScholarPathNodes:
 
     def route_after_discovery(self, state: ScholarPathState) -> DiscoveryRoute:
         """Route deterministically after the logged discovery sufficiency check."""
-        if len(self._available_raw_results(state)) >= self.config.minimum_discovery_results:
+        if (
+            len(self._available_prospective_supervisors(state))
+            >= self.config.minimum_discovery_results
+        ):
             return DEDUPLICATE_SUPERVISORS
         if state["review_status"] is ReviewStatus.RETRY_EXHAUSTED:
             return "__end__"
@@ -310,10 +413,8 @@ class DeterministicScholarPathNodes:
 
     def deduplicate_supervisors(self, state: ScholarPathState) -> ScholarPathStateUpdate:
         """Create a stable, unique Prospective Supervisor snapshot."""
-        results_by_id = self._available_raw_results(state)
-        prospective = [result.to_prospective_supervisor() for result in results_by_id.values()]
         return {
-            "prospective_supervisors": prospective,
+            "prospective_supervisors": list(self._available_prospective_supervisors(state)),
             "execution_log": [DEDUPLICATE_SUPERVISORS],
         }
 
@@ -550,16 +651,28 @@ class _UnconfiguredPlanningModel:
         raise PlanningModelInvocationError("No planning model was injected.")
 
 
+class _UnconfiguredSupervisorSearch:
+    """Fail safely if a topology-only graph is accidentally executed."""
+
+    def search(self, query: str) -> tuple[SearchResult, ...]:
+        del query
+        raise SupervisorSearchTransportError("No Supervisor search adapter was injected.")
+
+
 def build_scholarpath_graph(
     config: GraphFixtureConfig | None = None,
     *,
     planning_model: PlanningModelPort | None = None,
+    supervisor_search: SupervisorSearchPort | None = None,
     observability: LangSmithObservability | None = None,
 ) -> ScholarPathGraph:
     """Compile the graph without instantiating a provider or requiring credentials."""
     resolved_model = planning_model or _UnconfiguredPlanningModel()
+    resolved_search = supervisor_search or _UnconfiguredSupervisorSearch()
     nodes = DeterministicScholarPathNodes(
-        config or GraphFixtureConfig(), ResearchPlanningAgent(resolved_model)
+        config or GraphFixtureConfig(),
+        ResearchPlanningAgent(resolved_model),
+        resolved_search,
     )
     builder: StateGraph[ScholarPathState, None, ScholarPathState, ScholarPathState] = StateGraph(
         ScholarPathState
@@ -625,15 +738,17 @@ def build_scholarpath_graph(
     )
     builder.add_edge(SAVE_SHORTLISTED_SUPERVISORS, GENERATE_SHORTLIST_BRIEFING)
     builder.add_edge(GENERATE_SHORTLIST_BRIEFING, END)
-    return builder.compile(name="ScholarPath M3 research planning graph")
+    return builder.compile(name="ScholarPath M4 You.com discovery graph")
 
 
 def run_scholarpath_graph(
     config: GraphFixtureConfig | None = None,
     *,
     planning_model: PlanningModelPort | None = None,
+    supervisor_search: SupervisorSearchPort | None = None,
     application_settings: ApplicationSettings | None = None,
     openai_settings: OpenAIPlanningSettings | None = None,
+    you_settings: YouSearchSettings | None = None,
     langsmith_settings: LangSmithSettings | None = None,
 ) -> ScholarPathState:
     """Compose providers lazily, then execute one optionally traced graph run."""
@@ -649,9 +764,14 @@ def run_scholarpath_graph(
         resolved_planning_model = OpenAIPlanningModelAdapter(
             resolved_openai_settings.for_planning_model()
         )
+    resolved_supervisor_search = supervisor_search
+    if resolved_supervisor_search is None:
+        resolved_you_settings = you_settings or load_you_search_settings()
+        resolved_supervisor_search = YouSearchAdapter(resolved_you_settings.for_search_adapter())
     graph = build_scholarpath_graph(
         resolved_config,
         planning_model=resolved_planning_model,
+        supervisor_search=resolved_supervisor_search,
         observability=observability,
     )
     initial_state = create_initial_state(resolved_config.fixtures.candidate_profile)

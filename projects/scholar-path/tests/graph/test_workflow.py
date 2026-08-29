@@ -20,10 +20,11 @@ from scholarpath.graph import (
     ReviewStatus,
     ScholarPathState,
     build_scholarpath_graph,
+    build_walking_skeleton_fixtures,
     render_scholarpath_mermaid,
     run_scholarpath_graph,
 )
-from tests.fakes import FakePlanningModel
+from tests.fakes import FakePlanningModel, FakeSupervisorSearch
 
 HAPPY_PATH_LOG = [
     "load_candidate_preferences",
@@ -40,30 +41,24 @@ HAPPY_PATH_LOG = [
     "save_shortlisted_supervisors",
     "generate_shortlist_briefing",
 ]
-RANKED_IDS = (
-    "supervisor-001",
-    "supervisor-002",
-    "supervisor-004",
-    "supervisor-003",
-    "supervisor-005",
+FIXTURE_IDS = tuple(
+    supervisor.supervisor_id
+    for supervisor in build_walking_skeleton_fixtures().verified_supervisors
 )
-RANKED_IDS_AFTER_REJECTION = (
-    "supervisor-001",
-    "supervisor-002",
-    "supervisor-004",
-    "supervisor-003",
-    "supervisor-006",
-)
+RANKED_IDS = tuple(FIXTURE_IDS[index] for index in (0, 1, 3, 2, 4))
+RANKED_IDS_AFTER_REJECTION = tuple(FIXTURE_IDS[index] for index in (0, 1, 3, 2, 5))
 
 
 def _run_graph(
     config: GraphFixtureConfig | None = None,
     *,
     planning_model: FakePlanningModel | None = None,
+    supervisor_search: FakeSupervisorSearch | None = None,
 ) -> ScholarPathState:
     return run_scholarpath_graph(
         config,
         planning_model=planning_model or FakePlanningModel(),
+        supervisor_search=supervisor_search or FakeSupervisorSearch(),
         application_settings=ApplicationSettings(environment=Environment.TEST),
         langsmith_settings=LangSmithSettings(tracing=False),
     )
@@ -148,7 +143,7 @@ def test_candidate_approval_reaches_end_with_shortlisted_statuses() -> None:
 
 
 def test_candidate_rejection_records_feedback_and_returns_to_planning() -> None:
-    reject = _decision(CandidateReviewAction.REJECT, ("supervisor-005",))
+    reject = _decision(CandidateReviewAction.REJECT, (FIXTURE_IDS[4],))
     approve_remaining = _decision(
         CandidateReviewAction.APPROVE,
         RANKED_IDS_AFTER_REJECTION,
@@ -158,7 +153,7 @@ def test_candidate_rejection_records_feedback_and_returns_to_planning() -> None:
     final_state = _run_graph(config)
 
     rejected = final_state["rejected_supervisors"]
-    assert [item.supervisor_id for item in rejected] == ["supervisor-005"]
+    assert [item.supervisor_id for item in rejected] == [FIXTURE_IDS[4]]
     assert rejected[0].status is SupervisorLifecycleStatus.REJECTED
     assert [decision.action for decision in final_state["candidate_feedback"]] == [
         CandidateReviewAction.REJECT,
@@ -306,7 +301,10 @@ def test_maximum_configured_review_retries_exhaust_through_domain_state() -> Non
 
 
 def test_graph_paths_never_use_candidate_as_a_supervisor_label() -> None:
-    graph = build_scholarpath_graph(planning_model=FakePlanningModel()).get_graph()
+    graph = build_scholarpath_graph(
+        planning_model=FakePlanningModel(),
+        supervisor_search=FakeSupervisorSearch(),
+    ).get_graph()
     graph_node_names = set(graph.nodes)
     candidate_nodes = {name for name in graph_node_names if "candidate" in name.casefold()}
 

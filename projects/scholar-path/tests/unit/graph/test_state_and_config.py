@@ -25,13 +25,19 @@ from scholarpath.graph import (
     run_scholarpath_graph,
 )
 from scholarpath.graph.workflow import DeterministicScholarPathNodes
-from tests.fakes import FakePlanningModel
+from tests.fakes import FakePlanningModel, FakeSupervisorSearch
+
+FIXTURE_IDS = tuple(
+    supervisor.supervisor_id
+    for supervisor in build_walking_skeleton_fixtures().verified_supervisors
+)
 
 
 def _run_graph(config: GraphFixtureConfig | None = None) -> ScholarPathState:
     return run_scholarpath_graph(
         config,
         planning_model=FakePlanningModel(),
+        supervisor_search=FakeSupervisorSearch(),
         application_settings=ApplicationSettings(environment=Environment.TEST),
         langsmith_settings=LangSmithSettings(tracing=False),
     )
@@ -150,13 +156,7 @@ def test_invalid_review_scope_stops_safely() -> None:
 def test_review_retry_limit_stops_before_replanning() -> None:
     request_more = CandidateReviewDecision(
         action=CandidateReviewAction.REQUEST_MORE,
-        supervisor_ids=(
-            "supervisor-001",
-            "supervisor-002",
-            "supervisor-004",
-            "supervisor-003",
-            "supervisor-005",
-        ),
+        supervisor_ids=tuple(FIXTURE_IDS[index] for index in (0, 1, 3, 2, 4)),
         reason="The Candidate requested a broader fixture search.",
     )
 
@@ -173,7 +173,7 @@ def test_review_retry_limit_stops_before_replanning() -> None:
 def test_partial_approval_cannot_complete_the_five_supervisor_shortlist() -> None:
     partial_approval = CandidateReviewDecision(
         action=CandidateReviewAction.APPROVE,
-        supervisor_ids=("supervisor-001",),
+        supervisor_ids=(FIXTURE_IDS[0],),
         reason="The Candidate approved only one fixture recommendation.",
     )
 

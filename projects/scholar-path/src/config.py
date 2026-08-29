@@ -3,7 +3,15 @@
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    SecretStr,
+    field_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -99,6 +107,85 @@ class OpenAIPlanningSettings(BaseSettings):
         )
 
 
+class YouSearchConfiguration(BaseModel):
+    """Validated settings passed only to the You.com Web Search adapter."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        hide_input_in_errors=True,
+        str_strip_whitespace=True,
+    )
+
+    api_key: SecretStr
+    endpoint: HttpUrl
+    timeout_seconds: float = Field(gt=0)
+    result_count: int = Field(ge=1, le=100)
+
+    @field_validator("api_key")
+    @classmethod
+    def api_key_must_not_be_blank(cls, value: SecretStr) -> SecretStr:
+        """Reject blank You.com credentials at adapter activation."""
+        if not value.get_secret_value().strip():
+            raise ValueError("You.com API key must not be blank")
+        return value
+
+    @field_validator("endpoint")
+    @classmethod
+    def endpoint_must_use_https(cls, value: HttpUrl) -> HttpUrl:
+        """Prevent an API key from being sent over an unencrypted connection."""
+        if value.scheme != "https":
+            raise ValueError("You.com search endpoint must use HTTPS")
+        return value
+
+
+class YouSearchSettings(BaseSettings):
+    """You.com settings that remain inert until the search adapter is requested."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        frozen=True,
+        hide_input_in_errors=True,
+        populate_by_name=True,
+        str_strip_whitespace=True,
+    )
+
+    api_key: Annotated[
+        SecretStr | None,
+        Field(
+            repr=False,
+            validation_alias=AliasChoices("YDC_API_KEY", "YOU_API_KEY"),
+        ),
+    ] = None
+    endpoint: HttpUrl = Field(
+        default=HttpUrl("https://ydc-index.io/v1/search"),
+        validation_alias="YOU_SEARCH_ENDPOINT",
+    )
+    timeout_seconds: float = Field(
+        default=20.0,
+        gt=0,
+        validation_alias="YOU_SEARCH_TIMEOUT_SECONDS",
+    )
+    result_count: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        validation_alias="YOU_SEARCH_RESULT_COUNT",
+    )
+
+    def for_search_adapter(self) -> YouSearchConfiguration:
+        """Validate credentials only when the You.com adapter is requested."""
+        if self.api_key is None or not self.api_key.get_secret_value().strip():
+            raise ProviderConfigurationError("Missing API key for provider 'you.com'.")
+        return YouSearchConfiguration(
+            api_key=self.api_key,
+            endpoint=self.endpoint,
+            timeout_seconds=self.timeout_seconds,
+            result_count=self.result_count,
+        )
+
+
 class LangSmithSettings(BaseSettings):
     """Optional LangSmith settings loaded from the provider's canonical variables."""
 
@@ -171,6 +258,11 @@ def load_settings() -> ApplicationSettings:
 def load_openai_planning_settings() -> OpenAIPlanningSettings:
     """Load optional OpenAI settings without requiring credentials."""
     return OpenAIPlanningSettings()
+
+
+def load_you_search_settings() -> YouSearchSettings:
+    """Load optional You.com settings without requiring credentials."""
+    return YouSearchSettings()
 
 
 def load_langsmith_settings() -> LangSmithSettings:

@@ -14,16 +14,18 @@ any Supervisor is shortlisted or any outreach is drafted.
 
 ## Project status
 
-Milestone M3 replaces only `plan_supervisor_searches` with an injected Research
-Planning Agent. Its OpenAI adapter uses native structured output to create a typed
-search strategy; it has no tools and cannot browse. The remaining discovery,
-verification, Research Fit, review, and shortlist nodes stay deterministic and
+Milestone M4 replaces only `discover_prospective_supervisors` with an injected
+Supervisor Discovery Agent. The production adapter executes each planned query through
+the current You.com Web Search API; the agent conservatively extracts Prospective
+Supervisors, and deterministic code merges normalized identities and paired
+source/query provenance. Research planning remains the M3 OpenAI structured-output
+integration. Verification, Research Fit, review, and shortlist nodes remain
 fixture-backed.
 
 Baseline LangSmith tracing is optional. When enabled, it traces the graph and planning
 node with fixed environment and graph-version tags, allowlisted metadata, and hidden
-trace inputs and outputs. The Candidate review gate remains a configured fixture stub rather than
-a user interface. Search providers, memory, Streamlit, and other model-backed agents
+trace inputs and outputs. The Candidate review gate remains a configured fixture stub
+rather than a user interface. Tavily, memory, Streamlit, and other model-backed agents
 are not implemented yet.
 
 ## M0 foundation
@@ -38,8 +40,9 @@ are not implemented yet.
 | Network policy | Default and CI tests exclude tests marked `live` |
 
 See [current architecture](docs/architecture.md), the historical
-[M2 generated graph](docs/m2-walking-skeleton.mmd), the current
-[M3 generated graph](docs/m3-research-planning-graph.mmd), and
+[M2 generated graph](docs/m2-walking-skeleton.mmd), the historical
+[M3 generated graph](docs/m3-research-planning-graph.mmd), the current
+[M4 generated graph](docs/m4-you-com-discovery-graph.mmd), and
 [canonical terminology](docs/terminology.md) for the current boundaries.
 
 ## M1 domain contracts
@@ -74,7 +77,7 @@ verified = make_verified_supervisors()  # 6 records
 assessments = make_research_fit_assessments()  # 5 records
 ```
 
-## M2 walking skeleton, extended in M3
+## M2 walking skeleton, extended through M4
 
 ```mermaid
 flowchart TD
@@ -149,12 +152,53 @@ SDK retries beyond ScholarPath's explicit policy.
 The port is the substitution seam:
 
 ```python
-final_state = run_scholarpath_graph(planning_model=fake_planning_model)
+final_state = run_scholarpath_graph(
+    planning_model=fake_planning_model,
+    supervisor_search=fake_supervisor_search,
+)
 ```
 
 Default tests inject `FakePlanningModel`; they never instantiate OpenAI or use the
 network. Calling `run_scholarpath_graph()` without an injected model lazily creates the
 OpenAI adapter and validates `OPENAI_API_KEY` at that boundary.
+
+## M4 You.com Supervisor discovery
+
+```mermaid
+flowchart LR
+    Plan[SearchPlan] --> Graph[discover_prospective_supervisors]
+    Graph -->|one query per call| Port[SupervisorSearchPort]
+    Port --> Fake[FakeSupervisorSearch in default tests]
+    Port --> You[YouSearchAdapter in production]
+    You --> API[POST ydc-index.io/v1/search]
+    API --> Results[SearchResult records]
+    Fake --> Results
+    Results --> Agent[SupervisorDiscoveryAgent]
+    Agent --> Filter{Plausible person + institution?}
+    Filter -->|no| Exclude[Exclude result]
+    Filter -->|yes| Dedupe[Deterministic identity + URL deduplication]
+    Dedupe --> Output[SupervisorDiscoveryResult]
+    Output --> Prospective[ProspectiveSupervisor records]
+
+    classDef external fill:#e8f1ff,stroke:#245a9b;
+    class You,API external;
+```
+
+`YouSearchAdapter` is transport-only. It sends the exact query and configured result
+limit to the official POST endpoint, applies an explicit HTTP timeout, and normalizes
+web/news results into typed `SearchResult` records. It does not identify people,
+evaluate Research Fit, or infer doctoral availability.
+
+`SupervisorDiscoveryAgent` uses conservative deterministic extraction because M4 does
+not introduce another model integration. A result must contain a plausible person name
+and institution. Equivalent records are merged by normalized name, normalized
+institution, and canonical profile URL; each exact `(source URL, originating query)`
+pair remains attached as provenance. This is discovery only: availability is not
+represented and every output remains prospective.
+
+Production composition lazily validates `YDC_API_KEY` only when `YouSearchAdapter` is
+requested. Default tests inject `FakeSupervisorSearch`, mock HTTP only at the adapter
+boundary, and make no external requests. Tavily remains deferred.
 
 ## Setup
 
@@ -171,8 +215,8 @@ cp .env.example .env
 
 No API key is required to install the package, import `scholarpath`, render the graph,
 or run the default non-live test suite. The copied `.env` contains placeholders only
-and is ignored by Git. An OpenAI key is validated only when the OpenAI planning adapter
-is instantiated.
+and is ignored by Git. OpenAI and You.com keys are validated only when their respective
+adapters are instantiated.
 
 Run commands from `projects/scholar-path`, because the application resolves `.env`
 relative to the current working directory. Keep the local file private:
@@ -189,10 +233,14 @@ Set these variables in the ignored `.env` before running the live CLI:
 OPENAI_API_KEY=your-openai-key
 OPENAI_PLANNING_MODEL=gpt-5.4-mini
 OPENAI_PLANNING_TIMEOUT_SECONDS=60
+YDC_API_KEY=your-you-com-key
+YOU_SEARCH_ENDPOINT=https://ydc-index.io/v1/search
+YOU_SEARCH_TIMEOUT_SECONDS=20
+YOU_SEARCH_RESULT_COUNT=10
 ```
 
-`OPENAI_API_KEY` is required for a live planning run. The model and timeout shown are
-the current non-secret defaults.
+`OPENAI_API_KEY` and `YDC_API_KEY` are required for the live M4 graph path. Endpoint,
+model, timeout, and result-count values shown are the current non-secret defaults.
 
 LangSmith is optional and disabled by default:
 
@@ -204,7 +252,7 @@ LANGSMITH_PROJECT=scholarpath
 
 To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_API_KEY`. `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag;
-the implementation supplies the fixed `graph-version:m3` tag. Disabling tracing does
+the implementation supplies the fixed `graph-version:m4` tag. Disabling tracing does
 not construct a LangSmith client, even if another process has globally enabled
 tracing.
 
@@ -243,22 +291,23 @@ python -m pip check
 python -c "import scholarpath; print(scholarpath.__version__)"
 ```
 
-Run the live graph demonstration after configuring OpenAI:
+Run the live graph path after configuring OpenAI and You.com:
 
 ```bash
 python -m scholarpath.cli
 ```
 
-It uses OpenAI only for research planning, then executes the remaining fixture-backed
-approval path and prints the final five Shortlisted Supervisors with their fixture
-Research Fit Scores. If OpenAI is not configured, the CLI exits cleanly with setup
-guidance.
+It uses OpenAI for research planning and You.com for primary discovery. Later nodes are
+still fixture-backed, so arbitrary live discoveries generally stop cleanly at the
+evidence-sufficiency boundary rather than being matched to invented evidence. The CLI
+prints five Shortlisted Supervisors only when a complete shortlist exists and otherwise
+reports the incomplete run.
 
 To exercise the same full graph without secrets, provider calls, or network access,
 inject the test fake from the CLI:
 
 ```bash
-LANGSMITH_TRACING=false python -c 'from scholarpath.cli import main; from tests.fakes import FakePlanningModel; raise SystemExit(main(FakePlanningModel()))'
+LANGSMITH_TRACING=false python -c 'from scholarpath.cli import main; from tests.fakes import FakePlanningModel, FakeSupervisorSearch; raise SystemExit(main(FakePlanningModel(), FakeSupervisorSearch()))'
 ```
 
 ## Quality and test commands
@@ -288,6 +337,16 @@ LANGSMITH_TRACING=false SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m 
 Without either condition, the live test skips. `-o addopts=''` deliberately overrides
 the repository's default `-m "not live"` selection for this one command. The standalone
 smoke test reads the process environment directly; it does not load `.env` itself.
+
+The optional You.com smoke test follows the same opt-in policy and performs one bounded
+search call:
+
+```bash
+set -a
+source .env
+set +a
+SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_you_search_live.py
+```
 
 The GitHub Actions workflow runs the same installation and quality commands on Python
 3.12 whenever ScholarPath or its workflow changes.
@@ -369,8 +428,8 @@ Only the Candidate Review decision can create a Shortlisted Supervisor.
 | Agent | Responsibility |
 |---|---|
 | **Candidate Intake Agent** | Captures and structures the Candidate's proposed research area, preferences, and constraints. |
-| **Research Planning Agent** | Current M3 agent: produces a structured, source-diverse SearchPlan through an injected model port. |
-| **Supervisor Discovery Agent** | Finds Prospective Supervisors using You.com, with Tavily as a fallback. |
+| **Research Planning Agent** | Produces a structured, source-diverse SearchPlan through an injected model port. |
+| **Supervisor Discovery Agent** | Current M4 agent: identifies Prospective Supervisors from typed You.com results; Tavily is not implemented yet. |
 | **Evidence Verification Agent** | Verifies Supervisor identity, affiliation, research interests, publications, and stated supervisor availability. |
 | **Research Fit Evaluation Agent** | Calculates and explains the Research Fit between the Candidate and each Verified Supervisor. |
 | **Independent Review Agent** | Reviews the evidence and fit assessment using Nebius, identifying unsupported claims or inflated scores. |
@@ -386,8 +445,8 @@ execute, coordinate, remember, or observe those responsibilities.
 | Integration | Role |
 |---|---|
 | **OpenAI** | Current native structured-output model for research planning; no tools or browsing. |
-| **You.com** | Primary Supervisor discovery search. |
-| **Tavily** | Fallback Supervisor discovery search. |
+| **You.com** | Current primary Supervisor discovery search through the official Web Search API. |
+| **Tavily** | Planned fallback Supervisor discovery search; not implemented in M4. |
 | **Nebius** | Independent evidence and Research Fit review. |
 | **Mem0** | Candidate preference and feedback memory. |
 | **LangGraph** | Current deterministic state orchestration and future human approval flow. |

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Annotated, Any, Literal, Self
 
 from pydantic import (
@@ -113,6 +114,23 @@ class SearchPlan(DomainModel):
         return self
 
 
+class SearchResult(DomainModel):
+    """One provider-neutral web result returned for an exact search query."""
+
+    url: HttpUrl
+    title: NonEmptyString
+    description: str = ""
+    publication_date: datetime | None = None
+    originating_query: NonEmptyString
+
+
+class SupervisorDiscoveryProvenance(DomainModel):
+    """A paired source URL and query that led to one Supervisor discovery."""
+
+    source_url: HttpUrl
+    originating_query: NonEmptyString
+
+
 class SupervisorProfile(DomainModel):
     """Identity and discovery provenance shared across Supervisor records."""
 
@@ -123,6 +141,17 @@ class SupervisorProfile(DomainModel):
     profile_url: HttpUrl
     discovery_source: NonEmptyString
     discovery_query: NonEmptyString
+    discovery_provenance: tuple[SupervisorDiscoveryProvenance, ...] = ()
+
+    @model_validator(mode="after")
+    def discovery_provenance_must_be_unique(self) -> Self:
+        """Keep exact source/query pairs without duplicated provenance entries."""
+        pairs = [
+            (str(item.source_url), item.originating_query) for item in self.discovery_provenance
+        ]
+        if len(pairs) != len(set(pairs)):
+            raise ValueError("Supervisor discovery provenance entries must be unique")
+        return self
 
 
 class ProspectiveSupervisor(SupervisorProfile):

@@ -15,6 +15,13 @@ from .research_planning import (
     ResearchPlanningError,
     StructuredSearchPlanResponse,
 )
+from .supervisor_discovery import (
+    SupervisorDiscoveryAgent,
+    SupervisorDiscoveryResult,
+    canonical_profile_url,
+    deduplicate_prospective_supervisors,
+    deterministic_supervisor_id,
+)
 
 __all__ = [
     "MAX_PLANNING_OUTPUT_ATTEMPTS",
@@ -31,4 +38,9 @@ __all__ = [
     "ResearchPlanningAgent",
     "ResearchPlanningError",
     "StructuredSearchPlanResponse",
+    "SupervisorDiscoveryAgent",
+    "SupervisorDiscoveryResult",
+    "canonical_profile_url",
+    "deduplicate_prospective_supervisors",
+    "deterministic_supervisor_id",
 ]
