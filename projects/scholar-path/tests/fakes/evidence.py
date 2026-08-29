@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from scholarpath.agents.evidence_verification import (
     EvidenceExtractionInput,
     StructuredEvidenceClaim,
+    StructuredEvidenceClaimDraft,
     StructuredEvidenceExtractionResult,
 )
 from scholarpath.domain import AvailabilityStatus, EvidenceClaimType, EvidenceConfidence
@@ -121,7 +122,7 @@ def make_complete_evidence_response(
     include_project: bool = True,
 ) -> StructuredEvidenceExtractionResult:
     """Return identity, affiliation, research, publication, project, and optional availability."""
-    claims = [
+    claims: list[StructuredEvidenceClaimDraft] = [
         _identity_claim(),
         _affiliation_claim(),
         _research_claim(),

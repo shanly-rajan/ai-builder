@@ -124,14 +124,43 @@ _GENERIC_INSTITUTION_TOKENS = {
     "the",
     "university",
 }
+_INSTITUTION_ACRONYM_STOP_TOKENS = {"and", "for", "of", "the"}
+_PERSON_PROFILE_PATH_TOKENS = {
+    "academic",
+    "academics",
+    "faculty",
+    "people",
+    "person",
+    "profile",
+    "profiles",
+    "staff",
+}
+_NON_PROFILE_PATH_TOKENS = {
+    "article",
+    "articles",
+    "event",
+    "events",
+    "news",
+    "paper",
+    "papers",
+    "project",
+    "projects",
+    "publication",
+    "publications",
+    "repository",
+    "search",
+}
+_OFFICIAL_ALTERNATE_SOURCE_KINDS = {
+    SourceKind.DEPARTMENT_PAGE,
+    SourceKind.INSTITUTIONAL_DIRECTORY,
+    SourceKind.UNIVERSITY_PROFILE,
+}
 
 
 def alternate_official_source_query(supervisor: ProspectiveSupervisor) -> str:
     """Build one deterministic query used only to locate a stronger official page."""
-    return (
-        f'"{supervisor.full_name}" "{supervisor.institution}" '
-        "official university profile department"
-    )
+    person_name = " ".join(_substantive_person_name_tokens(supervisor.full_name))
+    return f'"{person_name}" "{supervisor.institution}" official university profile department'
 
 
 def select_alternate_official_source(
@@ -142,9 +171,8 @@ def select_alternate_official_source(
 ) -> EvidenceSourceReference | None:
     """Select the first plausible official page without treating its snippet as evidence."""
     original_url = _canonical_url(str(supervisor.profile_url))
-    person_tokens = tuple(
-        token for token in _word_tokens(supervisor.full_name) if token not in _PERSON_TITLES
-    )
+    person_tokens = tuple(_substantive_person_name_tokens(supervisor.full_name, casefold=True))
+    institution_phrase_tokens = tuple(_word_tokens(supervisor.institution))
     institution_tokens = tuple(
         token
         for token in _word_tokens(supervisor.institution)
@@ -161,13 +189,16 @@ def select_alternate_official_source(
         hostname = (parsed.hostname or "").casefold()
         if parsed.scheme != "https" or not hostname:
             continue
-        result_tokens = tuple(
-            token
-            for token in _word_tokens(f"{result.title} {result.description}")
-            if token not in _PERSON_TITLES
-        )
+        result_texts = (result.title, result.description)
         person_matches = bool(
-            person_tokens and _contains_token_sequence(result_tokens, person_tokens)
+            person_tokens
+            and any(
+                _contains_token_sequence(
+                    tuple(token for token in _word_tokens(text) if token not in _PERSON_TITLES),
+                    person_tokens,
+                )
+                for text in result_texts
+            )
         )
         academic_organization = _academic_organization_label(hostname)
         institution_matches_hostname = bool(
@@ -175,16 +206,34 @@ def select_alternate_official_source(
             and academic_organization
             and all(token in academic_organization for token in institution_tokens)
         )
-        result_token_set = set(result_tokens)
         institution_matches_text = bool(
-            institution_tokens and all(token in result_token_set for token in institution_tokens)
+            institution_phrase_tokens
+            and any(
+                _contains_token_sequence(tuple(_word_tokens(text)), institution_phrase_tokens)
+                for text in result_texts
+            )
         )
-        if not (person_matches and institution_matches_text and institution_matches_hostname):
+        abbreviation_profile_matches = bool(
+            academic_organization
+            and _academic_organization_is_institution_abbreviation(
+                academic_organization,
+                supervisor.institution,
+            )
+            and _is_singular_person_profile_path(parsed.path, person_tokens)
+        )
+        if not (
+            person_matches
+            and institution_matches_text
+            and (institution_matches_hostname or abbreviation_profile_matches)
+        ):
+            continue
+        source_kind = classify_evidence_source_kind(result.url, title=result.title)
+        if source_kind not in _OFFICIAL_ALTERNATE_SOURCE_KINDS:
             continue
         return EvidenceSourceReference(
             supervisor_id=supervisor.supervisor_id,
             source_url=result.url,
-            source_kind=classify_evidence_source_kind(result.url, title=result.title),
+            source_kind=source_kind,
             originating_query=result.originating_query,
         )
     return None
@@ -224,7 +273,13 @@ def classify_evidence_source_kind(
         return SourceKind.DEPARTMENT_PAGE
     if academic_hostname and tokens & {"directory", "directories", "staff"}:
         return SourceKind.INSTITUTIONAL_DIRECTORY
-    if academic_hostname and tokens & {"profile", "profiles", "people", "person", "faculty"}:
+    if academic_hostname and tokens & {
+        "faculty",
+        "people",
+        "person",
+        "profile",
+        "profiles",
+    }:
         return SourceKind.UNIVERSITY_PROFILE
     return SourceKind.OTHER
 
@@ -243,7 +298,17 @@ def _canonical_url(value: str) -> str:
 
 
 def _word_tokens(value: str) -> list[str]:
-    return re.findall(r"[a-z0-9]+", value.casefold())
+    return re.findall(r"[^\W_]+", value.casefold(), re.UNICODE)
+
+
+def _substantive_person_name_tokens(value: str, *, casefold: bool = False) -> list[str]:
+    """Remove only leading academic titles while retaining the substantive person name."""
+    tokens = re.findall(r"[^\W_]+", value, re.UNICODE)
+    while tokens and tokens[0].casefold() in _PERSON_TITLES:
+        tokens.pop(0)
+    if casefold:
+        return [token.casefold() for token in tokens]
+    return tokens
 
 
 def _contains_token_sequence(haystack: tuple[str, ...], needle: tuple[str, ...]) -> bool:
@@ -257,6 +322,51 @@ def _contains_token_sequence(haystack: tuple[str, ...], needle: tuple[str, ...])
 
 def _is_academic_hostname(hostname: str) -> bool:
     return _academic_organization_label(hostname) is not None
+
+
+def _academic_organization_is_institution_abbreviation(
+    academic_organization: str,
+    institution: str,
+) -> bool:
+    """Match a controlled academic hostname label to an explicit institution acronym."""
+    organization = "".join(_word_tokens(academic_organization))
+    institution_tokens = _word_tokens(institution)
+    if len(organization) < 2 or not institution_tokens:
+        return False
+    if organization in institution_tokens:
+        return True
+    meaningful_tokens = tuple(
+        token for token in institution_tokens if token not in _GENERIC_INSTITUTION_TOKENS
+    )
+    if (
+        len(organization) >= 2
+        and len(meaningful_tokens) == 1
+        and meaningful_tokens[0].startswith(organization)
+    ):
+        return True
+    acronym = "".join(
+        token[0] for token in institution_tokens if token not in _INSTITUTION_ACRONYM_STOP_TOKENS
+    )
+    return len(acronym) >= 2 and organization == acronym
+
+
+def _is_singular_person_profile_path(path: str, person_tokens: tuple[str, ...]) -> bool:
+    """Return whether an academic path identifies one person rather than general content."""
+    path_tokens = tuple(_word_tokens(path))
+    if not path_tokens or set(path_tokens) & _NON_PROFILE_PATH_TOKENS:
+        return False
+    profile_positions = [
+        index for index, token in enumerate(path_tokens) if token in _PERSON_PROFILE_PATH_TOKENS
+    ]
+    if not profile_positions:
+        return False
+    final_profile_position = profile_positions[-1]
+    if final_profile_position == len(path_tokens) - 1:
+        return False
+    if _contains_token_sequence(path_tokens, person_tokens):
+        return True
+    identifier_tokens = path_tokens[final_profile_position + 1 :]
+    return len(identifier_tokens) == 1 and identifier_tokens[0].isdigit()
 
 
 def _academic_organization_label(hostname: str) -> str | None:

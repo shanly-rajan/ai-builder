@@ -63,11 +63,6 @@ _RESEARCH_CONTEXT_PATTERN = re.compile(
     r"\b(academic|faculty|publication|publications|research|researches|researching|scholar)\b",
     re.IGNORECASE,
 )
-_PERSON_URL_PATTERN = re.compile(
-    r"/(people|persons?|profiles?|staff(?:-directory)?|faculty|researchers?|academics?|"
-    r"academic-staff|experts?|team|directory)(?:/|$)",
-    re.IGNORECASE,
-)
 _SINGULAR_PERSON_PROFILE_URL_PATTERN = re.compile(
     r"/(?:people|persons?|profiles?|staff(?:-directory)?|faculty|researchers?|academics?|"
     r"academic-staff)/(?P<profile_slug>[^/?#]+)(?:[/?#]|$)",
@@ -165,6 +160,21 @@ _NON_INSTITUTION_ACRONYM_SUFFIXES = {
     "team",
 }
 _DANGLING_INSTITUTION_SUFFIXES = {"and", "at", "for", "of", "the", "with"}
+_NON_INSTITUTION_ACTIVITY_PATTERN = re.compile(
+    r"\b(program(?:me)?s?|courses?|workshops?|seminars?|conferences?|webinars?|"
+    r"events?|training)\b",
+    re.IGNORECASE,
+)
+_INSTITUTION_HOST_ATTRIBUTION_PATTERN = re.compile(
+    r"\b(?:(?:hosted|offered|presented|organi[sz]ed|sponsored|delivered|provided|run)\s+)?"
+    r"by\s*[:\-]?\s+(?:the\s+)?[^,.;|]{0,80}\b"
+    r"(?:university|institute|college|polytechnic|academy|school)\b",
+    re.IGNORECASE,
+)
+_NON_INSTITUTION_PAGE_ARTIFACT_PATTERN = re.compile(
+    r"\bcopyright\b|\b(?:and\s+is|is\s+part\s+of|as\s+well\s+as|strategic\s+alliance)\b",
+    re.IGNORECASE,
+)
 _MAX_BOUNDED_DESCRIPTION_CHARACTERS = 1_000
 
 
@@ -344,7 +354,9 @@ def _clean_name_tokens(value: str) -> tuple[str, ...]:
         if len(tokens) == 5:
             break
     substantive = [token for token in tokens if token.casefold() not in _NAME_PARTICLES]
-    return tuple(tokens) if len(substantive) >= 2 else ()
+    if len(substantive) < 2 or len(substantive[-1]) == 1:
+        return ()
+    return tuple(tokens)
 
 
 def _result_context(result: SearchResult) -> str:
@@ -418,8 +430,10 @@ def _title_segment_names_different_person(segment: str, full_name: str) -> bool:
 
 def _clean_institution_segment(value: str) -> str:
     """Remove a role prefix and resolve a strong institution from a title breadcrumb."""
-    stripped = value.strip(" .,:;-")
-    stripped = _ACADEMIC_ROLE_AT_INSTITUTION_PATTERN.sub("", stripped).strip(" .,:;-")
+    stripped = re.sub(r"\s*·\s*", " ", value).strip(" .,:;-[]{}()")
+    stripped = _ACADEMIC_ROLE_AT_INSTITUTION_PATTERN.sub("", stripped).strip(" .,:;-[]{}()")
+    if _is_non_institution_activity_or_host_label(stripped):
+        return stripped
     strong_breadcrumb_fragments = tuple(
         fragment.strip(" .,:;-")
         for fragment in stripped.split(":")
@@ -441,6 +455,15 @@ def _has_plausible_institution_suffix(value: str) -> bool:
     """Reject page labels and truncated institution phrases using their final token."""
     suffix = value.rsplit(maxsplit=1)[-1].casefold()
     return suffix not in (_NON_INSTITUTION_ACRONYM_SUFFIXES | _DANGLING_INSTITUTION_SUFFIXES)
+
+
+def _is_non_institution_activity_or_host_label(value: str) -> bool:
+    """Reject event, course, and host labels that do not establish affiliation."""
+    return bool(
+        _NON_INSTITUTION_ACTIVITY_PATTERN.search(value)
+        or _INSTITUTION_HOST_ATTRIBUTION_PATTERN.search(value)
+        or _NON_INSTITUTION_PAGE_ARTIFACT_PATTERN.search(value)
+    )
 
 
 def _is_context_supported_two_letter_institution(value: str, context: str) -> bool:
@@ -766,10 +789,14 @@ def _extract_owner_linked_context_institution(
         institution = activity_boundary.split(clause[relation.end() :], maxsplit=1)[0]
         institution = institution.strip(" .,:;-")
         if (
-            _STRONG_INSTITUTION_PATTERN.search(institution)
-            or _SCHOOL_PATTERN.search(institution)
-            or _is_plausible_acronym_institution(institution)
-        ) and _has_plausible_institution_suffix(institution):
+            not _is_non_institution_activity_or_host_label(institution)
+            and (
+                _STRONG_INSTITUTION_PATTERN.search(institution)
+                or _SCHOOL_PATTERN.search(institution)
+                or _is_plausible_acronym_institution(institution)
+            )
+            and _has_plausible_institution_suffix(institution)
+        ):
             return institution
     return None
 
@@ -788,7 +815,8 @@ def _extract_institution(
             continue
         institution = _clean_institution_segment(segment)
         if (
-            _STRONG_INSTITUTION_PATTERN.search(institution)
+            not _is_non_institution_activity_or_host_label(institution)
+            and _STRONG_INSTITUTION_PATTERN.search(institution)
             and _has_plausible_institution_suffix(institution)
             and _normalized_identity_text(institution, remove_title=True) != normalized_name
         ):
@@ -799,7 +827,8 @@ def _extract_institution(
             continue
         stripped = _clean_institution_segment(segment)
         if (
-            _SCHOOL_PATTERN.search(stripped)
+            not _is_non_institution_activity_or_host_label(stripped)
+            and _SCHOOL_PATTERN.search(stripped)
             and _has_plausible_institution_suffix(stripped)
             and not stripped.casefold().startswith("school of ")
             and _normalized_identity_text(stripped, remove_title=True) != normalized_name
@@ -811,8 +840,11 @@ def _extract_institution(
             continue
         stripped = _clean_institution_segment(segment)
         if (
-            _is_plausible_acronym_institution(stripped)
-            or _is_context_supported_two_letter_institution(stripped, context)
+            not _is_non_institution_activity_or_host_label(stripped)
+            and (
+                _is_plausible_acronym_institution(stripped)
+                or _is_context_supported_two_letter_institution(stripped, context)
+            )
         ) and _normalized_identity_text(stripped, remove_title=True) != normalized_name:
             return stripped
 
@@ -837,15 +869,21 @@ def _extract_institution(
             flags=re.IGNORECASE,
         )[0].strip()
         if (
-            _STRONG_INSTITUTION_PATTERN.search(institution)
-            or _SCHOOL_PATTERN.search(institution)
-            or _INSTITUTION_ABBREVIATION_PATTERN.fullmatch(institution)
-            or _is_context_supported_two_letter_institution(institution, clause)
-        ) and _has_plausible_institution_suffix(institution):
+            not _is_non_institution_activity_or_host_label(institution)
+            and (
+                _STRONG_INSTITUTION_PATTERN.search(institution)
+                or _SCHOOL_PATTERN.search(institution)
+                or _INSTITUTION_ABBREVIATION_PATTERN.fullmatch(institution)
+                or _is_context_supported_two_letter_institution(institution, clause)
+            )
+            and _has_plausible_institution_suffix(institution)
+        ):
             return institution
 
     for fragment in re.split(r"[.;,|]", context):
         fragment = fragment.strip(" .,:;-")
+        if _is_non_institution_activity_or_host_label(fragment):
+            continue
         prefix_match = re.search(
             r"\b(?:The\s+)?University\s+of\s+(?:the\s+)?"
             r"[A-ZÀ-ÖØ-Þ][^,.;|]{1,80}$",
@@ -891,10 +929,9 @@ def _has_academic_context(
     context = " ".join((*title_segments, _result_context(result)))
     return bool(
         _ACADEMIC_ROLE_PATTERN.search(context)
-        or _DEPARTMENT_PATTERN.search(context)
         or (
-            _PERSON_URL_PATTERN.search(str(result.url))
-            and _RESEARCH_CONTEXT_PATTERN.search(context)
+            _SINGULAR_PERSON_PROFILE_URL_PATTERN.search(str(result.url))
+            and (_RESEARCH_CONTEXT_PATTERN.search(context) or _DEPARTMENT_PATTERN.search(context))
         )
     )
 

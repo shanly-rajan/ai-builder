@@ -289,6 +289,14 @@ def test_identity_requires_the_exact_normalized_name_in_its_excerpt(
         verify_supervisor(prospective, invalid_evidence)
 
 
+def test_identity_grounding_allows_only_a_leading_academic_title_variant() -> None:
+    prospective = make_prospective_supervisor(1, full_name="Professor Amara Ndlovu")
+    identity = make_evidence_claims(1)[0]
+
+    assert identity.asserted_name == "Dr Amara Ndlovu"
+    assert evidence_claim_is_grounded_for_supervisor(identity, prospective) is True
+
+
 @pytest.mark.parametrize(
     "excerpt",
     [

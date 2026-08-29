@@ -2,7 +2,7 @@
 
 from typing import cast
 
-from scholarpath.agents import StructuredEvidenceExtractionResult
+from scholarpath.agents import StructuredEvidenceClaimDraft, StructuredEvidenceExtractionResult
 from scholarpath.config import (
     ApplicationSettings,
     DiscoveryFailureMode,
@@ -135,6 +135,43 @@ def test_complete_official_profiles_produce_provenance_backed_verified_records()
         assert supervisor.availability_status is AvailabilityStatus.NOT_STATED
 
 
+def test_one_invalid_draft_does_not_discard_valid_page_evidence_in_the_graph() -> None:
+    fixtures = build_walking_skeleton_fixtures()
+    supervisor = fixtures.raw_search_results[0].to_prospective_supervisor()
+    primary_url = str(supervisor.profile_url)
+    evidence_outcomes = {**make_fixed_evidence_outcomes(), **make_graph_evidence_outcomes()}
+    complete = evidence_outcomes[primary_url]
+    evidence_outcomes[primary_url] = StructuredEvidenceExtractionResult(
+        claims=[
+            *complete.claims,
+            StructuredEvidenceClaimDraft(
+                claim_type=EvidenceClaimType.RESEARCH_INTEREST,
+                claim="The model proposed a sentence absent from the source page.",
+                supporting_excerpt="This exact sentence is absent from the source page.",
+                confidence=EvidenceConfidence.HIGH,
+                directly_supported=True,
+                asserted_name=supervisor.full_name,
+            ),
+        ]
+    )
+
+    final_state = _run(evidence_model=FakeEvidenceVerificationModel(evidence_outcomes))
+
+    assert final_state["review_status"] is ReviewStatus.COMPLETED
+    assert len(final_state["verified_supervisors"]) == 8
+    record = next(
+        item
+        for item in final_state["verification_records"]
+        if item.prospective_supervisor.supervisor_id == supervisor.supervisor_id
+    )
+    assert record.verification_status is VerificationStatus.VERIFIED
+    assert len(record.evidence) == len(complete.claims)
+    assert all("absent from the source page" not in claim.claim for claim in record.evidence)
+    assert all(
+        error.code != "evidence_model_output_invalid" for error in final_state["tool_errors"]
+    )
+
+
 def test_failed_profile_uses_one_alternate_official_source_and_retries_once() -> None:
     fixtures = build_walking_skeleton_fixtures()
     supervisor = fixtures.raw_search_results[0].to_prospective_supervisor()
@@ -202,6 +239,64 @@ def test_failed_profile_uses_one_alternate_official_source_and_retries_once() ->
         (1, False),
         (2, True),
     ]
+
+
+def test_failed_profile_accepts_one_person_page_on_an_abbreviated_academic_host() -> None:
+    fixtures = build_walking_skeleton_fixtures()
+    supervisor = fixtures.raw_search_results[0].to_prospective_supervisor()
+    primary_url = str(supervisor.profile_url)
+    alternate_url = "https://www.scit.ac.za/people/amara-ndlovu"
+    fixed_content_outcomes = make_fixed_content_outcomes()
+    alternate_content = fixed_content_outcomes[ALTERNATE_OFFICIAL_PROFILE_URL]
+    content_outcomes: dict[str, ExtractedContent | Exception] = {
+        **fixed_content_outcomes,
+        **make_graph_content_outcomes(),
+        primary_url: _failure(primary_url),
+        alternate_url: ExtractedContent.model_validate(
+            {
+                "source_url": alternate_url,
+                "content": alternate_content.content,
+                "retrieved_at": alternate_content.retrieved_at,
+                "content_truncated": alternate_content.content_truncated,
+            }
+        ),
+    }
+    evidence_outcomes = {**make_fixed_evidence_outcomes(), **make_graph_evidence_outcomes()}
+    evidence_outcomes[alternate_url] = evidence_outcomes[ALTERNATE_OFFICIAL_PROFILE_URL]
+    query = alternate_official_source_query(supervisor)
+    alternate_search = FakeSupervisorSearch(
+        {
+            query: (
+                _alternate_result(
+                    url=alternate_url,
+                    title=("Dr Amara Ndlovu | Southern Cape Institute of Technology"),
+                    query=query,
+                ),
+            )
+        }
+    )
+
+    final_state = _run(
+        content_extractor=FakeContentExtraction(content_outcomes),
+        evidence_model=FakeEvidenceVerificationModel(evidence_outcomes),
+        alternate_search=alternate_search,
+    )
+
+    assert alternate_search.calls == [query]
+    assert final_state["retry_counts"]["evidence"] == 1
+    record = next(
+        item
+        for item in final_state["verification_records"]
+        if item.prospective_supervisor.supervisor_id == supervisor.supervisor_id
+    )
+    assert record.verification_status is VerificationStatus.VERIFIED
+    assert {str(claim.source_url) for claim in record.evidence} == {alternate_url}
+    alternate_attempt = next(
+        attempt
+        for attempt in final_state["evidence_extraction_attempts"]
+        if attempt.supervisor_id == supervisor.supervisor_id and attempt.alternate_source
+    )
+    assert alternate_attempt.source_kind is SourceKind.UNIVERSITY_PROFILE
 
 
 def test_same_surname_wrong_person_is_not_used_as_an_alternate_source() -> None:

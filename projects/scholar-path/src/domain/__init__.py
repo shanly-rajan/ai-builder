@@ -53,6 +53,7 @@ from .models import (
     evidence_claim_is_grounded_for_supervisor,
     lower_evidence_confidence,
     missing_verification_evidence,
+    supervisor_names_are_title_equivalent,
     validate_research_fit_evidence,
     validate_research_fit_scoring_prose,
 )
@@ -102,6 +103,7 @@ __all__ = [
     "lower_evidence_confidence",
     "is_structural_transition_allowed",
     "missing_verification_evidence",
+    "supervisor_names_are_title_equivalent",
     "ResearchFitEvidenceError",
     "structurally_allowed_transitions",
     "validate_research_fit_evidence",

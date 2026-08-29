@@ -1,12 +1,12 @@
 """Offline unit tests for grounded Supervisor evidence verification."""
 
 import pytest
-from pydantic import ValidationError
 
 from scholarpath.agents.evidence_verification import (
     EvidenceModelOutputError,
     EvidenceVerificationAgent,
     StructuredEvidenceClaim,
+    StructuredEvidenceClaimDraft,
     StructuredEvidenceExtractionResult,
     deterministic_evidence_id,
 )
@@ -80,6 +80,24 @@ def test_complete_official_profile_produces_a_verified_supervisor() -> None:
     assert record.verified_supervisor is not None
     assert record.missing_required_evidence == ()
     assert record.availability_status is AvailabilityStatus.NOT_STATED
+
+
+def test_leading_academic_title_variant_preserves_page_identity_binding() -> None:
+    supervisor = make_prospective_supervisor(1).model_copy(
+        update={"full_name": "Professor Amara Ndlovu"}
+    )
+    model = FakeEvidenceVerificationModel({COMPLETE_PROFILE_URL: make_complete_evidence_response()})
+    agent = EvidenceVerificationAgent(model)
+
+    claims = agent.extract_claims(
+        supervisor,
+        FakeContentExtraction().extract(COMPLETE_PROFILE_URL),
+        SourceKind.UNIVERSITY_PROFILE,
+    )
+    record = agent.build_verification_record(supervisor, claims)
+
+    assert record.verification_status is VerificationStatus.VERIFIED
+    assert all(claim.directly_supported for claim in claims)
 
 
 def test_missing_affiliation_remains_partial_without_using_discovery_data_as_evidence() -> None:
@@ -368,12 +386,121 @@ def test_claim_without_an_exact_page_grounding_excerpt_is_rejected() -> None:
     model = FakeEvidenceVerificationModel({COMPLETE_PROFILE_URL: ungrounded_response})
     content = FakeContentExtraction().extract(COMPLETE_PROFILE_URL)
 
-    with pytest.raises(EvidenceModelOutputError, match="not grounded"):
-        EvidenceVerificationAgent(model).extract_claims(
-            make_prospective_supervisor(1),
-            content,
-            SourceKind.UNIVERSITY_PROFILE,
-        )
+    agent = EvidenceVerificationAgent(model)
+    claims = agent.extract_claims(
+        make_prospective_supervisor(1),
+        content,
+        SourceKind.UNIVERSITY_PROFILE,
+    )
+    record = agent.build_verification_record(make_prospective_supervisor(1), claims)
+
+    assert claims == ()
+    assert record.verification_status is VerificationStatus.PARTIALLY_VERIFIED
+    assert record.missing_required_evidence == (
+        "identity",
+        "current_affiliation",
+        "research_interest_or_publication",
+    )
+
+
+def test_one_ungrounded_draft_does_not_discard_independently_grounded_claims() -> None:
+    complete = make_complete_evidence_response()
+    response = StructuredEvidenceExtractionResult(
+        claims=[
+            *complete.claims,
+            StructuredEvidenceClaimDraft(
+                claim_type=EvidenceClaimType.RESEARCH_INTEREST,
+                claim="The page allegedly states an absent research interest.",
+                supporting_excerpt="This sentence does not occur in the retrieved page.",
+                confidence=EvidenceConfidence.HIGH,
+                directly_supported=True,
+                asserted_name="Dr Amara Ndlovu",
+            ),
+        ]
+    )
+    model = FakeEvidenceVerificationModel({COMPLETE_PROFILE_URL: response})
+    content = FakeContentExtraction().extract(COMPLETE_PROFILE_URL)
+    agent = EvidenceVerificationAgent(model)
+
+    claims = agent.extract_claims(
+        make_prospective_supervisor(1),
+        content,
+        SourceKind.UNIVERSITY_PROFILE,
+    )
+    record = agent.build_verification_record(make_prospective_supervisor(1), claims)
+
+    assert len(claims) == len(complete.claims)
+    assert all("absent research interest" not in claim.claim for claim in claims)
+    assert record.verification_status is VerificationStatus.VERIFIED
+
+
+def test_cross_field_invalid_draft_does_not_discard_valid_identity_and_research() -> None:
+    complete = make_complete_evidence_response()
+    identity = next(
+        claim for claim in complete.claims if claim.claim_type is EvidenceClaimType.IDENTITY
+    )
+    research = next(
+        claim
+        for claim in complete.claims
+        if claim.claim_type is EvidenceClaimType.RESEARCH_INTEREST
+    )
+    affiliation_excerpt = (
+        "Dr Amara Ndlovu is Associate Professor in the Department of Information Systems at "
+        "Southern Cape Institute of Technology."
+    )
+    response = StructuredEvidenceExtractionResult(
+        claims=[
+            identity,
+            StructuredEvidenceClaimDraft(
+                claim_type=EvidenceClaimType.CURRENT_AFFILIATION,
+                claim="The page states a current affiliation.",
+                supporting_excerpt=affiliation_excerpt,
+                confidence=EvidenceConfidence.HIGH,
+                directly_supported=True,
+                asserted_name="Dr Amara Ndlovu",
+                asserted_institution="Southern Cape Institute of Technology",
+                asserted_department=None,
+            ),
+            research,
+        ]
+    )
+    model = FakeEvidenceVerificationModel({COMPLETE_PROFILE_URL: response})
+    agent = EvidenceVerificationAgent(model)
+
+    claims = agent.extract_claims(
+        make_prospective_supervisor(1),
+        FakeContentExtraction().extract(COMPLETE_PROFILE_URL),
+        SourceKind.UNIVERSITY_PROFILE,
+    )
+    record = agent.build_verification_record(make_prospective_supervisor(1), claims)
+
+    assert {claim.claim_type for claim in claims} == {
+        EvidenceClaimType.IDENTITY,
+        EvidenceClaimType.RESEARCH_INTEREST,
+    }
+    assert record.verification_status is VerificationStatus.PARTIALLY_VERIFIED
+    assert record.missing_required_evidence == (EvidenceClaimType.CURRENT_AFFILIATION.value,)
+
+
+def test_exact_duplicate_drafts_are_stably_deduplicated() -> None:
+    complete = make_complete_evidence_response()
+    response = StructuredEvidenceExtractionResult(
+        claims=[complete.claims[0], *complete.claims, complete.claims[-1]]
+    )
+    model = FakeEvidenceVerificationModel({COMPLETE_PROFILE_URL: response})
+
+    claims = EvidenceVerificationAgent(model).extract_claims(
+        make_prospective_supervisor(1),
+        FakeContentExtraction().extract(COMPLETE_PROFILE_URL),
+        SourceKind.UNIVERSITY_PROFILE,
+    )
+
+    assert len(claims) == len(complete.claims)
+    assert [claim.claim_type for claim in claims] == [
+        complete.claims[0].claim_type,
+        *(claim.claim_type for claim in complete.claims[1:]),
+    ]
+    assert len({claim.evidence_id for claim in claims}) == len(claims)
 
 
 def test_model_cannot_make_a_mismatched_identity_directly_supported() -> None:
@@ -636,31 +763,57 @@ def test_different_affiliation_is_retained_and_surfaced_without_silent_overwrite
 
 
 def test_one_page_cannot_create_conflicting_availability_evidence() -> None:
-    with pytest.raises(ValidationError, match="distinct source pages"):
-        StructuredEvidenceExtractionResult(
-            claims=[
-                StructuredEvidenceClaim(
-                    claim_type=EvidenceClaimType.AVAILABILITY,
-                    claim="The page states accepting.",
-                    supporting_excerpt=(
-                        "Dr Amara Ndlovu is currently accepting doctoral Candidates"
-                    ),
-                    confidence=EvidenceConfidence.HIGH,
-                    directly_supported=True,
-                    availability_status=AvailabilityStatus.CONFIRMED_ACCEPTING,
-                    asserted_name="Dr Amara Ndlovu",
-                ),
-                StructuredEvidenceClaim(
-                    claim_type=EvidenceClaimType.AVAILABILITY,
-                    claim="The page states not accepting.",
-                    supporting_excerpt="Dr Amara Ndlovu is not accepting doctoral Candidates",
-                    confidence=EvidenceConfidence.HIGH,
-                    directly_supported=True,
-                    availability_status=AvailabilityStatus.CONFIRMED_NOT_ACCEPTING,
-                    asserted_name="Dr Amara Ndlovu",
-                ),
-            ]
+    complete = make_complete_evidence_response()
+    accepting_excerpt = "Dr Amara Ndlovu is currently accepting doctoral Candidates."
+    not_accepting_excerpt = "Dr Amara Ndlovu is not accepting doctoral Candidates."
+    response = StructuredEvidenceExtractionResult(
+        claims=[
+            *complete.claims,
+            StructuredEvidenceClaimDraft(
+                claim_type=EvidenceClaimType.AVAILABILITY,
+                claim="The page states accepting.",
+                supporting_excerpt=accepting_excerpt,
+                confidence=EvidenceConfidence.HIGH,
+                directly_supported=True,
+                availability_status=AvailabilityStatus.CONFIRMED_ACCEPTING,
+                asserted_name="Dr Amara Ndlovu",
+            ),
+            StructuredEvidenceClaimDraft(
+                claim_type=EvidenceClaimType.AVAILABILITY,
+                claim="The page states not accepting.",
+                supporting_excerpt=not_accepting_excerpt,
+                confidence=EvidenceConfidence.HIGH,
+                directly_supported=True,
+                availability_status=AvailabilityStatus.CONFIRMED_NOT_ACCEPTING,
+                asserted_name="Dr Amara Ndlovu",
+            ),
+        ]
+    )
+    model = FakeEvidenceVerificationModel({COMPLETE_PROFILE_URL: response})
+    content = (
+        FakeContentExtraction()
+        .extract(COMPLETE_PROFILE_URL)
+        .model_copy(
+            update={
+                "content": (
+                    f"{FakeContentExtraction().extract(COMPLETE_PROFILE_URL).content}\n"
+                    f"{accepting_excerpt}\n{not_accepting_excerpt}"
+                )
+            }
         )
+    )
+    agent = EvidenceVerificationAgent(model)
+
+    claims = agent.extract_claims(
+        make_prospective_supervisor(1),
+        content,
+        SourceKind.UNIVERSITY_PROFILE,
+    )
+    record = agent.build_verification_record(make_prospective_supervisor(1), claims)
+
+    assert all(claim.claim_type is not EvidenceClaimType.AVAILABILITY for claim in claims)
+    assert record.verification_status is VerificationStatus.VERIFIED
+    assert record.availability_status is AvailabilityStatus.NOT_STATED
 
 
 def test_conflicting_availability_claims_from_distinct_pages_are_cross_linked() -> None:

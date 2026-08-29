@@ -727,7 +727,7 @@ To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_WORKSPACE_ID` only when the API key is scoped to more than one workspace.
 These values are loaded from `.env` and passed explicitly to the LangSmith client.
 `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag; the implementation
-supplies the fixed `graph-version:m12.1` tag. Disabling tracing does not construct a
+supplies the fixed `graph-version:m12.2` tag. Disabling tracing does not construct a
 LangSmith client, even if another process has globally enabled tracing.
 
 ### Run the M12 evaluation suite
@@ -793,6 +793,28 @@ Graph `tool_errors` remain append-only in persisted state. The Streamlit project
 only exact duplicate `(code, message, recoverable)` records, preserves first-seen order, and
 renders one warning with an occurrence count. Distinct errors and severities remain separate;
 this presentation repair does not conceal or resolve an underlying extraction failure.
+
+### M12.2 live discovery and evidence resilience repair
+
+Live discovery now rejects incomplete terminal initials and activity labels that merely
+mention a school or university. A programme hosted by an academic organization is not
+treated as evidence that a named person is affiliated with that organization.
+
+Evidence model responses remain native typed structured output. ScholarPath validates each
+draft independently, persists only claims whose excerpts and typed fields satisfy the same
+deterministic grounding rules, and discards an invalid draft without losing unrelated valid
+claims from the page. Contradictory availability drafts from one page are both omitted, so
+availability remains `not_stated` rather than being guessed.
+
+Grounding accepts `Dr`, `Prof`, and `Professor` as title-only variants only when every
+substantive name token remains identical and the asserted page name occurs exactly in the
+supporting excerpt. Middle initials and family-name tokens are never silently removed.
+
+When evidence remains insufficient, the existing single alternate-source pass searches with
+the title-free person name and may select an attributable HTTPS academic person-profile page.
+The verification minimum, evidence provenance, retry count, and Candidate approval gate are
+unchanged. See
+[`docs/m12-2-live-evidence-resilience-repair.mmd`](docs/m12-2-live-evidence-resilience-repair.mmd).
 
 ### Run the Streamlit application locally
 

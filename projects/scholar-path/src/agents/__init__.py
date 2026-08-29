@@ -8,6 +8,7 @@ from .evidence_verification import (
     EvidenceVerificationAgent,
     EvidenceVerificationModelPort,
     StructuredEvidenceClaim,
+    StructuredEvidenceClaimDraft,
     StructuredEvidenceExtractionResult,
     deterministic_evidence_id,
 )
@@ -29,6 +30,7 @@ from .openai_research_fit import OpenAIResearchFitAdapter
 from .prompts import (
     EVIDENCE_VERIFICATION_PROMPT_VERSION,
     EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V1,
+    EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V2,
     INDEPENDENT_REVIEW_PROMPT_VERSION,
     INDEPENDENT_REVIEW_SYSTEM_PROMPT_V1,
     INDEPENDENT_REVIEW_SYSTEM_PROMPT_V2,
@@ -80,6 +82,7 @@ __all__ = [
     "MAX_RESEARCH_FIT_OUTPUT_ATTEMPTS",
     "EVIDENCE_VERIFICATION_PROMPT_VERSION",
     "EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V1",
+    "EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V2",
     "EvidenceExtractionInput",
     "EvidenceModelError",
     "EvidenceModelInvocationError",
@@ -127,6 +130,7 @@ __all__ = [
     "ResearchPlanningError",
     "StructuredSearchPlanResponse",
     "StructuredEvidenceClaim",
+    "StructuredEvidenceClaimDraft",
     "StructuredEvidenceExtractionResult",
     "StructuredResearchFitComponent",
     "StructuredResearchFitResult",

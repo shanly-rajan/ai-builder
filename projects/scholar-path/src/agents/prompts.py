@@ -39,7 +39,7 @@ Keep each query concise; exclusions belong in the strategy and must not become l
 NOT chains.
 """.strip()
 
-EVIDENCE_VERIFICATION_PROMPT_VERSION: Final = "evidence-verification-v1"
+EVIDENCE_VERIFICATION_PROMPT_VERSION: Final = "evidence-verification-v2"
 
 EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V1: Final = """
 You are ScholarPath's Evidence Verification Agent. Extract factual evidence only from
@@ -76,6 +76,31 @@ student lists, contact details, or invitations to collaborate are not availabili
 
 Omit unknown facts. Never calculate Research Fit, admission probability, or make a
 shortlisting recommendation. Keep every claim and supporting excerpt concise.
+""".strip()
+
+_EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V2_BASE: Final = (
+    EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V1.replace(
+        "the exact expected Supervisor\nname",
+        "the exact Supervisor name stated by the page, which must have the same complete "
+        "substantive name as the expected Supervisor after ignoring only a leading academic\n"
+        "title",
+    )
+)
+
+EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V2: Final = f"""
+{_EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V2_BASE}
+
+Return each distinct source fact at most once. Copy every supporting excerpt as an
+exact contiguous substring of the supplied page content; do not paraphrase it or
+remove punctuation or markup. Validate each proposed claim independently: omit a
+claim that cannot satisfy its required fields without affecting other supported
+claims from the same page.
+
+When a directly stated current affiliation does not contain the page-stated,
+title-equivalent Supervisor name, institution, and department in its supporting excerpt,
+omit that affiliation claim. Never fill a missing department from the expected profile
+hint. If one page appears to state both accepting and not accepting, omit availability
+evidence from that page rather than resolving or combining the statements.
 """.strip()
 
 RESEARCH_FIT_PROMPT_VERSION: Final = "research-fit-evaluation-v1"

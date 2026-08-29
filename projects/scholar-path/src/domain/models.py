@@ -97,6 +97,11 @@ _TITLED_PERSON_PATTERN = re.compile(
     r"\b(?:Dr|Prof|Professor)\.?\s+[A-Z][A-Za-z'’-]*"
     r"(?:\s+(?:al|bin|da|de|del|di|la|le|van|von))?\s+[A-Z][A-Za-z'’-]*\b"
 )
+_ACADEMIC_TITLE_PREFIX_PATTERN = re.compile(
+    r"^(?:associate\s+professor|assistant\s+professor|professor\s+emerit(?:a|us)|"
+    r"professor|prof\.?|dr\.?)\s+",
+    re.IGNORECASE,
+)
 _DIRECT_SUBJECT_RELATIONS: dict[EvidenceClaimType, frozenset[str]] = {
     EvidenceClaimType.CURRENT_AFFILIATION: frozenset({"are", "has", "holds", "is", "serves"}),
     EvidenceClaimType.RESEARCH_INTEREST: frozenset(
@@ -410,6 +415,24 @@ def _normalized_grounding_text(value: str) -> str:
     return " ".join(value.casefold().split())
 
 
+def supervisor_names_are_title_equivalent(first: str, second: str) -> bool:
+    """Compare complete substantive names while ignoring only a leading academic title."""
+
+    def substantive_name(value: str) -> tuple[str, ...]:
+        without_title = _ACADEMIC_TITLE_PREFIX_PATTERN.sub("", value.strip(), count=1)
+        return tuple(
+            re.findall(
+                r"[^\W\d_]+(?:[-'’][^\W\d_]+)*",
+                without_title.casefold(),
+                re.UNICODE,
+            )
+        )
+
+    first_tokens = substantive_name(first)
+    second_tokens = substantive_name(second)
+    return bool(first_tokens and first_tokens == second_tokens)
+
+
 def _contains_exact_normalized_phrase(text: str, phrase: str) -> bool:
     """Find one normalized phrase without accepting a longer word as an exact match."""
     normalized_text = _normalized_grounding_text(text)
@@ -477,9 +500,7 @@ def evidence_claim_is_grounded_for_supervisor(
         return False
     if claim.asserted_name is None or claim.supporting_excerpt is None:
         return False
-    if _normalized_grounding_text(claim.asserted_name) != _normalized_grounding_text(
-        supervisor.full_name
-    ):
+    if not supervisor_names_are_title_equivalent(claim.asserted_name, supervisor.full_name):
         return False
     if not _contains_exact_normalized_phrase(claim.supporting_excerpt, claim.asserted_name):
         return False

@@ -420,6 +420,195 @@ def test_colon_breadcrumb_retains_only_the_strong_institution_fragment() -> None
     ]
 
 
+def test_terminal_initial_and_program_host_do_not_create_a_prospective_supervisor() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://events.example/programmes/faculty-development",
+                title=(
+                    "Dr. Imelda M | International Faculty Development Program by the School of AI"
+                ),
+                description="Dr. Imelda M is a speaker in the faculty development programme.",
+            ),
+        ),
+    )
+
+    assert discovery.result_count == 1
+    assert discovery.plausible_supervisor_count == 0
+    assert discovery.duplicate_result_count == 0
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(person_not_established=1)
+    assert (
+        discovery.rejection_counts.total + discovery.plausible_supervisor_count
+        == discovery.result_count
+    )
+
+
+@pytest.mark.parametrize(
+    "institution_label",
+    [
+        "International Faculty Development Programme by the School of AI",
+        "Online course delivered by Example College",
+        "Research workshop hosted by Example University",
+        "AI governance seminar presented by Meridian School of Management",
+        "Architecture conference sponsored by Northbridge University",
+        "Agentic AI webinar offered by Example Institute",
+        "Executive training organized by Example University",
+        "Hosted by: Example University",
+    ],
+)
+def test_activity_and_host_labels_do_not_establish_supervisor_affiliation(
+    institution_label: str,
+) -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://events.example/speakers/imelda-mensah",
+                title=f"Dr. Imelda Mensah | {institution_label}",
+                description="Dr. Imelda Mensah is a researcher presenting this session.",
+            ),
+        ),
+    )
+
+    assert discovery.result_count == 1
+    assert discovery.plausible_supervisor_count == 0
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(institution_not_established=1)
+    assert (
+        discovery.rejection_counts.total + discovery.plausible_supervisor_count
+        == discovery.result_count
+    )
+
+
+@pytest.mark.parametrize(
+    "institution_label",
+    [
+        "Utrecht University and is part of the Human-Centered AI focus area",
+        "Utrecht University as well as the HUMAN-AI strategic alliance",
+        "us Copyright 2026 University of Sussex [",
+    ],
+)
+def test_narrative_and_page_artifacts_do_not_become_institutions(
+    institution_label: str,
+) -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://example.edu/news/researcher-profile",
+                title=f"Professor Jane Doe | {institution_label}",
+                description="Jane Doe is a Professor researching responsible AI.",
+            ),
+        ),
+    )
+
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(institution_not_established=1)
+
+
+@pytest.mark.parametrize(
+    ("institution_label", "expected"),
+    [
+        ("University of Leicester [", "University of Leicester"),
+        (
+            "London · School of Hygiene & Tropical Medicine",
+            "London School of Hygiene & Tropical Medicine",
+        ),
+    ],
+)
+def test_bounded_institution_punctuation_artifacts_are_normalized(
+    institution_label: str,
+    expected: str,
+) -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://example.edu/people/jane-doe",
+                title=f"Professor Jane Doe | {institution_label}",
+                description="Official academic profile.",
+            ),
+        ),
+    )
+
+    assert [item.institution for item in discovery.prospective_supervisors] == [expected]
+
+
+def test_school_phrase_alone_on_event_page_does_not_establish_dr_academic_context() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://events.example/speakers/imelda-mensah",
+                title="Dr. Imelda Mensah | School of AI",
+                description="Event speaker biography.",
+            ),
+        ),
+    )
+
+    assert discovery.result_count == 1
+    assert discovery.plausible_supervisor_count == 0
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(
+        academic_context_not_established=1
+    )
+
+
+@pytest.mark.parametrize(
+    ("url", "title", "expected_name", "expected_institution"),
+    [
+        (
+            "https://example.edu/people/imelda-m-mensah",
+            "Dr. Imelda M Mensah | Department of Computing | Example University",
+            "Dr. Imelda M Mensah",
+            "Example University",
+        ),
+        (
+            "https://example.edu/people/li-wei",
+            "Professor Li Wei | School of Computing | Meridian School of Management",
+            "Professor Li Wei",
+            "Meridian School of Management",
+        ),
+        (
+            "https://example.edu/people/amina-bello",
+            (
+                "Dr Amina Bello | Department of Information Systems | "
+                "London School of Economics and Political Science"
+            ),
+            "Dr Amina Bello",
+            "London School of Economics and Political Science",
+        ),
+        (
+            "https://example.edu/people/jane-doe",
+            "Dr Jane Doe | Associate Professor at Example University",
+            "Dr Jane Doe",
+            "Example University",
+        ),
+    ],
+)
+def test_complete_names_and_standalone_institutions_remain_supported(
+    url: str,
+    title: str,
+    expected_name: str,
+    expected_institution: str,
+) -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (_result(url=url, title=title, description="Official profile."),),
+    )
+
+    assert discovery.result_count == 1
+    assert discovery.plausible_supervisor_count == 1
+    assert discovery.duplicate_result_count == 0
+    assert discovery.rejection_counts == SearchResultRejectionCounts()
+    assert [
+        (supervisor.full_name, supervisor.institution)
+        for supervisor in discovery.prospective_supervisors
+    ] == [(expected_name, expected_institution)]
+
+
 @pytest.mark.parametrize(
     "description",
     [

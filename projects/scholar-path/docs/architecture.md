@@ -576,8 +576,9 @@ flowchart TD
     Port --> OpenAI[OpenAIEvidenceVerificationModelAdapter]
     OpenAI --> Schema[Strict StructuredEvidenceExtractionResult]
     Fake --> Schema
-    Schema --> Ground{Supporting excerpt occurs in page?}
-    Ground -->|no| Invalid[Typed output error]
+    Schema --> Drafts[Structurally typed claim drafts]
+    Drafts --> Ground{Draft semantics and excerpt valid?}
+    Ground -->|no| Invalid[Discard only this draft]
     Ground -->|yes| Subject{Exact Supervisor named in excerpt?}
     Subject -->|no| Indirect[Retain as not directly supported]
     Subject -->|yes| Bind[Bind system-owned provenance]
@@ -588,12 +589,14 @@ flowchart TD
     class Port,OpenAI,Schema boundary;
 ```
 
-The versioned `evidence-verification-v1` prompt tells the model to use only the
+The current versioned `evidence-verification-v2` prompt tells the model to use only the
 retrieved page. Expected profile values are comparison hints, not evidence. The model
 may classify identity, current affiliation, research interests, methodology,
 publication, project, and explicit availability, but every structured claim must carry
 a short supporting excerpt. Every claim proposed as directly supported must also carry
-the asserted person name, and its excerpt must explicitly name that Supervisor.
+the asserted person name, and its excerpt must explicitly name that Supervisor. M12.2
+adds exact-excerpt and per-claim omission instructions while deterministic code remains
+the enforcement layer.
 
 The OpenAI adapter uses native strict JSON-schema output with `include_raw=False` and
 `max_retries=0`. It does not manually parse JSON. The structured model returns no
@@ -838,11 +841,11 @@ flowchart LR
     Root --> FitTrace[Research Fit node and rubric metadata]
     Root --> ReviewTrace[independent-review node metadata]
     Root --> Discovery[discovery node + aggregate attempt spans]
-    Tags[environment plus graph-version:m12.1] --> Root
+    Tags[environment plus graph-version:m12.2] --> Root
 ```
 
-The graph version is `m12.1`. Root tags are
-`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m12.1`. Planning, discovery,
+The graph version is `m12.2`. Root tags are
+`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m12.2`. Planning, discovery,
 evidence, Research Fit, and independent-review nodes add only safe component and version
 metadata. The fixed metadata allowlist is:
 
@@ -866,7 +869,7 @@ metadata. The fixed metadata allowlist is:
 - `discovery_route`
 
 The evidence node records `component=evidence_verification_agent` and
-`prompt_version=evidence-verification-v1`. Source URLs, full page content, Candidate
+`prompt_version=evidence-verification-v2`. Source URLs, full page content, Candidate
 identifiers, names, email addresses, research statements, and API keys are not allowed
 in trace metadata. The LangSmith client also uses `hide_inputs=True`,
 `hide_outputs=True`, and omits runtime information, which is especially important
@@ -951,6 +954,30 @@ projection groups exact `(code, message, recoverable)` matches, sums an explicit
 occurrence count, and preserves first-seen order. Rendering displays one warning per group.
 Different codes, messages, or severity remain distinct. This separates an operational audit
 log from a Candidate-facing presentation without mutating workflow state.
+
+## M12.2 live discovery and evidence resilience boundary
+
+[`m12-2-live-evidence-resilience-repair.mmd`](m12-2-live-evidence-resilience-repair.mmd)
+shows the bounded repair. Discovery first requires a complete deterministic person-name shape
+and a plausible organization label. Event, programme, training, and host-attribution text is
+not converted into affiliation. These checks affect discovery only and do not establish a
+Supervisor fact.
+
+The OpenAI boundary still returns native typed structured output. Cross-field semantics and
+page grounding are then applied independently to each draft. A rejected draft contributes no
+EvidenceClaim, while independently valid drafts retain their exact source URL, retrieval
+timestamp, excerpt, confidence, and deterministic identifier. Same-page contradictory
+availability drafts are omitted together, preserving `not_stated`.
+
+Person-name grounding canonicalizes only a leading `Dr`, `Prof`, or `Professor` family of
+academic titles. The complete remaining Unicode name-token sequence must match, and the exact
+page-stated asserted name must still occur in the excerpt. This handles source title variants
+without relaxing identity ownership.
+
+Insufficient evidence follows the existing finite policy. One alternate search uses the
+title-free substantive person name and selects only an attributable HTTPS academic
+person-profile page; the returned snippet is never evidence. Verification requirements and
+the single alternate-source pass remain unchanged.
 
 ## Configuration and deferred provider activation
 
@@ -1142,7 +1169,7 @@ already-running event-loop runtime.
 | Conflicts | Both affiliation claims and cross-referenced evidence IDs are preserved |
 | Retry | One deterministic alternate official-source search and extraction pass |
 | Network isolation | Default tests use fixed pages and fakes; `live` is excluded by default |
-| Observability | `graph-version:m12.1`, prompt and rubric versions, allowlisted aggregate discovery and evaluation metadata, hidden inputs and outputs |
+| Observability | `graph-version:m12.2`, prompt and rubric versions, allowlisted aggregate discovery and evaluation metadata, hidden inputs and outputs |
 | Evaluation | Eleven typed synthetic scenarios, fake-default targets, ten deterministic metrics, optional scoped judges, stable dataset IDs, and separate upload/live gates |
 | Human authority | A real interrupt requires typed explicit approval before Shortlisted status or briefing generation |
 | Persistence | In-memory isolation in tests; ignored SQLite path for trusted local restart; opaque thread IDs partition runs |

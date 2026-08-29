@@ -52,7 +52,7 @@ def _context(**overrides: object) -> EvaluationTraceContext:
         "scenario_id": "you-timeout-tavily-fallback",
         "target": EvaluationTargetKind.GRAPH_FAKE,
         "environment": "test",
-        "graph_version": "m12.1",
+        "graph_version": "m12.2",
         "prompt_versions": ("planning-v1", "evidence-v1"),
         "model_providers": ("fake", "openai"),
         "fallback_search_used": True,
@@ -67,7 +67,7 @@ def test_trace_context_emits_all_required_filterable_tags() -> None:
     assert context.tags() == [
         "application:scholarpath",
         "environment:test",
-        "graph-version:m12.1",
+        "graph-version:m12.2",
         "prompt-version:planning-v1",
         "prompt-version:evidence-v1",
         "model-provider:fake",
@@ -79,7 +79,7 @@ def test_trace_context_emits_all_required_filterable_tags() -> None:
     assert context.metadata() == {
         "application": EVALUATION_APPLICATION,
         "environment": "test",
-        "graph_version": "m12.1",
+        "graph_version": "m12.2",
         "prompt_version": "multiple",
         "model_provider": "multiple",
         "fallback_search_used": True,

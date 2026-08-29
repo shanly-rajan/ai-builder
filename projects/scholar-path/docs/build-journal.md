@@ -2456,3 +2456,103 @@ The exact repair prompt is archived as
   separators or weaker institution types.
 - Consider a protected support correlation ID for grouped operational failures once thread
   authorization and trace access governance exist.
+
+## M12.2 Repair: Live discovery and evidence resilience
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Repair the deeper live-run failures revealed after M12.1: incomplete person identities and
+activity labels entering discovery, one invalid evidence draft discarding unrelated grounded
+claims, and overly strict alternate official-profile hostname matching. Preserve verification
+requirements, provenance, provider budgets, finite retry policy, and Candidate authority.
+
+### Prompt used
+
+The exact repair prompt is archived as
+[`m12-2-live-evidence-resilience-repair.md`](prompts/m12-2-live-evidence-resilience-repair.md).
+
+### Files changed
+
+- Tightened deterministic discovery name shape, institution-label validation, and `Dr`
+  academic-context checks so incomplete identities and programme or host labels do not enter
+  the Supervisor lifecycle. Bounded punctuation cleanup preserves valid institutions while
+  narrative and copyright fragments are rejected.
+- Split native structured evidence into a structural `StructuredEvidenceClaimDraft` and the
+  stricter admitted `StructuredEvidenceClaim`. Exact duplicates are removed stably; semantic,
+  page-grounding, and domain validation now reject only the affected draft.
+- Added conservative same-page availability handling: contradictory availability drafts are
+  omitted together and availability remains `not_stated`.
+- Added title-only Supervisor-name equivalence for evidence grounding. The complete remaining
+  Unicode name-token sequence and exact page-stated excerpt remain mandatory.
+- Versioned and clarified the evidence prompt as `evidence-verification-v2`; the OpenAI adapter
+  continues using strict native JSON-schema output with provider retries disabled.
+- Improved alternate-source queries with title-free Unicode person names and added a bounded
+  academic-host abbreviation rule that still requires exact person and institution text plus
+  a singular person-profile path.
+- Advanced the graph version and offline evaluation replay identifier to `m12.2`; updated the
+  README, architecture, generated Mermaid snapshot, current-version contracts, and added
+  [`m12-2-live-evidence-resilience-repair.mmd`](m12-2-live-evidence-resilience-repair.mmd).
+
+### Tests added
+
+- Discovery regressions cover the exact incomplete identity and programme-host shape, eight
+  activity or host labels, sparse official profiles, middle initials, two-token names, and
+  standalone school or university names.
+- Evidence-agent regressions cover mixed valid and ungrounded drafts, cross-field-invalid
+  drafts, exact duplicate drafts, all-unusable evidence, same-page availability conflict, and
+  title-only identity variants.
+- Graph regression proves one invalid draft does not discard valid page evidence or emit a
+  page-level structured-output failure.
+- Alternate-source unit and graph tests cover title removal, Unicode names, abbreviated and
+  shortened official academic hosts, exact identity/institution binding, excluded content
+  paths, wrong people, unrelated hosts, HTTPS, and unchanged one-pass retry accounting.
+- Repository contracts lock the repair artifacts, graph and prompt versions, native structured
+  output, per-claim semantic boundary, disabled provider retries, and one alternate-source pass.
+
+### Test results
+
+- Combined focused discovery, evidence, routing, graph, observability, and contract suites:
+  `228 passed`, followed by an additional `76 passed` integration set after final review.
+- Offline LangSmith-compatible regression replay: `11/11` scenarios passed; every applicable
+  deterministic evaluator passed and the duplicate Supervisor rate was `0.000`.
+- Strict editable installation succeeded offline with the installed build backend.
+- An initial build-isolated editable-install check attempted to resolve `setuptools` from
+  PyPI and stopped at sandbox DNS resolution; rerunning with `--no-build-isolation` used the
+  installed backend and succeeded.
+- Ruff formatting: `202 files already formatted`; Ruff lint: all checks passed.
+- Mypy: no issues in `165` source files.
+- Full non-live pytest suite: `1094 passed`, `8 deselected`, and `52 subtests passed` with
+  `90.64%` coverage.
+- Dependency integrity, bytecode compilation, and diff whitespace checks passed.
+- No live provider, LangSmith upload, LLM judge, or external network call was used by the
+  successful verification commands.
+
+### Assumptions
+
+- A terminal single-letter initial is not a sufficiently complete discovered family name;
+  middle initials remain valid when followed by a substantive family-name token.
+- An event or programme naming an academic host does not establish that a mentioned person is
+  affiliated with that host.
+- Claim-level rejection is safe only when every retained claim independently passes the same
+  typed domain and exact-page grounding controls.
+- An academic hostname abbreviation need not lexically equal an institution name when an
+  HTTPS singular person-profile path and exact result text bind the same person and
+  institution.
+
+### Lessons learned
+
+- Page-level structured-output validity and individual evidence-claim validity are separate
+  boundaries; conflating them creates avoidable all-or-nothing failures.
+- Search result titles often describe activities, hosts, or co-mentioned people rather than
+  an attributable academic profile.
+- Official-domain hostname abbreviations are useful authority signals but unreliable exact
+  institution-name identifiers.
+
+### Remaining debt
+
+- Validate discovery and alternate-profile precision against a labelled multilingual corpus.
+- Add governed freshness and source-authority weighting beyond the current two-source cap.
+- Keep monitoring claim-rejection rates through privacy-safe aggregates before changing any
+  verification requirement.

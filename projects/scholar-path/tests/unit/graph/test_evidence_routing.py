@@ -144,6 +144,30 @@ def _search_result(
     )
 
 
+@pytest.mark.parametrize(
+    ("full_name", "expected_name"),
+    [
+        ("Dr Amara Ndlovu", "Amara Ndlovu"),
+        ("Prof. Amara Ndlovu", "Amara Ndlovu"),
+        ("Associate Professor Amara Ndlovu", "Amara Ndlovu"),
+        ("Professor Emerita Amara Ndlovu", "Amara Ndlovu"),
+        ("Professor Maximilian Förster", "Maximilian Förster"),
+    ],
+)
+def test_alternate_source_query_uses_the_title_free_substantive_person_name(
+    full_name: str,
+    expected_name: str,
+) -> None:
+    supervisor = make_prospective_supervisor(1, full_name=full_name)
+
+    query = alternate_official_source_query(supervisor)
+
+    assert query.startswith(f'"{expected_name}" ')
+    assert "Dr " not in query
+    assert "Prof " not in query
+    assert "Professor " not in query
+
+
 def test_alternate_source_selects_the_first_plausible_official_page() -> None:
     supervisor = make_prospective_supervisor(1)
     query = alternate_official_source_query(supervisor)
@@ -185,6 +209,136 @@ def test_alternate_source_accepts_label_aware_academic_domains(url: str) -> None
     )
 
     assert select_alternate_official_source(supervisor, (result,), query=query) is not None
+
+
+@pytest.mark.parametrize(
+    ("url", "expected_kind"),
+    [
+        (
+            "https://www.uwe.ac.uk/about/our-people/amara-ndlovu",
+            SourceKind.UNIVERSITY_PROFILE,
+        ),
+        (
+            "https://profiles.uwe.ac.uk/profile/48217",
+            SourceKind.UNIVERSITY_PROFILE,
+        ),
+    ],
+)
+def test_alternate_source_accepts_an_abbreviated_academic_host_for_one_person_profile(
+    url: str,
+    expected_kind: SourceKind,
+) -> None:
+    supervisor = make_prospective_supervisor(
+        1,
+        institution="University of the West of England",
+    )
+    query = alternate_official_source_query(supervisor)
+    result = _search_result(
+        url=url,
+        title="Dr Amara Ndlovu | University of the West of England",
+        description="Official academic profile.",
+        query=query,
+    )
+
+    selected = select_alternate_official_source(supervisor, (result,), query=query)
+
+    assert selected is not None
+    assert selected.source_kind is expected_kind
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://www.uwe.ac.uk/",
+        "https://www.uwe.ac.uk/people",
+        "https://www.uwe.ac.uk/news/amara-ndlovu",
+        "https://www.uwe.ac.uk/publications/amara-ndlovu",
+        "https://www.uwe.ac.uk/projects/amara-ndlovu",
+        "https://www.uwe.ac.uk/search/amara-ndlovu",
+        "https://www.unrelated.edu/people/amara-ndlovu",
+        "https://www.uwe.example/people/amara-ndlovu",
+        "http://www.uwe.ac.uk/people/amara-ndlovu",
+    ],
+)
+def test_abbreviated_host_exception_rejects_general_content_and_unrelated_hosts(
+    url: str,
+) -> None:
+    supervisor = make_prospective_supervisor(
+        1,
+        institution="University of the West of England",
+    )
+    query = alternate_official_source_query(supervisor)
+    result = _search_result(
+        url=url,
+        title="Dr Amara Ndlovu | University of the West of England",
+        description="Official university page.",
+        query=query,
+    )
+
+    assert select_alternate_official_source(supervisor, (result,), query=query) is None
+
+
+def test_abbreviated_host_exception_still_requires_exact_person_and_institution_text() -> None:
+    supervisor = make_prospective_supervisor(
+        1,
+        institution="University of the West of England",
+    )
+    query = alternate_official_source_query(supervisor)
+    wrong_person = _search_result(
+        url="https://www.uwe.ac.uk/people/nomsa-ndlovu",
+        title="Dr Nomsa Ndlovu | University of the West of England",
+        description="Official academic profile.",
+        query=query,
+    )
+    wrong_institution = _search_result(
+        url="https://www.uwe.ac.uk/people/amara-ndlovu",
+        title="Dr Amara Ndlovu | University of Bristol",
+        description="Official academic profile.",
+        query=query,
+    )
+
+    assert select_alternate_official_source(supervisor, (wrong_person,), query=query) is None
+    assert select_alternate_official_source(supervisor, (wrong_institution,), query=query) is None
+
+
+def test_short_academic_host_label_can_match_one_unambiguous_institution_name() -> None:
+    supervisor = make_prospective_supervisor(1, institution="Oxford University")
+    query = alternate_official_source_query(supervisor)
+    result = _search_result(
+        url="https://www.ox.ac.uk/people/amara-ndlovu",
+        title="Dr Amara Ndlovu | Oxford University",
+        description="Official academic profile.",
+        query=query,
+    )
+
+    selected = select_alternate_official_source(supervisor, (result,), query=query)
+
+    assert selected is not None
+    assert selected.source_kind is SourceKind.UNIVERSITY_PROFILE
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://www.southerncape.ac.za/news/amara-ndlovu",
+        "https://www.southerncape.ac.za/publications/amara-ndlovu",
+        "https://www.southerncape.ac.za/projects/amara-ndlovu",
+        "https://www.southerncape.ac.za/amara-ndlovu",
+    ],
+)
+def test_matching_academic_host_still_requires_an_official_profile_source_kind(
+    url: str,
+) -> None:
+    supervisor = make_prospective_supervisor(1)
+    query = alternate_official_source_query(supervisor)
+    result = _search_result(
+        url=url,
+        title="Dr Amara Ndlovu | Southern Cape Institute of Technology",
+        description="Official university content.",
+        query=query,
+    )
+
+    assert select_alternate_official_source(supervisor, (result,), query=query) is None
 
 
 @pytest.mark.parametrize(

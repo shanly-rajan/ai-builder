@@ -15,7 +15,6 @@ from pydantic import (
     StrictInt,
     StringConstraints,
     ValidationError,
-    field_validator,
     model_validator,
 )
 
@@ -31,6 +30,7 @@ from ..domain import (
     derive_availability_status,
     evidence_claim_is_grounded_for_supervisor,
     missing_verification_evidence,
+    supervisor_names_are_title_equivalent,
     verify_supervisor,
 )
 from ..tools.content_extraction import ExtractedContent
@@ -64,8 +64,8 @@ class EvidenceExtractionInput(BaseModel):
     page_content: NonEmptyResponseText
 
 
-class StructuredEvidenceClaim(BaseModel):
-    """One provenance-free claim draft returned through structured model output."""
+class StructuredEvidenceClaimDraft(BaseModel):
+    """One structurally typed claim draft returned by the evidence model."""
 
     model_config = ConfigDict(
         extra="forbid",
@@ -84,6 +84,10 @@ class StructuredEvidenceClaim(BaseModel):
     asserted_department: NonEmptyResponseText | None = None
     availability_status: AvailabilityStatus | None = None
     activity_year: StrictInt | None = None
+
+
+class StructuredEvidenceClaim(StructuredEvidenceClaimDraft):
+    """One claim draft whose cross-field semantics are internally consistent."""
 
     @model_validator(mode="after")
     def typed_values_must_match_the_claim(self) -> Self:
@@ -140,35 +144,7 @@ class StructuredEvidenceExtractionResult(BaseModel):
         validate_default=True,
     )
 
-    claims: list[StructuredEvidenceClaim] = Field(default_factory=list)
-
-    @field_validator("claims")
-    @classmethod
-    def exact_claims_must_be_unique(
-        cls, values: list[StructuredEvidenceClaim]
-    ) -> list[StructuredEvidenceClaim]:
-        """Reject duplicate claims and one-page availability contradictions."""
-        identities = [
-            (
-                claim.claim_type,
-                _normalized_text(claim.claim),
-                _normalized_text(claim.supporting_excerpt),
-            )
-            for claim in values
-        ]
-        if len(identities) != len(set(identities)):
-            raise ValueError("Structured evidence claims must be unique")
-        availability_values = {
-            claim.availability_status
-            for claim in values
-            if claim.claim_type is EvidenceClaimType.AVAILABILITY
-            and claim.availability_status is not None
-        }
-        if len(availability_values) > 1:
-            raise ValueError(
-                "Conflicting availability requires evidence from distinct source pages"
-            )
-        return values
+    claims: list[StructuredEvidenceClaimDraft] = Field(default_factory=list)
 
 
 class EvidenceVerificationModelPort(Protocol):
@@ -281,6 +257,43 @@ def _claim_identity_payload(
     )
 
 
+def _stable_unique_claim_drafts(
+    drafts: list[StructuredEvidenceClaimDraft],
+) -> tuple[StructuredEvidenceClaimDraft, ...]:
+    """Keep the first occurrence of each exact typed draft in provider order."""
+    seen: set[str] = set()
+    unique: list[StructuredEvidenceClaimDraft] = []
+    for draft in drafts:
+        identity = json.dumps(
+            draft.model_dump(mode="json"),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        if identity in seen:
+            continue
+        seen.add(identity)
+        unique.append(draft)
+    return tuple(unique)
+
+
+def _has_same_page_availability_conflict(
+    drafts: tuple[StructuredEvidenceClaimDraft, ...],
+) -> bool:
+    """Detect mutually exclusive explicit availability values from one page."""
+    explicit_values = {
+        AvailabilityStatus.CONFIRMED_ACCEPTING,
+        AvailabilityStatus.CONFIRMED_NOT_ACCEPTING,
+    }
+    page_values = {
+        draft.availability_status
+        for draft in drafts
+        if draft.claim_type is EvidenceClaimType.AVAILABILITY
+        and draft.availability_status in explicit_values
+    }
+    return len(page_values) > 1
+
+
 class EvidenceVerificationAgent:
     """Ground structured model output and apply deterministic verification rules."""
 
@@ -316,43 +329,60 @@ class EvidenceVerificationAgent:
             raise EvidenceModelInvocationError("The evidence model request failed.") from error
 
         normalized_page = _normalized_text(extracted_content.content)
-        normalized_expected_name = _normalized_text(supervisor.full_name)
+        unique_drafts = _stable_unique_claim_drafts(response.claims)
+        conflicting_page_availability = _has_same_page_availability_conflict(unique_drafts)
+        admitted_drafts: list[StructuredEvidenceClaim] = []
+        for draft in unique_drafts:
+            if conflicting_page_availability and draft.claim_type is EvidenceClaimType.AVAILABILITY:
+                continue
+            try:
+                admitted = StructuredEvidenceClaim.model_validate(draft.model_dump(mode="python"))
+            except (ValidationError, ValueError):
+                continue
+            if _normalized_text(admitted.supporting_excerpt) not in normalized_page:
+                continue
+            admitted_drafts.append(admitted)
+
         page_identity_supported = any(
             draft.claim_type is EvidenceClaimType.IDENTITY
             and draft.directly_supported
             and draft.asserted_name is not None
-            and _normalized_text(draft.asserted_name) == normalized_expected_name
+            and supervisor_names_are_title_equivalent(
+                draft.asserted_name,
+                supervisor.full_name,
+            )
             and _normalized_text(draft.asserted_name) in _normalized_text(draft.supporting_excerpt)
             and _normalized_text(draft.supporting_excerpt) in normalized_page
-            for draft in response.claims
+            for draft in admitted_drafts
         )
         claims: list[EvidenceClaim] = []
-        for draft in response.claims:
-            normalized_excerpt = _normalized_text(draft.supporting_excerpt)
-            if normalized_excerpt not in normalized_page:
-                raise EvidenceModelOutputError(
-                    "A structured evidence claim was not grounded in the retrieved page."
+        for draft in admitted_drafts:
+            try:
+                provisional_claim = EvidenceClaim(
+                    evidence_id="unassigned-evidence-id",
+                    supervisor_id=supervisor.supervisor_id,
+                    claim_type=draft.claim_type,
+                    claim=draft.claim,
+                    source_url=extracted_content.source_url,
+                    source_kind=source_kind,
+                    retrieved_at=extracted_content.retrieved_at,
+                    confidence=draft.confidence,
+                    directly_supported=(
+                        draft.directly_supported
+                        and (
+                            draft.claim_type is EvidenceClaimType.IDENTITY
+                            or page_identity_supported
+                        )
+                    ),
+                    availability_status=draft.availability_status,
+                    asserted_name=draft.asserted_name,
+                    asserted_institution=draft.asserted_institution,
+                    asserted_department=draft.asserted_department,
+                    activity_year=draft.activity_year,
+                    supporting_excerpt=draft.supporting_excerpt,
                 )
-            provisional_claim = EvidenceClaim(
-                evidence_id="unassigned-evidence-id",
-                supervisor_id=supervisor.supervisor_id,
-                claim_type=draft.claim_type,
-                claim=draft.claim,
-                source_url=extracted_content.source_url,
-                source_kind=source_kind,
-                retrieved_at=extracted_content.retrieved_at,
-                confidence=draft.confidence,
-                directly_supported=(
-                    draft.directly_supported
-                    and (draft.claim_type is EvidenceClaimType.IDENTITY or page_identity_supported)
-                ),
-                availability_status=draft.availability_status,
-                asserted_name=draft.asserted_name,
-                asserted_institution=draft.asserted_institution,
-                asserted_department=draft.asserted_department,
-                activity_year=draft.activity_year,
-                supporting_excerpt=draft.supporting_excerpt,
-            )
+            except (ValidationError, ValueError):
+                continue
             direct_support = evidence_claim_is_grounded_for_supervisor(
                 provisional_claim,
                 supervisor,

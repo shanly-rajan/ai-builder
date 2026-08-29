@@ -1,0 +1,17 @@
+flowchart LR
+    R[Normalized search result] --> N{Complete person name?}
+    N -->|No| X[Reject with typed category]
+    N -->|Yes| I{Plausible institution label?}
+    I -->|No| X
+    I -->|Yes| P[Prospective Supervisor]
+    P --> E[Extract known page]
+    E --> S[Typed structured evidence drafts]
+    S --> V[Validate and ground each draft]
+    V -->|Valid| C[Persist provenance-bound EvidenceClaim]
+    V -->|Invalid| D[Discard only that draft]
+    C --> Q{Evidence sufficient?}
+    D --> Q
+    Q -->|No; retry remains| A[Search once for alternate official person profile]
+    A --> E
+    Q -->|Yes| F[Research Fit evaluation]
+    Q -->|No; retry exhausted| Z[Stop with partial verification]
