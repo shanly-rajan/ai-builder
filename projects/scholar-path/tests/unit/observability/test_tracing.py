@@ -74,7 +74,7 @@ def test_observability_adds_environment_and_graph_version_without_secrets() -> N
     }
     assert observability.planning_node_metadata["component"] == "research_planning_agent"
     assert observability.evidence_node_metadata["component"] == "evidence_verification_agent"
-    assert observability.evidence_node_metadata["prompt_version"] == "evidence-verification-v2"
+    assert observability.evidence_node_metadata["prompt_version"] == "evidence-verification-v3"
     research_fit_metadata = observability.research_fit_node_metadata("research-fit-rubric-v1")
     assert research_fit_metadata == {
         **observability.graph_metadata,

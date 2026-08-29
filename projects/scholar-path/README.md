@@ -727,7 +727,7 @@ To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_WORKSPACE_ID` only when the API key is scoped to more than one workspace.
 These values are loaded from `.env` and passed explicitly to the LangSmith client.
 `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag; the implementation
-supplies the fixed `graph-version:m12.2` tag. Disabling tracing does not construct a
+supplies the fixed `graph-version:m12.3` tag. Disabling tracing does not construct a
 LangSmith client, even if another process has globally enabled tracing.
 
 ### Run the M12 evaluation suite
@@ -806,15 +806,57 @@ deterministic grounding rules, and discards an invalid draft without losing unre
 claims from the page. Contradictory availability drafts from one page are both omitted, so
 availability remains `not_stated` rather than being guessed.
 
-Grounding accepts `Dr`, `Prof`, and `Professor` as title-only variants only when every
-substantive name token remains identical and the asserted page name occurs exactly in the
-supporting excerpt. Middle initials and family-name tokens are never silently removed.
+For direct subject-led claims, grounding accepts `Dr`, `Prof`, and `Professor` as title-only
+variants only when every substantive name token remains identical and the asserted page name
+occurs exactly in the supporting excerpt. M12.3 supersedes that per-excerpt repetition rule only
+for an explicit, validated same-page identity link. Middle initials and family-name tokens are
+never silently removed.
 
 When evidence remains insufficient, the existing single alternate-source pass searches with
 the title-free person name and may select an attributable HTTPS academic person-profile page.
 The verification minimum, evidence provenance, retry count, and Candidate approval gate are
 unchanged. See
 [`docs/m12-2-live-evidence-resilience-repair.mmd`](docs/m12-2-live-evidence-resilience-repair.mmd).
+
+### M12.3 official-profile context and discovery integrity repair
+
+Official person profiles frequently put the Supervisor name in a heading and affiliation or
+research facts in separate fields, first-person prose, or labelled sections. ScholarPath now
+persists a system-owned `subject_identity_evidence_id` when such a claim is directly supported.
+The link is valid only when the identity evidence names the same Supervisor, resolves in the
+same evidence collection, has the same official profile URL, source kind, and retrieval
+timestamp, and that URL identifies one person. Source kind alone is not sufficient. The exact
+excerpt and its nearest person heading must not identify somebody else.
+
+Eligible singular paths are bounded to `academic(s)/<person>`, `profile(s)/<person>`,
+`people/<person>`, `person(s)/<person>`, `directory/<person>` or `directories/<person>`,
+`staff-directory/<person>`, `faculty/<person>`, `researcher(s)/<person>`,
+`staff/<person>`, `staff/<id>/<person>`, a staff-person route under a neutral department prefix,
+the exact `about/our-people/<person>` layout, or one person slug on a controlled `people.` or
+`profiles.` subdomain. Bare collections and nested contact, search,
+project, group, event, news, article, publication, paper, or repository paths are rejected even
+on an exact academic host. Generic About pages are rejected; the explicit `about/our-people`
+person layout is the only bounded exception. Route-prefix checks cover separator, camel-case,
+and bounded concatenated content labels, while the terminal person slug remains opaque. General
+pages, department lists, research groups, different people, and cross-source links cannot use
+contextual ownership.
+
+Name ownership never matches on title plus family name alone. A parenthesized given-name alias
+is accepted only when it is morphologically related to the complete given name and the family
+name remains identical; arbitrary labels such as `(AI)` are not aliases. Availability remains
+a separate evidence status, and generic application-interest language is rejected from
+Research Fit and independent-review prose.
+
+Discovery also rejects generic or publisher labels such as a bare `University`, preserves
+balanced institution abbreviations, normalizes explicit leadership phrases, and prevents one
+person from borrowing another person's contextual affiliation. Alternate lookup uses the same
+singular-person route boundary while retaining exact person, institution, HTTPS, academic-host,
+and source-kind checks.
+
+The identity, current institution and department, research evidence, five-Verified-Supervisor
+threshold, one alternate-source pass, separate availability status, and Candidate approval
+gate remain unchanged. See
+[`docs/m12-3-official-profile-context-repair.mmd`](docs/m12-3-official-profile-context-repair.mmd).
 
 ### Run the Streamlit application locally
 

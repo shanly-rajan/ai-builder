@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from scholarpath.domain import (
     EvidenceClaim,
+    SourceKind,
     SupervisorLifecycleStatus,
     SupervisorVerificationRecord,
     VerificationStatus,
@@ -55,6 +56,66 @@ def test_evidence_claim_rejects_duplicate_conflict_identifiers() -> None:
 
     with pytest.raises(ValidationError, match="must be unique"):
         claim.model_copy(update={"conflicting_evidence_ids": (other_id, other_id)})
+
+
+def test_identity_claim_rejects_a_subject_identity_link() -> None:
+    identity, affiliation = make_evidence_claims(1)[:2]
+
+    with pytest.raises(ValidationError, match="Identity evidence cannot reference"):
+        identity.model_copy(update={"subject_identity_evidence_id": affiliation.evidence_id})
+
+
+def test_verification_record_rejects_an_unknown_subject_identity_link() -> None:
+    singular_url = "https://profiles.example.edu/amara-ndlovu"
+    identity = make_evidence_claims(1)[0].model_copy(
+        update={
+            "source_url": singular_url,
+            "source_kind": SourceKind.UNIVERSITY_PROFILE,
+        }
+    )
+    contextual = make_evidence_claims(1)[2].model_copy(
+        update={
+            "source_url": singular_url,
+            "source_kind": SourceKind.UNIVERSITY_PROFILE,
+            "retrieved_at": identity.retrieved_at,
+            "subject_identity_evidence_id": "evidence-unknown",
+        }
+    )
+
+    with pytest.raises(ValidationError, match="Subject identity evidence must exist"):
+        _partial_record(evidence=(identity, contextual))
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {
+            "directly_supported": False,
+            "source_kind": SourceKind.UNIVERSITY_PROFILE,
+            "source_url": "https://profiles.example.edu/amara-ndlovu",
+        },
+        {
+            "source_kind": SourceKind.DEPARTMENT_PAGE,
+            "source_url": "https://profiles.example.edu/amara-ndlovu",
+        },
+        {
+            "source_kind": SourceKind.UNIVERSITY_PROFILE,
+            "source_url": "https://example.edu/people",
+        },
+    ],
+)
+def test_subject_identity_link_is_restricted_to_direct_official_profile_evidence(
+    updates: dict[str, object],
+) -> None:
+    identity, _, research = make_evidence_claims(1)[:3]
+
+    with pytest.raises(ValidationError, match="(?i)subject identity evidence|official person"):
+        research.model_copy(
+            update={
+                **updates,
+                "subject_identity_evidence_id": identity.evidence_id,
+            }
+        )
 
 
 def test_verification_record_rejects_an_unknown_conflict_identifier() -> None:

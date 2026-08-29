@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Baseline identifier | `scholarpath-m12-fake-baseline-2026-08-29` |
+| Baseline identifier | `scholarpath-m12-3-fake-baseline-2026-08-29` |
 | Date | 2026-08-29 |
 | Dataset | `scholarpath-m12-regression-v1` |
 | Dataset size | 11 curated synthetic scenarios |
@@ -25,10 +25,10 @@ an explicit, credentialed operation through the supported LangSmith `Client.eval
 | Version | Recorded value |
 |---|---|
 | Application | `scholarpath` |
-| Graph version | `m12` |
+| Graph version | `m12.3` |
 | Dataset schema version | `m12-scenarios-v1` |
 | Research Planning prompt version | `research-planning-v2` |
-| Evidence Verification prompt version | `evidence-verification-v1` |
+| Evidence Verification prompt version | `evidence-verification-v3` |
 | Research Fit prompt version | `research-fit-evaluation-v1` |
 | Independent Review prompt version | `independent-review-v3` |
 | Evaluation judge prompt versions | Not run |
@@ -119,13 +119,13 @@ must record only scenario ID, evaluator key, score, a privacy-safe category, and
 
 | Check | Result |
 |---|---|
-| M12 evaluator, judge, scenario, trace, runner, contract, and live-gate tests | Passed: `91 passed`, one live test deselected by the default marker |
+| M12 evaluator, judge, scenario, trace, runner, contract, and live-gate tests | Passed within the complete non-live suite; live execution remained deselected |
 | Fake end-to-end graph regressions | Passed in the 11-scenario baseline |
 | Dataset synchronization tests with a mocked client | Passed |
-| Ruff formatting | Passed: 198 Python files formatted |
+| Ruff formatting | Passed: 206 Python files formatted |
 | Ruff linting | Passed |
-| mypy | Passed: 163 source files |
-| Full non-live pytest suite | Passed: 1,034 tests, eight live tests deselected, 50 terminology subtests |
+| mypy | Passed: 167 source files |
+| Full non-live pytest suite | Passed: 1,312 tests, eight live tests deselected, 54 terminology subtests, 90.46% branch coverage |
 | Local fake evaluation | Passed: `11/11` scenarios |
 
 The root implementation run must record exact commands, counts, coverage, and durations in

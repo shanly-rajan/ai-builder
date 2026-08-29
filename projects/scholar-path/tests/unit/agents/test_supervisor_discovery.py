@@ -551,7 +551,7 @@ def test_academic_title_and_institution_abbreviation_are_supported() -> None:
                 _result(
                     url="https://example.edu/faculty/jane-doe",
                     title="Associate Professor Jane Doe | Research profile",
-                    description="Associate Professor Jane Doe is a researcher with MIT.",
+                    description="Associate Professor Jane Doe is a researcher at MIT.",
                 ),
             ),
         )

@@ -29,6 +29,7 @@ from ..domain import (
     VerificationStatus,
     derive_availability_status,
     evidence_claim_is_grounded_for_supervisor,
+    is_singular_person_profile_url,
     missing_verification_evidence,
     supervisor_names_are_title_equivalent,
     verify_supervisor,
@@ -44,6 +45,97 @@ SupportingExcerpt = Annotated[
 
 def _normalized_text(value: str) -> str:
     return " ".join(value.casefold().split())
+
+
+_PROFILE_SECTION_HEADINGS = frozenset(
+    {
+        "about",
+        "areas of expertise",
+        "availability",
+        "current position",
+        "current projects",
+        "current research",
+        "expertise",
+        "methodology",
+        "profile",
+        "profile overview",
+        "publications",
+        "research areas",
+        "research focus",
+        "research interests",
+        "research methods",
+        "selected projects",
+        "selected publications",
+    }
+)
+_UNTITLED_PERSON_HEADING_PATTERN = re.compile(
+    r"^[A-Z][A-Za-z'’-]+(?:\s+\([A-Z][A-Za-z'’-]+\))?"
+    r"(?:\s+[A-Z][A-Za-z'’-]+){1,3}$"
+)
+_PERSON_CREDENTIAL_SUFFIX_PATTERN = re.compile(r"^(?P<name>.+?),\s*(?i:ph\.?d\.?|dphil|edd|md)$")
+_ACADEMIC_ROLE_HEADING_PATTERN = re.compile(
+    r"^(?:(?:associate|assistant|adjunct|full|senior)\s+)?"
+    r"professor\s+(?:of|in)\s+\S.+$",
+    re.IGNORECASE,
+)
+
+
+def _clean_profile_heading(value: str) -> str:
+    """Remove presentation markers without rewriting heading text."""
+    return value.strip().lstrip("#>*_-`• ").strip().strip("*_`").strip()
+
+
+def _plausible_person_heading(value: str) -> str | None:
+    """Return one conservative titled or untitled person heading."""
+    cleaned = _clean_profile_heading(value)
+    if not cleaned or cleaned.casefold().rstrip(":") in _PROFILE_SECTION_HEADINGS:
+        return None
+    credential_match = _PERSON_CREDENTIAL_SUFFIX_PATTERN.fullmatch(cleaned)
+    if credential_match is not None:
+        cleaned = credential_match.group("name").strip()
+    if _ACADEMIC_ROLE_HEADING_PATTERN.fullmatch(cleaned):
+        return None
+    if re.match(
+        r"^(?:associate\s+professor|assistant\s+professor|professor|prof\.?|dr\.?)\s+",
+        cleaned,
+        re.IGNORECASE,
+    ):
+        return cleaned
+    if _UNTITLED_PERSON_HEADING_PATTERN.fullmatch(cleaned):
+        return cleaned
+    return None
+
+
+def _exact_excerpt_is_under_expected_profile_subject(
+    page_content: str,
+    supporting_excerpt: str,
+    asserted_name: str,
+) -> bool:
+    """Reject a contextual excerpt positioned beneath another person's heading."""
+    starts: list[int] = []
+    offset = 0
+    while (position := page_content.find(supporting_excerpt, offset)) >= 0:
+        starts.append(position)
+        offset = position + max(len(supporting_excerpt), 1)
+    if not starts:
+        return False
+
+    for position in starts:
+        preceding_lines = page_content[:position].splitlines()
+        nearest_person = next(
+            (
+                heading
+                for line in reversed(preceding_lines)
+                if (heading := _plausible_person_heading(line)) is not None
+            ),
+            None,
+        )
+        if nearest_person is not None and not supervisor_names_are_title_equivalent(
+            nearest_person,
+            asserted_name,
+        ):
+            return False
+    return True
 
 
 class EvidenceExtractionInput(BaseModel):
@@ -183,6 +275,7 @@ def _evidence_identity_payload(
     asserted_institution: str | None,
     asserted_department: str | None,
     activity_year: int | None,
+    subject_identity_evidence_id: str | None,
 ) -> dict[str, str | bool | int | None]:
     """Return the canonical semantic fields owned by one evidence identifier."""
 
@@ -190,7 +283,7 @@ def _evidence_identity_payload(
         return _normalized_text(value) if value is not None else None
 
     return {
-        "identity_version": 3,
+        "identity_version": 4,
         "supervisor_id": supervisor_id,
         "source_url": source_url,
         "source_kind": source_kind.value,
@@ -204,6 +297,7 @@ def _evidence_identity_payload(
         "asserted_institution": normalized_optional(asserted_institution),
         "asserted_department": normalized_optional(asserted_department),
         "activity_year": activity_year,
+        "subject_identity_evidence_id": subject_identity_evidence_id,
     }
 
 
@@ -214,6 +308,7 @@ def deterministic_evidence_id(
     draft: StructuredEvidenceClaim,
     *,
     directly_supported: bool,
+    subject_identity_evidence_id: str | None = None,
 ) -> str:
     """Create a stable identifier from every grounded semantic claim field."""
     payload = _evidence_identity_payload(
@@ -230,6 +325,7 @@ def deterministic_evidence_id(
         draft.asserted_institution,
         draft.asserted_department,
         draft.activity_year,
+        subject_identity_evidence_id,
     )
     identity = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
@@ -254,6 +350,7 @@ def _claim_identity_payload(
         claim.asserted_institution,
         claim.asserted_department,
         claim.activity_year,
+        claim.subject_identity_evidence_id,
     )
 
 
@@ -343,20 +440,10 @@ class EvidenceVerificationAgent:
                 continue
             admitted_drafts.append(admitted)
 
-        page_identity_supported = any(
-            draft.claim_type is EvidenceClaimType.IDENTITY
-            and draft.directly_supported
-            and draft.asserted_name is not None
-            and supervisor_names_are_title_equivalent(
-                draft.asserted_name,
-                supervisor.full_name,
-            )
-            and _normalized_text(draft.asserted_name) in _normalized_text(draft.supporting_excerpt)
-            and _normalized_text(draft.supporting_excerpt) in normalized_page
-            for draft in admitted_drafts
-        )
-        claims: list[EvidenceClaim] = []
-        for draft in admitted_drafts:
+        identity_claims_by_position: dict[int, EvidenceClaim] = {}
+        for position, draft in enumerate(admitted_drafts):
+            if draft.claim_type is not EvidenceClaimType.IDENTITY:
+                continue
             try:
                 provisional_claim = EvidenceClaim(
                     evidence_id="unassigned-evidence-id",
@@ -367,13 +454,7 @@ class EvidenceVerificationAgent:
                     source_kind=source_kind,
                     retrieved_at=extracted_content.retrieved_at,
                     confidence=draft.confidence,
-                    directly_supported=(
-                        draft.directly_supported
-                        and (
-                            draft.claim_type is EvidenceClaimType.IDENTITY
-                            or page_identity_supported
-                        )
-                    ),
+                    directly_supported=draft.directly_supported,
                     availability_status=draft.availability_status,
                     asserted_name=draft.asserted_name,
                     asserted_institution=draft.asserted_institution,
@@ -394,11 +475,115 @@ class EvidenceVerificationAgent:
                 draft,
                 directly_supported=direct_support,
             )
+            identity_claims_by_position[position] = provisional_claim.model_copy(
+                update={
+                    "evidence_id": evidence_id,
+                    "directly_supported": direct_support,
+                }
+            )
+
+        identity_claims = tuple(identity_claims_by_position.values())
+        grounded_identity_claims = tuple(
+            claim
+            for claim in identity_claims
+            if evidence_claim_is_grounded_for_supervisor(claim, supervisor)
+        )
+        claims: list[EvidenceClaim] = []
+        for position, draft in enumerate(admitted_drafts):
+            if draft.claim_type is EvidenceClaimType.IDENTITY:
+                identity_claim = identity_claims_by_position.get(position)
+                if identity_claim is not None:
+                    claims.append(identity_claim)
+                continue
+
+            try:
+                provisional_claim = EvidenceClaim(
+                    evidence_id="unassigned-evidence-id",
+                    supervisor_id=supervisor.supervisor_id,
+                    claim_type=draft.claim_type,
+                    claim=draft.claim,
+                    source_url=extracted_content.source_url,
+                    source_kind=source_kind,
+                    retrieved_at=extracted_content.retrieved_at,
+                    confidence=draft.confidence,
+                    directly_supported=draft.directly_supported and bool(grounded_identity_claims),
+                    availability_status=draft.availability_status,
+                    asserted_name=draft.asserted_name,
+                    asserted_institution=draft.asserted_institution,
+                    asserted_department=draft.asserted_department,
+                    activity_year=draft.activity_year,
+                    supporting_excerpt=draft.supporting_excerpt,
+                )
+            except (ValidationError, ValueError):
+                continue
+
+            direct_support = evidence_claim_is_grounded_for_supervisor(
+                provisional_claim,
+                supervisor,
+                identity_claims,
+            )
+            identity_context = next(
+                (
+                    identity
+                    for identity in grounded_identity_claims
+                    if draft.asserted_name is not None
+                    and identity.asserted_name is not None
+                    and supervisor_names_are_title_equivalent(
+                        draft.asserted_name,
+                        identity.asserted_name,
+                    )
+                ),
+                None,
+            )
+            if (
+                not direct_support
+                and identity_context is not None
+                and source_kind
+                in {
+                    SourceKind.UNIVERSITY_PROFILE,
+                    SourceKind.INSTITUTIONAL_DIRECTORY,
+                }
+                and is_singular_person_profile_url(str(extracted_content.source_url))
+                and draft.asserted_name is not None
+                and _exact_excerpt_is_under_expected_profile_subject(
+                    extracted_content.content,
+                    draft.supporting_excerpt,
+                    draft.asserted_name,
+                )
+            ):
+                contextual_claim = provisional_claim.model_copy(
+                    update={
+                        "subject_identity_evidence_id": identity_context.evidence_id,
+                    }
+                )
+                if evidence_claim_is_grounded_for_supervisor(
+                    contextual_claim,
+                    supervisor,
+                    identity_claims,
+                ):
+                    provisional_claim = contextual_claim
+                    direct_support = True
+
+            evidence_id = deterministic_evidence_id(
+                supervisor.supervisor_id,
+                str(extracted_content.source_url),
+                source_kind,
+                draft,
+                directly_supported=direct_support,
+                subject_identity_evidence_id=(
+                    provisional_claim.subject_identity_evidence_id if direct_support else None
+                ),
+            )
             claims.append(
                 provisional_claim.model_copy(
                     update={
                         "evidence_id": evidence_id,
                         "directly_supported": direct_support,
+                        "subject_identity_evidence_id": (
+                            provisional_claim.subject_identity_evidence_id
+                            if direct_support
+                            else None
+                        ),
                     }
                 )
             )

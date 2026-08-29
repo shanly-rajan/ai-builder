@@ -10,6 +10,7 @@ from scholarpath.domain import (
     SourceKind,
     SupervisorVerificationRecord,
     VerificationStatus,
+    is_singular_person_profile_url,
 )
 from scholarpath.graph.verification import (
     EvidenceExtractionAttempt,
@@ -186,7 +187,7 @@ def test_alternate_source_selects_the_first_plausible_official_page() -> None:
     assert selected is not None
     assert selected.supervisor_id == supervisor.supervisor_id
     assert str(selected.source_url) == str(official.url)
-    assert selected.source_kind is SourceKind.DEPARTMENT_PAGE
+    assert selected.source_kind is SourceKind.INSTITUTIONAL_DIRECTORY
     assert selected.originating_query == query
 
 
@@ -212,11 +213,171 @@ def test_alternate_source_accepts_label_aware_academic_domains(url: str) -> None
 
 
 @pytest.mark.parametrize(
+    "url",
+    [
+        "https://www.southerncape.ac.za/profile/amara-ndlovu",
+        "https://www.southerncape.ac.za/profile/48217",
+        "https://www.southerncape.ac.za/profiles/amara-ndlovu",
+        "https://www.southerncape.ac.za/academic/amara-ndlovu",
+        "https://www.southerncape.ac.za/academics/amara-ndlovu",
+        "https://www.southerncape.ac.za/people/amara-ndlovu",
+        "https://www.southerncape.ac.za/person/amara-ndlovu",
+        "https://www.southerncape.ac.za/persons/amara-ndlovu",
+        "https://www.southerncape.ac.za/directories/amara-ndlovu",
+        "https://www.southerncape.ac.za/directory/amara-ndlovu",
+        "https://www.southerncape.ac.za/department/staff/amara-ndlovu",
+        "https://www.southerncape.ac.za/staff/48217/amara-ndlovu",
+        "https://www.southerncape.ac.za/staff-directory/amara-ndlovu",
+        "https://www.southerncape.ac.za/researcher/amara-ndlovu",
+        "https://www.southerncape.ac.za/researchers/amara-ndlovu",
+        "https://www.southerncape.ac.za/about/our-people/amara-ndlovu",
+    ],
+)
+def test_matching_academic_host_accepts_only_a_singular_person_profile_path(
+    url: str,
+) -> None:
+    supervisor = make_prospective_supervisor(1)
+    query = alternate_official_source_query(supervisor)
+    result = _search_result(
+        url=url,
+        title="Dr Amara Ndlovu | Southern Cape Institute of Technology",
+        description="Official institutional person profile.",
+        query=query,
+    )
+
+    assert is_singular_person_profile_url(url)
+    assert select_alternate_official_source(supervisor, (result,), query=query) is not None
+
+
+def test_person_slug_may_contain_a_denylisted_word_without_becoming_content() -> None:
+    supervisor = make_prospective_supervisor(1, full_name="Dr Alice News")
+    query = alternate_official_source_query(supervisor)
+    result = _search_result(
+        url="https://www.southerncape.ac.za/profile/alice-news",
+        title="Dr Alice News | Southern Cape Institute of Technology",
+        description="Official institutional person profile.",
+        query=query,
+    )
+
+    assert is_singular_person_profile_url(str(result.url))
+    assert select_alternate_official_source(supervisor, (result,), query=query) is not None
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://www.southerncape.ac.za/people",
+        "https://www.southerncape.ac.za/staff",
+        "https://www.southerncape.ac.za/directory",
+        "https://www.southerncape.ac.za/persons",
+        "https://www.southerncape.ac.za/profile",
+        "https://www.southerncape.ac.za/profiles",
+        "https://www.southerncape.ac.za/researcher",
+        "https://www.southerncape.ac.za/researchers",
+        "https://www.southerncape.ac.za/staff-directory",
+        "https://www.southerncape.ac.za/directory/faculty",
+        "https://www.southerncape.ac.za/people/all",
+        "https://www.southerncape.ac.za/profile/our-people",
+        "https://www.southerncape.ac.za/staff/directory",
+        "https://www.southerncape.ac.za/news/amara-ndlovu",
+        "https://www.southerncape.ac.za/articles/amara-ndlovu",
+        "https://www.southerncape.ac.za/publications/amara-ndlovu",
+        "https://www.southerncape.ac.za/projects/amara-ndlovu",
+        "https://www.southerncape.ac.za/contact/people/amara-ndlovu",
+        "https://www.southerncape.ac.za/search/people/amara-ndlovu",
+        "https://www.southerncape.ac.za/projects/profile/amara-ndlovu",
+        "https://www.southerncape.ac.za/groups/people/amara-ndlovu",
+        "https://www.southerncape.ac.za/about/profile/amara-ndlovu",
+        "https://www.southerncape.ac.za/about-us/people/amara-ndlovu",
+        "https://www.southerncape.ac.za/en/news-and-events/people/amara-ndlovu",
+        "https://www.southerncape.ac.za/en/news_and_events/people/amara-ndlovu",
+        "https://www.southerncape.ac.za/en/articles-and-news/profiles/amara-ndlovu",
+        "https://www.southerncape.ac.za/en/projects-and-events/faculty/amara-ndlovu",
+        "https://www.southerncape.ac.za/en/search-results/person/amara-ndlovu",
+        "https://www.southerncape.ac.za/en/newsAndEvents/people/amara-ndlovu",
+        "https://www.southerncape.ac.za/en/newsandevents/people/amara-ndlovu",
+        "https://www.southerncape.ac.za/en/searchResults/people/amara-ndlovu",
+        "https://www.southerncape.ac.za/en/contactUs/people/amara-ndlovu",
+        "https://www.southerncape.ac.za/en/researchProjects/people/amara-ndlovu",
+    ],
+)
+def test_matching_academic_host_rejects_collection_and_general_content_paths(
+    url: str,
+) -> None:
+    supervisor = make_prospective_supervisor(1)
+    query = alternate_official_source_query(supervisor)
+    result = _search_result(
+        url=url,
+        title="Dr Amara Ndlovu | Southern Cape Institute of Technology",
+        description="The exact person and institution appear in this result.",
+        query=query,
+    )
+
+    assert not is_singular_person_profile_url(url)
+    assert select_alternate_official_source(supervisor, (result,), query=query) is None
+
+
+def test_bradford_compound_news_route_cannot_be_selected_as_an_alternate_profile() -> None:
+    supervisor = make_prospective_supervisor(
+        1,
+        full_name="Professor Dhaval Thakker",
+        institution="University of Bradford",
+    )
+    query = alternate_official_source_query(supervisor)
+    result = _search_result(
+        url="https://www.bradford.ac.uk/en/news-and-events/people/dhaval-thakker",
+        title="Professor Dhaval Thakker | University of Bradford",
+        description="The exact person and institution appear in this result.",
+        query=query,
+    )
+
+    assert not is_singular_person_profile_url(str(result.url))
+    assert select_alternate_official_source(supervisor, (result,), query=query) is None
+
+
+@pytest.mark.parametrize("compound_prefix", ["newsAndEvents", "newsandevents"])
+def test_bradford_camel_or_concatenated_news_route_cannot_be_selected(
+    compound_prefix: str,
+) -> None:
+    supervisor = make_prospective_supervisor(
+        1,
+        full_name="Professor Dhaval Thakker",
+        institution="University of Bradford",
+    )
+    query = alternate_official_source_query(supervisor)
+    result = _search_result(
+        url=(f"https://www.bradford.ac.uk/en/{compound_prefix}/people/dhaval-thakker"),
+        title="Professor Dhaval Thakker | University of Bradford",
+        description="The exact person and institution appear in this result.",
+        query=query,
+    )
+
+    assert not is_singular_person_profile_url(str(result.url))
+    assert select_alternate_official_source(supervisor, (result,), query=query) is None
+
+
+@pytest.mark.parametrize(
     ("url", "expected_kind"),
     [
         (
             "https://www.uwe.ac.uk/about/our-people/amara-ndlovu",
             SourceKind.UNIVERSITY_PROFILE,
+        ),
+        (
+            "https://www.uwe.ac.uk/persons/amara-ndlovu",
+            SourceKind.UNIVERSITY_PROFILE,
+        ),
+        (
+            "https://www.uwe.ac.uk/researcher/amara-ndlovu",
+            SourceKind.UNIVERSITY_PROFILE,
+        ),
+        (
+            "https://www.uwe.ac.uk/researchers/amara-ndlovu",
+            SourceKind.UNIVERSITY_PROFILE,
+        ),
+        (
+            "https://www.uwe.ac.uk/directory/amara-ndlovu",
+            SourceKind.INSTITUTIONAL_DIRECTORY,
         ),
         (
             "https://profiles.uwe.ac.uk/profile/48217",
@@ -242,6 +403,7 @@ def test_alternate_source_accepts_an_abbreviated_academic_host_for_one_person_pr
 
     selected = select_alternate_official_source(supervisor, (result,), query=query)
 
+    assert is_singular_person_profile_url(url)
     assert selected is not None
     assert selected.source_kind is expected_kind
 
@@ -251,8 +413,15 @@ def test_alternate_source_accepts_an_abbreviated_academic_host_for_one_person_pr
     [
         "https://www.uwe.ac.uk/",
         "https://www.uwe.ac.uk/people",
+        "https://www.uwe.ac.uk/persons",
+        "https://www.uwe.ac.uk/researcher",
+        "https://www.uwe.ac.uk/researchers",
+        "https://www.uwe.ac.uk/directory",
         "https://www.uwe.ac.uk/news/amara-ndlovu",
+        "https://www.uwe.ac.uk/news/persons/amara-ndlovu",
+        "https://www.uwe.ac.uk/articles/researchers/amara-ndlovu",
         "https://www.uwe.ac.uk/publications/amara-ndlovu",
+        "https://www.uwe.ac.uk/publications/directory/amara-ndlovu",
         "https://www.uwe.ac.uk/projects/amara-ndlovu",
         "https://www.uwe.ac.uk/search/amara-ndlovu",
         "https://www.unrelated.edu/people/amara-ndlovu",
@@ -285,13 +454,13 @@ def test_abbreviated_host_exception_still_requires_exact_person_and_institution_
     )
     query = alternate_official_source_query(supervisor)
     wrong_person = _search_result(
-        url="https://www.uwe.ac.uk/people/nomsa-ndlovu",
+        url="https://www.uwe.ac.uk/persons/nomsa-ndlovu",
         title="Dr Nomsa Ndlovu | University of the West of England",
         description="Official academic profile.",
         query=query,
     )
     wrong_institution = _search_result(
-        url="https://www.uwe.ac.uk/people/amara-ndlovu",
+        url="https://www.uwe.ac.uk/directory/amara-ndlovu",
         title="Dr Amara Ndlovu | University of Bristol",
         description="Official academic profile.",
         query=query,
@@ -455,7 +624,7 @@ def test_search_snippet_is_used_for_selection_but_never_persisted_as_evidence() 
         (
             "https://www.southerncape.edu/department/staff/amara-ndlovu",
             "",
-            SourceKind.DEPARTMENT_PAGE,
+            SourceKind.INSTITUTIONAL_DIRECTORY,
         ),
         (
             "https://www.southerncape.edu/staff/amara-ndlovu",
@@ -485,12 +654,12 @@ def test_search_snippet_is_used_for_selection_but_never_persisted_as_evidence() 
         (
             "https://www.southerncape.edu/academics/amara-ndlovu",
             "Department of Information Systems",
-            SourceKind.DEPARTMENT_PAGE,
+            SourceKind.UNIVERSITY_PROFILE,
         ),
         (
             "https://www.southerncape.edu/academics/amara-ndlovu",
             "Dr Amara Ndlovu",
-            SourceKind.OTHER,
+            SourceKind.UNIVERSITY_PROFILE,
         ),
         (
             "https://profiles.untrusted.example/people/amara-ndlovu",

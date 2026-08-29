@@ -580,8 +580,11 @@ flowchart TD
     Drafts --> Ground{Draft semantics and excerpt valid?}
     Ground -->|no| Invalid[Discard only this draft]
     Ground -->|yes| Subject{Exact Supervisor named in excerpt?}
-    Subject -->|no| Indirect[Retain as not directly supported]
+    Subject -->|no| Profile{Same official person profile and identity evidence?}
+    Profile -->|no| Indirect[Retain as not directly supported]
+    Profile -->|yes| Context[Bind subject identity evidence ID]
     Subject -->|yes| Bind[Bind system-owned provenance]
+    Context --> Bind
     Bind --> Claim[EvidenceClaim]
     Claim --> Rules[Deterministic sufficiency and conflict rules]
 
@@ -589,14 +592,15 @@ flowchart TD
     class Port,OpenAI,Schema boundary;
 ```
 
-The current versioned `evidence-verification-v2` prompt tells the model to use only the
+The current versioned `evidence-verification-v3` prompt tells the model to use only the
 retrieved page. Expected profile values are comparison hints, not evidence. The model
 may classify identity, current affiliation, research interests, methodology,
 publication, project, and explicit availability, but every structured claim must carry
 a short supporting excerpt. Every claim proposed as directly supported must also carry
-the asserted person name, and its excerpt must explicitly name that Supervisor. M12.2
-adds exact-excerpt and per-claim omission instructions while deterministic code remains
-the enforcement layer.
+the asserted person name. M12.3 permits exact first-person, pronoun-led, labelled, or typed
+affiliation sections to omit the repeated name only on an official person profile whose
+separate grounded identity EvidenceClaim is linked deterministically. The model never assigns
+that provenance link.
 
 The OpenAI adapter uses native strict JSON-schema output with `include_raw=False` and
 `max_retries=0`. It does not manually parse JSON. The structured model returns no
@@ -611,6 +615,7 @@ binds those fields from trusted inputs after validating the response.
 | Source URL and source kind | Extracted page and selected source reference |
 | Retrieval timestamp | Content-extraction boundary |
 | Evidence ID | Versioned deterministic hash of every persisted semantic claim field except retrieval time |
+| Subject identity evidence ID | Deterministic same-source official-profile linkage assigned by the application |
 | Availability result, conflicts, sufficiency, lifecycle status | Deterministic Python rules |
 
 The extracted full page is transient: it is sent to the evidence model but is not
@@ -841,11 +846,11 @@ flowchart LR
     Root --> FitTrace[Research Fit node and rubric metadata]
     Root --> ReviewTrace[independent-review node metadata]
     Root --> Discovery[discovery node + aggregate attempt spans]
-    Tags[environment plus graph-version:m12.2] --> Root
+    Tags[environment plus graph-version:m12.3] --> Root
 ```
 
-The graph version is `m12.2`. Root tags are
-`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m12.2`. Planning, discovery,
+The graph version is `m12.3`. Root tags are
+`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m12.3`. Planning, discovery,
 evidence, Research Fit, and independent-review nodes add only safe component and version
 metadata. The fixed metadata allowlist is:
 
@@ -869,7 +874,7 @@ metadata. The fixed metadata allowlist is:
 - `discovery_route`
 
 The evidence node records `component=evidence_verification_agent` and
-`prompt_version=evidence-verification-v2`. Source URLs, full page content, Candidate
+`prompt_version=evidence-verification-v3`. Source URLs, full page content, Candidate
 identifiers, names, email addresses, research statements, and API keys are not allowed
 in trace metadata. The LangSmith client also uses `hide_inputs=True`,
 `hide_outputs=True`, and omits runtime information, which is especially important
@@ -969,15 +974,56 @@ EvidenceClaim, while independently valid drafts retain their exact source URL, r
 timestamp, excerpt, confidence, and deterministic identifier. Same-page contradictory
 availability drafts are omitted together, preserving `not_stated`.
 
-Person-name grounding canonicalizes only a leading `Dr`, `Prof`, or `Professor` family of
-academic titles. The complete remaining Unicode name-token sequence must match, and the exact
-page-stated asserted name must still occur in the excerpt. This handles source title variants
-without relaxing identity ownership.
+For direct subject-led claims, person-name grounding canonicalizes only a leading `Dr`, `Prof`,
+or `Professor` family of academic titles. The complete remaining Unicode name-token sequence
+must match, and the exact page-stated asserted name must still occur in the excerpt. M12.3 adds
+one explicit exception: a validated contextual claim can resolve to same-retrieval identity
+evidence from a singular official person profile.
 
 Insufficient evidence follows the existing finite policy. One alternate search uses the
 title-free substantive person name and selects only an attributable HTTPS academic
 person-profile page; the returned snippet is never evidence. Verification requirements and
 the single alternate-source pass remain unchanged.
+
+## M12.3 official-profile context and discovery integrity boundary
+
+[`m12-3-official-profile-context-repair.mmd`](m12-3-official-profile-context-repair.mmd)
+shows the bounded subject-ownership repair. Exact claims from an official university profile
+or institutional directory may reference a grounded identity EvidenceClaim from the same
+Supervisor, URL, source kind, and retrieval timestamp. This makes the subject relationship
+explicit and durable without treating the whole page as an untyped assertion.
+
+Contextual grounding still requires the model's exact excerpt to occur in the retrieved page.
+Current affiliation retains exact institution and department fields; research facts remain
+typed; and availability requires explicit accepting or not-accepting polarity. The link must
+resolve to grounded identity from the same Supervisor, URL, source kind, and retrieval timestamp.
+Both the excerpt and its nearest person heading are checked for a different subject. A role line
+such as `Professor of Artificial Intelligence` is not treated as another person.
+
+The URL must itself identify one person; source kind alone is insufficient. Bounded routes are
+`academic(s)/<person>`, `profile(s)/<person>`, `people/<person>`, `person(s)/<person>`,
+`directory/<person>` or `directories/<person>`, `staff-directory/<person>`,
+`faculty/<person>`,
+`researcher(s)/<person>`, `staff/<person>`, `staff/<id>/<person>`, a staff-person route under a
+neutral department prefix, the exact
+`about/our-people/<person>` layout, or one person slug on a controlled `people.` or `profiles.`
+subdomain. Bare collections and nested contact, search, project, group, event, news, article,
+publication, paper, and repository paths are rejected. Generic About pages are rejected; the
+explicit `about/our-people` person layout is the bounded exception. Prefix classification covers
+separator, camel-case, and bounded concatenated content labels, while the terminal person slug is
+kept opaque. A different person, page, retrieval, department list, or research-group page cannot
+provide identity context.
+
+Name equivalence never drops the given name or matches on family name alone. A parenthesized
+given-name alias is allowed only when it is morphologically related to the complete given name
+and the family name is identical. Unsupported availability or application-interest language is
+also prohibited from Research Fit and independent-review prose.
+
+The discovery boundary now applies one completeness check to every institution extraction
+route, requires owner-linked context before using prose affiliation, and rejects generic or
+publisher labels. Alternate-source selection uses the same singular-person URL policy and does
+not relax exact person, institution, HTTPS, academic-host, or source-kind requirements. The
+minimum evidence categories and one-pass retry policy are unchanged.
 
 ## Configuration and deferred provider activation
 
@@ -1128,7 +1174,7 @@ Setuptools maps these physical paths onto `scholarpath.*`; no additional physica
 
 ## Operational trade-offs and NFRs
 
-| Concern | M11 control | Trade-off or remaining risk |
+| Concern | Current control | Trade-off or remaining risk |
 |---|---|---|
 | Evidence integrity | Every direct claim has a source URL, retrieval time, conservative source kind, matching asserted name, and checked excerpt; IDs hash all semantic fields | Textual grounding proves presence and subject binding, not that a page itself is truthful |
 | Availability safety | Only explicit typed accepting or not-accepting statements are retained; absence stays `not_stated` | Institutional pages may be stale, so freshness policy remains limited |
@@ -1142,7 +1188,7 @@ Setuptools maps these physical paths onto `scholarpath.*`; no additional physica
 | Determinism | IDs, grounding, sufficiency, routing, arithmetic, review reconciliation, confidence degradation, and shortlist ranking use Python | Evidence wording, semantic alignment, and reviewer recommendations remain model-variable |
 | Research Fit integrity | Every positive component cites suitable direct evidence; availability is excluded; Python owns the total | Rubric calibration and model consistency still need empirical evaluation |
 | Independent review | Closed evidence input, strict result schema, valid-ID reconciliation, immutable initial assessment, and safe per-record failure | Reviewer calibration and disagreement metrics still need empirical evaluation |
-| Observability | M11 graph, prompt, and rubric versions are traceable with safe metadata; the UI exposes only canonical node progress | Evaluation datasets, quality dashboards, and alerts remain deferred |
+| Observability | Graph, prompt, rubric, and evaluation versions are traceable with safe metadata; the UI exposes only canonical node progress | Production quality dashboards and alerts remain deferred |
 | Persistence | Thread-scoped in-memory tests and restart-safe local SQLite checkpoints | Encryption, retention automation, multi-process writers, and production database selection remain deferred |
 | Preference memory | Stable Candidate scope, finite typed allowlist, deterministic duplicate suppression, no provider inference, non-fatal failure | Mem0 is an external processor; retention, deletion, residency, and consent controls need production governance |
 | Human authority | Streamlit resumes a typed interrupt; approval names exact IDs and viewing is side-effect free | Authentication, authorization, and verified session-to-thread ownership remain deferred |
@@ -1153,7 +1199,7 @@ The synchronous Tavily adapters currently bridge the provider's async invocation
 `asyncio.run()`. An async port is deferred before embedding ScholarPath inside an
 already-running event-loop runtime.
 
-## M11 quality boundaries
+## Current quality boundaries
 
 | Concern | Control |
 |---|---|
@@ -1162,14 +1208,14 @@ already-running event-loop runtime.
 | Discovery | You.com primary, official Tavily fallback, deterministic quality policy and provenance merge |
 | Extraction | One-URL `ContentExtractionPort`, official Tavily Extract, public-URL checks, dual timeouts and content cap |
 | Evidence model | Injected typed port, versioned prompt, strict native schema, no prose parsing |
-| Grounding | Every direct excerpt occurs in retrieved content, explicitly names the expected Supervisor, and passes type-specific deterministic checks |
+| Grounding | Every direct excerpt occurs in retrieved content and either names the expected Supervisor or carries a validated same-page official-profile identity link; all type-specific checks remain deterministic |
 | Verification | Identity, current institution and department, plus research interest or publication are mandatory |
 | Partial work | Separate `SupervisorVerificationRecord`; partial records never masquerade as Verified Supervisors |
 | Availability | Explicit name-bound evidence with deterministically matched polarity only; absence remains `not_stated` |
 | Conflicts | Both affiliation claims and cross-referenced evidence IDs are preserved |
 | Retry | One deterministic alternate official-source search and extraction pass |
 | Network isolation | Default tests use fixed pages and fakes; `live` is excluded by default |
-| Observability | `graph-version:m12.2`, prompt and rubric versions, allowlisted aggregate discovery and evaluation metadata, hidden inputs and outputs |
+| Observability | `graph-version:m12.3`, prompt and rubric versions, allowlisted aggregate discovery and evaluation metadata, hidden inputs and outputs |
 | Evaluation | Eleven typed synthetic scenarios, fake-default targets, ten deterministic metrics, optional scoped judges, stable dataset IDs, and separate upload/live gates |
 | Human authority | A real interrupt requires typed explicit approval before Shortlisted status or briefing generation |
 | Persistence | In-memory isolation in tests; ignored SQLite path for trusted local restart; opaque thread IDs partition runs |

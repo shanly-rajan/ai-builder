@@ -6,6 +6,7 @@ import re
 from collections.abc import Iterable, Mapping
 from datetime import datetime
 from typing import Annotated, Any, Literal, Self
+from urllib.parse import unquote, urlsplit
 
 from pydantic import (
     AwareDatetime,
@@ -61,7 +62,9 @@ _AVAILABILITY_SCORING_PATTERN = re.compile(
     r"take|takes|taking)\b[^.\n]{0,50}\b(?:doctoral|phd)\b|"
     r"\b(?:doctoral|phd)\s+(?:applications?|enquiries?|openings?|slots?)\b"
     r"[^.\n]{0,24}\b(?:open|welcome|closed|paused|being\s+accepted)\b|"
-    r"\b(?:capacity|slots?)\s+(?:to|for)\s+[^.\n]{0,30}\bsupervis\w*\b",
+    r"\b(?:capacity|slots?)\s+(?:to|for)\s+[^.\n]{0,30}\bsupervis\w*\b|"
+    r"\b(?:the\s+)?supervisor\s+(?:(?:is|appears|seems)\s+)?(?:currently\s+)?"
+    r"(?:welcomes?|open\s+for|willing\s+to\s+consider)\s+(?:new\s+)?applications?\b",
     re.IGNORECASE,
 )
 
@@ -125,6 +128,200 @@ _DIRECT_SUBJECT_RELATIONS: dict[EvidenceClaimType, frozenset[str]] = {
         {"are", "aren't", "aren’t", "cannot", "does", "is", "isn't", "isn’t", "will"}
     ),
 }
+_OFFICIAL_PERSON_PROFILE_SOURCE_KINDS = frozenset(
+    {
+        SourceKind.UNIVERSITY_PROFILE,
+        SourceKind.INSTITUTIONAL_DIRECTORY,
+    }
+)
+_PROFILE_CONTEXT_SUBJECT_PATTERN = re.compile(
+    r"^(?:i\b|i['’]m\b|my\b|we\b|our\b|he\b|his\b|she\b|her\b|"
+    r"they\b|their\b)",
+    re.IGNORECASE,
+)
+_PROFILE_SECTION_PREFIXES: dict[EvidenceClaimType, tuple[str, ...]] = {
+    EvidenceClaimType.CURRENT_AFFILIATION: (
+        "affiliation",
+        "current affiliation",
+        "current position",
+        "department",
+        "faculty",
+        "position",
+        "school",
+    ),
+    EvidenceClaimType.RESEARCH_INTEREST: (
+        "areas of expertise",
+        "current research",
+        "expertise",
+        "research areas",
+        "research focus",
+        "research interests",
+    ),
+    EvidenceClaimType.METHODOLOGY: (
+        "methods",
+        "methodological interests",
+        "methodology",
+        "research methods",
+    ),
+    EvidenceClaimType.PUBLICATION: (
+        "publications",
+        "recent publications",
+        "selected publications",
+    ),
+    EvidenceClaimType.PROJECT: (
+        "current projects",
+        "projects",
+        "selected projects",
+    ),
+}
+_SINGULAR_PERSON_ROUTE_PATTERN = re.compile(
+    r"/(?:academic|academics|directories|directory|faculty|people|person|persons|"
+    r"profile|profiles|researcher|researchers|staff|staff-directory)/"
+    r"([^/]+)/?$",
+    re.IGNORECASE,
+)
+_SINGULAR_ABOUT_OUR_PEOPLE_ROUTE_PATTERN = re.compile(
+    r"^/about/our-people/([^/]+)/?$",
+    re.IGNORECASE,
+)
+_SINGULAR_STAFF_ROUTE_PATTERN = re.compile(
+    r"/staff/([^/]+)/([^/]+)/?$",
+    re.IGNORECASE,
+)
+_CONTROLLED_PERSON_PROFILE_SUBDOMAINS = frozenset({"people", "profiles"})
+_NON_PROFILE_ROUTE_WORDS = frozenset(
+    {
+        "article",
+        "articles",
+        "contact",
+        "contacts",
+        "event",
+        "events",
+        "group",
+        "groups",
+        "news",
+        "paper",
+        "papers",
+        "project",
+        "projects",
+        "publication",
+        "publications",
+        "repository",
+        "repositories",
+        "search",
+    }
+)
+_NON_PROFILE_COMPOUND_ROUTE_SEGMENTS = frozenset(
+    {
+        "aboutus",
+        "articlesandnews",
+        "contactus",
+        "newsandevents",
+        "projectsandevents",
+        "researchprojects",
+        "searchresults",
+    }
+)
+_CAMEL_CASE_ROUTE_BOUNDARY = re.compile(r"(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
+_NON_PERSON_SLUGS = _NON_PROFILE_ROUTE_WORDS | frozenset(
+    {
+        "academics",
+        "all",
+        "about",
+        "contact",
+        "contacts",
+        "directories",
+        "directory",
+        "event",
+        "events",
+        "experts",
+        "faculty",
+        "home",
+        "index",
+        "our-people",
+        "people",
+        "persons",
+        "profile",
+        "profiles",
+        "researcher",
+        "researchers",
+        "staff",
+        "staff-directory",
+        "team",
+        "teams",
+    }
+)
+_UNTITLED_CONTEXT_NAME = (
+    r"([A-Z][A-Za-z'’-]+(?:\s+[A-Z][A-Za-z'’.-]+){1,3})"
+    r"(?:,\s*(?i:ph\.?d\.?|dphil|edd|md))?"
+)
+_UNTITLED_CONTEXT_PERSON_PATTERNS = (
+    re.compile(
+        r"(?:^|\n)\s*(?:#{1,6}\s*)?" + _UNTITLED_CONTEXT_NAME + r"\s+[—–-]",
+    ),
+    re.compile(
+        r"\b(?i:research\s+interests)\s+of\s+" + _UNTITLED_CONTEXT_NAME + r"\b",
+    ),
+    re.compile(
+        r"(?:^|\n)\s*(?:#{1,6}\s*)?" + _UNTITLED_CONTEXT_NAME + r"\s*\n"
+        r"\s*(?:I\b|I['’]m\b|My\b|We\b|Our\b)",
+    ),
+    re.compile(
+        r"\b(?i:research\s+interests?|current\s+position)\s*:\s*"
+        + _UNTITLED_CONTEXT_NAME
+        + r"\s+(?i:studies|researches|works|is|serves|holds)\b",
+    ),
+)
+
+
+def is_singular_person_profile_url(value: str) -> bool:
+    """Return whether a URL deterministically addresses one person-profile resource."""
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return False
+    hostname = (parsed.hostname or "").casefold().rstrip(".")
+    if parsed.scheme.casefold() not in {"http", "https"} or not hostname:
+        return False
+
+    path = unquote(parsed.path)
+    decoded_segments = tuple(segment for segment in path.split("/") if segment)
+    segments = tuple(segment.casefold() for segment in decoded_segments)
+    route_prefix_words = frozenset(
+        word.casefold()
+        for segment in decoded_segments[:-1]
+        for word in re.findall(
+            r"[^\W_]+",
+            _CAMEL_CASE_ROUTE_BOUNDARY.sub(" ", segment),
+            re.UNICODE,
+        )
+    )
+    normalized_route_prefix_segments = frozenset(
+        "".join(re.findall(r"[^\W_]+", segment.casefold(), re.UNICODE))
+        for segment in decoded_segments[:-1]
+    )
+    if (
+        route_prefix_words & _NON_PROFILE_ROUTE_WORDS
+        or normalized_route_prefix_segments & _NON_PROFILE_COMPOUND_ROUTE_SEGMENTS
+    ):
+        return False
+
+    about_our_people_match = _SINGULAR_ABOUT_OUR_PEOPLE_ROUTE_PATTERN.search(path)
+    if "about" in route_prefix_words and about_our_people_match is None:
+        return False
+    route_match = about_our_people_match or _SINGULAR_PERSON_ROUTE_PATTERN.search(path)
+    staff_match = _SINGULAR_STAFF_ROUTE_PATTERN.search(path)
+    if route_match is not None:
+        person_slug = route_match.group(1).casefold()
+        return person_slug not in _NON_PERSON_SLUGS
+    if staff_match is not None:
+        staff_id, person_slug = (part.casefold() for part in staff_match.groups())
+        return staff_id not in _NON_PERSON_SLUGS and person_slug not in _NON_PERSON_SLUGS
+
+    hostname_label = hostname.split(".", maxsplit=1)[0]
+    if hostname_label not in _CONTROLLED_PERSON_PROFILE_SUBDOMAINS or len(segments) != 1:
+        return False
+    return segments[0] not in _NON_PERSON_SLUGS
 
 
 class DomainModel(BaseModel):
@@ -337,6 +534,7 @@ class EvidenceClaim(DomainModel):
     asserted_department: NonEmptyString | None = None
     activity_year: ActivityYear | None = None
     supporting_excerpt: NonEmptyString | None = None
+    subject_identity_evidence_id: NonEmptyString | None = None
     conflicting_evidence_ids: tuple[NonEmptyString, ...] = ()
 
     @model_validator(mode="after")
@@ -372,6 +570,20 @@ class EvidenceClaim(DomainModel):
             raise ValueError("Conflicting evidence identifiers must be unique")
         if self.evidence_id in self.conflicting_evidence_ids:
             raise ValueError("An evidence claim cannot conflict with itself")
+        if self.claim_type is EvidenceClaimType.IDENTITY:
+            if self.subject_identity_evidence_id is not None:
+                raise ValueError("Identity evidence cannot reference subject identity evidence")
+        elif self.subject_identity_evidence_id is not None:
+            if self.subject_identity_evidence_id == self.evidence_id:
+                raise ValueError("Evidence cannot use itself as subject identity evidence")
+            if not self.directly_supported:
+                raise ValueError("Indirect evidence cannot reference subject identity evidence")
+            if self.source_kind not in _OFFICIAL_PERSON_PROFILE_SOURCE_KINDS:
+                raise ValueError(
+                    "Subject identity evidence is restricted to official person profiles"
+                )
+            if not is_singular_person_profile_url(str(self.source_url)):
+                raise ValueError("Subject identity evidence requires a singular person-profile URL")
         return self
 
 
@@ -416,21 +628,50 @@ def _normalized_grounding_text(value: str) -> str:
 
 
 def supervisor_names_are_title_equivalent(first: str, second: str) -> bool:
-    """Compare complete substantive names while ignoring only a leading academic title."""
+    """Compare complete names, allowing a conservative parenthetical given-name alias."""
 
-    def substantive_name(value: str) -> tuple[str, ...]:
+    def name_variants(value: str) -> tuple[str, frozenset[tuple[str, ...]]] | None:
         without_title = _ACADEMIC_TITLE_PREFIX_PATTERN.sub("", value.strip(), count=1)
-        return tuple(
+        outside_parentheses = re.sub(r"\([^()]*\)", " ", without_title)
+        outside_tokens = tuple(
             re.findall(
                 r"[^\W\d_]+(?:[-'’][^\W\d_]+)*",
-                without_title.casefold(),
+                outside_parentheses.casefold(),
                 re.UNICODE,
             )
         )
+        if len(outside_tokens) < 2:
+            return None
 
-    first_tokens = substantive_name(first)
-    second_tokens = substantive_name(second)
-    return bool(first_tokens and first_tokens == second_tokens)
+        surname = outside_tokens[-1]
+        given_names = outside_tokens[:-1]
+        variants = {given_names}
+        for match in re.finditer(r"\(([^()]*)\)", without_title):
+            alias_tokens = tuple(
+                re.findall(
+                    r"[^\W\d_]+(?:[-'’][^\W\d_]+)*",
+                    match.group(1).casefold(),
+                    re.UNICODE,
+                )
+            )
+            if len(alias_tokens) != 1 or not given_names:
+                return None
+            alias = alias_tokens[0]
+            formal_given_name = given_names[0]
+            if min(len(alias), len(formal_given_name)) < 3 or not (
+                alias.startswith(formal_given_name) or formal_given_name.startswith(alias)
+            ):
+                return None
+            variants.add((alias, *given_names[1:]))
+        return surname, frozenset(variants)
+
+    first_name = name_variants(first)
+    second_name = name_variants(second)
+    if first_name is None or second_name is None:
+        return False
+    first_surname, first_variants = first_name
+    second_surname, second_variants = second_name
+    return first_surname == second_surname and not first_variants.isdisjoint(second_variants)
 
 
 def _contains_exact_normalized_phrase(text: str, phrase: str) -> bool:
@@ -464,6 +705,64 @@ def _availability_polarity_matches_excerpt(claim: EvidenceClaim) -> bool:
     return False
 
 
+def _normalized_profile_excerpt(value: str) -> str:
+    """Remove only leading presentation markup from an exact profile excerpt."""
+    normalized = _normalized_grounding_text(value)
+    return normalized.lstrip(" #>*_-`•").lstrip()
+
+
+def _profile_context_has_conflicting_person(claim: EvidenceClaim) -> bool:
+    """Reject contextual ownership when an excerpt identifies somebody else."""
+    assert claim.asserted_name is not None
+    assert claim.supporting_excerpt is not None
+    titled_conflict = any(
+        not supervisor_names_are_title_equivalent(match.group(0), claim.asserted_name)
+        for match in _TITLED_PERSON_PATTERN.finditer(claim.supporting_excerpt)
+    )
+    if titled_conflict:
+        return True
+    return any(
+        not supervisor_names_are_title_equivalent(match.group(1), claim.asserted_name)
+        for pattern in _UNTITLED_CONTEXT_PERSON_PATTERNS
+        if (match := pattern.search(claim.supporting_excerpt)) is not None
+    )
+
+
+def _profile_context_excerpt_is_subject_bound(claim: EvidenceClaim) -> bool:
+    """Recognize first-person, pronoun, or labelled sections on one official profile."""
+    assert claim.asserted_name is not None
+    assert claim.supporting_excerpt is not None
+    if _profile_context_has_conflicting_person(claim):
+        return False
+    excerpt = _normalized_profile_excerpt(claim.supporting_excerpt)
+    if claim.claim_type is EvidenceClaimType.CURRENT_AFFILIATION:
+        # The affiliation-specific grounder separately requires both exact typed fields.
+        return True
+    if _PROFILE_CONTEXT_SUBJECT_PATTERN.match(excerpt):
+        return True
+    return excerpt.startswith(_PROFILE_SECTION_PREFIXES.get(claim.claim_type, ()))
+
+
+def _contextual_availability_polarity_matches_excerpt(claim: EvidenceClaim) -> bool:
+    """Require explicit accepting/not-accepting wording after a contextual subject."""
+    assert claim.supporting_excerpt is not None
+    excerpt = _normalized_profile_excerpt(claim.supporting_excerpt)
+    subject_prefix = re.match(
+        r"^(?:i\s+am|i['’]m|he\s+is|she\s+is|they\s+are)\s+",
+        excerpt,
+    )
+    if subject_prefix is None:
+        return False
+    subject_statement = excerpt[subject_prefix.end() :]
+    has_not_accepting = _EXPLICIT_NOT_ACCEPTING_PATTERN.search(subject_statement) is not None
+    has_accepting = _EXPLICIT_ACCEPTING_PATTERN.search(subject_statement) is not None
+    if claim.availability_status is AvailabilityStatus.CONFIRMED_ACCEPTING:
+        return has_accepting and not has_not_accepting
+    if claim.availability_status is AvailabilityStatus.CONFIRMED_NOT_ACCEPTING:
+        return has_not_accepting and not has_accepting
+    return False
+
+
 def _excerpt_has_direct_supervisor_subject(claim: EvidenceClaim) -> bool:
     """Require a conservative subject-led statement and reject a second titled person."""
     assert claim.asserted_name is not None
@@ -481,7 +780,10 @@ def _excerpt_has_direct_supervisor_subject(claim: EvidenceClaim) -> bool:
         )
         for match in _TITLED_PERSON_PATTERN.finditer(claim.supporting_excerpt)
     }
-    if any(person != asserted_name.rstrip(".") for person in titled_people):
+    if any(
+        not supervisor_names_are_title_equivalent(person, claim.asserted_name)
+        for person in titled_people
+    ):
         return False
 
     remainder = excerpt[len(asserted_name) :].lstrip(" ,:;-—")
@@ -491,9 +793,62 @@ def _excerpt_has_direct_supervisor_subject(claim: EvidenceClaim) -> bool:
     return first_word in _DIRECT_SUBJECT_RELATIONS.get(claim.claim_type, frozenset())
 
 
+def _subject_identity_reference_resolves(
+    claim: EvidenceClaim,
+    evidence_by_id: Mapping[str, EvidenceClaim],
+) -> bool:
+    """Resolve one contextual claim to direct identity from the same singular page."""
+    identity_id = claim.subject_identity_evidence_id
+    if identity_id is None or claim.source_kind not in _OFFICIAL_PERSON_PROFILE_SOURCE_KINDS:
+        return False
+    if not is_singular_person_profile_url(str(claim.source_url)):
+        return False
+    identity = evidence_by_id.get(identity_id)
+    if (
+        identity is None
+        or identity.claim_type is not EvidenceClaimType.IDENTITY
+        or not identity.directly_supported
+    ):
+        return False
+    if (
+        identity.supervisor_id != claim.supervisor_id
+        or identity.source_kind is not claim.source_kind
+        or str(identity.source_url) != str(claim.source_url)
+        or identity.retrieved_at != claim.retrieved_at
+        or identity.subject_identity_evidence_id is not None
+        or identity.asserted_name is None
+        or identity.supporting_excerpt is None
+        or claim.asserted_name is None
+    ):
+        return False
+    if not _contains_exact_normalized_phrase(
+        identity.supporting_excerpt,
+        identity.asserted_name,
+    ):
+        return False
+    return supervisor_names_are_title_equivalent(identity.asserted_name, claim.asserted_name)
+
+
+def _official_profile_identity_context_is_grounded(
+    claim: EvidenceClaim,
+    supervisor: SupervisorProfile,
+    evidence_by_id: Mapping[str, EvidenceClaim],
+) -> bool:
+    """Validate subject context and its resolved identity against one Supervisor."""
+    if not _subject_identity_reference_resolves(claim, evidence_by_id):
+        return False
+    identity_id = claim.subject_identity_evidence_id
+    assert identity_id is not None
+    identity = evidence_by_id[identity_id]
+    if not evidence_claim_is_grounded_for_supervisor(identity, supervisor):
+        return False
+    return _profile_context_excerpt_is_subject_bound(claim)
+
+
 def evidence_claim_is_grounded_for_supervisor(
     claim: EvidenceClaim,
     supervisor: SupervisorProfile,
+    evidence: tuple[EvidenceClaim, ...] = (),
 ) -> bool:
     """Return whether one direct claim is owned, subject-bound, and excerpt-grounded."""
     if not claim.directly_supported or claim.supervisor_id != supervisor.supervisor_id:
@@ -502,11 +857,23 @@ def evidence_claim_is_grounded_for_supervisor(
         return False
     if not supervisor_names_are_title_equivalent(claim.asserted_name, supervisor.full_name):
         return False
-    if not _contains_exact_normalized_phrase(claim.supporting_excerpt, claim.asserted_name):
+    name_is_explicit = _contains_exact_normalized_phrase(
+        claim.supporting_excerpt,
+        claim.asserted_name,
+    )
+    if claim.claim_type is EvidenceClaimType.IDENTITY:
+        return name_is_explicit
+
+    evidence_by_id = {item.evidence_id: item for item in evidence}
+    profile_context_is_grounded = _official_profile_identity_context_is_grounded(
+        claim,
+        supervisor,
+        evidence_by_id,
+    )
+    if claim.subject_identity_evidence_id is not None and not profile_context_is_grounded:
         return False
-    if claim.claim_type is not EvidenceClaimType.IDENTITY and not (
-        _excerpt_has_direct_supervisor_subject(claim)
-    ):
+    direct_subject_is_grounded = name_is_explicit and _excerpt_has_direct_supervisor_subject(claim)
+    if not direct_subject_is_grounded and not profile_context_is_grounded:
         return False
 
     if claim.claim_type is EvidenceClaimType.CURRENT_AFFILIATION:
@@ -524,7 +891,9 @@ def evidence_claim_is_grounded_for_supervisor(
             return False
 
     if claim.claim_type is EvidenceClaimType.AVAILABILITY:
-        return _availability_polarity_matches_excerpt(claim)
+        if direct_subject_is_grounded:
+            return _availability_polarity_matches_excerpt(claim)
+        return _contextual_availability_polarity_matches_excerpt(claim)
     return True
 
 
@@ -533,7 +902,9 @@ def missing_verification_evidence(
 ) -> tuple[str, ...]:
     """Return required evidence categories absent for one Supervisor."""
     grounded_direct_evidence = tuple(
-        claim for claim in evidence if evidence_claim_is_grounded_for_supervisor(claim, supervisor)
+        claim
+        for claim in evidence
+        if evidence_claim_is_grounded_for_supervisor(claim, supervisor, evidence)
     )
     has_identity = any(
         claim.claim_type is EvidenceClaimType.IDENTITY for claim in grounded_direct_evidence
@@ -561,6 +932,7 @@ def derive_availability_status(
     evidence: tuple[EvidenceClaim, ...], supervisor_id: str
 ) -> AvailabilityStatus:
     """Derive an availability state from directly supported typed claims."""
+    evidence_by_id = {claim.evidence_id: claim for claim in evidence}
     values = {
         claim.availability_status
         for claim in evidence
@@ -568,6 +940,14 @@ def derive_availability_status(
         and claim.claim_type is EvidenceClaimType.AVAILABILITY
         and claim.directly_supported
         and claim.availability_status is not None
+        and (
+            claim.subject_identity_evidence_id is None
+            or (
+                _subject_identity_reference_resolves(claim, evidence_by_id)
+                and _profile_context_excerpt_is_subject_bound(claim)
+                and _contextual_availability_polarity_matches_excerpt(claim)
+            )
+        )
     }
     if values == {
         AvailabilityStatus.CONFIRMED_ACCEPTING,
@@ -617,6 +997,11 @@ class VerifiedSupervisor(SupervisorProfile):
             unknown_conflicts = set(claim.conflicting_evidence_ids) - evidence_id_set
             if unknown_conflicts:
                 raise ValueError("Conflicting evidence identifiers must exist in the record")
+            if (
+                claim.subject_identity_evidence_id is not None
+                and claim.subject_identity_evidence_id not in evidence_id_set
+            ):
+                raise ValueError("Subject identity evidence must exist in the record")
 
         missing = missing_verification_evidence(self.evidence, self)
         if missing:
@@ -627,7 +1012,7 @@ class VerifiedSupervisor(SupervisorProfile):
             f"{claim.claim_type.value}:{claim.evidence_id}"
             for claim in self.evidence
             if claim.directly_supported
-            and not evidence_claim_is_grounded_for_supervisor(claim, self)
+            and not evidence_claim_is_grounded_for_supervisor(claim, self, self.evidence)
         ]
         if ungrounded_direct_claims:
             raise ValueError(
@@ -722,6 +1107,11 @@ class SupervisorVerificationRecord(DomainModel):
             unknown_conflicts = set(claim.conflicting_evidence_ids) - evidence_id_set
             if unknown_conflicts:
                 raise ValueError("Conflicting evidence identifiers must exist in the record")
+            if (
+                claim.subject_identity_evidence_id is not None
+                and claim.subject_identity_evidence_id not in evidence_id_set
+            ):
+                raise ValueError("Subject identity evidence must exist in the record")
 
         ungrounded_direct_claims = [
             f"{claim.claim_type.value}:{claim.evidence_id}"
@@ -730,6 +1120,7 @@ class SupervisorVerificationRecord(DomainModel):
             and not evidence_claim_is_grounded_for_supervisor(
                 claim,
                 self.prospective_supervisor,
+                self.evidence,
             )
         ]
         if ungrounded_direct_claims:
@@ -1135,6 +1526,7 @@ def validate_research_fit_evidence(
             if not claim.directly_supported or not evidence_claim_is_grounded_for_supervisor(
                 claim,
                 supervisor,
+                supervisor.evidence,
             ):
                 raise ResearchFitEvidenceError(
                     f"{dimension} must cite directly supported, grounded evidence."

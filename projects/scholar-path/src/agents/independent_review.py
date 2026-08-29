@@ -283,7 +283,11 @@ def reconcile_research_fit_assessment(
     unusable_overlooked_evidence = any(
         claim.claim_type not in _REVIEWABLE_FIT_EVIDENCE_TYPES
         or not claim.directly_supported
-        or not evidence_claim_is_grounded_for_supervisor(claim, supervisor)
+        or not evidence_claim_is_grounded_for_supervisor(
+            claim,
+            supervisor,
+            supervisor.evidence,
+        )
         for evidence_id in overlooked_ids
         if (claim := evidence_by_id.get(evidence_id)) is not None
     )

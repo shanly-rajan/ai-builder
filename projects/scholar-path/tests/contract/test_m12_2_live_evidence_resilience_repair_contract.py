@@ -36,9 +36,9 @@ def test_m12_2_prompt_diagram_readme_architecture_and_journal_are_recorded() -> 
 
 
 def test_m12_2_versions_the_changed_graph_and_evidence_prompt() -> None:
-    assert GRAPH_VERSION == "m12.2"
-    assert EVIDENCE_VERIFICATION_PROMPT_VERSION == "evidence-verification-v2"
-    assert LOCAL_BASELINE_NAME == "scholarpath-m12-2-fake-baseline-2026-08-29"
+    assert GRAPH_VERSION == "m12.3"
+    assert EVIDENCE_VERIFICATION_PROMPT_VERSION == "evidence-verification-v3"
+    assert LOCAL_BASELINE_NAME == "scholarpath-m12-3-fake-baseline-2026-08-29"
 
 
 def test_m12_2_preserves_the_single_alternate_source_retry() -> None:
@@ -56,12 +56,12 @@ def test_m12_2_keeps_native_structured_output_and_per_claim_semantics() -> None:
     claims_annotation = StructuredEvidenceExtractionResult.model_fields["claims"].annotation
     assert get_args(claims_annotation)[0] is StructuredEvidenceClaimDraft
     assert issubclass(StructuredEvidenceClaim, StructuredEvidenceClaimDraft)
-    assert "EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V2" in openai_source
+    assert "EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V3" in openai_source
     assert 'method="json_schema"' in openai_source
     assert "strict=True" in openai_source
     assert "max_retries=0" in openai_source
     assert "json.loads" not in openai_source
-    assert "for draft in admitted_drafts" in verification_source
+    assert "for position, draft in enumerate(admitted_drafts)" in verification_source
 
 
 def test_m12_2_name_grounding_ignores_titles_but_not_substantive_name_tokens() -> None:

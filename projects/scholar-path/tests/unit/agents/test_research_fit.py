@@ -304,6 +304,9 @@ def test_availability_prose_cannot_be_hidden_in_a_component_score() -> None:
     "prohibited_rationale",
     [
         "The Supervisor welcomes PhD applications.",
+        "The Supervisor welcomes applications.",
+        "The Supervisor is open for applications.",
+        "The Supervisor appears willing to consider applications.",
         "PhD applications are open this year.",
         "The profile has confirmed_accepting status.",
     ],
@@ -323,6 +326,21 @@ def test_semantic_availability_phrases_are_rejected(
         )
 
     assert captured.value.kind is ResearchFitFailureKind.INVALID_OUTPUT
+
+
+def test_non_availability_application_research_remains_valid_fit_prose() -> None:
+    allowed = make_strong_fit_result().model_copy(
+        update={
+            "overall_rationale": ("The Supervisor studies enterprise applications of agentic AI.")
+        }
+    )
+
+    assessment = ResearchFitEvaluationAgent(FakeResearchFitModel((allowed,))).evaluate(
+        make_candidate_profile(),
+        make_verified_supervisor(1),
+    )
+
+    assert assessment.overall_score == 78
 
 
 def test_bare_doctoral_candidate_research_prose_is_not_misclassified_as_availability() -> None:

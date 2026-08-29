@@ -17,7 +17,7 @@ from .evidence_verification import (
 )
 from .prompts import (
     EVIDENCE_VERIFICATION_PROMPT_VERSION,
-    EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V2,
+    EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V3,
 )
 
 
@@ -39,7 +39,7 @@ class OpenAIEvidenceVerificationModelAdapter:
         )
         prompt = ChatPromptTemplate.from_messages(
             (
-                ("system", EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V2),
+                ("system", EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V3),
                 ("human", "Retrieved Supervisor page input:\n{extraction_input}"),
             )
         )

@@ -259,6 +259,9 @@ def test_threshold_is_strictly_exceeded_before_attention_is_required() -> None:
         "The Supervisor is keen on supervising doctoral students.",
         "The Supervisor has funding for one doctoral researcher.",
         "The Supervisor could host another Candidate.",
+        "The Supervisor welcomes applications.",
+        "The Supervisor is open for applications.",
+        "The Supervisor appears willing to consider applications.",
         "The Candidate has strong admission prospects.",
     ),
 )
@@ -281,6 +284,20 @@ def test_reviewer_attempting_forbidden_inference_is_rejected(critique: str) -> N
 
     assert reconciled.review_status is IndependentReviewStatus.UNAVAILABLE
     assert reconciled.failure_kind is IndependentReviewFailureKind.INVALID_OUTPUT
+
+
+def test_non_availability_application_research_remains_valid_review_prose() -> None:
+    result = _accepted_result().model_copy(
+        update={"critique": "The Supervisor studies enterprise applications of agentic AI."}
+    )
+
+    reconciled = IndependentReviewAgent(FakeIndependentReviewModel(result)).review(
+        make_candidate_profile(),
+        make_verified_supervisor(1),
+        make_research_fit_assessment(1),
+    )
+
+    assert reconciled.review_status is IndependentReviewStatus.ACCEPTED
 
 
 def test_reviewer_attempting_admission_probability_is_rejected() -> None:

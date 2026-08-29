@@ -2556,3 +2556,130 @@ The exact repair prompt is archived as
 - Add governed freshness and source-authority weighting beyond the current two-source cap.
 - Keep monitoring claim-rejection rates through privacy-safe aggregates before changing any
   verification requirement.
+
+## M12.3 Repair: Official-profile context and discovery integrity
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Repair the latest live run in which all page extractions succeeded but no Supervisor completed
+verification. Preserve exact evidence and make official person-profile subject ownership
+explicit, while removing the malformed discovery labels and unsupported profile URL forms that
+made alternate lookup ineffective. Keep evidence sufficiency, finite retries, availability
+safety, and Candidate authority unchanged.
+
+### Prompt used
+
+The repair prompt and the bounded adversarial-review addendum are archived as
+[`m12-3-official-profile-context-repair.md`](prompts/m12-3-official-profile-context-repair.md)
+and
+[`m12-3a-official-profile-subject-safety-hardening.md`](prompts/m12-3a-official-profile-subject-safety-hardening.md).
+
+### Files changed
+
+- Added system-owned `subject_identity_evidence_id` provenance for exact profile sections whose
+  subject is established by grounded identity evidence from the same Supervisor, URL, source
+  kind, and retrieval timestamp.
+- Restricted contextual ownership to university profiles and institutional directories. General
+  pages, news, department pages, research groups, different people, cross-source links, and
+  different retrievals remain ineligible.
+- Added a conservative morphological parenthesized given-name alias rule. Family-name-only and
+  title-plus-family-name matches are rejected; substantive family-name differences are never
+  dropped.
+- Versioned the evidence prompt as `evidence-verification-v3` and propagated contextual grounding
+  through verification records, Verified Supervisors, Research Fit validation, and independent
+  review.
+- Repaired deterministic discovery completeness, punctuation, leadership-role normalization,
+  owner-linked affiliation, page-label rejection, academic-subject false identities, and compact
+  acronym ownership.
+- Recognized bounded singular person-profile routes, including `persons`, `researcher`,
+  `researchers`, and `directory`, while rejecting their bare collections and general content
+  paths. Exact person and institution matching, HTTPS, academic-host, and source-kind checks
+  remain mandatory.
+- Reused one structural singular-profile predicate in alternate selection and evidence
+  grounding. Existing `academic(s)`, `person(s)`, plural-directory, staff, controlled-subdomain,
+  and exact `about/our-people/<person>` layouts remain supported; nested content paths are
+  rejected consistently by both boundaries, including separator, camel-case, and bounded
+  concatenated route-prefix variants without inspecting the terminal person slug.
+- Added full-page nearest-person section checks so an official directory cannot lend another
+  person's affiliation, research, or availability text to the expected Supervisor. Role lines
+  such as `Professor of Artificial Intelligence` remain valid content rather than false people.
+- Extended Research Fit and independent-review prose guards so generic application-interest or
+  availability wording cannot bypass the separately evidenced availability status.
+- Advanced the graph version and offline evaluation replay identifier to `m12.3`; updated the
+  README, architecture, generated Mermaid snapshot, current-version contracts, and added
+  [`m12-3-official-profile-context-repair.mmd`](m12-3-official-profile-context-repair.mmd).
+
+### Tests added
+
+- Dedicated official-profile context tests cover exact identity links, same-page and
+  same-retrieval enforcement, affiliation fields, first-person and pronoun research, the Hull
+  morphological parenthesized alias, surname-only rejection, wrong-person excerpts and headings,
+  role lines, collection/general pages, availability polarity, Research Fit citations, review
+  citations, and JSON round trips.
+- Discovery regressions cover generic institutions, owner-link isolation, balanced and dangling
+  punctuation, explicit leadership institutions, publisher labels, academic-subject false names,
+  compact-acronym ownership, and the observed David Hogg, Xue Zhou, Liz Bacon, Sam Illingworth,
+  and Marieke Peeters shapes.
+- Alternate-source tests cover every supported singular person route plus bare collections,
+  content paths, wrong people, wrong institutions, and unchanged one-pass graph retry behavior.
+- Paired M7 and M8 regressions reject unsupported availability and application-interest wording
+  from Research Fit and independent-review prose.
+- A repository contract locks the prompt and graph versions, typed context provenance, native
+  structured output, policy thresholds, URL path controls, and repair documentation.
+
+### Test results
+
+- Focused evidence validation: `190 passed`.
+- Focused discovery validation after adversarial review: `135 passed`.
+- Combined M12.3 discovery, evidence, routing, graph, domain, contract, and terminology suite:
+  `294 passed` before the build-journal artifact was added.
+- Post-hardening evidence, discovery, domain, graph, and contract suite: `459 passed`; the final
+  shared-URL-policy and separator-prefix set covering context, routing, graph, contracts, and
+  terminology passed `358` tests. The final camel-case and concatenated-prefix set passed `344`
+  tests. An independent replay of the four adversarial subject and availability cases passed
+  `138` tests with no remaining subject-attribution blocker.
+- Strict editable installation succeeded offline with the installed build backend; package
+  import reported version `0.1.0`, and `pip check` found no broken requirements.
+- Ruff formatting: `206 files already formatted`; Ruff lint: all checks passed.
+- Mypy: no issues in `167` source files.
+- Full non-live pytest suite: `1312 passed`, `8 deselected`, and `54 subtests passed` with
+  `90.46%` branch coverage.
+- Offline LangSmith-compatible regression replay: `11/11` scenarios passed; every applicable
+  deterministic evaluator passed and the duplicate Supervisor rate was `0.000`.
+- Bytecode compilation and diff whitespace checks passed.
+- No live provider, model, LangSmith upload, or external network call was used.
+
+### Assumptions
+
+- An official person profile can bind exact first-person, pronoun-led, labelled, or typed
+  affiliation sections to its separately grounded identity without requiring the name to repeat
+  in every excerpt.
+- That contextual relationship must be persisted as provenance and revalidated wherever the
+  claim is used; source kind alone is insufficient.
+- A general page's compact acronym or a role phrase does not establish affiliation without an
+  explicit owner relation or an institution-owned singular person profile.
+- Older checkpoints remain readable because the new evidence-context field defaults to absent;
+  their historical support decisions are not retroactively changed.
+
+### Lessons learned
+
+- Transport success, structured-output success, and directly grounded evidence are separate
+  operational outcomes. The latest checkpoint isolated the failure to the third boundary.
+- Official profiles commonly express page ownership once and facts in structured sections;
+  provenance-linked composition is safer than weakening every claim's subject rules.
+- Discovery defects poison exact alternate lookup, so malformed identity and institution labels
+  must be rejected before they enter the Supervisor lifecycle.
+- During read-only diagnosis, a helper search accidentally included the ignored `.env` and
+  printed the Tavily credential into internal tool output. No secret entered Git or project
+  artifacts; the user was instructed to rotate it, and subsequent commands excluded `.env`.
+
+### Remaining debt
+
+- Add privacy-safe alternate-selection rejection counts so a future failed run distinguishes an
+  empty provider result from identity, institution, host, path, or source-kind rejection.
+- Validate contextual profile layouts and alias precision against a labelled multilingual corpus.
+- Add governed institution-domain authority data for official `.nl` and `.de` university hosts
+  rather than broadly trusting country-code domains.
+- Confirm the repair with a fresh live thread only after the exposed Tavily credential is rotated.

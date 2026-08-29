@@ -245,7 +245,7 @@ def test_failed_profile_accepts_one_person_page_on_an_abbreviated_academic_host(
     fixtures = build_walking_skeleton_fixtures()
     supervisor = fixtures.raw_search_results[0].to_prospective_supervisor()
     primary_url = str(supervisor.profile_url)
-    alternate_url = "https://www.scit.ac.za/people/amara-ndlovu"
+    alternate_url = "https://www.scit.ac.za/en/persons/amara-ndlovu"
     fixed_content_outcomes = make_fixed_content_outcomes()
     alternate_content = fixed_content_outcomes[ALTERNATE_OFFICIAL_PROFILE_URL]
     content_outcomes: dict[str, ExtractedContent | Exception] = {
@@ -337,6 +337,46 @@ def test_same_surname_wrong_person_is_not_used_as_an_alternate_source() -> None:
     )
 
 
+def test_exact_academic_host_collection_page_is_not_used_as_an_alternate_source() -> None:
+    fixtures = build_walking_skeleton_fixtures()
+    supervisor = fixtures.raw_search_results[0].to_prospective_supervisor()
+    primary_url = str(supervisor.profile_url)
+    collection_url = "https://www.southerncape.ac.za/staff"
+    content_outcomes: dict[str, ExtractedContent | Exception] = {
+        **make_graph_content_outcomes(),
+        primary_url: _failure(primary_url),
+    }
+    extractor = FakeContentExtraction(content_outcomes)
+    query = alternate_official_source_query(supervisor)
+    alternate_search = FakeSupervisorSearch(
+        {
+            query: (
+                _alternate_result(
+                    url=collection_url,
+                    title=("Dr Amara Ndlovu | Southern Cape Institute of Technology"),
+                    query=query,
+                    description="Official institutional staff directory.",
+                ),
+            )
+        }
+    )
+
+    final_state = _run(content_extractor=extractor, alternate_search=alternate_search)
+
+    assert final_state["retry_counts"]["evidence"] == 1
+    assert collection_url not in extractor.calls
+    record = next(
+        item
+        for item in final_state["verification_records"]
+        if item.prospective_supervisor.supervisor_id == supervisor.supervisor_id
+    )
+    assert record.verification_status is VerificationStatus.PARTIALLY_VERIFIED
+    assert record.verified_supervisor is None
+    assert any(
+        error.code == "alternate_official_source_not_found" for error in final_state["tool_errors"]
+    )
+
+
 def test_returned_primary_url_is_used_for_conservative_source_provenance() -> None:
     fixtures = build_walking_skeleton_fixtures()
     supervisor = fixtures.raw_search_results[0].to_prospective_supervisor()
@@ -366,14 +406,14 @@ def test_returned_primary_url_is_used_for_conservative_source_provenance() -> No
         if item.supervisor_id == supervisor.supervisor_id
     )
     assert str(attempt.source_url) == returned_url
-    assert attempt.source_kind is SourceKind.OTHER
+    assert attempt.source_kind is SourceKind.UNIVERSITY_PROFILE
     verified = next(
         item
         for item in final_state["verified_supervisors"]
         if item.supervisor_id == supervisor.supervisor_id
     )
     assert {str(claim.source_url) for claim in verified.evidence} == {returned_url}
-    assert {claim.source_kind for claim in verified.evidence} == {SourceKind.OTHER}
+    assert {claim.source_kind for claim in verified.evidence} == {SourceKind.UNIVERSITY_PROFILE}
 
 
 def test_retry_exhaustion_retains_five_successes_and_partial_records() -> None:

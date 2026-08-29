@@ -14,6 +14,7 @@ from ..domain import (
     SourceKind,
     SupervisorVerificationRecord,
     VerificationStatus,
+    is_singular_person_profile_url,
 )
 from ..tools.content_extraction import ContentExtractionErrorCategory
 
@@ -125,31 +126,6 @@ _GENERIC_INSTITUTION_TOKENS = {
     "university",
 }
 _INSTITUTION_ACRONYM_STOP_TOKENS = {"and", "for", "of", "the"}
-_PERSON_PROFILE_PATH_TOKENS = {
-    "academic",
-    "academics",
-    "faculty",
-    "people",
-    "person",
-    "profile",
-    "profiles",
-    "staff",
-}
-_NON_PROFILE_PATH_TOKENS = {
-    "article",
-    "articles",
-    "event",
-    "events",
-    "news",
-    "paper",
-    "papers",
-    "project",
-    "projects",
-    "publication",
-    "publications",
-    "repository",
-    "search",
-}
 _OFFICIAL_ALTERNATE_SOURCE_KINDS = {
     SourceKind.DEPARTMENT_PAGE,
     SourceKind.INSTITUTIONAL_DIRECTORY,
@@ -213,18 +189,24 @@ def select_alternate_official_source(
                 for text in result_texts
             )
         )
-        abbreviation_profile_matches = bool(
+        singular_person_profile = is_singular_person_profile_url(
+            candidate_url
+        ) and _profile_path_matches_expected_person_or_identifier(
+            parsed.path,
+            person_tokens,
+        )
+        institution_abbreviation_matches = bool(
             academic_organization
             and _academic_organization_is_institution_abbreviation(
                 academic_organization,
                 supervisor.institution,
             )
-            and _is_singular_person_profile_path(parsed.path, person_tokens)
         )
         if not (
             person_matches
             and institution_matches_text
-            and (institution_matches_hostname or abbreviation_profile_matches)
+            and singular_person_profile
+            and (institution_matches_hostname or institution_abbreviation_matches)
         ):
             continue
         source_kind = classify_evidence_source_kind(result.url, title=result.title)
@@ -261,6 +243,10 @@ def classify_evidence_source_kind(
         return SourceKind.RESEARCH_REPOSITORY
     if tokens & {"project", "projects"}:
         return SourceKind.PROJECT_PAGE
+    if academic_hostname and is_singular_person_profile_url(str(source_url)):
+        if tokens & {"directories", "directory", "staff"}:
+            return SourceKind.INSTITUTIONAL_DIRECTORY
+        return SourceKind.UNIVERSITY_PROFILE
     if academic_hostname and tokens & {
         "department",
         "school",
@@ -274,11 +260,16 @@ def classify_evidence_source_kind(
     if academic_hostname and tokens & {"directory", "directories", "staff"}:
         return SourceKind.INSTITUTIONAL_DIRECTORY
     if academic_hostname and tokens & {
+        "academic",
+        "academics",
         "faculty",
         "people",
         "person",
+        "persons",
         "profile",
         "profiles",
+        "researcher",
+        "researchers",
     }:
         return SourceKind.UNIVERSITY_PROFILE
     return SourceKind.OTHER
@@ -350,23 +341,15 @@ def _academic_organization_is_institution_abbreviation(
     return len(acronym) >= 2 and organization == acronym
 
 
-def _is_singular_person_profile_path(path: str, person_tokens: tuple[str, ...]) -> bool:
-    """Return whether an academic path identifies one person rather than general content."""
+def _profile_path_matches_expected_person_or_identifier(
+    path: str,
+    person_tokens: tuple[str, ...],
+) -> bool:
+    """Bind a structurally singular profile path to the expected person or one opaque ID."""
     path_tokens = tuple(_word_tokens(path))
-    if not path_tokens or set(path_tokens) & _NON_PROFILE_PATH_TOKENS:
-        return False
-    profile_positions = [
-        index for index, token in enumerate(path_tokens) if token in _PERSON_PROFILE_PATH_TOKENS
-    ]
-    if not profile_positions:
-        return False
-    final_profile_position = profile_positions[-1]
-    if final_profile_position == len(path_tokens) - 1:
-        return False
     if _contains_token_sequence(path_tokens, person_tokens):
         return True
-    identifier_tokens = path_tokens[final_profile_position + 1 :]
-    return len(identifier_tokens) == 1 and identifier_tokens[0].isdigit()
+    return bool(path_tokens and path_tokens[-1].isdigit())
 
 
 def _academic_organization_label(hostname: str) -> str | None:

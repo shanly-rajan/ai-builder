@@ -39,7 +39,7 @@ Keep each query concise; exclusions belong in the strategy and must not become l
 NOT chains.
 """.strip()
 
-EVIDENCE_VERIFICATION_PROMPT_VERSION: Final = "evidence-verification-v2"
+EVIDENCE_VERIFICATION_PROMPT_VERSION: Final = "evidence-verification-v3"
 
 EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V1: Final = """
 You are ScholarPath's Evidence Verification Agent. Extract factual evidence only from
@@ -101,6 +101,41 @@ title-equivalent Supervisor name, institution, and department in its supporting 
 omit that affiliation claim. Never fill a missing department from the expected profile
 hint. If one page appears to state both accepting and not accepting, omit availability
 evidence from that page rather than resolving or combining the statements.
+""".strip()
+
+EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V3: Final = f"""
+{EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V2}
+
+Official person-profile context has one narrow exception to repeating the Supervisor's
+name in every excerpt. Apply it only when source_kind is university_profile or
+institutional_directory and the same page contains a separate, directly supported
+identity claim whose exact page-stated name is title-equivalent to the expected
+Supervisor. On such a page, a first-person statement, a pronoun-led statement, or a
+clearly labelled profile section may support a non-identity claim without repeating
+the name. Keep asserted_name set to that exact page-stated identity. ScholarPath binds
+the identity provenance link deterministically after extraction; do not invent one.
+This supersedes the earlier repeated-name requirement, including the affiliation-name
+requirement, only for this bounded official-profile context.
+
+The source URL must deterministically identify one person profile, not a staff,
+directory, people, group, news, article, or publication collection. A title plus family
+name alone (for example, "Professor Smith") is not enough to bind context because a page
+may mention colleagues with the same family name. Where a page supplies a parenthetical
+given-name alias, use it only when it is a clear morphological expansion or shortening
+of the page-stated given name; never treat acronyms, organizations, or role labels as
+name aliases.
+
+This exception never applies to department, research-group, news, publication,
+project, repository, personal, or general pages. Those sources still require each
+direct excerpt to name the Supervisor as its subject. Even on an official person
+profile, omit a contextual claim that names a different person.
+
+Context changes subject attribution only; it does not relax factual grounding.
+Affiliation excerpts must still state both the institution and department exactly.
+Publication/project years must remain explicit. Contextual availability requires an
+explicit first-person or pronoun-led statement using accepting or not-accepting polarity
+for doctoral Candidates. Do not interpret a bare yes/no field, general welcome text,
+supervision history, or application guidance as Supervisor availability.
 """.strip()
 
 RESEARCH_FIT_PROMPT_VERSION: Final = "research-fit-evaluation-v1"

@@ -116,7 +116,7 @@ def test_adapter_trace_metadata_excludes_page_candidate_and_secret_data(
 
     OpenAIEvidenceVerificationModelAdapter(_configuration()).extract(extraction_input)
 
-    assert EVIDENCE_VERIFICATION_PROMPT_VERSION == "evidence-verification-v2"
+    assert EVIDENCE_VERIFICATION_PROMPT_VERSION == "evidence-verification-v3"
     assert len(chat_model.runnable_configs) == 1
     runnable_config = chat_model.runnable_configs[0]
     metadata = runnable_config.get("metadata", {})

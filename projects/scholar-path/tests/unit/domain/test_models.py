@@ -24,6 +24,7 @@ from scholarpath.domain import (
     VerificationStatus,
     VerifiedSupervisor,
     apply_candidate_review,
+    is_singular_person_profile_url,
     validate_research_fit_evidence,
 )
 from tests.fixtures import (
@@ -89,6 +90,34 @@ def test_every_m1_model_constructs_and_serializes() -> None:
         payload = model.model_dump(mode="json")
         assert isinstance(payload, dict)
         assert model.model_dump_json().startswith("{")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.edu/en/newsAndEvents/people/jane-doe",
+        "https://example.edu/en/newsandevents/people/jane-doe",
+        "https://example.edu/en/searchResults/people/jane-doe",
+        "https://example.edu/en/contactUs/people/jane-doe",
+        "https://example.edu/en/researchProjects/people/jane-doe",
+    ],
+)
+def test_singular_profile_policy_rejects_compound_content_prefixes(url: str) -> None:
+    assert not is_singular_person_profile_url(url)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.edu/profile/alice-news",
+        "https://example.edu/researcher/jane-doe",
+        "https://example.edu/researchers/jane-doe",
+        "https://example.edu/department/people/jane-doe",
+        "https://example.edu/about/our-people/jane-doe",
+    ],
+)
+def test_singular_profile_policy_preserves_bounded_person_routes(url: str) -> None:
+    assert is_singular_person_profile_url(url)
 
 
 @pytest.mark.parametrize(

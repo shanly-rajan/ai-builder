@@ -324,6 +324,14 @@ def test_evidence_identifier_changes_with_grounded_source_and_classification() -
         evidence_id(source_url=CONFLICTING_AFFILIATION_URL),
         evidence_id(source_kind=SourceKind.INSTITUTIONAL_DIRECTORY),
         evidence_id(directly_supported=False),
+        deterministic_evidence_id(
+            "supervisor-001",
+            COMPLETE_PROFILE_URL,
+            SourceKind.UNIVERSITY_PROFILE,
+            draft,
+            directly_supported=True,
+            subject_identity_evidence_id="evidence-page-identity",
+        ),
         evidence_id(draft.model_copy(update={"confidence": EvidenceConfidence.MEDIUM})),
         evidence_id(
             draft.model_copy(
@@ -335,7 +343,7 @@ def test_evidence_identifier_changes_with_grounded_source_and_classification() -
         ),
     }
 
-    assert len(identifiers) == 6
+    assert len(identifiers) == 7
 
 
 def test_evidence_identifier_includes_typed_availability_status() -> None:

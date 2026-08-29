@@ -536,6 +536,349 @@ def test_bounded_institution_punctuation_artifacts_are_normalized(
     assert [item.institution for item in discovery.prospective_supervisors] == [expected]
 
 
+def test_generic_institution_continues_to_owner_linked_complete_affiliation() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://eps.leeds.ac.uk/computing/staff/84/professor-david-hogg",
+                title="Professor David Hogg | University",
+                description=("Professor David Hogg is a professor at the University of Leeds."),
+            ),
+        ),
+    )
+
+    assert discovery.result_count == 1
+    assert discovery.plausible_supervisor_count == 1
+    assert discovery.rejection_counts == SearchResultRejectionCounts()
+    assert [
+        (supervisor.full_name, supervisor.institution)
+        for supervisor in discovery.prospective_supervisors
+    ] == [("Professor David Hogg", "University of Leeds")]
+
+
+@pytest.mark.parametrize("generic_label", ["University", "The University", "Institute"])
+def test_generic_only_institution_is_not_retained(generic_label: str) -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://example.edu/news/david-hogg",
+                title=f"Professor David Hogg | {generic_label}",
+                description="Official academic biography.",
+            ),
+        ),
+    )
+
+    assert discovery.result_count == 1
+    assert discovery.plausible_supervisor_count == 0
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(institution_not_established=1)
+
+
+def test_generic_title_does_not_borrow_another_persons_context_affiliation() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://example.edu/news/david-hogg",
+                title="Professor David Hogg | University",
+                description="Professor Alice Smith is a professor at Other University.",
+            ),
+        ),
+    )
+
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(institution_not_established=1)
+
+
+def test_titled_owner_does_not_borrow_another_persons_context_affiliation() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://example.edu/news/david-hogg",
+                title="Professor David Hogg | Research profile",
+                description="Professor Alice Smith is a professor at Other University.",
+            ),
+        ),
+    )
+
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(institution_not_established=1)
+
+
+def test_titled_owner_retains_its_explicit_context_affiliation() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://example.edu/news/david-hogg",
+                title="Professor David Hogg | Research profile",
+                description="Professor David Hogg is a professor at University of Leeds.",
+            ),
+        ),
+    )
+
+    assert [
+        (supervisor.full_name, supervisor.institution)
+        for supervisor in discovery.prospective_supervisors
+    ] == [("Professor David Hogg", "University of Leeds")]
+
+
+@pytest.mark.parametrize(
+    ("title", "description"),
+    [
+        (
+            "Professor Xue Zhou | Research profile",
+            "Professor Xue Zhou is a professor at University of Leicester [",
+        ),
+        (
+            "Xue Zhou | Research profile",
+            (
+                "Xue Zhou's research focuses on responsible AI. "
+                "Xue Zhou is a researcher at University of Leicester ["
+            ),
+        ),
+    ],
+)
+def test_context_affiliation_strips_dangling_punctuation_on_every_route(
+    title: str,
+    description: str,
+) -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://example.edu/people/xue-zhou",
+                title=title,
+                description=description,
+            ),
+        ),
+    )
+
+    assert [supervisor.institution for supervisor in discovery.prospective_supervisors] == [
+        "University of Leicester"
+    ]
+
+
+@pytest.mark.parametrize(
+    "institution",
+    [
+        "Massachusetts Institute of Technology (MIT)",
+        "University of Applied Sciences <UX>",
+    ],
+)
+def test_balanced_institution_suffixes_are_preserved(institution: str) -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://example.edu/people/jane-doe",
+                title=f"Professor Jane Doe | {institution}",
+                description="Official academic profile.",
+            ),
+        ),
+    )
+
+    assert [supervisor.institution for supervisor in discovery.prospective_supervisors] == [
+        institution
+    ]
+
+
+def test_leadership_role_is_narrowed_to_its_explicit_institution() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://example.edu/people/liz-bacon",
+                title=("Prof. Liz Bacon | Principal and Vice-Chancellor of Abertay University"),
+                description="Official academic profile.",
+            ),
+        ),
+    )
+
+    assert [
+        (supervisor.full_name, supervisor.institution)
+        for supervisor in discovery.prospective_supervisors
+    ] == [("Prof. Liz Bacon", "Abertay University")]
+
+
+def test_leadership_role_without_explicit_institution_type_is_not_affiliation() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://example.edu/news/liz-bacon",
+                title="Prof. Liz Bacon | Principal and Vice-Chancellor of Abertay",
+                description="Official academic biography.",
+            ),
+        ),
+    )
+
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(institution_not_established=1)
+
+
+def test_publisher_page_label_is_not_an_institution() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://heprofessional.co.uk/ai-teaching-and-learning",
+                title="Professor Sam Illingworth | HE Professional",
+                description="An academic article about AI in teaching and learning.",
+            ),
+        ),
+    )
+
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(institution_not_established=1)
+
+
+def test_academic_subject_phrase_does_not_override_explicit_result_owner() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url=(
+                    "https://openletter.earth/stop-the-uncritical-adoption-of-ai-"
+                    "technologies-in-academia"
+                ),
+                title="Associate Professor Intimate Computing | Research profile",
+                description=(
+                    "Marieke Peeters is an Associate Professor at "
+                    "The Hague University of Applied Sciences."
+                ),
+            ),
+        ),
+    )
+
+    assert [
+        (supervisor.full_name, supervisor.institution)
+        for supervisor in discovery.prospective_supervisors
+    ] == [("Marieke Peeters", "The Hague University of Applied Sciences")]
+
+
+def test_academic_subject_phrase_without_explicit_person_is_rejected() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://example.edu/topics/intimate-computing",
+                title="Associate Professor Intimate Computing | Research profile",
+                description="Academic research topic page.",
+            ),
+        ),
+    )
+
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(person_not_established=1)
+
+
+@pytest.mark.parametrize(
+    ("url", "title", "description", "expected_institution"),
+    [
+        (
+            "https://www.kit.edu/profiles/jane-doe",
+            "Professor Jane Doe | KIT",
+            "Official academic profile.",
+            "KIT",
+        ),
+        (
+            "https://example.edu/news/ibrahim-habli",
+            "Professor Ibrahim Habli | UKRI",
+            "Professor Ibrahim Habli is a professor at UKRI.",
+            "UKRI",
+        ),
+        (
+            "https://example.edu/profiles/123456",
+            "Dr Jane Doe | Department of Computing | University of Leeds",
+            "Official academic profile.",
+            "University of Leeds",
+        ),
+    ],
+)
+def test_acronyms_and_sparse_official_profiles_remain_supported(
+    url: str,
+    title: str,
+    description: str,
+    expected_institution: str,
+) -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url=url,
+                title=title,
+                description=description,
+            ),
+        ),
+    )
+
+    assert discovery.plausible_supervisor_count == 1
+    assert discovery.rejection_counts == SearchResultRejectionCounts()
+    assert [supervisor.institution for supervisor in discovery.prospective_supervisors] == [
+        expected_institution
+    ]
+
+
+def test_general_page_acronym_is_not_assumed_to_be_an_affiliation() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url=(
+                    "https://www.ukri.org/who-we-are/our-vision-and-strategy/"
+                    "artificial-intelligence-centres-for-doctoral-training"
+                ),
+                title="Professor Ibrahim Habli | UKRI",
+                description="Professor Ibrahim Habli contributes to responsible AI research.",
+            ),
+        ),
+    )
+
+    assert discovery.result_count == 1
+    assert discovery.plausible_supervisor_count == 0
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(institution_not_established=1)
+
+
+def test_latest_live_shapes_have_exact_rejection_accounting() -> None:
+    results = (
+        _result(
+            url="https://example.edu/news/david-hogg",
+            title="Professor David Hogg | University",
+            description="Official academic biography.",
+        ),
+        _result(
+            url="https://heprofessional.co.uk/ai-teaching-and-learning",
+            title="Professor Sam Illingworth | HE Professional",
+            description="Academic publisher page.",
+        ),
+        _result(
+            url="https://example.edu/topics/intimate-computing",
+            title="Associate Professor Intimate Computing | Research profile",
+            description="Academic research topic page.",
+        ),
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), results)
+
+    assert discovery.result_count == 3
+    assert discovery.plausible_supervisor_count == 0
+    assert discovery.duplicate_result_count == 0
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(
+        person_not_established=1,
+        institution_not_established=2,
+    )
+    assert (
+        discovery.rejection_counts.total + discovery.plausible_supervisor_count
+        == discovery.result_count
+    )
+
+
 def test_school_phrase_alone_on_event_page_does_not_establish_dr_academic_context() -> None:
     discovery = SupervisorDiscoveryAgent().discover(
         _search_plan(),

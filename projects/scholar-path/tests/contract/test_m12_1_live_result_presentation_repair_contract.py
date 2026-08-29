@@ -29,8 +29,8 @@ def test_m12_1_prompt_diagram_readme_architecture_and_journal_are_recorded() -> 
 def test_m12_1_keeps_discovery_policy_and_graph_audit_records_unchanged() -> None:
     policy = DiscoveryPolicy()
 
-    assert GRAPH_VERSION == "m12.2"
-    assert LOCAL_BASELINE_NAME == "scholarpath-m12-2-fake-baseline-2026-08-29"
+    assert GRAPH_VERSION == "m12.3"
+    assert LOCAL_BASELINE_NAME == "scholarpath-m12-3-fake-baseline-2026-08-29"
     assert policy.minimum_unique_supervisors == 5
     assert policy.maximum_you_retry_count == 1
     assert policy.maximum_tavily_fallback_count == 4

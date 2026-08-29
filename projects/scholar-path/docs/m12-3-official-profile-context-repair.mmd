@@ -1,0 +1,16 @@
+flowchart LR
+    R[Search result] --> D{Complete person and institution?}
+    D -->|No| X[Reject with typed category]
+    D -->|Yes| P[Prospective Supervisor]
+    P --> E[Extract known page]
+    E --> I[Ground exact identity EvidenceClaim]
+    I --> O{Official singular person page?}
+    O -->|No| S[Require subject-led excerpt]
+    O -->|Yes| L[Link exact same-page section to subject identity evidence ID]
+    S --> V[Validate typed claim fields]
+    L --> V
+    V --> Q{Evidence sufficient?}
+    Q -->|No; retry remains| A[Locate one alternate official person page]
+    A --> E
+    Q -->|Yes| F[Verified Supervisor]
+    Q -->|No; retry exhausted| Z[Stop with partial verification]
