@@ -50,3 +50,12 @@ def test_m10_updates_trace_version_without_adding_outreach() -> None:
 
     assert GRAPH_VERSION == "m10"
     assert "outreach draft" not in source.casefold()
+
+
+def test_m10_live_cleanup_uses_the_hosted_delete_all_request_shape() -> None:
+    live_test_source = (
+        PROJECT_ROOT / "tests" / "integration" / "test_mem0_memory_live.py"
+    ).read_text(encoding="utf-8")
+
+    assert "client.delete_all(user_id=candidate_id)" in live_test_source
+    assert "client.delete_all(filters=" not in live_test_source

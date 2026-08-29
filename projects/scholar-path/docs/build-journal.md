@@ -1759,7 +1759,7 @@ The exact milestone prompt is archived as
 - `venv/bin/ruff format --check .`: all 154 Python files formatted.
 - `venv/bin/ruff check --no-cache .`: all lint checks passed.
 - `venv/bin/mypy src tests`: no issues in 127 source files.
-- `venv/bin/pytest -q`: 785 non-live tests passed, seven live tests were deselected, 45
+- `venv/bin/pytest -q`: 786 non-live tests passed, seven live tests were deselected, 45
   terminology subtests passed, and combined statement/branch coverage was 90.71 percent.
 - The Mem0 live test skipped cleanly without explicit opt-in: `1 skipped`.
 - `venv/bin/pip check` reported no broken requirements; a fresh import exposed the typed
@@ -1767,6 +1767,10 @@ The exact milestone prompt is archived as
 - The current Mermaid snapshot matched the compiled sixteen-node graph exactly.
 - The 60-second view/no-write plus approval/write demonstration passed: `2 passed in 0.68s`.
 - `git diff --check` passed.
+- Follow-up hosted validation exposed an SDK request-shape asymmetry: recall correctly uses
+  `get_all(filters={"user_id": ...})`, while the V1 bulk-delete endpoint requires
+  `delete_all(user_id=...)`. The live-test cleanup was corrected, protected by an offline
+  contract test, and the real Mem0 round trip then passed: `1 passed in 4.03s`.
 
 ### Assumptions
 
@@ -1795,6 +1799,9 @@ The exact milestone prompt is archived as
   or unrelated entries prevents arbitrary account memories from entering model input.
 - Non-fatal memory must preserve both directions: current profile data survives read failure,
   and explicit Candidate action plus local graph state survives write failure.
+- Provider SDK option models are not sufficient evidence of wire compatibility. The pinned
+  SDK's retrieval and deletion methods use different endpoint generations, so request shapes
+  must be verified at the HTTP boundary as well as through type signatures.
 
 ### Remaining debt
 

@@ -84,6 +84,6 @@ def test_live_mem0_candidate_scoped_round_trip_and_cleanup(
     finally:
         # The UUID scope belongs only to this smoke test; never perform an unfiltered delete.
         try:
-            client.delete_all(filters={"user_id": candidate_id})
+            client.delete_all(user_id=candidate_id)
         finally:
             http_client.close()
