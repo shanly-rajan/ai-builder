@@ -1,15 +1,18 @@
 """Command-line demonstration for the ScholarPath graph."""
 
-from .agents import PlanningModelPort
+from .agents import EvidenceVerificationModelPort, PlanningModelPort
 from .config import ProviderConfigurationError
 from .graph import ReviewStatus, run_scholarpath_graph
-from .tools import SupervisorSearchPort
+from .tools import ContentExtractionPort, SupervisorSearchPort
 
 
 def main(
     planning_model: PlanningModelPort | None = None,
     supervisor_search: SupervisorSearchPort | None = None,
     tavily_search: SupervisorSearchPort | None = None,
+    content_extractor: ContentExtractionPort | None = None,
+    evidence_model: EvidenceVerificationModelPort | None = None,
+    alternate_evidence_search: SupervisorSearchPort | None = None,
 ) -> int:
     """Run the graph and print five Shortlisted Supervisors."""
     try:
@@ -17,6 +20,9 @@ def main(
             planning_model=planning_model,
             supervisor_search=supervisor_search,
             tavily_search=tavily_search,
+            content_extractor=content_extractor,
+            evidence_model=evidence_model,
+            alternate_evidence_search=alternate_evidence_search,
         )
     except ProviderConfigurationError as error:
         print(f"ScholarPath provider configuration error: {error}")

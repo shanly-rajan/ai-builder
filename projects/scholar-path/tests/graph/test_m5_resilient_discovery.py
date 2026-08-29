@@ -31,6 +31,8 @@ from scholarpath.tools import (
     SupervisorSearchTimeoutError,
 )
 from tests.fakes import (
+    FakeContentExtraction,
+    FakeEvidenceVerificationModel,
     FakePlanningModel,
     FakeSupervisorSearch,
     make_fake_search_outcomes,
@@ -67,6 +69,8 @@ def _run(
         planning_model=FakePlanningModel(),
         supervisor_search=you_search,
         tavily_search=tavily_search,
+        content_extractor=FakeContentExtraction(),
+        evidence_model=FakeEvidenceVerificationModel(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=failure_mode,
@@ -104,6 +108,8 @@ def test_successful_you_route_does_not_construct_or_validate_tavily(
     final_state = run_scholarpath_graph(
         planning_model=FakePlanningModel(),
         supervisor_search=FakeSupervisorSearch(),
+        content_extractor=FakeContentExtraction(),
+        evidence_model=FakeEvidenceVerificationModel(),
         tavily_settings=TavilySearchSettings(api_key=None),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
@@ -120,6 +126,8 @@ def test_missing_tavily_key_is_typed_only_when_fallback_is_routed() -> None:
     final_state = run_scholarpath_graph(
         planning_model=FakePlanningModel(),
         supervisor_search=FakeSupervisorSearch(_empty_outcomes()),
+        content_extractor=FakeContentExtraction(),
+        evidence_model=FakeEvidenceVerificationModel(),
         tavily_settings=TavilySearchSettings(api_key=None),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
@@ -154,6 +162,8 @@ def test_lazy_tavily_adapter_is_constructed_once_and_reused(
     final_state = run_scholarpath_graph(
         planning_model=FakePlanningModel(),
         supervisor_search=FakeSupervisorSearch(_empty_outcomes()),
+        content_extractor=FakeContentExtraction(),
+        evidence_model=FakeEvidenceVerificationModel(),
         tavily_settings=TavilySearchSettings(api_key=SecretStr("not-a-real-tavily-secret")),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
@@ -408,6 +418,8 @@ def test_request_more_evaluates_duplicate_quality_within_the_new_round() -> None
         planning_model=FakePlanningModel(),
         supervisor_search=you_search,
         tavily_search=tavily_search,
+        content_extractor=FakeContentExtraction(),
+        evidence_model=FakeEvidenceVerificationModel(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=DiscoveryFailureMode.OFF,

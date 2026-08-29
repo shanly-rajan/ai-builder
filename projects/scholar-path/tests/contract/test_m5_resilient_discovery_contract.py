@@ -11,10 +11,8 @@ from scholarpath.graph import (
     DiscoveryPolicy,
     ScholarPathState,
     SearchAttempt,
-    render_scholarpath_mermaid,
     route_after_supervisor_discovery,
 )
-from scholarpath.graph.workflow import DeterministicScholarPathNodes
 
 TEST_FILE = Path(__file__).resolve()
 PROJECT_ROOT = TEST_FILE.parents[2]
@@ -61,13 +59,12 @@ def test_m5_failure_injection_is_disabled_by_default() -> None:
     assert "SCHOLARPATH_DISCOVERY_FAILURE_MODE=off" in env_example
 
 
-def test_m5_keeps_evidence_extraction_fixture_backed() -> None:
-    source = inspect.getsource(DeterministicScholarPathNodes.extract_supervisor_evidence)
+def test_m5_prompt_preserves_its_then_deferred_evidence_boundary() -> None:
+    prompt = (PROJECT_ROOT / "docs" / "prompts" / "m5-resilient-supervisor-discovery.md").read_text(
+        encoding="utf-8"
+    )
 
-    assert "self.config.fixtures.verified_supervisors" in source
-    assert ".search(" not in source
-    assert "TavilySearchAdapter" not in source
-    assert "YouSearchAdapter" not in source
+    assert "Do not implement evidence extraction yet." in prompt
 
 
 def test_m5_prompt_environment_live_guard_and_generated_graph_are_recorded() -> None:
@@ -85,4 +82,11 @@ def test_m5_prompt_environment_live_guard_and_generated_graph_are_recorded() -> 
     assert "SCHOLARPATH_RUN_LIVE_TESTS" in live_test
     assert "TAVILY_API_KEY" in live_test
     assert prompt.is_file()
-    assert mermaid.read_text(encoding="utf-8") == render_scholarpath_mermaid()
+    historical_graph = mermaid.read_text(encoding="utf-8")
+    for discovery_node in (
+        "discover_prospective_supervisors",
+        "enough_supervisors_found",
+        "fallback_supervisor_search",
+        "deduplicate_supervisors",
+    ):
+        assert discovery_node in historical_graph

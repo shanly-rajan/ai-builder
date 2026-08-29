@@ -21,7 +21,12 @@ from scholarpath.graph import (
     create_initial_state,
     run_scholarpath_graph,
 )
-from tests.fakes import FakePlanningModel, FakeSupervisorSearch
+from tests.fakes import (
+    FakeContentExtraction,
+    FakeEvidenceVerificationModel,
+    FakePlanningModel,
+    FakeSupervisorSearch,
+)
 
 
 def test_cli_prints_five_ranked_shortlisted_supervisors(
@@ -35,13 +40,21 @@ def test_cli_prints_five_ranked_shortlisted_supervisors(
         planning_model: FakePlanningModel,
         supervisor_search: None,
         tavily_search: None,
+        content_extractor: None,
+        evidence_model: None,
+        alternate_evidence_search: None,
     ) -> ScholarPathState:
         assert planning_model is model
         assert supervisor_search is None
         assert tavily_search is None
+        assert content_extractor is None
+        assert evidence_model is None
+        assert alternate_evidence_search is None
         return run_scholarpath_graph(
             planning_model=planning_model,
             supervisor_search=FakeSupervisorSearch(),
+            content_extractor=FakeContentExtraction(),
+            evidence_model=FakeEvidenceVerificationModel(),
             application_settings=ApplicationSettings(
                 environment=Environment.TEST,
                 discovery_failure_mode=DiscoveryFailureMode.OFF,

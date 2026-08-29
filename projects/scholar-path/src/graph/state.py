@@ -14,9 +14,11 @@ from ..domain import (
     SearchPlan,
     SupervisorDiscoveryProvenance,
     SupervisorShortlist,
+    SupervisorVerificationRecord,
     VerifiedSupervisor,
 )
 from .discovery import SearchAttempt
+from .verification import EvidenceExtractionAttempt, EvidenceSourceReference
 
 
 def append_items[T](left: list[T], right: list[T]) -> list[T]:
@@ -50,6 +52,7 @@ class ReviewStatus(StrEnum):
     COMPLETED = "completed"
     RETRY_EXHAUSTED = "retry_exhausted"
     DISCOVERY_INCOMPLETE = "discovery_incomplete"
+    EVIDENCE_INCOMPLETE = "evidence_incomplete"
 
 
 class RawSupervisorSearchResult(BaseModel):
@@ -109,6 +112,9 @@ class ScholarPathState(TypedDict):
     raw_search_results: Annotated[list[RawSupervisorSearchResult], append_items]
     prospective_supervisors: list[ProspectiveSupervisor]
     verified_supervisors: list[VerifiedSupervisor]
+    verification_records: list[SupervisorVerificationRecord]
+    evidence_extraction_attempts: Annotated[list[EvidenceExtractionAttempt], append_items]
+    alternate_evidence_sources: dict[str, EvidenceSourceReference]
     research_fit_assessments: list[ResearchFitAssessment]
     proposed_shortlist: list[VerifiedSupervisor]
     shortlisted_supervisors: list[VerifiedSupervisor]
@@ -135,6 +141,9 @@ class ScholarPathStateUpdate(TypedDict, total=False):
     raw_search_results: list[RawSupervisorSearchResult]
     prospective_supervisors: list[ProspectiveSupervisor]
     verified_supervisors: list[VerifiedSupervisor]
+    verification_records: list[SupervisorVerificationRecord]
+    evidence_extraction_attempts: list[EvidenceExtractionAttempt]
+    alternate_evidence_sources: dict[str, EvidenceSourceReference]
     research_fit_assessments: list[ResearchFitAssessment]
     proposed_shortlist: list[VerifiedSupervisor]
     shortlisted_supervisors: list[VerifiedSupervisor]
@@ -161,6 +170,9 @@ def create_initial_state(candidate_profile: CandidateProfile) -> ScholarPathStat
         raw_search_results=[],
         prospective_supervisors=[],
         verified_supervisors=[],
+        verification_records=[],
+        evidence_extraction_attempts=[],
+        alternate_evidence_sources={},
         research_fit_assessments=[],
         proposed_shortlist=[],
         shortlisted_supervisors=[],

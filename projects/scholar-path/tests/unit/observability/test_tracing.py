@@ -67,7 +67,10 @@ def test_observability_adds_environment_and_graph_version_without_secrets() -> N
         "graph_version": GRAPH_VERSION,
     }
     assert observability.planning_node_metadata["component"] == "research_planning_agent"
+    assert observability.evidence_node_metadata["component"] == "evidence_verification_agent"
+    assert observability.evidence_node_metadata["prompt_version"] == "evidence-verification-v1"
     assert raw_api_key not in json.dumps(observability.planning_node_metadata)
+    assert raw_api_key not in json.dumps(observability.evidence_node_metadata)
 
 
 def test_planning_node_receives_only_the_sanitized_observability_metadata() -> None:
@@ -83,6 +86,9 @@ def test_planning_node_receives_only_the_sanitized_observability_metadata() -> N
 
     assert graph.nodes["plan_supervisor_searches"].metadata == (
         observability.planning_node_metadata
+    )
+    assert graph.nodes["extract_supervisor_evidence"].metadata == (
+        observability.evidence_node_metadata
     )
 
 

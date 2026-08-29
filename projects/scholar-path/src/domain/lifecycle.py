@@ -86,7 +86,7 @@ def verify_supervisor(
     """Create a Verified Supervisor after deterministic evidence checks."""
     validate_structural_transition(supervisor.status, SupervisorLifecycleStatus.VERIFIED)
     evidence_tuple = tuple(evidence)
-    missing = missing_verification_evidence(evidence_tuple, supervisor.supervisor_id)
+    missing = missing_verification_evidence(evidence_tuple, supervisor)
     if missing:
         raise SupervisorVerificationError(
             f"Cannot verify Supervisor; missing evidence: {', '.join(missing)}."

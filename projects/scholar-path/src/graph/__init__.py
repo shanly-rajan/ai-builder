@@ -23,6 +23,16 @@ from .state import (
     create_initial_state,
     merge_supervisors_by_id,
 )
+from .verification import (
+    EvidenceExtractionAttempt,
+    EvidenceSourceReference,
+    EvidenceVerificationRoute,
+    VerificationPolicy,
+    VerificationStoppingCondition,
+    alternate_official_source_query,
+    route_after_evidence_sufficiency,
+    select_alternate_official_source,
+)
 from .workflow import (
     CANONICAL_NODE_NAMES,
     GraphFixtureConfig,
@@ -36,6 +46,9 @@ __all__ = [
     "DiscoveryPolicy",
     "DiscoveryStoppingCondition",
     "DiscoveryTimeoutBehavior",
+    "EvidenceExtractionAttempt",
+    "EvidenceSourceReference",
+    "EvidenceVerificationRoute",
     "FIXTURE_RETRIEVED_AT",
     "GraphFixtureConfig",
     "RawSupervisorSearchResult",
@@ -43,9 +56,12 @@ __all__ = [
     "SearchAttempt",
     "ScholarPathState",
     "ToolErrorRecord",
+    "VerificationPolicy",
+    "VerificationStoppingCondition",
     "SupervisorDiscoveryRoute",
     "WalkingSkeletonFixtures",
     "append_items",
+    "alternate_official_source_query",
     "build_scholarpath_graph",
     "build_walking_skeleton_fixtures",
     "create_initial_state",
@@ -53,5 +69,7 @@ __all__ = [
     "merge_supervisors_by_id",
     "render_scholarpath_mermaid",
     "route_after_supervisor_discovery",
+    "route_after_evidence_sufficiency",
     "run_scholarpath_graph",
+    "select_alternate_official_source",
 ]

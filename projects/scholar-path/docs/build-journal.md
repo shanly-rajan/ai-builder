@@ -1030,3 +1030,143 @@ stop safely when providers are exhausted, and leave evidence extraction unchange
   matching while preserving source/query provenance.
 - Evaluate dependency locking or constraints so the compatible Tavily/Core/OpenAI set
   cannot drift during future installs.
+
+## Milestone M6: Supervisor evidence extraction and verification
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Replace the three fixture-backed evidence nodes with a typed, page-grounded Supervisor
+verification boundary. Retrieve known pages through Tavily Extract, classify
+claims through native structured model output, preserve exact provenance and conflicts,
+retry one alternate official source for every partial record, and stop recoverably
+without fabricating missing evidence.
+
+### Prompt used
+
+[`docs/prompts/m6-supervisor-evidence-verification.md`](prompts/m6-supervisor-evidence-verification.md)
+
+### Files changed
+
+- Added provider-neutral content extraction contracts and the official
+  `TavilyExtractionAdapter` under `src/tools/`.
+- Added the versioned evidence prompt, `EvidenceVerificationModelPort`, structured
+  output schemas, `EvidenceVerificationAgent`, and OpenAI adapter under `src/agents/`.
+- Extended domain evidence contracts with exact asserted fields, supporting excerpts,
+  conflict references, project evidence, partial verification status, and a separate
+  `SupervisorVerificationRecord` that cannot masquerade as a Verified Supervisor.
+- Added `VerificationPolicy`, pure sufficiency routing, alternate official-source
+  selection, typed extraction attempts, graph state channels, and production
+  composition under `src/graph/`.
+- Updated deferred OpenAI/Tavily settings, CLI injection, M6 LangSmith metadata,
+  exports, `.env.example`, README, architecture documentation, and generated Mermaid.
+- Added fixed HTML/Markdown evidence pages, extraction/model fakes, unit, graph,
+  contract, integration, and guarded live-test coverage.
+- Archived the M6 milestone prompt and updated this journal.
+
+### Tests added
+
+- Tavily Extract construction, one-URL requests, nested deadlines, normalization,
+  content caps, redirect provenance, typed failures, malformed responses, public-URL
+  safety, and the pinned official tool's public async invocation contract.
+- Structured OpenAI evidence output, strict JSON schema, provider retry disabling,
+  sanitized failures, and metadata that excludes page content, Candidate data, and
+  secrets.
+- Fixed official-profile scenarios for complete evidence, missing affiliation, missing
+  research, unstated and explicit availability, conflicting affiliation, exact excerpt
+  grounding, asserted-field grounding, and stable evidence identifiers.
+- Adversarial regressions for same-prose/different-fact ID collisions, wrong-person
+  research and availability, inverted availability polarity, dangling conflict IDs,
+  same-surname alternate results, and commercial or embedded-academic host spoofs.
+- Pure policy and alternate-source selection tests for one retry, retry priority,
+  minimum verified cohort, source selection, snippet exclusion, attempt validation,
+  and exhaustion.
+- Graph scenarios for complete verification, alternate extraction, partial retention,
+  recoverable below-minimum termination, conflict preservation, provenance, and
+  unchanged fixture Research Fit scores rebound to current evidence IDs.
+- Domain and contract coverage for partial-record separation, conflict references,
+  state reducers, official imports, prompt/environment/diagram audit artifacts, and
+  network-free default tests.
+- One `pytest.mark.live` Tavily Extract smoke test requiring both `TAVILY_API_KEY` and
+  explicit `SCHOLARPATH_RUN_LIVE_TESTS=true` opt-in.
+
+### Test results
+
+- Focused M6 agent, domain, graph, routing, adapter, configuration, and contract runs
+  passed without network access.
+- Tavily adapter audit: 47 tests passed; the guarded live test skipped.
+- Structured OpenAI/configuration audit: 50 tests passed.
+- Evidence and graph behavior checks passed after tightening asserted-affiliation
+  grounding and preserving different affiliations as concerns rather than silently
+  overwriting discovery data.
+- `venv/bin/ruff format .`: 113 Python files formatted; the final check changed no
+  files.
+- `venv/bin/ruff check --no-cache src tests`: all checks passed.
+- `venv/bin/mypy src tests`: no issues found in 90 source files.
+- `venv/bin/pytest --no-cov -q`: 574 tests passed, four live tests were deselected,
+  and 41 terminology subtests passed without network access.
+- `venv/bin/pytest -q`: the same 574 tests passed with 92.84 percent combined
+  statement/branch coverage, above the 90 percent gate.
+- Strict editable installation, Python compilation, and `venv/bin/python -m pip check`
+  passed; no broken requirements were found.
+- Generated M6 Mermaid equality, terminology, prompt-audit, default network blocking,
+  key-free import, test discovery, and `git diff --check` passed.
+- Explicit live-test selection skipped all four guarded provider tests without a
+  network call.
+- The 60-second fake-backed CLI demonstration traversed the M6 evidence path and
+  printed five ranked Shortlisted Supervisors with scores unchanged from their
+  fixtures.
+
+### Assumptions
+
+- Current affiliation evidence must directly state an institution and department.
+  Different official values are retained and surfaced as concerns rather than silently
+  overwriting discovery profile fields; source-authority adjudication is deferred.
+- `TavilyExtract` from the already pinned official `langchain-tavily==0.2.17` package is
+  the current compatible retrieval boundary; no community or private import is used.
+- Tavily-returned canonical redirect URLs are the evidence source URLs because they
+  identify the page whose content was actually returned.
+- Initial known URLs are classified conservatively from their exact returned URL.
+  Only HTTPS results on label-valid academic domains can be selected as alternate
+  official sources; source weighting beyond this admission control is deferred.
+- Search snippets may help select an alternate official URL but are never submitted as
+  evidence page content or persisted as claims.
+- A project claim is useful retained evidence but does not replace the explicit M6 rule
+  requiring research-interest or publication evidence for verification.
+- Five Verified Supervisors are the minimum continuation cohort. Every partial record
+  still receives its one alternate-source opportunity before that cohort is evaluated.
+
+### Lessons learned
+
+- Partial verification needs its own outcome contract; adding a partial status directly
+  to `VerifiedSupervisor` would weaken the lifecycle invariant and downstream trust.
+- System-owned IDs, source URLs, timestamps, kinds, and excerpts keep provenance out of
+  model control while still allowing the model to perform bounded extraction and
+  classification.
+- Typed model output is necessary but not sufficient: asserted names and affiliations
+  must also be grounded against exact page excerpts before direct support is accepted.
+- Page-level identity is not subject binding for every nearby fact. Each direct claim
+  must explicitly name the expected Supervisor, and availability polarity is verified
+  deterministically rather than trusted from the model.
+- An evidence identifier must cover every semantic field that merge logic treats as
+  identity; otherwise a hash collision can silently erase a conflicting fact.
+- Affiliation conflict detection must compare department as well as institution and
+  cross-reference both retained claims rather than choosing a winner silently.
+- A stronger-page retry is deterministic when search only selects a known official URL
+  and Tavily Extract, rather than the search snippet, supplies the evidence content.
+- URL validation at the extraction boundary reduces credential leakage and server-side
+  request risk before a provider receives the target.
+
+### Remaining debt
+
+- Replace fixture Research Fit scoring and independent review only in their requested
+  milestones; M6 merely rebinds unchanged fixture assessments to verified evidence IDs.
+- Define source-authority weighting, freshness windows, re-verification schedules,
+  canonical redirects, and durable evidence storage before production use.
+- Add bounded concurrency, caching, rate limiting, circuit breaking, provider metrics,
+  and an async extraction port before a future async UI or service runtime.
+- Evaluate multilingual extraction, institution aliases, department renames, and
+  structured publication identifiers without weakening exact provenance.
+- Add LangSmith evaluation datasets and quality metrics for evidence precision, recall,
+  conflict detection, and unsupported-claim rate.

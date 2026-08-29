@@ -1,193 +1,317 @@
-# ScholarPath M5 Architecture
+# ScholarPath M6 Architecture
 
-M5 retains the M3 planning and M4 discovery boundaries, then adds resilient provider
-routing. You.com remains primary. A pure `DiscoveryPolicy` selects one bounded retry,
-the official Tavily fallback, continuation, or a clear terminal state from typed
-`SearchAttempt` history and deterministic result-quality metrics. Deduplication,
-provenance merging, routing, and retry arithmetic remain deterministic. Optional
-LangSmith observability traces the graph and planning node.
+M6 replaces the three fixture-backed evidence nodes with a real, typed verification
+boundary while preserving the useful M3–M5 architecture:
 
-Evidence retrieval, Research Fit calculation, Candidate interaction, memory, and the
-web interface remain outside M5. Those graph nodes continue to use fixtures.
+- M3 plans searches through a structured OpenAI boundary.
+- M4 discovers Prospective Supervisors through You.com.
+- M5 adds deterministic discovery quality checks and Tavily search fallback.
+- M6 retrieves known pages with Tavily Extract, extracts grounded claims through a
+  structured model boundary, and deterministically decides whether each record is
+  Verified or partially verified.
 
-## Research-planning boundary
+Research Fit scores remain fixtures in M6. The evidence pipeline may rebind those
+fixture assessments to newly generated evidence IDs, but it does not calculate,
+change, or justify a Research Fit Score. Candidate review remains the configured stub,
+and no Supervisor becomes Shortlisted without the Candidate approval gate.
+
+## End-to-end milestone view
+
+```mermaid
+flowchart LR
+    CP[CandidateProfile] --> PLAN[ResearchPlanningAgent]
+    PLAN --> SQ[SearchPlan]
+    SQ --> YOU[You.com discovery]
+    YOU --> DP[DiscoveryPolicy]
+    DP -->|quality gap or retryable failure| TS[Tavily search fallback]
+    DP --> PS[Prospective Supervisors]
+    TS --> PS
+    PS --> TE[Tavily Extract known profile URL]
+    TE --> EV[EvidenceVerificationAgent]
+    EV --> VR[SupervisorVerificationRecord]
+    VR -->|partial and retry remains| ALT[One alternate official-source search]
+    ALT --> TE
+    VR -->|sufficient direct evidence| VS[Verified Supervisor]
+    VS --> RF[Fixture Research Fit assessment]
+    RF --> GATE[Candidate review gate stub]
+    GATE -->|approve| SS[Shortlisted Supervisor]
+    GATE -->|reject| RS[Rejected Supervisor]
+
+    classDef human fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
+    class GATE human;
+```
+
+The LangGraph topology still contains the same fifteen canonical operational nodes.
+M6 changes the implementation behind `extract_supervisor_evidence`,
+`supervisor_evidence_sufficient`, and `retry_alternate_evidence_source`; it does not
+start a future Research Fit or user-interface milestone.
+
+## M3 research-planning boundary
 
 ```mermaid
 flowchart LR
     Profile[CandidateProfile] --> Map[Deterministic input mapping]
     Preferences[Remembered Candidate preferences] --> Map
-    Regions[Target regions + exclusions] --> Map
+    Constraints[Regions and exclusions] --> Map
     Map --> Input[Identity-free PlanningInput]
     Input --> Agent[ResearchPlanningAgent]
     Agent --> Port{{PlanningModelPort}}
     Port --> Fake[FakePlanningModel]
     Port --> OpenAI[OpenAIPlanningModelAdapter]
-    OpenAI --> Native[ChatOpenAI native JSON schema]
+    OpenAI --> Native[Native strict JSON schema]
     Native --> DTO[StructuredSearchPlanResponse]
     Fake --> DTO
-    DTO --> Domain[Deterministic domain SearchPlan]
+    DTO --> Domain[Deterministic SearchPlan validation]
 
     classDef boundary fill:#e8f1ff,stroke:#245a9b,stroke-width:2px;
     class Port,OpenAI,Native boundary;
 ```
 
-`PlanningModelPort` isolates model execution from orchestration and domain logic.
-Default tests inject a deterministic fake, while `run_scholarpath_graph()` lazily
-constructs `OpenAIPlanningModelAdapter` only when no model was injected. Merely
-importing ScholarPath or compiling the topology never validates an OpenAI key.
+The planner receives the Candidate's research statement and typed preferences but no
+search tool. `research-planning-v1` uses
+`with_structured_output(..., method="json_schema", strict=True)`; prose JSON parsing
+is not used. Python and Pydantic enforce four-to-eight distinct queries, required
+source-category coverage, target regions, and query uniqueness. Malformed output has
+one explicit retry; provider failures stop cleanly. The OpenAI client has
+`max_retries=0`, so the application owns the visible retry policy.
 
-The adapter composes the versioned `research-planning-v1` system prompt with
-`ChatOpenAI.with_structured_output(StructuredSearchPlanResponse,
-method="json_schema", strict=True)`. It does not bind tools, grant web access, or parse
-JSON from prose. OpenAI produces the provider DTO; the agent then constructs the
-stricter domain contract.
-
-```mermaid
-flowchart TD
-    DTO[Strict structured-output DTO] --> Count{4–8 queries?}
-    Count -->|no| Invalid[Invalid model output]
-    Count -->|yes| Unique{Normalized queries distinct?}
-    Unique -->|no| Invalid
-    Unique -->|yes| Coverage{All four source types covered?}
-    Coverage -->|no| Invalid
-    Coverage -->|yes| Plan[Validated SearchPlan]
-    Constraints[Typed Candidate target regions] --> Plan
-```
-
-Each query contains its purpose and intended source types. Across the plan, source
-coverage must include official university profiles, department or research-group
-pages, recent publication evidence, and explicit doctoral-supervision information.
-Pydantic and ordinary Python enforce these rules; the model does not validate,
-deduplicate, route, or perform arithmetic. Candidate target regions are copied from
-typed input so model output cannot silently change that constraint.
-
-## Planning failure policy
-
-```mermaid
-flowchart TD
-    Call[Planning model call] --> Result{Outcome}
-    Result -->|valid DTO| Plan[Store SearchPlan]
-    Result -->|malformed output, first attempt| Retry[Retry once]
-    Retry --> Result2{Second outcome}
-    Result2 -->|valid DTO| Plan
-    Result2 -->|malformed output| Invalid[Record planning_output_invalid]
-    Result -->|provider/invocation failure| Failed[Record planning_model_failed]
-    Invalid --> Stop[Set retry_exhausted and route to END]
-    Failed --> Stop
-    Plan --> Discovery[Continue to discovery]
-```
-
-Malformed structured output receives one explicit retry, for at most two planning
-calls. Provider failures are not retried. The OpenAI client is configured with
-`max_retries=0`, avoiding hidden retries that would obscure latency and cost. Error
-records use fixed sanitized messages rather than provider exception text. Planning
-failure terminates before discovery, so no stale or absent SearchPlan can drive the
-workflow.
-
-## Supervisor-discovery boundary
+## M4–M5 resilient discovery boundary
 
 ```mermaid
 flowchart LR
-    Plan[SearchPlan] --> Node[discover_prospective_supervisors]
-    Node -->|one exact query| Port{{SupervisorSearchPort}}
-    Port --> Fake[FakeSupervisorSearch]
+    Plan[SearchPlan] --> Port{{SupervisorSearchPort}}
     Port --> You[YouSearchAdapter]
     Port --> Tavily[TavilySearchAdapter]
-    You --> API[POST ydc-index.io/v1/search]
-    Tavily --> TavilyAPI[Official langchain-tavily tool]
-    API --> Raw[Provider response]
-    TavilyAPI --> Raw
-    Raw --> Normalize[Transport normalization]
-    Normalize --> Results[SearchResult]
-    Fake --> Results
-    Results --> Agent[SupervisorDiscoveryAgent]
-    Agent --> Filter{Plausible person and institution?}
-    Filter -->|no| Drop[Exclude]
-    Filter -->|yes| Merge[Normalize identity + canonicalize URL]
-    Merge --> Output[SupervisorDiscoveryResult]
-    Output --> Prospective[ProspectiveSupervisor]
+    Port --> Fake[FakeSupervisorSearch]
+    You --> Result[SearchResult]
+    Tavily --> Result
+    Fake --> Result
+    Result --> Agent[SupervisorDiscoveryAgent]
+    Agent --> Quality[Deterministic person and institution checks]
+    Quality --> Dedupe[Name institution canonical URL]
+    Dedupe --> PS[Prospective Supervisor with provenance]
+```
+
+The search port executes one exact query at a time. Transport adapters normalize URL,
+title, description, optional publication date, and originating query; they contain no
+Supervisor reasoning. The discovery agent conservatively identifies plausible people
+and institutions, while deterministic deduplication merges exact source/query pairs.
+Discovery never produces Research Fit or availability claims.
+
+`route_after_supervisor_discovery` remains pure. It uses only the current discovery
+round's typed `SearchAttempt` records and quality metrics to choose one You.com timeout
+retry, Tavily fallback, continuation, immediate stop for non-retryable errors, or a
+recoverable `discovery_incomplete` result. Useful partial results survive a later query
+failure and remain available to downstream deduplication.
+
+## M6 content-extraction transport boundary
+
+```mermaid
+flowchart LR
+    URL[One known HTTPS profile URL] --> Port{{ContentExtractionPort}}
+    Port --> Fake[FakeContentExtraction]
+    Port --> Adapter[TavilyExtractionAdapter]
+    Adapter --> PublicURL[Public URL validation]
+    PublicURL --> Tool[Official langchain_tavily.TavilyExtract]
+    Tool --> Deadline[Provider timeout plus application deadline]
+    Deadline --> Normalize[Transport-only normalization]
+    Normalize --> EC[ExtractedContent]
+    EC --> Fields[URL content retrieved_at truncated flag]
 
     classDef boundary fill:#e8f1ff,stroke:#245a9b,stroke-width:2px;
-    class Port,You,Tavily,API,TavilyAPI boundary;
+    class Port,Adapter,Tool boundary;
 ```
 
-The port receives one query and returns `tuple[SearchResult, ...]`. Production
-composition lazily creates `YouSearchAdapter`; Tavily is constructed only after the
-fallback route is selected; tests inject recording fakes. The You.com adapter uses the
-current official POST endpoint with `X-API-Key`, a JSON body containing
-`query` and `count`, and an explicit HTTP timeout. It combines web and news sections in
-stable order and preserves URL, title, description, optional publication timestamp,
-and the exact originating query. It contains no academic classification, Supervisor
-identity logic, Research Fit evaluation, or availability reasoning.
+`ContentExtractionPort.extract()` accepts one known URL and returns one
+`ExtractedContent`. Production uses the current official top-level
+`langchain_tavily.TavilyExtract` import, not deprecated community imports. The adapter
+requests Markdown, excludes images and favicons, applies Tavily's provider timeout
+inside a slightly longer application deadline, and caps returned content at the
+configured character limit.
+
+The adapter is transport-only. It does not identify a Supervisor, extract a factual
+claim, infer availability, resolve a conflict, or calculate Research Fit. It validates
+the one-result response contract and normalizes failures into typed categories such as
+timeout, transport, authentication, rate limit, quota, invalid request, provider,
+response contract, or extraction failure. Provider response bodies are not persisted
+in graph errors.
+
+Public-URL validation rejects embedded credentials, localhost and local-domain names,
+and non-global literal IP addresses. This reduces server-side request-forgery risk
+before a URL reaches Tavily. A returned redirect URL is revalidated through the same
+boundary.
+
+## M6 structured evidence-model boundary
 
 ```mermaid
 flowchart TD
-    Result[SearchResult] --> Name{Plausible person name?}
-    Name -->|no| Exclude[Exclude]
-    Name -->|yes| Institution{Plausible institution?}
-    Institution -->|no| Exclude
-    Institution -->|yes| Key[Normalized name + institution + canonical profile URL]
-    Key --> Seen{Key already seen?}
-    Seen -->|no| Add[Add Prospective Supervisor]
-    Seen -->|yes| Provenance[Merge unique source URL + query pairs]
-    Add --> Structured[SupervisorDiscoveryResult]
-    Provenance --> Structured
+    Page[ExtractedContent] --> Input[EvidenceExtractionInput]
+    Hints[Expected name institution department] --> Input
+    Input --> Port{{EvidenceVerificationModelPort}}
+    Port --> Fake[FakeEvidenceVerificationModel]
+    Port --> OpenAI[OpenAIEvidenceVerificationModelAdapter]
+    OpenAI --> Schema[Strict StructuredEvidenceExtractionResult]
+    Fake --> Schema
+    Schema --> Ground{Supporting excerpt occurs in page?}
+    Ground -->|no| Invalid[Typed output error]
+    Ground -->|yes| Subject{Exact Supervisor named in excerpt?}
+    Subject -->|no| Indirect[Retain as not directly supported]
+    Subject -->|yes| Bind[Bind system-owned provenance]
+    Bind --> Claim[EvidenceClaim]
+    Claim --> Rules[Deterministic sufficiency and conflict rules]
+
+    classDef boundary fill:#e8f1ff,stroke:#245a9b,stroke-width:2px;
+    class Port,OpenAI,Schema boundary;
 ```
 
-M4 deliberately uses conservative deterministic extraction rather than introducing a
-second model integration. The output schema structurally contains no Research Fit
-Score or availability field. Even if a search snippet mentions doctoral availability,
-the discovery result remains prospective and carries no availability assertion.
+The versioned `evidence-verification-v1` prompt tells the model to use only the
+retrieved page. Expected profile values are comparison hints, not evidence. The model
+may classify identity, current affiliation, research interests, methodology,
+publication, project, and explicit availability, but every structured claim must carry
+a short supporting excerpt. Every claim proposed as directly supported must also carry
+the asserted person name, and its excerpt must explicitly name that Supervisor.
 
-Adapter errors are normalized into typed provider, category, retryability, and optional
-status-code fields. Graph state stores only fixed sanitized messages and typed attempt
-metadata. Provider exception text is not persisted. You.com performs no hidden retry;
-the graph owns the one explicit timeout retry. Tavily uses its public async invocation
-behind an application deadline and the official top-level `langchain_tavily` import.
+The OpenAI adapter uses native strict JSON-schema output with `include_raw=False` and
+`max_retries=0`. It does not manually parse JSON. The structured model returns no
+authoritative evidence ID, retrieval timestamp, or source provenance. The application
+binds those fields from trusted inputs after validating the response.
 
-## Resilient discovery policy
+| Field | Authority |
+|---|---|
+| Claim type, concise claim, asserted values, confidence | Structured model output |
+| Supporting excerpt | Structured model output, then checked against the page |
+| `supervisor_id` | Prospective Supervisor record |
+| Source URL and source kind | Extracted page and selected source reference |
+| Retrieval timestamp | Content-extraction boundary |
+| Evidence ID | Versioned deterministic hash of every persisted semantic claim field except retrieval time |
+| Availability result, conflicts, sufficiency, lifecycle status | Deterministic Python rules |
+
+The extracted full page is transient: it is sent to the evidence model but is not
+stored in `ScholarPathState`. State retains concise claims and supporting excerpts.
+
+## Deterministic grounding and verification rules
 
 ```mermaid
 flowchart TD
-    Attempts[Current discovery-round SearchAttempt history] --> Route[route_after_supervisor_discovery]
-    Unique[Unique Prospective Supervisor count] --> Route
-    Policy[DiscoveryPolicy] --> Route
-    Route -->|first You.com timeout| Retry[retry_you]
-    Route -->|retryable failure, too few, duplicate-heavy, low plausibility| Fallback[use_tavily]
-    Route -->|minimum and quality gates met| Continue[continue]
-    Route -->|non-retryable authentication or request error| Stop[stop]
-    Route -->|bounded providers exhausted below minimum| Recoverable[stop_recoverably]
+    Draft[Structured claim draft] --> Excerpt{Normalized excerpt in page?}
+    Excerpt -->|no| Reject[Reject structured output]
+    Excerpt -->|yes| Subject{Name matches and occurs in excerpt?}
+    Subject -->|no| Indirect[Retain as not directly supported]
+    Subject -->|yes| Type{Type-specific facts grounded?}
+    Type -->|no| Indirect
+    Type -->|yes| Direct[Directly supported claim]
+    Direct --> Required{Required evidence present?}
+    Required -->|identity + affiliation + research interest or publication| Verified[Verified Supervisor]
+    Required -->|missing category| Partial[Partially verified record]
 ```
 
-`route_after_supervisor_discovery` is pure: it receives validated values and returns an
-enum without provider calls, graph mutation, clocks, randomness, or model use. Its
-policy controls minimum unique Prospective Supervisors, maximum You.com retries,
-maximum Tavily calls, timeout behavior, duplicate threshold, plausible-profile ratio,
-and stopping condition. Only current discovery-round attempts and discovered identities
-participate in route-quality metrics, so old unique records or an old authentication
-failure cannot mask or poison a later Candidate-requested refinement. Older useful
-records remain in the cumulative discovery pool for downstream deduplication.
+Important deterministic rules are:
 
-```text
-Search query
-   ↓
-provider port → normalized SearchResult → SupervisorDiscoveryAgent
-   ↓                                      ↓
-SearchAttempt metadata              Prospective Supervisors
-   └──────── accumulate both in node-local typed buffers ─────────┘
-                              ↓
-                 commit graph state when node returns
+1. Every directly supported claim must assert the matching Supervisor name and include
+   that exact normalized name in its supporting excerpt. Page-level identity alone
+   cannot attach another person's research, publication, project, or availability.
+2. Current affiliation must directly state both institution and department. A value
+   that differs from discovery remains evidence but is surfaced as a concern and never
+   silently overwrites the profile fields.
+3. At least one directly supported research-interest or publication claim is required.
+   Project evidence is preserved but does not independently satisfy this exact gate.
+4. Discovery fields and search snippets are never promoted into verification evidence.
+5. A missing fact stays missing. Model knowledge cannot fill it.
+6. Availability polarity is checked deterministically against the quoted statement;
+   model output cannot invert accepting and not-accepting evidence.
+7. Evidence IDs include all grounded semantic fields. Identical claims merge without
+   randomness; a same-ID/different-payload collision is rejected rather than dropped.
+
+Availability is derived separately:
+
+```mermaid
+flowchart TD
+    A[Direct typed availability claims] --> Count{Explicit values}
+    Count -->|none| NS[not_stated]
+    Count -->|accepting only| CA[confirmed_accepting]
+    Count -->|not accepting only| CNA[confirmed_not_accepting]
+    Count -->|both from distinct pages| CE[conflicting_evidence]
 ```
 
-Accumulating after every caught query outcome preserves partial success within the
-node. For example, six useful Prospective Supervisors are committed to
-`raw_search_results` if a fourth query later returns a typed failure. A process crash
-before the node returns would replay from the prior LangGraph checkpoint; per-query
-checkpointing is deferred.
-The policy still offers Tavily; after a fallback attempt, six retained records can
-continue as soon as the quality gate is met. A below-minimum cohort ends as
-`discovery_incomplete` after the bounded budget, and a non-retryable authentication
-error always stops immediately.
+Only an explicit statement that a Supervisor is accepting or not accepting doctoral
+Candidates may create an availability claim. General supervision history, student
+lists, invitations to collaborate, and contact details are not availability.
+`not_stated` never blocks verification. A confirmed not-accepting statement is retained
+as a concern; it is not silently discarded.
+
+For current-affiliation conflicts, the agent retains both claims and links their
+evidence IDs through `conflicting_evidence_ids`. It does not choose one institution on
+the model's authority. The completed record becomes `verified_with_concerns` when all
+required categories still exist, and the conflict is surfaced explicitly.
+
+## Partial verification is not a lifecycle shortcut
+
+`SupervisorVerificationRecord` is deliberately separate from
+`VerifiedSupervisor`:
+
+```mermaid
+classDiagram
+    class SupervisorVerificationRecord {
+      ProspectiveSupervisor prospective_supervisor
+      EvidenceClaim[] evidence
+      VerificationStatus verification_status
+      AvailabilityStatus availability_status
+      string[] verification_concerns
+      string[] missing_required_evidence
+      VerifiedSupervisor? verified_supervisor
+    }
+    class VerifiedSupervisor {
+      status = verified
+      EvidenceClaim[] evidence
+    }
+    SupervisorVerificationRecord --> VerifiedSupervisor : only when sufficient
+```
+
+A `partially_verified` result retains available evidence, provenance, concerns, and
+the exact missing categories, but its `verified_supervisor` field is absent. It cannot
+enter the Supervisor lifecycle as Verified, be scored downstream, or be shortlisted.
+This preserves partial work without weakening the lifecycle contract.
+
+## One alternate official-source retry
+
+```mermaid
+flowchart TD
+    Primary[Extract original profile URL] --> Record[Build verification record]
+    Record --> Partial{Any partial records?}
+    Partial -->|no and minimum met| Fit[Continue to fixture Research Fit]
+    Partial -->|yes and retry unused| Query[Build deterministic name and institution query]
+    Query --> Search[Tavily through SupervisorSearchPort]
+    Search --> Select{First plausible alternate official URL?}
+    Select -->|no| Keep[Keep partial record]
+    Select -->|yes| Extract[Extract alternate URL once]
+    Extract --> Merge[Merge prior and new grounded evidence]
+    Keep --> Gate{Minimum fully Verified after retry?}
+    Merge --> Gate
+    Gate -->|yes| Fit
+    Gate -->|no| End[evidence_incomplete recoverable END]
+```
+
+The pure `route_after_evidence_sufficiency()` function receives a frozen
+`VerificationPolicy`, immutable verification records, and the alternate retry count.
+It performs no provider or model call. The policy retries every partial record once
+before applying the configured minimum of five fully Verified Supervisors.
+
+`retry_alternate_evidence_source` searches for one stronger official page per partial
+record. Selection is deterministic: it excludes the original URL and requires HTTPS,
+the full normalized person-name sequence, institution correlation, and a
+DNS-label-aware academic suffix such as `.edu`, `.edu.au`, or `.ac.za`. Institution
+words on a commercial hostname and embedded suffixes such as `.edu.evil.com` are
+rejected. The search result's title and description help select a URL only. A snippet
+never becomes an
+`EvidenceClaim`; the selected URL must pass through Tavily Extract and the structured
+grounding boundary.
+
+On the second extraction pass, already Verified records are retained unchanged. Only
+partial records with a selected alternate source are processed, and new claims merge
+with prior evidence. The retry budget is limited to one, so the loop cannot continue
+indefinitely. If five records are fully Verified after the retry, the graph may proceed
+while preserving other partial records for audit. Otherwise it ends with the clear,
+recoverable `evidence_incomplete` status.
 
 ## Walking-skeleton orchestration
 
@@ -195,25 +319,25 @@ error always stops immediately.
 flowchart TD
     START([START]) --> Load[load_candidate_preferences]
     Load --> Plan[plan_supervisor_searches]
-    Plan -->|validated SearchPlan| Discover[discover_prospective_supervisors]
-    Plan -->|planning failure| END([END])
+    Plan -->|valid| Discover[discover_prospective_supervisors]
+    Plan -->|failure| END([END])
     Discover --> Found[enough_supervisors_found]
-    Found -->|policy satisfied| Dedupe[deduplicate_supervisors]
-    Found -->|first timeout| Discover
-    Found -->|retryable or quality gap| Fallback[fallback_supervisor_search]
-    Found -->|stopped or exhausted| END
+    Found -->|retry You.com| Discover
+    Found -->|fallback| Fallback[fallback_supervisor_search]
     Fallback --> Found
+    Found -->|sufficient| Dedupe[deduplicate_supervisors]
+    Found -->|stopped| END
     Dedupe --> Extract[extract_supervisor_evidence]
     Extract --> Evidence[supervisor_evidence_sufficient]
-    Evidence -->|sufficient| Evaluate[evaluate_research_fit]
-    Evidence -->|insufficient| Alternate[retry_alternate_evidence_source]
-    Evidence -->|exhausted| END
+    Evidence -->|partial and retry unused| Alternate[retry_alternate_evidence_source]
     Alternate --> Extract
+    Evidence -->|minimum Verified| Evaluate[evaluate_research_fit]
+    Evidence -->|below minimum after retry| END
     Evaluate --> Review[review_fit_assessments]
     Review --> Synthesize[synthesize_supervisor_shortlist]
     Synthesize --> Gate[candidate_review_gate_stub]
     Gate -->|approve| Save[save_shortlisted_supervisors]
-    Gate -->|reject or request_more| Plan
+    Gate -->|reject or request more| Plan
     Gate -->|exhausted| END
     Save --> Brief[generate_shortlist_briefing]
     Brief --> END
@@ -222,87 +346,63 @@ flowchart TD
     class Gate human;
 ```
 
-The original graph-derived M2 Mermaid source remains at
-[`docs/m2-walking-skeleton.mmd`](m2-walking-skeleton.mmd) as the walking-skeleton
-baseline. M3 adds the conditional planning-success edge shown above. M4 replaces the
-primary discovery implementation behind the same node. M5 activates the existing
-fallback node with Tavily and adds the bounded retry edge back to primary discovery;
-the graph still contains the same fifteen canonical operational nodes.
+The graph-derived M2 diagram remains the topology baseline in
+[`m2-walking-skeleton.mmd`](m2-walking-skeleton.mmd). M3 adds planning failure routing,
+M4 replaces discovery, M5 activates resilient search fallback, and M6 replaces the
+evidence path without introducing additional operational nodes.
 
-## Typed state and reducer policy
+## Typed state and reducers
 
 ```mermaid
 flowchart LR
-    N[Deterministic node update] --> STATE[ScholarPathState]
-    STATE --> EVENTS[Append-only event channels]
-    STATE --> SNAPSHOTS[Replaceable entity snapshots]
-    EVENTS --> LOG[execution_log]
-    EVENTS --> FEEDBACK[candidate_feedback]
-    EVENTS --> ERRORS[tool_errors]
-    EVENTS --> ATTEMPTS[search_attempts]
-    SNAPSHOTS --> PROSPECTIVE[prospective_supervisors]
-    SNAPSHOTS --> VERIFIED[verified_supervisors]
-    SNAPSHOTS --> FIT[research_fit_assessments]
+    STATE[ScholarPathState] --> HIST[Append-only history]
+    STATE --> SNAP[Canonical snapshots]
+    STATE --> CONTROL[Routing control]
+    HIST --> SA[search_attempts]
+    HIST --> EA[evidence_extraction_attempts]
+    HIST --> ERR[tool_errors]
+    HIST --> LOG[execution_log]
+    SNAP --> PS[prospective_supervisors]
+    SNAP --> VR[verification_records]
+    SNAP --> VS[verified_supervisors]
+    SNAP --> AES[alternate_evidence_sources]
+    CONTROL --> RETRY[retry_counts]
+    CONTROL --> STATUS[review_status]
 ```
 
-| State category | Channels | Merge behavior |
+| State category | M6 channels | Merge behavior |
 |---|---|---|
-| Immutable input | `candidate_profile` | Preserved |
-| Append-only history | preferences, raw results, feedback, errors, search attempts, execution log | Typed reducers append new events |
-| Canonical snapshots | Prospective, Verified, Research Fit, proposed and shortlisted records | Latest node output replaces the prior snapshot |
-| Unique terminal history | rejected Supervisors | Reducer merges by `supervisor_id` |
-| Routing control | retry counts, review status, discovery round, and fallback flags | Deterministic replacement |
-| Validated output | authoritative `supervisor_shortlist`, projected list, and briefing | Created only after Candidate approval; contract-tested for consistency |
+| Immutable Candidate input | `candidate_profile` | Preserved |
+| Append-only history | preferences, raw search results, feedback, errors, search attempts, evidence extraction attempts, execution log | Reducers append events |
+| Verification snapshots | `verification_records`, `verified_supervisors` | Node returns the complete current ordered snapshot |
+| Alternate-source selection | `alternate_evidence_sources` | Deterministic dictionary replacement keyed by `supervisor_id` |
+| Other entity snapshots | Prospective Supervisors, Research Fit assessments, proposed and Shortlisted Supervisors | Latest node output replaces prior snapshot |
+| Unique terminal history | Rejected Supervisors | Reducer merges by `supervisor_id` |
+| Routing control | discovery round, retry counts, review status, fallback flags | Deterministic replacement |
 
-This distinction prevents a planning loop from duplicating canonical Supervisor
-collections while retaining an auditable history of searches, decisions, errors, and
-node execution.
+Each `EvidenceExtractionAttempt` preserves Supervisor ID, exact source URL, source
+kind, attempt number, discovery round, whether it was alternate, success, and a typed
+error category. It does not store a full page or provider exception text. Planning a
+new discovery round clears verification snapshots and the alternate-source map while
+retaining append-only attempt history.
 
-## Bounded routing
-
-```text
-You.com timeout → attempt 1 → retry once → attempt 2 → Tavily
-Retryable You.com provider error ─────────────────────→ Tavily
-Tavily attempt count < configured maximum ───────────→ next bounded call
-Tavily budget exhausted + enough retained results ───→ continue
-Tavily budget exhausted + too few retained results ──→ recoverable END
-Non-retryable authentication error ──────────────────→ immediate END
-```
-
-The LangGraph recursion limit remains defense-in-depth. It is not the workflow's
-termination mechanism. Provider attempts are bounded by validated policy fields, and
-the recursion guard is derived above the largest configured graph path. Tavily cycles
-over planned queries only when its configured call budget exceeds the plan length, so
-every activation still consumes finite budget.
-
-The planning agent's malformed-output retry is intentionally separate from graph retry
-state: it repairs one model-boundary format failure before the node returns. A terminal
-planning error enters graph state and follows the explicit planning-to-END edge.
-
-## Optional LangSmith observability
+## Optional M6 LangSmith observability
 
 ```mermaid
 flowchart LR
-    Env[LANGSMITH_TRACING] --> Scope{Tracing enabled?}
-    Scope -->|false| Disabled[tracing_context enabled=false]
-    Scope -->|true| Key[Validate LANGSMITH_API_KEY]
-    Key --> Client[LangSmith Client hides inputs + outputs]
-    Client --> Root[scholarpath_graph trace]
-    Root --> Node[plan_supervisor_searches child trace]
-    Root --> Other[Other LangGraph node traces]
-    Tags[environment:* + graph-version:m5] --> Root
-    Metadata[Allowlisted metadata] --> Root
-    Metadata --> Node
+    Env[LANGSMITH_TRACING] --> Enabled{Enabled?}
+    Enabled -->|no| Off[No LangSmith client]
+    Enabled -->|yes| Key[Validate key]
+    Key --> Client[Client hides inputs and outputs]
+    Client --> Root[scholarpath_graph]
+    Root --> PlanTrace[planning node metadata]
+    Root --> EvidenceTrace[evidence node metadata]
+    Tags[environment plus graph-version:m6] --> Root
 ```
 
-Tracing is scoped to one graph invocation with `langsmith.tracing_context`. Disabled
-execution explicitly uses `enabled=False` and does not construct a LangSmith client.
-Enabled execution validates the key at activation, sends traces to
-`LANGSMITH_PROJECT`, flushes them, and closes the client.
-
-Graph tags are `environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m5`. The
-planning node additionally records its component and prompt version. Metadata passes a
-fixed scalar allowlist only:
+The graph version is `m6`. Root tags are
+`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m6`. Planning and evidence
+nodes add only component and prompt-version metadata. The fixed metadata allowlist is:
 
 - `application`
 - `environment`
@@ -310,165 +410,103 @@ fixed scalar allowlist only:
 - `component`
 - `prompt_version`
 
-Candidate identifiers, names, email addresses, API keys, full research statements,
-and arbitrary caller metadata cannot enter that allowlist. The LangSmith client also
-uses `hide_inputs=True` and `hide_outputs=True`, preventing graph state and the model
-prompt—including the full research statement required for planning—from being recorded
-as trace payloads.
+The evidence node records `component=evidence_verification_agent` and
+`prompt_version=evidence-verification-v1`. Source URLs, full page content, Candidate
+identifiers, names, email addresses, research statements, and API keys are not allowed
+in trace metadata. The LangSmith client also uses `hide_inputs=True`,
+`hide_outputs=True`, and omits runtime information, which is especially important
+because the model input necessarily contains the retrieved page.
 
-## Domain contract flow
+Tracing remains optional. When disabled, ScholarPath uses an explicitly disabled
+tracing context and constructs no LangSmith client.
 
-```mermaid
-flowchart LR
-    CP[CandidateProfile] --> RP[ResearchPlanningAgent]
-    RP --> SP[SearchPlan]
-    SP --> SD[SupervisorDiscoveryAgent]
-    SR[SearchResult collection] --> SD
-    SD --> PS[ProspectiveSupervisor]
-    EC[EvidenceClaim collection] --> VERIFY{Evidence sufficient?}
-    PS --> VERIFY
-    VERIFY -->|Identity + current affiliation + research profile| VS[VerifiedSupervisor]
-    AS[AvailabilityStatus] -->|Recorded independently| VS
-    VS -->|fixture evaluation| RF[ResearchFitAssessment]
-    CP -->|research preferences| RF
-    RF -->|configured review stub| CR[CandidateReviewDecision]
-    CR -->|approve| SS[SupervisorShortlist]
-    CR -->|reject| RS[Rejected Supervisor]
-    CR -->|request_more| VS
-
-    classDef human fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
-    class CR human;
-```
-
-M1 defines the core payloads on these boundaries. M3 generates `SearchPlan` through the
-typed model boundary. M4 performs live primary discovery when configured, and M5 adds
-bounded Tavily fallback. Every later boundary continues to use deterministic fixture
-data. M5 still does not retrieve evidence, calculate scores, infer availability, or
-present a review interface.
-
-## Verification boundary
-
-A Prospective Supervisor becomes a Verified Supervisor only when directly supported,
-same-Supervisor evidence establishes all three required categories:
-
-1. identity;
-2. current affiliation; and
-3. a research interest or publication.
-
-Availability is a separate fact. `not_stated` never blocks verification. Any stronger
-availability status must match a typed, directly supported availability claim;
-`conflicting_evidence` requires both accepting and not-accepting claims. This prevents
-research activity from being mistaken for current doctoral availability.
-
-The verification helper derives this status from the typed claims. With no direct
-availability claim it deterministically selects `not_stated`, so availability cannot
-become a verification prerequisite.
-
-```mermaid
-stateDiagram-v2
-    [*] --> prospective
-    prospective --> verified: sufficient evidence
-    verified --> shortlisted: explicit Candidate approval
-    verified --> rejected: Candidate rejection
-    verified --> verified: request more evidence
-    shortlisted --> [*]
-    rejected --> [*]
-```
-
-The self-loop represents an unchanged lifecycle status, not a persisted state
-transition. Shortlisted and rejected states are terminal in M1. Each terminal record
-retains the matching Candidate review decision, so deserialization cannot create a
-terminal status from a bare status flag.
-
-## Foundation structure
+## Configuration and deferred provider activation
 
 ```mermaid
 flowchart TB
-    ENV[Environment variables] --> CFG[ApplicationSettings]
-    CFG --> DEFAULTS[Safe non-secret defaults]
-    OAIENV[OPENAI_*] --> OAICFG[OpenAIPlanningSettings]
-    OAICFG -->|Only when adapter requested| OAIADAPTER[OpenAI planning adapter]
-    YDCENV[YDC_API_KEY + YOU_SEARCH_*] --> YOUCFG[YouSearchSettings]
-    YOUCFG -->|Only when adapter requested| YOUADAPTER[You.com search adapter]
-    TAVENV[TAVILY_API_KEY + TAVILY_SEARCH_*] --> TAVCFG[TavilySearchSettings]
-    TAVCFG -->|Only when fallback selected| TAVADAPTER[Tavily search adapter]
-    LSENV[LANGSMITH_*] --> LSCFG[LangSmithSettings]
-    LSCFG -->|Only when tracing enabled| LSCLIENT[LangSmith client]
-
-    subgraph Package boundaries
-        DOMAIN[domain]
-        GRAPH[graph: typed state and LangGraph]
-        AGENTS[agents]
-        TOOLS[tools]
-        MEMORY[memory]
-        OBS[observability]
-        UI[ui]
-    end
+    OAI[OPENAI_API_KEY] --> OP[OpenAIPlanningSettings]
+    OAI --> OE[OpenAIEvidenceSettings]
+    OP -->|planning requested| OPA[Planning adapter]
+    OE -->|retrieved page ready| OEA[Evidence adapter]
+    YDC[YDC_API_KEY and YOU_SEARCH_*] --> YOU[YouSearchAdapter]
+    TKEY[TAVILY_API_KEY] --> TS[TavilySearchSettings]
+    TKEY --> TE[TavilyExtractionSettings]
+    TS -->|fallback or alternate search selected| TSA[TavilySearchAdapter]
+    TE -->|known URL extraction requested| TEA[TavilyExtractionAdapter]
+    LS[LANGSMITH_*] --> LSC[LangSmith activation]
 ```
 
-Importing `scholarpath` does not instantiate providers or validate credentials.
-`ApplicationSettings` supplies application defaults, while provider-specific settings
-use canonical provider variables. OpenAI validation occurs only when
-`for_planning_model()` is requested; You.com validation occurs only when
-`for_search_adapter()` is requested. Tavily settings may load without a credential;
-validation and adapter construction occur only after fallback is routed. LangSmith
-validation occurs only when tracing is enabled and its activation scope begins.
+Provider-specific settings may load without credentials. Compiling the graph or
+importing ScholarPath does not validate OpenAI, You.com, Tavily, or LangSmith keys.
+OpenAI evidence settings are validated only when a retrieved page reaches the lazy
+evidence adapter. Tavily Extract settings are validated only when content extraction
+is requested. Tavily search remains lazy until discovery fallback or alternate
+official-source search requires it.
+
+M6 environment variables are:
+
+| Boundary | Variables |
+|---|---|
+| OpenAI planning | `OPENAI_API_KEY`, `OPENAI_PLANNING_MODEL`, `OPENAI_PLANNING_TIMEOUT_SECONDS` |
+| OpenAI evidence | `OPENAI_API_KEY`, `OPENAI_EVIDENCE_MODEL`, `OPENAI_EVIDENCE_TIMEOUT_SECONDS` |
+| You.com search | `YDC_API_KEY`, `YOU_SEARCH_ENDPOINT`, `YOU_SEARCH_TIMEOUT_SECONDS`, `YOU_SEARCH_RESULT_COUNT` |
+| Tavily search | `TAVILY_API_KEY`, `TAVILY_SEARCH_TIMEOUT_SECONDS`, `TAVILY_SEARCH_RESULT_COUNT` |
+| Tavily Extract | `TAVILY_API_KEY`, `TAVILY_EXTRACT_PROVIDER_TIMEOUT_SECONDS`, `TAVILY_EXTRACT_REQUEST_TIMEOUT_SECONDS`, `TAVILY_EXTRACT_DEPTH`, `TAVILY_EXTRACT_MAX_CONTENT_CHARACTERS` |
+| LangSmith | `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT` |
+
+The Tavily Extract application request timeout must be greater than its provider
+timeout. API keys use `SecretStr`, remain in environment variables, and are never
+written into repository files or graph error records.
 
 ## Dependency direction
 
 ```mermaid
 flowchart LR
-    UI[ui] --> GRAPH[graph]
-    CLI[cli] --> GRAPH
-    GRAPH --> LANGGRAPH[LangGraph and LangChain Core]
+    CLI[cli] --> GRAPH[graph]
+    UI[ui] --> GRAPH
     GRAPH --> DOMAIN[domain]
-    GRAPH --> AGENTS[Planning + discovery agents]
-    AGENTS --> MODELPORT[PlanningModelPort]
-    MODELPORT --> OPENAI[LangChain OpenAI adapter]
+    GRAPH --> AGENTS[agents]
     GRAPH --> SEARCHPORT[SupervisorSearchPort]
-    SEARCHPORT --> YOU[YouSearchAdapter + httpx]
-    YOU --> YDC[You.com Web Search API]
-    SEARCHPORT --> TAVILY[TavilySearchAdapter + langchain-tavily]
-    TAVILY --> TAVAPI[Tavily Search API]
-    AGENTS --> DOMAIN
-    AGENTS --> TOOLS[tools]
-    MEMORY[memory] --> DOMAIN
+    GRAPH --> CONTENTPORT[ContentExtractionPort]
+    AGENTS --> PLANPORT[PlanningModelPort]
+    AGENTS --> EVIDENCEPORT[EvidenceVerificationModelPort]
+    PLANPORT --> OPENAI[LangChain OpenAI]
+    EVIDENCEPORT --> OPENAI
+    SEARCHPORT --> YOU[YouSearchAdapter and httpx]
+    SEARCHPORT --> TSEARCH[TavilySearchAdapter]
+    CONTENTPORT --> TEXTRACT[TavilyExtractionAdapter]
+    TSEARCH --> TSDK[langchain-tavily]
+    TEXTRACT --> TSDK
+    GRAPH --> LANGGRAPH[LangGraph and LangChain Core]
     OBS[LangSmith observability] --> GRAPH
-    OBS --> LANGSMITH[LangSmith]
-    CONFIG[config] -. configuration .-> UI
-    CONFIG --> OPENAI
-    CONFIG --> YOU
-    CONFIG --> TAVILY
-    CONFIG --> OBS
+    CONFIG[config] -. settings .-> OPENAI
+    CONFIG -. settings .-> YOU
+    CONFIG -. settings .-> TSEARCH
+    CONFIG -. settings .-> TEXTRACT
 ```
 
-Solid arrows include implemented M5 dependencies. The planner still has no search
-tool; the graph executes its typed query plan through `SupervisorSearchPort`, then
-passes normalized results to the discovery agent. Domain rules stay independent of
-LangGraph, provider SDKs, tracing, and user-interface code.
+Domain contracts remain independent of LangGraph and provider SDKs. Transport adapters
+depend on provider libraries and return provider-neutral typed values. Agents depend
+on typed ports and domain schemas. The graph composes those boundaries and owns finite
+routing.
 
 ## Physical package layout
 
-The repository avoids an additional physical package-name directory beneath `src/`.
-Setuptools maps the `scholarpath` import namespace directly onto the physical source
-root.
-
-```mermaid
-flowchart LR
-    IMPORT[import scholarpath] --> MAP[setuptools package-dir mapping]
-    MAP --> ROOT[src/__init__.py]
-    IMPORT_DOMAIN[import scholarpath.domain] --> MAP
-    MAP --> DOMAIN[src/domain/]
-```
+The flattened physical `src/` tree remains mapped directly to the `scholarpath` import
+namespace:
 
 ```text
 src/
 ├── __init__.py
 ├── cli.py
 ├── config.py
-├── py.typed
 ├── domain/
+│   ├── enums.py
+│   ├── lifecycle.py
+│   └── models.py
 ├── agents/
+│   ├── evidence_verification.py
+│   ├── openai_evidence.py
 │   ├── openai_planning.py
 │   ├── prompts.py
 │   ├── research_planning.py
@@ -476,53 +514,61 @@ src/
 ├── graph/
 │   ├── discovery.py
 │   ├── state.py
+│   ├── verification.py
 │   └── workflow.py
-├── memory/
 ├── observability/
 │   └── tracing.py
-├── tools/
-│   ├── failure_injection.py
-│   ├── supervisor_search.py
-│   ├── tavily_search.py
-│   └── you_search.py
-└── ui/
+└── tools/
+    ├── content_extraction.py
+    ├── supervisor_search.py
+    ├── tavily_extraction.py
+    ├── tavily_search.py
+    └── you_search.py
 ```
 
-Strict editable installation materializes this logical mapping for runtime and static
-analysis while source files remain in the flattened structure.
+Setuptools maps these physical paths onto `scholarpath.*`; no additional physical
+`src/scholarpath/` directory is required.
 
 ## Operational trade-offs and NFRs
 
-| Concern | M5 decision | Trade-off or remaining risk |
+| Concern | M6 control | Trade-off or remaining risk |
 |---|---|---|
-| Latency | Sequential You.com queries, one timeout retry, and bounded Tavily calls use explicit deadlines | Worst-case latency grows with both provider budgets; safe concurrency is deferred |
-| Cost | Tavily is invoked only when deterministic health or quality checks fail | A broad plan can consume both providers' quotas; budget values need production tuning |
-| Failover | Pure policy routes You.com to Tavily and retains partial success | There is no provider-wide circuit breaker or cross-run health memory yet |
-| Security | OpenAI, You.com, and Tavily keys use environment variables and `SecretStr`; persisted errors are sanitized | Search queries leave the application boundary and require provider governance review |
-| Reliability | Typed normalization, finite attempts, recoverable terminal status, and deterministic provenance merge | Provider payload formats and website titles vary; conservative extraction trades recall for precision |
-| Scalability | Both search providers implement one typed port and can be replaced by fakes | Calls remain sequential; rate limiting, backpressure, caching, and bulkheads are deferred |
-| Observability | Optional graph/node traces carry environment, graph, component, and prompt versions | The LangSmith service is not contacted when disabled; evaluation datasets and alerting are deferred |
-| Determinism | Extraction, URL canonicalization, identity deduplication, provenance merge, routing, thresholds, and arithmetic stay in Python | OpenAI query wording and provider ranking remain externally variable |
+| Evidence integrity | Every direct claim has a source URL, retrieval time, conservative source kind, matching asserted name, and checked excerpt; IDs hash all semantic fields | Textual grounding proves presence and subject binding, not that a page itself is truthful |
+| Availability safety | Only explicit typed accepting or not-accepting statements are retained; absence stays `not_stated` | Institutional pages may be stale, so freshness policy remains limited |
+| Conflict safety | Conflicting affiliations remain linked and visible | M6 surfaces conflicts but does not adjudicate them |
+| Reliability | Typed errors, application deadlines, one alternate retry, partial-result preservation, recoverable terminal status | A two-source cap may miss a valid third official source |
+| Security | Deferred secrets, public-URL checks, sanitized errors, bounded content, hidden trace inputs/outputs | Institution pages and model inputs still leave the application boundary and require governance review |
+| Privacy | Full page content is transient and excluded from state and trace metadata | Concise evidence excerpts remain persisted because they are required provenance |
+| Latency | Sequential known-URL extraction with explicit deadlines | Worst-case latency grows with the number of Prospective Supervisors and one alternate pass |
+| Cost | One extraction and structured-model call per processed URL; alternate calls are bounded | M6 has no cross-run cache, batching, or provider budget accounting |
+| Scalability | Provider ports support fakes and later alternative adapters | Current synchronous orchestration and sequential calls defer concurrency and backpressure |
+| Determinism | IDs, grounding, conflict links, sufficiency, availability, routing, and retry arithmetic use Python | Claim wording and confidence remain model-variable |
+| Observability | M6 graph, planning, and evidence prompt versions are traceable with safe metadata | Evaluation datasets, quality dashboards, and alerts remain deferred |
+| Termination | Search, evidence, and review loops use validated finite budgets | LangGraph recursion limit remains defense-in-depth, not the primary termination rule |
 
-## M5 quality boundaries
+The synchronous Tavily adapters currently bridge the provider's async invocation with
+`asyncio.run()`. An async port is deferred before embedding ScholarPath inside an
+already-running event-loop runtime.
 
-| Concern | M5 control |
+## M6 quality boundaries
+
+| Concern | Control |
 |---|---|
 | Packaging | Flattened physical `src/` mapped to the `scholarpath` namespace |
-| Configuration | Pydantic settings with deferred secret validation |
-| Data contracts | Frozen Pydantic models reject unknown fields and invalid values |
-| Provenance | Every discovered Supervisor retains paired source URL and exact originating query records |
-| Planning | Injected model port; versioned prompt; native structured output; no tools or search |
-| Discovery | One-query provider port; You.com primary; official Tavily fallback; typed results, attempts, and policy; no fit or availability fields |
-| Determinism | Validation, query uniqueness, source coverage, deduplication, sorting, routing, retry arithmetic, and transitions use ordinary Python logic |
-| Human authority | Terminal records retain the matching Candidate review decision |
-| Network isolation | Default pytest selection excludes `live`; fakes replace OpenAI, You.com, and Tavily in non-live tests |
-| Orchestration | LangGraph coordinates model-backed planning, two-provider discovery, and unchanged fixture-backed downstream nodes |
-| Termination | Planning failure has an END edge; provider calls, evidence, and review loops have explicit validated limits |
-| Observability | Scoped optional LangSmith graph/node traces with safe tags, allowlisted metadata, and hidden inputs |
-| Quality | Ruff formatting/linting, strict mypy, pytest, and branch coverage |
-| Automation | Path-scoped GitHub Actions workflow on Python 3.12 |
-| Secrets | Environment variables, `SecretStr`, ignored `.env`, and sanitized errors |
+| Planning | Versioned strict structured output; no search tools; one visible format retry |
+| Discovery | You.com primary, official Tavily fallback, deterministic quality policy and provenance merge |
+| Extraction | One-URL `ContentExtractionPort`, official Tavily Extract, public-URL checks, dual timeouts and content cap |
+| Evidence model | Injected typed port, versioned prompt, strict native schema, no prose parsing |
+| Grounding | Every direct excerpt occurs in retrieved content, explicitly names the expected Supervisor, and passes type-specific deterministic checks |
+| Verification | Identity, current institution and department, plus research interest or publication are mandatory |
+| Partial work | Separate `SupervisorVerificationRecord`; partial records never masquerade as Verified Supervisors |
+| Availability | Explicit name-bound evidence with deterministically matched polarity only; absence remains `not_stated` |
+| Conflicts | Both affiliation claims and cross-referenced evidence IDs are preserved |
+| Retry | One deterministic alternate official-source search and extraction pass |
+| Network isolation | Default tests use fixed pages and fakes; `live` is excluded by default |
+| Observability | `graph-version:m6`, prompt versions, allowlisted metadata, hidden inputs and outputs |
+| Human authority | Candidate approval remains mandatory before Shortlisted status |
+| Research Fit | Still fixture-backed; no M6 scoring model or arithmetic added |
 
 ## Runtime and verification commands
 
@@ -541,44 +587,44 @@ mypy src tests
 pytest -m "not live"
 ```
 
-The primary live graph path requires `OPENAI_API_KEY` and `YDC_API_KEY` in `.env` or
-the process environment. `TAVILY_API_KEY` is required only if fallback is routed:
+The production CLI path now requires the planning and discovery credentials and, when
+evidence processing begins, the evidence boundaries:
 
 ```bash
+# Set OPENAI_API_KEY, YDC_API_KEY, and TAVILY_API_KEY in ignored .env first.
 python -m scholarpath.cli
 ```
 
-Each optional smoke test requires its credential and explicit opt-in:
+Optional provider smoke tests require both their credential and explicit opt-in:
 
 ```bash
-export OPENAI_API_KEY="your-openai-key"
-SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_openai_planning_live.py
+SCHOLARPATH_RUN_LIVE_TESTS=true \
+pytest -o addopts='' -q -m live tests/integration/test_openai_planning_live.py
 
-export YDC_API_KEY="your-you-com-key"
-SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_you_search_live.py
+SCHOLARPATH_RUN_LIVE_TESTS=true \
+pytest -o addopts='' -q -m live tests/integration/test_you_search_live.py
 
-export TAVILY_API_KEY="your-tavily-key"
-SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_tavily_search_live.py
+SCHOLARPATH_RUN_LIVE_TESTS=true \
+pytest -o addopts='' -q -m live tests/integration/test_tavily_search_live.py
+
+SCHOLARPATH_RUN_LIVE_TESTS=true \
+pytest -o addopts='' -q -m live tests/integration/test_tavily_extraction_live.py
 ```
 
-Optional tracing uses the exact variables `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`,
-and `LANGSMITH_PROJECT`. The OpenAI planning adapter additionally recognizes
-`OPENAI_PLANNING_MODEL` and `OPENAI_PLANNING_TIMEOUT_SECONDS`. You.com search recognizes
-`YOU_SEARCH_ENDPOINT`, `YOU_SEARCH_TIMEOUT_SECONDS`, and `YOU_SEARCH_RESULT_COUNT`.
-Tavily recognizes `TAVILY_SEARCH_TIMEOUT_SECONDS` and `TAVILY_SEARCH_RESULT_COUNT`.
-`SCHOLARPATH_DISCOVERY_FAILURE_MODE` enables explicitly requested local routing
-demonstrations and defaults to `off`.
+The Tavily extraction smoke test retrieves one bounded public documentation page and
+asserts normalized non-empty content, HTTPS provenance, the content cap, and an aware
+retrieval timestamp. Default test runs skip it and make no network call.
 
-## Deferred beyond M5
+## Deferred beyond M6
 
-- Evidence retrieval and source-level fallback
-- Research Fit calculation policy and ranking
-- Source authority, freshness, and conflict-resolution policy
-- Real Candidate interaction and graph interruption/resumption
-- Preference-only `request_more` refinement currently repeats primary searches
+- Real Research Fit calculation, scoring policy, and score calibration
+- Independent evidence and fit review through Nebius
+- Multi-source freshness and source-authority weighting beyond one alternate page
+- Deterministic conflict adjudication with an explicit policy and Candidate visibility
+- Concurrent or batched extraction, caching, quotas, rate limiting, and circuit breakers
+- Per-Supervisor durable checkpoints inside a long extraction node
+- An async provider-port variant for already-running event loops
+- Real Candidate interruption, rejection feedback, and workflow resumption
 - Streamlit user experience
-- Preference-memory services
-- Additional provider failover, rate limiting, caching, and circuit breaking
-- An async search-port variant before invoking the synchronous Tavily adapter from an
-  already-running event-loop runtime
+- Mem0 preference learning
 - LangSmith evaluation datasets, scoring, dashboards, and alerting

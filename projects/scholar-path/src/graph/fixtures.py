@@ -210,8 +210,11 @@ def _claim(
     claim: str,
     source_kind: SourceKind,
     *,
+    supporting_excerpt: str,
     confidence: EvidenceConfidence = EvidenceConfidence.HIGH,
     availability_status: AvailabilityStatus | None = None,
+    asserted_institution: str | None = None,
+    asserted_department: str | None = None,
 ) -> EvidenceClaim:
     identifier = _supervisor_identifier(index)
     return EvidenceClaim.model_validate(
@@ -226,6 +229,10 @@ def _claim(
             "confidence": confidence,
             "directly_supported": True,
             "availability_status": availability_status,
+            "asserted_name": _SUPERVISOR_NAMES[index - 1],
+            "asserted_institution": asserted_institution,
+            "asserted_department": asserted_department,
+            "supporting_excerpt": supporting_excerpt,
         }
     )
 
@@ -239,6 +246,7 @@ def _evidence_claims(index: int) -> tuple[EvidenceClaim, ...]:
             EvidenceClaimType.IDENTITY,
             f"The profile names {raw.full_name}.",
             SourceKind.UNIVERSITY_PROFILE,
+            supporting_excerpt=f"The official profile names {raw.full_name}.",
         ),
         _claim(
             index,
@@ -246,6 +254,11 @@ def _evidence_claims(index: int) -> tuple[EvidenceClaim, ...]:
             EvidenceClaimType.CURRENT_AFFILIATION,
             f"The directory lists a current role at {raw.institution}.",
             SourceKind.INSTITUTIONAL_DIRECTORY,
+            supporting_excerpt=(
+                f"{raw.full_name} is currently listed in {raw.department} at {raw.institution}."
+            ),
+            asserted_institution=raw.institution,
+            asserted_department=raw.department,
         ),
         _claim(
             index,
@@ -253,6 +266,9 @@ def _evidence_claims(index: int) -> tuple[EvidenceClaim, ...]:
             EvidenceClaimType.RESEARCH_INTEREST,
             _RESEARCH_CLAIMS[index - 1],
             SourceKind.DEPARTMENT_PAGE,
+            supporting_excerpt=(
+                f"{raw.full_name}'s department profile states: {_RESEARCH_CLAIMS[index - 1]}"
+            ),
             confidence=EvidenceConfidence.MEDIUM,
         ),
         _claim(
@@ -261,6 +277,9 @@ def _evidence_claims(index: int) -> tuple[EvidenceClaim, ...]:
             EvidenceClaimType.METHODOLOGY,
             _METHODOLOGY_CLAIMS[index - 1],
             SourceKind.RESEARCH_REPOSITORY,
+            supporting_excerpt=(
+                f"{raw.full_name}'s methods statement says: {_METHODOLOGY_CLAIMS[index - 1]}"
+            ),
             confidence=EvidenceConfidence.MEDIUM,
         ),
         _claim(
@@ -269,6 +288,9 @@ def _evidence_claims(index: int) -> tuple[EvidenceClaim, ...]:
             EvidenceClaimType.PUBLICATION,
             _PUBLICATION_CLAIMS[index - 1],
             SourceKind.PUBLICATION,
+            supporting_excerpt=(
+                f"{raw.full_name}'s publication record states: {_PUBLICATION_CLAIMS[index - 1]}"
+            ),
         ),
     ]
     if index == 2:
@@ -279,6 +301,9 @@ def _evidence_claims(index: int) -> tuple[EvidenceClaim, ...]:
                 EvidenceClaimType.AVAILABILITY,
                 "The institutional profile explicitly states current doctoral availability.",
                 SourceKind.UNIVERSITY_PROFILE,
+                supporting_excerpt=(
+                    f"{raw.full_name} is currently accepting new doctoral Candidates."
+                ),
                 availability_status=AvailabilityStatus.CONFIRMED_ACCEPTING,
             )
         )
@@ -290,6 +315,7 @@ def _evidence_claims(index: int) -> tuple[EvidenceClaim, ...]:
                 EvidenceClaimType.AVAILABILITY,
                 "The department page explicitly states no current doctoral availability.",
                 SourceKind.DEPARTMENT_PAGE,
+                supporting_excerpt=(f"{raw.full_name} is not accepting new doctoral Candidates."),
                 availability_status=AvailabilityStatus.CONFIRMED_NOT_ACCEPTING,
             )
         )
@@ -302,6 +328,9 @@ def _evidence_claims(index: int) -> tuple[EvidenceClaim, ...]:
                     EvidenceClaimType.AVAILABILITY,
                     "The institutional profile states current doctoral availability.",
                     SourceKind.UNIVERSITY_PROFILE,
+                    supporting_excerpt=(
+                        f"{raw.full_name} is currently accepting new doctoral Candidates."
+                    ),
                     availability_status=AvailabilityStatus.CONFIRMED_ACCEPTING,
                 ),
                 _claim(
@@ -310,6 +339,9 @@ def _evidence_claims(index: int) -> tuple[EvidenceClaim, ...]:
                     EvidenceClaimType.AVAILABILITY,
                     "A department notice states that new doctoral enquiries are paused.",
                     SourceKind.DEPARTMENT_PAGE,
+                    supporting_excerpt=(
+                        f"{raw.full_name} is not accepting new doctoral Candidates."
+                    ),
                     confidence=EvidenceConfidence.MEDIUM,
                     availability_status=AvailabilityStatus.CONFIRMED_NOT_ACCEPTING,
                 ),

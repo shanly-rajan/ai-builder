@@ -14,18 +14,17 @@ any Supervisor is shortlisted or any outreach is drafted.
 
 ## Project status
 
-Milestone M5 makes Supervisor discovery resilient without changing downstream domain
-behavior. You.com remains the primary provider; a pure `DiscoveryPolicy` routes one
-bounded You.com retry or the official Tavily fallback when provider health, result
-volume, duplicate rate, or profile plausibility is insufficient. Typed
-`SearchAttempt` records retain sanitized provider, query, attempt, result, and error
-data. Partial discovery survives later failures.
+Milestone M6 replaces the three fixture evidence nodes with a grounded verification
+boundary. Tavily Extract retrieves one known profile URL at a time; an injected
+structured-output model classifies page-backed claims; and ordinary Python applies
+identity, current-affiliation, research-evidence, conflict, availability, and bounded
+retry rules. Partial evidence is retained without creating a Verified Supervisor.
 
-Baseline LangSmith tracing is optional. When enabled, it traces the graph and planning
-node with fixed environment and graph-version tags, allowlisted metadata, and hidden
-trace inputs and outputs. The Candidate review gate remains a configured fixture stub
-rather than a user interface. Evidence extraction, memory, Streamlit, and other
-model-backed agents remain fixture-backed or deferred.
+Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
+and evidence nodes with fixed environment and graph-version tags, allowlisted metadata,
+and hidden trace inputs and outputs. The Candidate review gate remains a configured
+fixture stub rather than a user interface. Research Fit scoring, memory, Streamlit,
+and the remaining model-backed agents remain fixture-backed or deferred.
 
 ## M0 foundation
 
@@ -41,8 +40,9 @@ model-backed agents remain fixture-backed or deferred.
 See [current architecture](docs/architecture.md), the historical
 [M2 generated graph](docs/m2-walking-skeleton.mmd), the historical
 [M3 generated graph](docs/m3-research-planning-graph.mmd), the historical
-[M4 generated graph](docs/m4-you-com-discovery-graph.mmd), the current
-[M5 generated graph](docs/m5-resilient-discovery-graph.mmd), and
+[M4 generated graph](docs/m4-you-com-discovery-graph.mmd), the historical
+[M5 generated graph](docs/m5-resilient-discovery-graph.mmd), the current
+[M6 generated graph](docs/m6-evidence-verification-graph.mmd), and
 [canonical terminology](docs/terminology.md) for the current boundaries.
 
 ## M1 domain contracts
@@ -77,7 +77,7 @@ verified = make_verified_supervisors()  # 6 records
 assessments = make_research_fit_assessments()  # 5 records
 ```
 
-## M2 walking skeleton, extended through M5
+## M2 walking skeleton, extended through M6
 
 ```mermaid
 flowchart TD
@@ -93,9 +93,9 @@ flowchart TD
     Fallback --> Found
     Dedupe --> Extract[extract_supervisor_evidence]
     Extract --> Evidence[supervisor_evidence_sufficient]
-    Evidence -->|sufficient| Evaluate[evaluate_research_fit]
-    Evidence -->|insufficient and retries remain| Alternate[retry_alternate_evidence_source]
-    Evidence -->|retry exhausted| END
+    Evidence -->|minimum verified cohort| Evaluate[evaluate_research_fit]
+    Evidence -->|any partial record, retry unused| Alternate[retry_alternate_evidence_source]
+    Evidence -->|retry exhausted below minimum| END
     Alternate --> Extract
     Evaluate --> Review[review_fit_assessments]
     Review --> Synthesize[synthesize_supervisor_shortlist]
@@ -243,6 +243,56 @@ immediately. Exhausting both providers below the minimum ends with
 or raising an unhandled exception. Tavily credentials are validated lazily only if the
 policy actually selects the fallback.
 
+## M6 Supervisor evidence extraction and verification
+
+```mermaid
+flowchart LR
+    PS[Prospective Supervisor] --> URL[Known profile URL]
+    URL --> Extract{{ContentExtractionPort}}
+    Extract --> Tavily[TavilyExtractionAdapter]
+    Extract --> Fake[Fixed-page fake in default tests]
+    Tavily --> Page[ExtractedContent]
+    Fake --> Page
+    Page --> Agent[EvidenceVerificationAgent]
+    Agent --> Model{{EvidenceVerificationModelPort}}
+    Model --> DTO[Structured claim drafts]
+    DTO --> Ground{Excerpt exists and names this Supervisor?}
+    Ground -->|no| Partial[Partial verification record]
+    Ground -->|yes| Rules{Identity + current affiliation + research?}
+    Rules -->|yes| Verified[Verified Supervisor]
+    Rules -->|no| Alternate[One alternate official-source retry]
+
+    classDef external fill:#e8f1ff,stroke:#245a9b;
+    class Tavily,Model external;
+```
+
+`TavilyExtractionAdapter` is transport-only. It calls the official top-level
+`langchain_tavily.TavilyExtract` integration for exactly one public URL, applies
+provider and application deadlines, caps retained content, and returns a typed
+retrieval timestamp. It rejects credential-bearing and clearly non-public URLs and
+does not interpret Supervisor facts.
+
+`EvidenceVerificationAgent` accepts only native structured output. Each retained
+`EvidenceClaim` receives a deterministic system-owned ID and the exact source URL,
+source kind, retrieval timestamp, supporting excerpt, confidence, direct-support flag,
+typed asserted values, and links to conflicting claims. Expected profile fields are
+comparison hints, never evidence. Model knowledge and search snippets cannot satisfy
+verification. A deterministic domain rule also rejects another person's facts,
+ungrounded affiliation values, or availability whose typed polarity contradicts the
+quoted statement. Evidence IDs hash every semantic claim field so distinct conflicts
+cannot overwrite one another.
+
+The pure `VerificationPolicy` retries every partial record once through an alternate
+official URL before deciding whether at least five Verified Supervisors may continue.
+Alternate selection requires the complete normalized person name, institution
+correlation, HTTPS, and a label-valid academic domain; commercial lookalike hosts are
+rejected.
+Identity, current institution and department, plus either research-interest or
+publication evidence are mandatory. Availability is optional: without an explicit
+page statement it remains `not_stated`. Exhaustion below the minimum ends with
+`review_status=evidence_incomplete`; otherwise useful verified and partial results are
+retained and the graph continues.
+
 ## Setup
 
 Run these commands from the repository root:
@@ -259,7 +309,8 @@ cp .env.example .env
 No API key is required to install the package, import `scholarpath`, render the graph,
 or run the default non-live test suite. The copied `.env` contains placeholders only
 and is ignored by Git. OpenAI and You.com keys are validated only when their respective
-adapters are instantiated; the Tavily key is validated only when fallback is routed.
+adapters are instantiated. The shared Tavily key is validated only when fallback
+search or evidence extraction is actually reached.
 
 Run commands from `projects/scholar-path`, because the application resolves `.env`
 relative to the current working directory. Keep the local file private:
@@ -276,6 +327,8 @@ Set these variables in the ignored `.env` before running the live CLI:
 OPENAI_API_KEY=your-openai-key
 OPENAI_PLANNING_MODEL=gpt-5.4-mini
 OPENAI_PLANNING_TIMEOUT_SECONDS=60
+OPENAI_EVIDENCE_MODEL=gpt-5.4-mini
+OPENAI_EVIDENCE_TIMEOUT_SECONDS=60
 YDC_API_KEY=your-you-com-key
 YOU_SEARCH_ENDPOINT=https://ydc-index.io/v1/search
 YOU_SEARCH_TIMEOUT_SECONDS=20
@@ -283,12 +336,18 @@ YOU_SEARCH_RESULT_COUNT=10
 TAVILY_API_KEY=your-tavily-key
 TAVILY_SEARCH_TIMEOUT_SECONDS=20
 TAVILY_SEARCH_RESULT_COUNT=10
+TAVILY_EXTRACT_PROVIDER_TIMEOUT_SECONDS=20
+TAVILY_EXTRACT_REQUEST_TIMEOUT_SECONDS=25
+TAVILY_EXTRACT_DEPTH=advanced
+TAVILY_EXTRACT_MAX_CONTENT_CHARACTERS=50000
 SCHOLARPATH_DISCOVERY_FAILURE_MODE=off
 ```
 
-`OPENAI_API_KEY` and `YDC_API_KEY` are required for the primary live graph path.
-`TAVILY_API_KEY` is required only if M5 routes to fallback. Endpoint, model, timeout,
-result-count, and failure-mode values shown are the current non-secret defaults.
+`OPENAI_API_KEY`, `YDC_API_KEY`, and `TAVILY_API_KEY` are required for a complete live
+M6 graph path: OpenAI plans and extracts typed evidence, You.com performs primary
+discovery, and Tavily retrieves known evidence pages or handles search fallback.
+Endpoint, model, timeout, result-count, extraction, and failure-mode values shown are
+the current non-secret defaults.
 
 LangSmith is optional and disabled by default:
 
@@ -300,7 +359,7 @@ LANGSMITH_PROJECT=scholarpath
 
 To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_API_KEY`. `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag;
-the implementation supplies the fixed `graph-version:m5` tag. Disabling tracing does
+the implementation supplies the fixed `graph-version:m6` tag. Disabling tracing does
 not construct a LangSmith client, even if another process has globally enabled
 tracing.
 
@@ -339,32 +398,30 @@ python -m pip check
 python -c "import scholarpath; print(scholarpath.__version__)"
 ```
 
-Run the live graph path after configuring OpenAI, You.com, and the conditional Tavily
-fallback:
+Run the live graph path after configuring OpenAI, You.com, and Tavily:
 
 ```bash
 python -m scholarpath.cli
 ```
 
-It uses OpenAI for research planning, You.com for primary discovery, and Tavily only
-when the deterministic policy selects fallback. Later nodes are still fixture-backed,
-so arbitrary live discoveries generally stop cleanly at the evidence-sufficiency
-boundary rather than being matched to invented evidence. The CLI prints five
-Shortlisted Supervisors only when a complete shortlist exists and otherwise reports
-the incomplete run.
+It uses OpenAI for research planning and typed evidence extraction, You.com for primary
+discovery, and Tavily for page extraction and conditional search fallback. Research Fit
+scores remain deterministic fixtures rebound only to the newly verified evidence IDs.
+The CLI prints five Shortlisted Supervisors only when a complete shortlist exists and
+otherwise reports the recoverable incomplete run.
 
 To exercise the same full graph without secrets, provider calls, or network access,
 inject the test fake from the CLI:
 
 ```bash
-LANGSMITH_TRACING=false python -c 'from scholarpath.cli import main; from tests.fakes import FakePlanningModel, FakeSupervisorSearch; raise SystemExit(main(FakePlanningModel(), FakeSupervisorSearch()))'
+LANGSMITH_TRACING=false python -c 'from scholarpath.cli import main; from tests.fakes import FakeContentExtraction, FakeEvidenceVerificationModel, FakePlanningModel, FakeSupervisorSearch; search=FakeSupervisorSearch(); raise SystemExit(main(FakePlanningModel(), search, search, FakeContentExtraction(), FakeEvidenceVerificationModel(), search))'
 ```
 
 To demonstrate an offline, deterministic You.com failure followed by successful
 Tavily routing, inject both fakes and enable the failure mode for one process:
 
 ```bash
-SCHOLARPATH_DISCOVERY_FAILURE_MODE=you_retryable_error LANGSMITH_TRACING=false python -c 'from scholarpath.graph import run_scholarpath_graph; from tests.fakes import FakePlanningModel, FakeSupervisorSearch; state=run_scholarpath_graph(planning_model=FakePlanningModel(), supervisor_search=FakeSupervisorSearch(), tavily_search=FakeSupervisorSearch()); print("fallback_search_used:", state["fallback_search_used"]); print([(a.provider_used.value, a.attempt_number, a.error_category.value if a.error_category else None) for a in state["search_attempts"]])'
+SCHOLARPATH_DISCOVERY_FAILURE_MODE=you_retryable_error LANGSMITH_TRACING=false python -c 'from scholarpath.graph import run_scholarpath_graph; from tests.fakes import FakeContentExtraction, FakeEvidenceVerificationModel, FakePlanningModel, FakeSupervisorSearch; search=FakeSupervisorSearch(); state=run_scholarpath_graph(planning_model=FakePlanningModel(), supervisor_search=search, tavily_search=search, content_extractor=FakeContentExtraction(), evidence_model=FakeEvidenceVerificationModel(), alternate_evidence_search=search); print("fallback_search_used:", state["fallback_search_used"]); print([(a.provider_used.value, a.attempt_number, a.error_category.value if a.error_category else None) for a in state["search_attempts"]])'
 ```
 
 Use `you_timeout_once` to demonstrate a successful single retry, or
@@ -416,6 +473,16 @@ set -a
 source .env
 set +a
 SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_tavily_search_live.py
+```
+
+The optional Tavily Extract smoke test retrieves one fixed official Tavily documentation
+URL and uses the same credential and opt-in boundary:
+
+```bash
+set -a
+source .env
+set +a
+SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_tavily_extraction_live.py
 ```
 
 The GitHub Actions workflow runs the same installation and quality commands on Python
@@ -514,22 +581,22 @@ execute, coordinate, remember, or observe those responsibilities.
 
 | Integration | Role |
 |---|---|
-| **OpenAI** | Current native structured-output model for research planning; no tools or browsing. |
+| **OpenAI** | Current native structured-output model for research planning and page-grounded claim extraction; no tools or browsing. |
 | **You.com** | Current primary Supervisor discovery search through the official Web Search API. |
-| **Tavily** | Current bounded fallback Supervisor discovery search through the official LangChain integration. |
+| **Tavily** | Current bounded fallback search and known-page evidence extraction through official LangChain integrations. |
 | **Nebius** | Independent evidence and Research Fit review. |
 | **Mem0** | Candidate preference and feedback memory. |
 | **LangGraph** | Current deterministic state orchestration and future human approval flow. |
-| **LangSmith** | Current optional graph/planning tracing; evaluation remains planned. |
+| **LangSmith** | Current optional graph, planning, and evidence-node tracing; evaluation remains planned. |
 
 Streamlit is the planned Candidate-facing web interface.
 
 ## Future production evolution
 
-M5 keeps feedback capture inside `candidate_review_gate_stub` and reruns planning and
-resilient discovery after rejection or `request_more`; downstream evaluation remains
-fixture-backed. Later milestones may split feedback persistence and search refinement
-into provider-backed responsibilities. An alternate planning-model failover,
-source-authority rules, Research Fit calculation policy, trace evaluation, and
-data-retention policy remain deferred. Retry limits and sufficiency thresholds are
-explicit configuration rather than model decisions.
+M6 keeps feedback capture inside `candidate_review_gate_stub` and reruns planning,
+resilient discovery, and verification after rejection or `request_more`. Research Fit
+calculation remains fixture-backed. Later milestones may split feedback persistence and
+search refinement into provider-backed responsibilities. Source freshness and authority
+weighting, a Research Fit calculation policy, trace evaluation, and data-retention
+policy remain deferred. Retry limits and sufficiency thresholds are explicit
+configuration rather than model decisions.

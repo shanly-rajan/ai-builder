@@ -1,11 +1,37 @@
 """Provider-neutral fakes used by ScholarPath's offline test suite."""
 
+from tests.fakes.content_extraction import (
+    FakeContentExtraction,
+    make_fixed_content_outcomes,
+    make_graph_content_outcomes,
+)
+from tests.fakes.evidence import (
+    FakeEvidenceVerificationModel,
+    make_alternate_official_response,
+    make_complete_evidence_response,
+    make_conflicting_affiliation_response,
+    make_fixed_evidence_outcomes,
+    make_graph_evidence_outcomes,
+    make_missing_affiliation_response,
+    make_missing_research_response,
+)
 from tests.fakes.planning import FakePlanningModel, make_valid_planning_response
 from tests.fakes.search import FakeSupervisorSearch, make_fake_search_outcomes
 
 __all__ = [
+    "FakeContentExtraction",
+    "FakeEvidenceVerificationModel",
     "FakePlanningModel",
     "FakeSupervisorSearch",
+    "make_alternate_official_response",
+    "make_complete_evidence_response",
+    "make_conflicting_affiliation_response",
     "make_fake_search_outcomes",
+    "make_fixed_content_outcomes",
+    "make_fixed_evidence_outcomes",
+    "make_graph_content_outcomes",
+    "make_graph_evidence_outcomes",
+    "make_missing_affiliation_response",
+    "make_missing_research_response",
     "make_valid_planning_response",
 ]

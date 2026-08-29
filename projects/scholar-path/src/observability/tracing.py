@@ -7,10 +7,13 @@ from typing import Final
 from langchain_core.runnables import RunnableConfig
 from langsmith import Client, tracing_context
 
-from ..agents.prompts import RESEARCH_PLANNING_PROMPT_VERSION
+from ..agents.prompts import (
+    EVIDENCE_VERIFICATION_PROMPT_VERSION,
+    RESEARCH_PLANNING_PROMPT_VERSION,
+)
 from ..config import Environment, LangSmithSettings
 
-GRAPH_VERSION: Final = "m5"
+GRAPH_VERSION: Final = "m6"
 type TraceScalar = str | int | float | bool
 SAFE_TRACE_METADATA_KEYS: Final = (
     "application",
@@ -65,6 +68,17 @@ class LangSmithObservability:
                 **self.graph_metadata,
                 "component": "research_planning_agent",
                 "prompt_version": RESEARCH_PLANNING_PROMPT_VERSION,
+            }
+        )
+
+    @property
+    def evidence_node_metadata(self) -> dict[str, TraceScalar]:
+        """Return safe metadata without source URL or extracted page content."""
+        return sanitize_trace_metadata(
+            {
+                **self.graph_metadata,
+                "component": "evidence_verification_agent",
+                "prompt_version": EVIDENCE_VERIFICATION_PROMPT_VERSION,
             }
         )
 

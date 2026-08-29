@@ -8,7 +8,6 @@ from scholarpath.graph import (
     CANONICAL_NODE_NAMES,
     ScholarPathState,
     build_scholarpath_graph,
-    render_scholarpath_mermaid,
 )
 
 TEST_FILE = Path(__file__).resolve()
@@ -63,12 +62,9 @@ def test_compiled_graph_contains_exactly_the_fifteen_canonical_nodes() -> None:
     assert len(CANONICAL_NODE_NAMES) == 15
 
 
-def test_current_mermaid_matches_the_compiled_graph_structure() -> None:
-    saved = (PROJECT_ROOT / "docs" / "m5-resilient-discovery-graph.mmd").read_text(encoding="utf-8")
-    generated = render_scholarpath_mermaid()
+def test_historical_m2_mermaid_preserves_the_fifteen_node_walking_skeleton() -> None:
+    saved = (PROJECT_ROOT / "docs" / "m2-walking-skeleton.mmd").read_text(encoding="utf-8")
 
-    assert saved.strip() == generated.strip()
-    assert (PROJECT_ROOT / "docs" / "m2-walking-skeleton.mmd").is_file()
     for node_name in CANONICAL_NODE_NAMES:
         assert node_name in saved
 

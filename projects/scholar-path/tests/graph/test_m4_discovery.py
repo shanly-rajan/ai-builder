@@ -19,6 +19,8 @@ from scholarpath.graph import (
 )
 from scholarpath.tools import SupervisorSearchTimeoutError
 from tests.fakes import (
+    FakeContentExtraction,
+    FakeEvidenceVerificationModel,
     FakePlanningModel,
     FakeSupervisorSearch,
     make_valid_planning_response,
@@ -35,6 +37,8 @@ def _run_with_fake(
         planning_model=FakePlanningModel(),
         supervisor_search=supervisor_search,
         tavily_search=tavily_search or FakeSupervisorSearch(),
+        content_extractor=FakeContentExtraction(),
+        evidence_model=FakeEvidenceVerificationModel(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=DiscoveryFailureMode.OFF,

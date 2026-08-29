@@ -14,16 +14,22 @@ from scholarpath.config import (
     Environment,
     LangSmithSettings,
     LogLevel,
+    OpenAIEvidenceConfiguration,
+    OpenAIEvidenceSettings,
     OpenAIPlanningSettings,
     ProviderConfiguration,
     ProviderConfigurationError,
+    TavilyExtractionConfiguration,
+    TavilyExtractionSettings,
     TavilySearchConfiguration,
     TavilySearchSettings,
     YouSearchConfiguration,
     YouSearchSettings,
     load_langsmith_settings,
+    load_openai_evidence_settings,
     load_openai_planning_settings,
     load_settings,
+    load_tavily_extraction_settings,
     load_tavily_search_settings,
     load_you_search_settings,
 )
@@ -138,6 +144,70 @@ def test_openai_settings_do_not_require_a_key_until_planning_is_requested(
         settings.for_planning_model()
 
 
+def test_openai_evidence_settings_defer_credentials_until_model_is_requested(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+
+    settings = load_openai_evidence_settings()
+
+    assert settings.api_key is None
+    assert settings.evidence_model == "gpt-5.4-mini"
+    assert settings.evidence_timeout_seconds == 60.0
+    with pytest.raises(ProviderConfigurationError, match="provider 'openai'"):
+        settings.for_evidence_model()
+
+
+def test_openai_evidence_settings_use_canonical_environment_and_mask_secret(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+    raw_secret = "not-a-real-openai-evidence-secret"
+    monkeypatch.setenv("OPENAI_API_KEY", raw_secret)
+    monkeypatch.setenv("OPENAI_EVIDENCE_MODEL", "synthetic-evidence-model")
+    monkeypatch.setenv("OPENAI_EVIDENCE_TIMEOUT_SECONDS", "14.5")
+
+    configuration = load_openai_evidence_settings().for_evidence_model()
+
+    assert configuration.api_key.get_secret_value() == raw_secret
+    assert configuration.model == "synthetic-evidence-model"
+    assert configuration.timeout_seconds == 14.5
+    assert raw_secret not in repr(configuration)
+    assert raw_secret not in str(configuration)
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"evidence_timeout_seconds": 0},
+    ],
+)
+def test_openai_evidence_settings_reject_invalid_non_secret_options(
+    values: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError):
+        OpenAIEvidenceSettings.model_validate(values)
+
+
+def test_openai_evidence_rejects_blank_model_at_adapter_boundary() -> None:
+    settings = OpenAIEvidenceSettings(
+        api_key=SecretStr("not-a-real-openai-secret"),
+        evidence_model="   ",
+    )
+
+    with pytest.raises(ValidationError, match="at least 1 character"):
+        settings.for_evidence_model()
+
+
+def test_openai_evidence_configuration_rejects_blank_secret() -> None:
+    with pytest.raises(ValidationError, match="OpenAI API key must not be blank"):
+        OpenAIEvidenceConfiguration(
+            api_key=SecretStr("   "),
+            model="synthetic-evidence-model",
+            timeout_seconds=10,
+        )
+
+
 def test_you_search_settings_defer_credentials_until_adapter_is_requested(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -247,6 +317,85 @@ def test_tavily_configuration_rejects_blank_secret() -> None:
             api_key=SecretStr("   "),
             timeout_seconds=20,
             result_count=10,
+        )
+
+
+def test_tavily_extraction_settings_defer_credentials_until_adapter_is_requested(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+
+    settings = load_tavily_extraction_settings()
+
+    assert settings.api_key is None
+    assert settings.provider_timeout_seconds == 20
+    assert settings.request_timeout_seconds == 25.0
+    assert settings.extract_depth == "advanced"
+    assert settings.max_content_characters == 50_000
+    with pytest.raises(ProviderConfigurationError, match="provider 'tavily'"):
+        settings.for_extraction_adapter()
+
+
+def test_tavily_extraction_settings_use_canonical_environment_and_mask_secret(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+    raw_secret = "not-a-real-tavily-extraction-secret"
+    monkeypatch.setenv("TAVILY_API_KEY", raw_secret)
+    monkeypatch.setenv("TAVILY_EXTRACT_PROVIDER_TIMEOUT_SECONDS", "12")
+    monkeypatch.setenv("TAVILY_EXTRACT_REQUEST_TIMEOUT_SECONDS", "15.5")
+    monkeypatch.setenv("TAVILY_EXTRACT_DEPTH", "basic")
+    monkeypatch.setenv("TAVILY_EXTRACT_MAX_CONTENT_CHARACTERS", "42000")
+
+    configuration = load_tavily_extraction_settings().for_extraction_adapter()
+
+    assert configuration.api_key.get_secret_value() == raw_secret
+    assert configuration.provider_timeout_seconds == 12
+    assert configuration.request_timeout_seconds == 15.5
+    assert configuration.extract_depth == "basic"
+    assert configuration.max_content_characters == 42_000
+    assert raw_secret not in repr(configuration)
+    assert raw_secret not in str(configuration)
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"provider_timeout_seconds": 0},
+        {"provider_timeout_seconds": 61},
+        {"request_timeout_seconds": 0},
+        {"request_timeout_seconds": 91},
+        {"extract_depth": "unsupported"},
+        {"max_content_characters": 999},
+        {"max_content_characters": 200_001},
+    ],
+)
+def test_tavily_extraction_settings_reject_invalid_options(
+    values: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError):
+        TavilyExtractionSettings.model_validate(values)
+
+
+def test_tavily_extraction_configuration_requires_request_timeout_headroom() -> None:
+    with pytest.raises(ValidationError, match="request timeout must exceed provider timeout"):
+        TavilyExtractionConfiguration(
+            api_key=SecretStr("not-a-real-tavily-secret"),
+            provider_timeout_seconds=20,
+            request_timeout_seconds=20,
+            extract_depth="advanced",
+            max_content_characters=50_000,
+        )
+
+
+def test_tavily_extraction_configuration_rejects_blank_secret() -> None:
+    with pytest.raises(ValidationError, match="Tavily API key must not be blank"):
+        TavilyExtractionConfiguration(
+            api_key=SecretStr("   "),
+            provider_timeout_seconds=20,
+            request_timeout_seconds=25,
+            extract_depth="advanced",
+            max_content_characters=50_000,
         )
 
 

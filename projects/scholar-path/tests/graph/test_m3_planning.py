@@ -12,13 +12,20 @@ from scholarpath.config import (
     LangSmithSettings,
 )
 from scholarpath.graph import ReviewStatus, ScholarPathState, run_scholarpath_graph
-from tests.fakes import FakePlanningModel, FakeSupervisorSearch
+from tests.fakes import (
+    FakeContentExtraction,
+    FakeEvidenceVerificationModel,
+    FakePlanningModel,
+    FakeSupervisorSearch,
+)
 
 
 def _run_with_fake(model: FakePlanningModel) -> ScholarPathState:
     return run_scholarpath_graph(
         planning_model=model,
         supervisor_search=FakeSupervisorSearch(),
+        content_extractor=FakeContentExtraction(),
+        evidence_model=FakeEvidenceVerificationModel(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=DiscoveryFailureMode.OFF,

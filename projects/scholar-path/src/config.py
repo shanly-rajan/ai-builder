@@ -1,7 +1,7 @@
 """Typed application and provider settings with deferred credential validation."""
 
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Literal, Self
 
 from pydantic import (
     AliasChoices,
@@ -11,6 +11,7 @@ from pydantic import (
     HttpUrl,
     SecretStr,
     field_validator,
+    model_validator,
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -113,6 +114,56 @@ class OpenAIPlanningSettings(BaseSettings):
             api_key=self.api_key,
             model=self.planning_model,
             timeout_seconds=self.planning_timeout_seconds,
+        )
+
+
+class OpenAIEvidenceConfiguration(BaseModel):
+    """Validated settings passed only to the OpenAI evidence adapter."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        hide_input_in_errors=True,
+        str_strip_whitespace=True,
+    )
+
+    api_key: SecretStr
+    model: str = Field(min_length=1)
+    timeout_seconds: float = Field(gt=0)
+
+    @field_validator("api_key")
+    @classmethod
+    def api_key_must_not_be_blank(cls, value: SecretStr) -> SecretStr:
+        """Reject blank OpenAI credentials at evidence-adapter activation."""
+        if not value.get_secret_value().strip():
+            raise ValueError("OpenAI API key must not be blank")
+        return value
+
+
+class OpenAIEvidenceSettings(BaseSettings):
+    """OpenAI evidence settings that remain inert until verification is requested."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="OPENAI_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        frozen=True,
+        hide_input_in_errors=True,
+        str_strip_whitespace=True,
+    )
+
+    api_key: Annotated[SecretStr | None, Field(repr=False)] = None
+    evidence_model: str = "gpt-5.4-mini"
+    evidence_timeout_seconds: float = Field(default=60.0, gt=0)
+
+    def for_evidence_model(self) -> OpenAIEvidenceConfiguration:
+        """Validate credentials only when the evidence model is requested."""
+        if self.api_key is None or not self.api_key.get_secret_value().strip():
+            raise ProviderConfigurationError("Missing API key for provider 'openai'.")
+        return OpenAIEvidenceConfiguration(
+            api_key=self.api_key,
+            model=self.evidence_model,
+            timeout_seconds=self.evidence_timeout_seconds,
         )
 
 
@@ -258,6 +309,90 @@ class TavilySearchSettings(BaseSettings):
         )
 
 
+class TavilyExtractionConfiguration(BaseModel):
+    """Validated settings passed only to the official Tavily Extract adapter."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        hide_input_in_errors=True,
+        str_strip_whitespace=True,
+    )
+
+    api_key: SecretStr
+    provider_timeout_seconds: int = Field(ge=1, le=60)
+    request_timeout_seconds: float = Field(gt=0, le=90)
+    extract_depth: Literal["basic", "advanced"] = "advanced"
+    max_content_characters: int = Field(ge=1_000, le=200_000)
+
+    @field_validator("api_key")
+    @classmethod
+    def api_key_must_not_be_blank(cls, value: SecretStr) -> SecretStr:
+        """Reject blank Tavily credentials at extraction-adapter activation."""
+        if not value.get_secret_value().strip():
+            raise ValueError("Tavily API key must not be blank")
+        return value
+
+    @model_validator(mode="after")
+    def request_deadline_must_exceed_provider_timeout(self) -> Self:
+        """Leave time for Tavily to return its provider-side timeout result."""
+        if self.request_timeout_seconds <= self.provider_timeout_seconds:
+            raise ValueError("Tavily Extract request timeout must exceed provider timeout")
+        return self
+
+
+class TavilyExtractionSettings(BaseSettings):
+    """Tavily Extract settings that remain inert until evidence retrieval begins."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        frozen=True,
+        hide_input_in_errors=True,
+        populate_by_name=True,
+        str_strip_whitespace=True,
+    )
+
+    api_key: Annotated[
+        SecretStr | None,
+        Field(repr=False, validation_alias="TAVILY_API_KEY"),
+    ] = None
+    provider_timeout_seconds: int = Field(
+        default=20,
+        ge=1,
+        le=60,
+        validation_alias="TAVILY_EXTRACT_PROVIDER_TIMEOUT_SECONDS",
+    )
+    request_timeout_seconds: float = Field(
+        default=25.0,
+        gt=0,
+        le=90,
+        validation_alias="TAVILY_EXTRACT_REQUEST_TIMEOUT_SECONDS",
+    )
+    extract_depth: Literal["basic", "advanced"] = Field(
+        default="advanced",
+        validation_alias="TAVILY_EXTRACT_DEPTH",
+    )
+    max_content_characters: int = Field(
+        default=50_000,
+        ge=1_000,
+        le=200_000,
+        validation_alias="TAVILY_EXTRACT_MAX_CONTENT_CHARACTERS",
+    )
+
+    def for_extraction_adapter(self) -> TavilyExtractionConfiguration:
+        """Validate credentials only when Tavily Extract is requested."""
+        if self.api_key is None or not self.api_key.get_secret_value().strip():
+            raise ProviderConfigurationError("Missing API key for provider 'tavily'.")
+        return TavilyExtractionConfiguration(
+            api_key=self.api_key,
+            provider_timeout_seconds=self.provider_timeout_seconds,
+            request_timeout_seconds=self.request_timeout_seconds,
+            extract_depth=self.extract_depth,
+            max_content_characters=self.max_content_characters,
+        )
+
+
 class LangSmithSettings(BaseSettings):
     """Optional LangSmith settings loaded from the provider's canonical variables."""
 
@@ -333,6 +468,11 @@ def load_openai_planning_settings() -> OpenAIPlanningSettings:
     return OpenAIPlanningSettings()
 
 
+def load_openai_evidence_settings() -> OpenAIEvidenceSettings:
+    """Load optional OpenAI evidence settings without requiring credentials."""
+    return OpenAIEvidenceSettings()
+
+
 def load_you_search_settings() -> YouSearchSettings:
     """Load optional You.com settings without requiring credentials."""
     return YouSearchSettings()
@@ -341,6 +481,11 @@ def load_you_search_settings() -> YouSearchSettings:
 def load_tavily_search_settings() -> TavilySearchSettings:
     """Load optional Tavily settings without requiring credentials."""
     return TavilySearchSettings()
+
+
+def load_tavily_extraction_settings() -> TavilyExtractionSettings:
+    """Load optional Tavily Extract settings without requiring credentials."""
+    return TavilyExtractionSettings()
 
 
 def load_langsmith_settings() -> LangSmithSettings:

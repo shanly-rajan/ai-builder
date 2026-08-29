@@ -24,6 +24,7 @@ from scholarpath.graph import (
     RawSupervisorSearchResult,
     ReviewStatus,
     ScholarPathState,
+    VerificationPolicy,
     append_items,
     build_walking_skeleton_fixtures,
     create_initial_state,
@@ -31,7 +32,12 @@ from scholarpath.graph import (
     run_scholarpath_graph,
 )
 from scholarpath.graph.workflow import DeterministicScholarPathNodes
-from tests.fakes import FakePlanningModel, FakeSupervisorSearch
+from tests.fakes import (
+    FakeContentExtraction,
+    FakeEvidenceVerificationModel,
+    FakePlanningModel,
+    FakeSupervisorSearch,
+)
 
 FIXTURE_IDS = tuple(
     supervisor.supervisor_id
@@ -44,6 +50,8 @@ def _run_graph(config: GraphFixtureConfig | None = None) -> ScholarPathState:
         config,
         planning_model=FakePlanningModel(),
         supervisor_search=FakeSupervisorSearch(),
+        content_extractor=FakeContentExtraction(),
+        evidence_model=FakeEvidenceVerificationModel(),
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=DiscoveryFailureMode.OFF,
@@ -93,6 +101,9 @@ def test_initial_state_populates_every_channel_with_safe_defaults() -> None:
     assert state["search_plan"] is None
     assert state["supervisor_shortlist"] is None
     assert state["search_attempts"] == []
+    assert state["verification_records"] == []
+    assert state["evidence_extraction_attempts"] == []
+    assert state["alternate_evidence_sources"] == {}
     assert state["fallback_search_used"] is False
     assert state["fallback_search_round"] is None
     assert state["discovery_round"] == 0
@@ -131,11 +142,12 @@ def test_raw_search_result_revalidates_during_domain_conversion() -> None:
             "less than or equal to 100",
         ),
         (
-            lambda: GraphFixtureConfig(minimum_verified_supervisors=4),
+            lambda: GraphFixtureConfig(
+                verification_policy=VerificationPolicy(minimum_verified_supervisors=4)
+            ),
             "must not be less than shortlist_size",
         ),
         (lambda: GraphFixtureConfig(shortlist_size=4), "must be 5"),
-        (lambda: GraphFixtureConfig(max_evidence_retries=-1), "must not be negative"),
         (lambda: GraphFixtureConfig(max_review_retries=6), "must not exceed 5"),
     ],
 )
@@ -149,7 +161,11 @@ def test_graph_fixture_config_rejects_invalid_controls(
 def test_planning_without_loaded_preferences_uses_candidate_profile_regions() -> None:
     config = GraphFixtureConfig()
     planning_model = FakePlanningModel()
-    nodes = DeterministicScholarPathNodes(config, ResearchPlanningAgent(planning_model))
+    nodes = DeterministicScholarPathNodes(
+        config,
+        ResearchPlanningAgent(planning_model),
+        evidence_model=FakeEvidenceVerificationModel(),
+    )
     state = create_initial_state(config.fixtures.candidate_profile)
 
     update = nodes.plan_supervisor_searches(state)
@@ -211,7 +227,11 @@ def test_partial_approval_cannot_complete_the_five_supervisor_shortlist() -> Non
 
 def test_briefing_node_rejects_missing_shortlist() -> None:
     config = GraphFixtureConfig()
-    nodes = DeterministicScholarPathNodes(config, ResearchPlanningAgent(FakePlanningModel()))
+    nodes = DeterministicScholarPathNodes(
+        config,
+        ResearchPlanningAgent(FakePlanningModel()),
+        evidence_model=FakeEvidenceVerificationModel(),
+    )
     state = create_initial_state(config.fixtures.candidate_profile)
 
     with pytest.raises(ValueError, match="SupervisorShortlist is required"):

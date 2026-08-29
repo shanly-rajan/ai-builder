@@ -19,6 +19,7 @@ from scholarpath.domain import (
     apply_candidate_review,
     create_supervisor_shortlist,
     derive_availability_status,
+    evidence_claim_is_grounded_for_supervisor,
     is_structural_transition_allowed,
     missing_verification_evidence,
     structurally_allowed_transitions,
@@ -174,7 +175,217 @@ def test_direct_verified_construction_rejects_missing_identity_evidence() -> Non
         )
 
 
+@pytest.mark.parametrize("asserted_name", [None, "Dr Another Person"])
+def test_identity_evidence_must_assert_the_same_supervisor_name(
+    asserted_name: str | None,
+) -> None:
+    prospective = make_prospective_supervisor(1)
+    evidence = make_evidence_claims(1)
+    invalid_identity = evidence[0].model_copy(update={"asserted_name": asserted_name})
+    invalid_evidence = (invalid_identity, *evidence[1:])
+
+    assert missing_verification_evidence(invalid_evidence, prospective) == ("identity",)
+    with pytest.raises(SupervisorVerificationError, match="identity"):
+        verify_supervisor(prospective, invalid_evidence)
+
+
+def test_direct_verified_construction_rejects_type_only_identity_evidence() -> None:
+    verified = make_verified_supervisor(1)
+    identity = verified.evidence[0].model_copy(update={"asserted_name": None})
+
+    with pytest.raises(ValidationError, match="identity"):
+        VerifiedSupervisor.model_validate(
+            {
+                **verified.model_dump(mode="python"),
+                "evidence": (identity, *verified.evidence[1:]),
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"asserted_name": None},
+        {"asserted_name": "Dr Another Person"},
+        {"asserted_institution": None},
+        {"asserted_department": None},
+    ],
+)
+def test_affiliation_evidence_requires_the_same_name_institution_and_department(
+    updates: dict[str, str | None],
+) -> None:
+    prospective = make_prospective_supervisor(1)
+    evidence = make_evidence_claims(1)
+    invalid_affiliation = evidence[1].model_copy(update=updates)
+    invalid_evidence = (evidence[0], invalid_affiliation, *evidence[2:])
+
+    assert missing_verification_evidence(invalid_evidence, prospective) == ("current_affiliation",)
+    with pytest.raises(SupervisorVerificationError, match="current_affiliation"):
+        verify_supervisor(prospective, invalid_evidence)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("asserted_institution", ""), ("asserted_department", " ")],
+)
+def test_affiliation_evidence_rejects_empty_typed_values(field: str, value: str) -> None:
+    affiliation = make_evidence_claims(1)[1]
+
+    with pytest.raises(ValidationError, match="at least 1 character"):
+        affiliation.model_copy(update={field: value})
+
+
+def test_direct_verified_construction_rejects_type_only_affiliation_evidence() -> None:
+    verified = make_verified_supervisor(1)
+    affiliation = verified.evidence[1].model_copy(
+        update={
+            "asserted_name": None,
+            "asserted_institution": None,
+            "asserted_department": None,
+        }
+    )
+
+    with pytest.raises(ValidationError, match="current_affiliation"):
+        VerifiedSupervisor.model_validate(
+            {
+                **verified.model_dump(mode="python"),
+                "evidence": (verified.evidence[0], affiliation, *verified.evidence[2:]),
+            }
+        )
+
+
+def test_every_direct_fixture_claim_is_subject_and_excerpt_grounded() -> None:
+    prospective = make_prospective_supervisor(4)
+    evidence = make_evidence_claims(4)
+
+    assert all(evidence_claim_is_grounded_for_supervisor(claim, prospective) for claim in evidence)
+    availability_source_urls = {
+        str(claim.source_url)
+        for claim in evidence
+        if claim.claim_type is EvidenceClaimType.AVAILABILITY
+    }
+    assert len(availability_source_urls) == 2
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"supporting_excerpt": None},
+        {"supporting_excerpt": "The profile names Dr Another Person."},
+        {"supporting_excerpt": "The profile names Dr Amara Ndlovou."},
+    ],
+)
+def test_identity_requires_the_exact_normalized_name_in_its_excerpt(
+    updates: dict[str, str | None],
+) -> None:
+    prospective = make_prospective_supervisor(1)
+    evidence = make_evidence_claims(1)
+    identity = evidence[0].model_copy(update=updates)
+    invalid_evidence = (identity, *evidence[1:])
+
+    assert evidence_claim_is_grounded_for_supervisor(identity, prospective) is False
+    assert missing_verification_evidence(invalid_evidence, prospective) == ("identity",)
+    with pytest.raises(SupervisorVerificationError, match="identity"):
+        verify_supervisor(prospective, invalid_evidence)
+
+
+@pytest.mark.parametrize(
+    "excerpt",
+    [
+        "Dr Amara Ndlovu is currently listed at Southern Cape Institute of Technology.",
+        "Dr Amara Ndlovu is currently listed in the Department of Information Systems.",
+    ],
+)
+def test_affiliation_requires_its_institution_and_department_in_the_excerpt(
+    excerpt: str,
+) -> None:
+    prospective = make_prospective_supervisor(1)
+    evidence = make_evidence_claims(1)
+    affiliation = evidence[1].model_copy(update={"supporting_excerpt": excerpt})
+    invalid_evidence = (evidence[0], affiliation, *evidence[2:])
+
+    assert evidence_claim_is_grounded_for_supervisor(affiliation, prospective) is False
+    assert missing_verification_evidence(invalid_evidence, prospective) == ("current_affiliation",)
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {
+            "asserted_name": "Dr Another Person",
+            "supporting_excerpt": "Dr Another Person researches quantum biology.",
+        },
+        {
+            "asserted_name": None,
+            "supporting_excerpt": "The page discusses quantum biology.",
+        },
+        {
+            "supporting_excerpt": (
+                "Dr Amara Ndlovu hosts Dr Bongani Dube, whose research focuses on quantum biology."
+            ),
+        },
+    ],
+)
+def test_wrong_person_or_generic_research_cannot_satisfy_verification(
+    updates: dict[str, str | None],
+) -> None:
+    prospective = make_prospective_supervisor(1)
+    evidence = make_evidence_claims(1)
+    research = evidence[2].model_copy(update=updates)
+    without_publication = tuple(
+        claim
+        for claim in (evidence[0], evidence[1], research, *evidence[3:])
+        if claim.claim_type is not EvidenceClaimType.PUBLICATION
+    )
+
+    assert evidence_claim_is_grounded_for_supervisor(research, prospective) is False
+    assert missing_verification_evidence(without_publication, prospective) == (
+        "research_interest_or_publication",
+    )
+    with pytest.raises(SupervisorVerificationError, match="research_interest_or_publication"):
+        verify_supervisor(prospective, without_publication)
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {
+            "asserted_name": "Dr Another Person",
+            "supporting_excerpt": (
+                "Dr Another Person is currently accepting new doctoral Candidates."
+            ),
+        },
+        {"supporting_excerpt": ("Professor Elias Hart is not accepting new doctoral Candidates.")},
+        {
+            "supporting_excerpt": (
+                "Professor Elias Hart has supervised doctoral Candidates previously."
+            )
+        },
+        {
+            "supporting_excerpt": (
+                "Professor Elias Hart collaborates with Dr Bongani Dube, who is currently "
+                "accepting new doctoral Candidates."
+            )
+        },
+        {"supporting_excerpt": ("Professor Elias Hart isn't accepting new doctoral Candidates.")},
+        {"supporting_excerpt": ("Professor Elias Hart isn’t accepting new doctoral Candidates.")},
+    ],
+)
+def test_availability_requires_the_same_supervisor_and_matching_explicit_polarity(
+    updates: dict[str, str],
+) -> None:
+    prospective = make_prospective_supervisor(2)
+    evidence = make_evidence_claims(2)
+    availability = evidence[-1].model_copy(update=updates)
+    invalid_evidence = (*evidence[:-1], availability)
+
+    assert evidence_claim_is_grounded_for_supervisor(availability, prospective) is False
+    with pytest.raises(SupervisorVerificationError, match="inconsistent"):
+        verify_supervisor(prospective, invalid_evidence)
+
+
 def test_indirect_evidence_does_not_satisfy_verification() -> None:
+    prospective = make_prospective_supervisor(1)
     evidence = make_evidence_claims(1)
     identity = evidence[0]
     indirect_identity = EvidenceClaim.model_validate(
@@ -182,12 +393,13 @@ def test_indirect_evidence_does_not_satisfy_verification() -> None:
     )
     with_indirect_identity = (indirect_identity, *evidence[1:])
 
-    assert missing_verification_evidence(with_indirect_identity, "supervisor-001") == ("identity",)
+    assert missing_verification_evidence(with_indirect_identity, prospective) == ("identity",)
     with pytest.raises(SupervisorVerificationError, match="identity"):
-        verify_supervisor(make_prospective_supervisor(1), with_indirect_identity)
+        verify_supervisor(prospective, with_indirect_identity)
 
 
 def test_evidence_for_another_supervisor_does_not_satisfy_verification() -> None:
+    prospective = make_prospective_supervisor(1)
     evidence = tuple(
         EvidenceClaim.model_validate(
             {**claim.model_dump(mode="python"), "supervisor_id": "supervisor-999"}
@@ -195,13 +407,13 @@ def test_evidence_for_another_supervisor_does_not_satisfy_verification() -> None
         for claim in make_evidence_claims(1)
     )
 
-    assert missing_verification_evidence(evidence, "supervisor-001") == (
+    assert missing_verification_evidence(evidence, prospective) == (
         "identity",
         "current_affiliation",
         "research_interest_or_publication",
     )
     with pytest.raises(SupervisorVerificationError, match="missing evidence"):
-        verify_supervisor(make_prospective_supervisor(1), evidence)
+        verify_supervisor(prospective, evidence)
 
 
 def test_verification_normalizes_duplicate_evidence_errors() -> None:

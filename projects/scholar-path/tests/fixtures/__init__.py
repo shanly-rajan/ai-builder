@@ -1,5 +1,18 @@
 """Deterministic, synthetic ScholarPath test-data factories."""
 
+from tests.fixtures.evidence_pages import (
+    ACCEPTING_PROFILE_URL,
+    ALTERNATE_OFFICIAL_PROFILE_URL,
+    COMPLETE_PROFILE_URL,
+    CONFLICTING_AFFILIATION_URL,
+    EVIDENCE_PAGE_ROOT,
+    FIXED_EVIDENCE_RETRIEVED_AT,
+    MISSING_AFFILIATION_URL,
+    MISSING_RESEARCH_URL,
+    NOT_ACCEPTING_PROFILE_URL,
+    make_extracted_content,
+    read_evidence_page,
+)
 from tests.fixtures.factories import (
     FIXED_RETRIEVED_AT,
     make_candidate_profile,
@@ -14,9 +27,19 @@ from tests.fixtures.factories import (
 )
 
 __all__ = [
+    "ACCEPTING_PROFILE_URL",
+    "ALTERNATE_OFFICIAL_PROFILE_URL",
+    "COMPLETE_PROFILE_URL",
+    "CONFLICTING_AFFILIATION_URL",
+    "EVIDENCE_PAGE_ROOT",
+    "FIXED_EVIDENCE_RETRIEVED_AT",
     "FIXED_RETRIEVED_AT",
+    "MISSING_AFFILIATION_URL",
+    "MISSING_RESEARCH_URL",
+    "NOT_ACCEPTING_PROFILE_URL",
     "make_candidate_profile",
     "make_evidence_claims",
+    "make_extracted_content",
     "make_prospective_supervisor",
     "make_prospective_supervisors",
     "make_research_fit_assessment",
@@ -24,4 +47,5 @@ __all__ = [
     "make_search_plan",
     "make_verified_supervisor",
     "make_verified_supervisors",
+    "read_evidence_page",
 ]

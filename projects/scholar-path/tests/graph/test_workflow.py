@@ -31,7 +31,13 @@ from scholarpath.graph import (
     run_scholarpath_graph,
 )
 from scholarpath.tools import SearchErrorCategory, SearchProvider, SearchProviderError
-from tests.fakes import FakePlanningModel, FakeSupervisorSearch, make_valid_planning_response
+from tests.fakes import (
+    FakeContentExtraction,
+    FakeEvidenceVerificationModel,
+    FakePlanningModel,
+    FakeSupervisorSearch,
+    make_valid_planning_response,
+)
 
 HAPPY_PATH_LOG = [
     "load_candidate_preferences",
@@ -62,12 +68,18 @@ def _run_graph(
     planning_model: FakePlanningModel | None = None,
     supervisor_search: FakeSupervisorSearch | None = None,
     tavily_search: FakeSupervisorSearch | None = None,
+    content_extractor: FakeContentExtraction | None = None,
+    evidence_model: FakeEvidenceVerificationModel | None = None,
+    alternate_evidence_search: FakeSupervisorSearch | None = None,
 ) -> ScholarPathState:
     return run_scholarpath_graph(
         config,
         planning_model=planning_model or FakePlanningModel(),
         supervisor_search=supervisor_search or FakeSupervisorSearch(),
         tavily_search=tavily_search or FakeSupervisorSearch(),
+        content_extractor=content_extractor or FakeContentExtraction(),
+        evidence_model=evidence_model or FakeEvidenceVerificationModel(),
+        alternate_evidence_search=alternate_evidence_search,
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
             discovery_failure_mode=DiscoveryFailureMode.OFF,
@@ -123,25 +135,6 @@ def test_insufficient_results_route_through_fallback_search() -> None:
     assert len(final_state["raw_search_results"]) == 6
     assert len(final_state["prospective_supervisors"]) == 6
     assert len({item.supervisor_id for item in final_state["prospective_supervisors"]}) == 6
-
-
-def test_insufficient_evidence_routes_through_alternate_retrieval() -> None:
-    config = GraphFixtureConfig(initial_evidence_count=2, alternate_evidence_count=6)
-
-    final_state = _run_graph(config)
-
-    log = final_state["execution_log"]
-    first_extract = log.index("extract_supervisor_evidence")
-    assert log[first_extract : first_extract + 5] == [
-        "extract_supervisor_evidence",
-        "supervisor_evidence_sufficient",
-        "retry_alternate_evidence_source",
-        "extract_supervisor_evidence",
-        "supervisor_evidence_sufficient",
-    ]
-    assert final_state["retry_counts"]["evidence"] == 1
-    assert len(final_state["verified_supervisors"]) == 6
-    assert len(final_state["research_fit_assessments"]) == 6
 
 
 def test_candidate_approval_reaches_end_with_shortlisted_statuses() -> None:
@@ -224,18 +217,6 @@ def test_request_more_records_preferences_and_returns_to_search_planning() -> No
 @pytest.mark.parametrize(
     ("config_factory", "error_code", "last_node", "retry_key", "retry_node", "node_count"),
     [
-        (
-            lambda: GraphFixtureConfig(
-                initial_evidence_count=2,
-                alternate_evidence_count=2,
-                max_evidence_retries=1,
-            ),
-            "evidence_retry_exhausted",
-            "supervisor_evidence_sufficient",
-            "evidence",
-            "retry_alternate_evidence_source",
-            1,
-        ),
         (
             lambda: GraphFixtureConfig(
                 review_decisions=(

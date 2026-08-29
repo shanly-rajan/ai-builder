@@ -46,6 +46,14 @@ more information keeps the record verified while additional evidence is sought.
 
 Research evidence records factual interests and publications about a Supervisor.
 Candidate-specific alignment is expressed separately in a Research Fit assessment.
+In M6, a claim is directly supported only when its retrieved-page excerpt explicitly
+names the same Supervisor. Affiliation values and availability polarity must also match
+that exact excerpt; page-level identity alone does not bind nearby facts to the person.
+
+`partially_verified` is a verification outcome, not a Supervisor lifecycle value and
+not a synonym for Verified Supervisor. It means retrieved evidence remains incomplete;
+the record stays a Prospective Supervisor and retains its evidence, concerns, and
+missing categories for a bounded alternate-source attempt.
 
 ## Availability vocabulary
 
@@ -54,9 +62,9 @@ content.
 
 | Status | Meaning |
 |---|---|
-| `confirmed_accepting` | A current authoritative source explicitly states that the Supervisor is accepting doctoral Candidates. |
-| `confirmed_not_accepting` | A current authoritative source explicitly states that the Supervisor is not accepting doctoral Candidates. |
-| `not_stated` | No authoritative availability statement was found. |
+| `confirmed_accepting` | A retrieved source explicitly names the Supervisor and states that they are accepting doctoral Candidates. |
+| `confirmed_not_accepting` | A retrieved source explicitly names the Supervisor and states that they are not accepting doctoral Candidates. |
+| `not_stated` | No directly supported availability statement was found. |
 | `conflicting_evidence` | Current sources disagree about availability. |
 
 An individual availability claim can assert only `confirmed_accepting` or

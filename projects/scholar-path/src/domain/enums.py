@@ -36,6 +36,7 @@ class SourceKind(StrEnum):
     INSTITUTIONAL_DIRECTORY = "institutional_directory"
     DEPARTMENT_PAGE = "department_page"
     PUBLICATION = "publication"
+    PROJECT_PAGE = "project_page"
     RESEARCH_REPOSITORY = "research_repository"
     PERSONAL_ACADEMIC_PAGE = "personal_academic_page"
     OTHER = "other"
@@ -66,6 +67,7 @@ class EvidenceClaimType(StrEnum):
     RESEARCH_INTEREST = "research_interest"
     METHODOLOGY = "methodology"
     PUBLICATION = "publication"
+    PROJECT = "project"
     AVAILABILITY = "availability"
 
 
@@ -74,3 +76,4 @@ class VerificationStatus(StrEnum):
 
     VERIFIED = "verified"
     VERIFIED_WITH_CONCERNS = "verified_with_concerns"
+    PARTIALLY_VERIFIED = "partially_verified"

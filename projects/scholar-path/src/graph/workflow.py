@@ -5,9 +5,17 @@ from typing import Final, Literal, cast
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from pydantic import HttpUrl
 
 from ..agents import (
+    EVIDENCE_VERIFICATION_PROMPT_VERSION,
     RESEARCH_PLANNING_PROMPT_VERSION,
+    EvidenceExtractionInput,
+    EvidenceModelInvocationError,
+    EvidenceModelOutputError,
+    EvidenceVerificationAgent,
+    EvidenceVerificationModelPort,
+    OpenAIEvidenceVerificationModelAdapter,
     OpenAIPlanningModelAdapter,
     PlanningFailureKind,
     PlanningInput,
@@ -15,6 +23,7 @@ from ..agents import (
     PlanningModelPort,
     ResearchPlanningAgent,
     ResearchPlanningError,
+    StructuredEvidenceExtractionResult,
     StructuredSearchPlanResponse,
     SupervisorDiscoveryAgent,
     deduplicate_prospective_supervisors,
@@ -23,13 +32,17 @@ from ..config import (
     ApplicationSettings,
     DiscoveryFailureMode,
     LangSmithSettings,
+    OpenAIEvidenceSettings,
     OpenAIPlanningSettings,
     ProviderConfigurationError,
+    TavilyExtractionSettings,
     TavilySearchSettings,
     YouSearchSettings,
     load_langsmith_settings,
+    load_openai_evidence_settings,
     load_openai_planning_settings,
     load_settings,
+    load_tavily_extraction_settings,
     load_tavily_search_settings,
     load_you_search_settings,
 )
@@ -37,21 +50,30 @@ from ..domain import (
     CandidatePreferenceRevision,
     CandidateReviewAction,
     CandidateReviewDecision,
+    EvidenceClaimType,
     ProspectiveSupervisor,
     SearchPlan,
     SearchResult,
+    SupervisorVerificationRecord,
+    VerificationStatus,
     apply_candidate_review,
     create_supervisor_shortlist,
     validate_research_fit_evidence,
 )
 from ..observability import LangSmithObservability
 from ..tools import (
+    ContentExtractionError,
+    ContentExtractionErrorCategory,
+    ContentExtractionPort,
+    ContentExtractionProvider,
+    ExtractedContent,
     FailureInjectingSupervisorSearch,
     SearchErrorCategory,
     SearchProvider,
     SearchProviderError,
     SupervisorSearchError,
     SupervisorSearchPort,
+    TavilyExtractionAdapter,
     TavilySearchAdapter,
     YouSearchAdapter,
 )
@@ -74,6 +96,15 @@ from .state import (
     ScholarPathStateUpdate,
     ToolErrorRecord,
     create_initial_state,
+)
+from .verification import (
+    EvidenceExtractionAttempt,
+    EvidenceVerificationRoute,
+    VerificationPolicy,
+    alternate_official_source_query,
+    classify_evidence_source_kind,
+    route_after_evidence_sufficiency,
+    select_alternate_official_source,
 )
 
 LOAD_CANDIDATE_PREFERENCES: Final = "load_candidate_preferences"
@@ -135,31 +166,13 @@ class GraphFixtureConfig:
     review_decisions: tuple[CandidateReviewDecision, ...] = field(
         default_factory=lambda: (default_review_decision(),)
     )
-    initial_evidence_count: int = 6
-    alternate_evidence_count: int = 6
-    minimum_verified_supervisors: int = 5
+    verification_policy: VerificationPolicy = field(default_factory=VerificationPolicy)
     shortlist_size: int = REQUIRED_SHORTLIST_SIZE
-    max_evidence_retries: int = 1
     max_review_retries: int = 1
 
     def __post_init__(self) -> None:
         """Reject invalid fixture controls before graph construction."""
-        fixture_limits = {
-            "initial_evidence_count": (
-                self.initial_evidence_count,
-                len(self.fixtures.verified_supervisors),
-            ),
-            "alternate_evidence_count": (
-                self.alternate_evidence_count,
-                len(self.fixtures.verified_supervisors),
-            ),
-        }
-        for field_name, (value, maximum) in fixture_limits.items():
-            if not 0 <= value <= maximum:
-                raise ValueError(f"{field_name} must be between 0 and {maximum}")
-
         positive_values = {
-            "minimum_verified_supervisors": self.minimum_verified_supervisors,
             "shortlist_size": self.shortlist_size,
         }
         for field_name, value in positive_values.items():
@@ -170,18 +183,12 @@ class GraphFixtureConfig:
             raise ValueError(
                 f"shortlist_size must be {REQUIRED_SHORTLIST_SIZE} for the M2 walking skeleton"
             )
-        for field_name, value in (
-            ("minimum_verified_supervisors", self.minimum_verified_supervisors),
-        ):
-            if value < self.shortlist_size:
-                raise ValueError(f"{field_name} must not be less than shortlist_size")
+        if self.verification_policy.minimum_verified_supervisors < self.shortlist_size:
+            raise ValueError("minimum_verified_supervisors must not be less than shortlist_size")
         if len(self.fixtures.research_fit_assessments) < self.shortlist_size:
             raise ValueError("fixtures must contain enough Research Fit assessments")
 
-        retry_limits = {
-            "max_evidence_retries": self.max_evidence_retries,
-            "max_review_retries": self.max_review_retries,
-        }
+        retry_limits = {"max_review_retries": self.max_review_retries}
         for field_name, value in retry_limits.items():
             if value < 0:
                 raise ValueError(f"{field_name} must not be negative")
@@ -198,12 +205,20 @@ class DeterministicScholarPathNodes:
         planning_agent: ResearchPlanningAgent,
         supervisor_search: SupervisorSearchPort | None = None,
         tavily_search: SupervisorSearchPort | None = None,
+        content_extractor: ContentExtractionPort | None = None,
+        evidence_model: EvidenceVerificationModelPort | None = None,
+        alternate_evidence_search: SupervisorSearchPort | None = None,
     ) -> None:
         self.config = config
         self.planning_agent = planning_agent
         self.supervisor_search = supervisor_search
         self.tavily_search = tavily_search
+        self.content_extractor = content_extractor
+        self.alternate_evidence_search = alternate_evidence_search
         self.discovery_agent = SupervisorDiscoveryAgent()
+        if evidence_model is None:
+            raise ValueError("Evidence verification requires an injected model port")
+        self.evidence_agent = EvidenceVerificationAgent(evidence_model)
 
     @staticmethod
     def _error(
@@ -282,6 +297,10 @@ class DeterministicScholarPathNodes:
         return {
             "search_plan": plan,
             "discovery_round": state["discovery_round"] + 1,
+            "verified_supervisors": [],
+            "verification_records": [],
+            "alternate_evidence_sources": {},
+            "retry_counts": self._retry_counts(state, "evidence", 0),
             "execution_log": [PLAN_SUPERVISOR_SEARCHES],
         }
 
@@ -674,68 +693,322 @@ class DeterministicScholarPathNodes:
         }
 
     def extract_supervisor_evidence(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Select the configured fixture-backed Verified Supervisor evidence cohort."""
-        evidence_retry = state["retry_counts"]["evidence"]
-        count = (
-            self.config.initial_evidence_count
-            if evidence_retry == 0
-            else self.config.alternate_evidence_count
-        )
-        prospective_ids = {
-            supervisor.supervisor_id for supervisor in state["prospective_supervisors"]
-        }
-        rejected_ids = {supervisor.supervisor_id for supervisor in state["rejected_supervisors"]}
-        eligible = [
-            supervisor
-            for supervisor in self.config.fixtures.verified_supervisors
-            if supervisor.supervisor_id in prospective_ids
-            and supervisor.supervisor_id not in rejected_ids
-        ]
-        return {
-            "verified_supervisors": eligible[:count],
+        """Retrieve known pages and convert only grounded structured claims into evidence."""
+        update: ScholarPathStateUpdate = {
+            "verification_records": [],
+            "verified_supervisors": [],
+            "evidence_extraction_attempts": [],
             "execution_log": [EXTRACT_SUPERVISOR_EVIDENCE],
         }
+        records_by_id = {
+            record.prospective_supervisor.supervisor_id: record
+            for record in state["verification_records"]
+        }
+        attempts: list[EvidenceExtractionAttempt] = []
+        errors: list[ToolErrorRecord] = []
+        retrying_alternate = state["retry_counts"]["evidence"] > 0
+
+        for supervisor in state["prospective_supervisors"]:
+            previous = records_by_id.get(supervisor.supervisor_id)
+            if (
+                retrying_alternate
+                and previous is not None
+                and previous.verification_status is not VerificationStatus.PARTIALLY_VERIFIED
+            ):
+                continue
+
+            source_url = supervisor.profile_url
+            source_kind = classify_evidence_source_kind(supervisor.profile_url)
+            alternate = False
+            if retrying_alternate:
+                alternate_source = state["alternate_evidence_sources"].get(supervisor.supervisor_id)
+                if alternate_source is None:
+                    continue
+                source_url = alternate_source.source_url
+                source_kind = alternate_source.source_kind
+                alternate = True
+
+            prior_evidence = previous.evidence if previous is not None else ()
+            attempt_number = (
+                sum(
+                    attempt.supervisor_id == supervisor.supervisor_id
+                    and attempt.discovery_round == state["discovery_round"]
+                    for attempt in [*state["evidence_extraction_attempts"], *attempts]
+                )
+                + 1
+            )
+            if self.content_extractor is None:
+                extraction_error = ContentExtractionError(
+                    "No content extraction adapter was injected.",
+                    provider=ContentExtractionProvider.TAVILY,
+                    category=ContentExtractionErrorCategory.AUTHENTICATION,
+                    retryable=False,
+                    source_url=str(source_url),
+                )
+                extracted_content = None
+            else:
+                try:
+                    extracted_content = self.content_extractor.extract(source_url)
+                    extraction_error = None
+                except ContentExtractionError as caught_error:
+                    extracted_content = None
+                    extraction_error = caught_error
+                except Exception:
+                    extracted_content = None
+                    extraction_error = ContentExtractionError(
+                        "Content extraction failed unexpectedly.",
+                        provider=ContentExtractionProvider.TAVILY,
+                        category=ContentExtractionErrorCategory.PROVIDER,
+                        retryable=False,
+                        source_url=str(source_url),
+                    )
+
+            if extraction_error is not None:
+                attempts.append(
+                    EvidenceExtractionAttempt(
+                        supervisor_id=supervisor.supervisor_id,
+                        source_url=source_url,
+                        source_kind=source_kind,
+                        attempt_number=attempt_number,
+                        discovery_round=state["discovery_round"],
+                        alternate_source=alternate,
+                        successful=False,
+                        error_category=extraction_error.category,
+                    )
+                )
+                records_by_id[supervisor.supervisor_id] = (
+                    self.evidence_agent.build_verification_record(
+                        supervisor,
+                        prior_evidence,
+                        additional_concerns=(
+                            "A requested Supervisor source page could not be extracted.",
+                        ),
+                    )
+                )
+                errors.append(
+                    self._error(
+                        EXTRACT_SUPERVISOR_EVIDENCE,
+                        f"content_extraction_{extraction_error.category.value}",
+                        "A Supervisor source page could not be extracted.",
+                        recoverable=extraction_error.retryable,
+                    )
+                )
+                continue
+
+            assert extracted_content is not None
+            if not alternate or str(extracted_content.source_url) != str(source_url):
+                source_kind = classify_evidence_source_kind(extracted_content.source_url)
+            attempts.append(
+                EvidenceExtractionAttempt(
+                    supervisor_id=supervisor.supervisor_id,
+                    source_url=extracted_content.source_url,
+                    source_kind=source_kind,
+                    attempt_number=attempt_number,
+                    discovery_round=state["discovery_round"],
+                    alternate_source=alternate,
+                    successful=True,
+                )
+            )
+            try:
+                new_claims = self.evidence_agent.extract_claims(
+                    supervisor,
+                    extracted_content,
+                    source_kind,
+                )
+            except EvidenceModelOutputError:
+                records_by_id[supervisor.supervisor_id] = (
+                    self.evidence_agent.build_verification_record(
+                        supervisor,
+                        prior_evidence,
+                        additional_concerns=(
+                            "The retrieved page could not satisfy the structured "
+                            "evidence contract.",
+                        ),
+                    )
+                )
+                errors.append(
+                    self._error(
+                        EXTRACT_SUPERVISOR_EVIDENCE,
+                        "evidence_model_output_invalid",
+                        "Evidence extraction returned invalid structured output.",
+                        recoverable=True,
+                    )
+                )
+            except EvidenceModelInvocationError:
+                records_by_id[supervisor.supervisor_id] = (
+                    self.evidence_agent.build_verification_record(
+                        supervisor,
+                        prior_evidence,
+                        additional_concerns=("The evidence model could not process the page.",),
+                    )
+                )
+                errors.append(
+                    self._error(
+                        EXTRACT_SUPERVISOR_EVIDENCE,
+                        "evidence_model_failed",
+                        "Evidence extraction could not call the structured model.",
+                        recoverable=True,
+                    )
+                )
+            else:
+                records_by_id[supervisor.supervisor_id] = (
+                    self.evidence_agent.build_verification_record(
+                        supervisor,
+                        (*prior_evidence, *new_claims),
+                    )
+                )
+
+        ordered_records: list[SupervisorVerificationRecord] = []
+        for supervisor in state["prospective_supervisors"]:
+            record = records_by_id.get(supervisor.supervisor_id)
+            if record is None:
+                record = self.evidence_agent.build_verification_record(
+                    supervisor,
+                    (),
+                    additional_concerns=("No official evidence page was available.",),
+                )
+            ordered_records.append(record)
+
+        update["verification_records"] = ordered_records
+        update["verified_supervisors"] = [
+            record.verified_supervisor
+            for record in ordered_records
+            if record.verified_supervisor is not None
+        ]
+        update["evidence_extraction_attempts"] = attempts
+        if errors:
+            update["tool_errors"] = errors
+        return update
 
     def supervisor_evidence_sufficient(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Log cohort sufficiency and stop after the configured alternate-source limit."""
+        """Apply the pure verification policy and surface bounded partial completion."""
         update: ScholarPathStateUpdate = {"execution_log": [SUPERVISOR_EVIDENCE_SUFFICIENT]}
-        enough = len(state["verified_supervisors"]) >= self.config.minimum_verified_supervisors
-        exhausted = state["retry_counts"]["evidence"] >= self.config.max_evidence_retries
-        if not enough and exhausted:
-            update["review_status"] = ReviewStatus.RETRY_EXHAUSTED
+        route = route_after_evidence_sufficiency(
+            self.config.verification_policy,
+            tuple(state["verification_records"]),
+            alternate_retry_count=state["retry_counts"]["evidence"],
+        )
+        if route is EvidenceVerificationRoute.STOP_PARTIAL:
+            update["review_status"] = ReviewStatus.EVIDENCE_INCOMPLETE
             update["tool_errors"] = [
                 self._error(
                     SUPERVISOR_EVIDENCE_SUFFICIENT,
-                    "evidence_retry_exhausted",
-                    "Verified Supervisor evidence remained below the configured minimum.",
+                    "supervisor_evidence_incomplete",
+                    "Supervisor evidence remained below the configured verification minimum.",
+                    recoverable=True,
                 )
             ]
         return update
 
     def route_after_evidence(self, state: ScholarPathState) -> EvidenceRoute:
-        """Route deterministically after the logged evidence sufficiency check."""
-        if len(state["verified_supervisors"]) >= self.config.minimum_verified_supervisors:
-            return EVALUATE_RESEARCH_FIT
-        if state["review_status"] is ReviewStatus.RETRY_EXHAUSTED:
-            return "__end__"
-        return RETRY_ALTERNATE_EVIDENCE_SOURCE
+        """Map the pure evidence route into canonical graph edge names."""
+        route = route_after_evidence_sufficiency(
+            self.config.verification_policy,
+            tuple(state["verification_records"]),
+            alternate_retry_count=state["retry_counts"]["evidence"],
+        )
+        return route.value
 
     def retry_alternate_evidence_source(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Increment the alternate-source counter before deterministic re-extraction."""
+        """Search once per partial record and retain only a selected official source URL."""
         current_retry = state["retry_counts"]["evidence"]
-        return {
+        alternate_sources = dict(state["alternate_evidence_sources"])
+        errors: list[ToolErrorRecord] = []
+        partial_records = [
+            record
+            for record in state["verification_records"]
+            if record.verification_status is VerificationStatus.PARTIALLY_VERIFIED
+        ]
+        for record in partial_records:
+            supervisor = record.prospective_supervisor
+            query = alternate_official_source_query(supervisor)
+            if self.alternate_evidence_search is None:
+                errors.append(
+                    self._error(
+                        RETRY_ALTERNATE_EVIDENCE_SOURCE,
+                        "alternate_evidence_search_not_configured",
+                        "No alternate official-source search adapter is configured.",
+                        recoverable=True,
+                    )
+                )
+                continue
+            try:
+                results = self.alternate_evidence_search.search(query)
+            except SearchProviderError as error:
+                errors.append(
+                    self._search_error_record(
+                        RETRY_ALTERNATE_EVIDENCE_SOURCE,
+                        error.provider,
+                        error,
+                    )
+                )
+                if not error.retryable:
+                    break
+                continue
+            except Exception:
+                errors.append(
+                    self._error(
+                        RETRY_ALTERNATE_EVIDENCE_SOURCE,
+                        "alternate_evidence_search_failed",
+                        "Alternate official-source search failed unexpectedly.",
+                        recoverable=True,
+                    )
+                )
+                continue
+
+            selected = select_alternate_official_source(
+                supervisor,
+                results,
+                query=query,
+            )
+            if selected is None:
+                errors.append(
+                    self._error(
+                        RETRY_ALTERNATE_EVIDENCE_SOURCE,
+                        "alternate_official_source_not_found",
+                        "No alternate official Supervisor source could be selected.",
+                        recoverable=True,
+                    )
+                )
+                continue
+            alternate_sources[supervisor.supervisor_id] = selected
+
+        update: ScholarPathStateUpdate = {
             "retry_counts": self._retry_counts(state, "evidence", current_retry + 1),
+            "alternate_evidence_sources": alternate_sources,
             "execution_log": [RETRY_ALTERNATE_EVIDENCE_SOURCE],
         }
+        if errors:
+            update["tool_errors"] = errors
+        return update
 
     def evaluate_research_fit(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Select fixture assessments belonging to the current verified snapshot."""
-        verified_ids = {supervisor.supervisor_id for supervisor in state["verified_supervisors"]}
-        assessments = [
-            assessment
-            for assessment in self.config.fixtures.research_fit_assessments
-            if assessment.supervisor_id in verified_ids
-        ]
+        """Keep fixture scores while rebinding references to M6 verified evidence IDs."""
+        verified_by_id = {
+            supervisor.supervisor_id: supervisor for supervisor in state["verified_supervisors"]
+        }
+        fit_evidence_types = {
+            EvidenceClaimType.RESEARCH_INTEREST,
+            EvidenceClaimType.METHODOLOGY,
+            EvidenceClaimType.PUBLICATION,
+            EvidenceClaimType.PROJECT,
+            EvidenceClaimType.AVAILABILITY,
+        }
+        assessments = []
+        for fixture_assessment in self.config.fixtures.research_fit_assessments:
+            supervisor = verified_by_id.get(fixture_assessment.supervisor_id)
+            if supervisor is None:
+                continue
+            supporting_ids = tuple(
+                claim.evidence_id
+                for claim in supervisor.evidence
+                if claim.claim_type in fit_evidence_types and claim.directly_supported
+            )
+            if not supporting_ids:
+                continue
+            assessments.append(
+                fixture_assessment.model_copy(update={"supporting_evidence_ids": supporting_ids})
+            )
         return {
             "research_fit_assessments": assessments,
             "execution_log": [EVALUATE_RESEARCH_FIT],
@@ -922,6 +1195,29 @@ class _UnconfiguredSupervisorSearch:
         )
 
 
+class _UnconfiguredContentExtraction:
+    """Fail safely if a topology-only graph reaches evidence extraction."""
+
+    def extract(self, source_url: str | HttpUrl) -> ExtractedContent:
+        raise ContentExtractionError(
+            "No content extraction adapter was injected.",
+            provider=ContentExtractionProvider.TAVILY,
+            category=ContentExtractionErrorCategory.AUTHENTICATION,
+            retryable=False,
+            source_url=str(source_url),
+        )
+
+
+class _UnconfiguredEvidenceModel:
+    """Fail safely if a topology-only graph reaches structured evidence extraction."""
+
+    def extract(
+        self, extraction_input: EvidenceExtractionInput
+    ) -> StructuredEvidenceExtractionResult:
+        del extraction_input
+        raise EvidenceModelInvocationError("No evidence model was injected.")
+
+
 class _LazyTavilySearch:
     """Defer Tavily credential validation until the fallback is actually routed."""
 
@@ -944,6 +1240,50 @@ class _LazyTavilySearch:
         return self._adapter.search(query)
 
 
+class _LazyTavilyExtraction:
+    """Defer Tavily Extract credential validation until a known page is requested."""
+
+    def __init__(self, settings: TavilyExtractionSettings) -> None:
+        self._settings = settings
+        self._adapter: TavilyExtractionAdapter | None = None
+
+    def extract(self, source_url: str | HttpUrl) -> ExtractedContent:
+        if self._adapter is None:
+            try:
+                configuration = self._settings.for_extraction_adapter()
+            except ProviderConfigurationError:
+                raise ContentExtractionError(
+                    "Tavily Extract credentials are not configured.",
+                    provider=ContentExtractionProvider.TAVILY,
+                    category=ContentExtractionErrorCategory.AUTHENTICATION,
+                    retryable=False,
+                    source_url=str(source_url),
+                ) from None
+            self._adapter = TavilyExtractionAdapter(configuration)
+        return self._adapter.extract(source_url)
+
+
+class _LazyOpenAIEvidenceModel:
+    """Defer OpenAI evidence-model validation until extracted content is available."""
+
+    def __init__(self, settings: OpenAIEvidenceSettings) -> None:
+        self._settings = settings
+        self._adapter: OpenAIEvidenceVerificationModelAdapter | None = None
+
+    def extract(
+        self, extraction_input: EvidenceExtractionInput
+    ) -> StructuredEvidenceExtractionResult:
+        if self._adapter is None:
+            try:
+                configuration = self._settings.for_evidence_model()
+            except ProviderConfigurationError:
+                raise EvidenceModelInvocationError(
+                    "OpenAI evidence-model credentials are not configured."
+                ) from None
+            self._adapter = OpenAIEvidenceVerificationModelAdapter(configuration)
+        return self._adapter.extract(extraction_input)
+
+
 def _with_failure_injection(
     port: SupervisorSearchPort,
     provider: SearchProvider,
@@ -961,17 +1301,26 @@ def build_scholarpath_graph(
     planning_model: PlanningModelPort | None = None,
     supervisor_search: SupervisorSearchPort | None = None,
     tavily_search: SupervisorSearchPort | None = None,
+    content_extractor: ContentExtractionPort | None = None,
+    evidence_model: EvidenceVerificationModelPort | None = None,
+    alternate_evidence_search: SupervisorSearchPort | None = None,
     observability: LangSmithObservability | None = None,
 ) -> ScholarPathGraph:
     """Compile the graph without instantiating a provider or requiring credentials."""
     resolved_model = planning_model or _UnconfiguredPlanningModel()
     resolved_search = supervisor_search or _UnconfiguredSupervisorSearch(SearchProvider.YOU)
     resolved_tavily_search = tavily_search or _UnconfiguredSupervisorSearch(SearchProvider.TAVILY)
+    resolved_content_extractor = content_extractor or _UnconfiguredContentExtraction()
+    resolved_evidence_model = evidence_model or _UnconfiguredEvidenceModel()
+    resolved_alternate_search = alternate_evidence_search or resolved_tavily_search
     nodes = DeterministicScholarPathNodes(
         config or GraphFixtureConfig(),
         ResearchPlanningAgent(resolved_model),
         resolved_search,
         resolved_tavily_search,
+        resolved_content_extractor,
+        resolved_evidence_model,
+        resolved_alternate_search,
     )
     builder: StateGraph[ScholarPathState, None, ScholarPathState, ScholarPathState] = StateGraph(
         ScholarPathState
@@ -995,7 +1344,18 @@ def build_scholarpath_graph(
     builder.add_node(ENOUGH_SUPERVISORS_FOUND, nodes.enough_supervisors_found)
     builder.add_node(FALLBACK_SUPERVISOR_SEARCH, nodes.fallback_supervisor_search)
     builder.add_node(DEDUPLICATE_SUPERVISORS, nodes.deduplicate_supervisors)
-    builder.add_node(EXTRACT_SUPERVISOR_EVIDENCE, nodes.extract_supervisor_evidence)
+    builder.add_node(
+        EXTRACT_SUPERVISOR_EVIDENCE,
+        nodes.extract_supervisor_evidence,
+        metadata=(
+            observability.evidence_node_metadata
+            if observability is not None
+            else {
+                "component": "evidence_verification_agent",
+                "prompt_version": EVIDENCE_VERIFICATION_PROMPT_VERSION,
+            }
+        ),
+    )
     builder.add_node(SUPERVISOR_EVIDENCE_SUFFICIENT, nodes.supervisor_evidence_sufficient)
     builder.add_node(RETRY_ALTERNATE_EVIDENCE_SOURCE, nodes.retry_alternate_evidence_source)
     builder.add_node(EVALUATE_RESEARCH_FIT, nodes.evaluate_research_fit)
@@ -1042,7 +1402,7 @@ def build_scholarpath_graph(
     )
     builder.add_edge(SAVE_SHORTLISTED_SUPERVISORS, GENERATE_SHORTLIST_BRIEFING)
     builder.add_edge(GENERATE_SHORTLIST_BRIEFING, END)
-    return builder.compile(name="ScholarPath M5 resilient Supervisor discovery graph")
+    return builder.compile(name="ScholarPath M6 Supervisor evidence verification graph")
 
 
 def run_scholarpath_graph(
@@ -1051,10 +1411,15 @@ def run_scholarpath_graph(
     planning_model: PlanningModelPort | None = None,
     supervisor_search: SupervisorSearchPort | None = None,
     tavily_search: SupervisorSearchPort | None = None,
+    content_extractor: ContentExtractionPort | None = None,
+    evidence_model: EvidenceVerificationModelPort | None = None,
+    alternate_evidence_search: SupervisorSearchPort | None = None,
     application_settings: ApplicationSettings | None = None,
     openai_settings: OpenAIPlanningSettings | None = None,
     you_settings: YouSearchSettings | None = None,
     tavily_settings: TavilySearchSettings | None = None,
+    tavily_extraction_settings: TavilyExtractionSettings | None = None,
+    openai_evidence_settings: OpenAIEvidenceSettings | None = None,
     langsmith_settings: LangSmithSettings | None = None,
 ) -> ScholarPathState:
     """Compose providers lazily, then execute one optionally traced graph run."""
@@ -1078,6 +1443,16 @@ def run_scholarpath_graph(
     if resolved_tavily_search is None:
         resolved_tavily_settings = tavily_settings or load_tavily_search_settings()
         resolved_tavily_search = _LazyTavilySearch(resolved_tavily_settings)
+    resolved_content_extractor = content_extractor
+    if resolved_content_extractor is None:
+        resolved_extraction_settings = (
+            tavily_extraction_settings or load_tavily_extraction_settings()
+        )
+        resolved_content_extractor = _LazyTavilyExtraction(resolved_extraction_settings)
+    resolved_evidence_model = evidence_model
+    if resolved_evidence_model is None:
+        resolved_evidence_settings = openai_evidence_settings or load_openai_evidence_settings()
+        resolved_evidence_model = _LazyOpenAIEvidenceModel(resolved_evidence_settings)
     resolved_supervisor_search = _with_failure_injection(
         resolved_supervisor_search,
         SearchProvider.YOU,
@@ -1088,11 +1463,15 @@ def run_scholarpath_graph(
         SearchProvider.TAVILY,
         resolved_application_settings.discovery_failure_mode,
     )
+    resolved_alternate_evidence_search = alternate_evidence_search or resolved_tavily_search
     graph = build_scholarpath_graph(
         resolved_config,
         planning_model=resolved_planning_model,
         supervisor_search=resolved_supervisor_search,
         tavily_search=resolved_tavily_search,
+        content_extractor=resolved_content_extractor,
+        evidence_model=resolved_evidence_model,
+        alternate_evidence_search=resolved_alternate_evidence_search,
         observability=observability,
     )
     initial_state = create_initial_state(resolved_config.fixtures.candidate_profile)
@@ -1100,7 +1479,7 @@ def run_scholarpath_graph(
         32
         + (2 * resolved_config.discovery_policy.maximum_you_retry_count)
         + (2 * resolved_config.discovery_policy.maximum_tavily_fallback_count)
-        + (4 * resolved_config.max_evidence_retries)
+        + (4 * resolved_config.verification_policy.maximum_alternate_source_retries)
         + (16 * resolved_config.max_review_retries)
     )
     runnable_config = observability.runnable_config(recursion_limit)
