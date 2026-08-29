@@ -24,6 +24,7 @@ from scholarpath.graph import (
     open_local_sqlite_checkpointer,
 )
 from tests.fakes import (
+    FakeCandidatePreferenceMemory,
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
     FakeIndependentReviewModel,
@@ -60,6 +61,7 @@ def _build_graph(
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
         independent_review_model=FakeIndependentReviewModel(),
+        candidate_preference_memory=FakeCandidatePreferenceMemory(),
         utc_clock=clock,
     )
 

@@ -28,6 +28,7 @@ from scholarpath.graph import (
     run_scholarpath_graph,
 )
 from tests.fakes import (
+    FakeCandidatePreferenceMemory,
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
     FakeIndependentReviewModel,
@@ -52,6 +53,7 @@ def test_cli_prints_five_ranked_shortlisted_supervisors(
         evidence_model: None,
         research_fit_model: None,
         independent_review_model: None,
+        candidate_preference_memory: FakeCandidatePreferenceMemory,
         alternate_evidence_search: None,
         thread_id: str,
         candidate_review_responses: tuple[CandidateReviewResponse, ...],
@@ -64,6 +66,7 @@ def test_cli_prints_five_ranked_shortlisted_supervisors(
         assert evidence_model is None
         assert research_fit_model is None
         assert independent_review_model is None
+        assert isinstance(candidate_preference_memory, FakeCandidatePreferenceMemory)
         assert alternate_evidence_search is None
         assert thread_id == "legacy-cli-shortlist"
         assert checkpointer is not None
@@ -74,6 +77,7 @@ def test_cli_prints_five_ranked_shortlisted_supervisors(
                 candidate_review_responses=candidate_review_responses,
                 checkpointer=checkpointer,
                 planning_model=planning_model,
+                candidate_preference_memory=candidate_preference_memory,
                 supervisor_search=FakeSupervisorSearch(),
                 content_extractor=FakeContentExtraction(),
                 evidence_model=FakeEvidenceVerificationModel(),
@@ -95,6 +99,7 @@ def test_cli_prints_five_ranked_shortlisted_supervisors(
     )
     exit_code = cli.main(
         model,
+        candidate_preference_memory=FakeCandidatePreferenceMemory(),
         thread_id="legacy-cli-shortlist",
         candidate_review_responses=(approval,),
         checkpointer=create_test_checkpointer(),
@@ -124,6 +129,7 @@ def test_cli_prints_paused_review_payload_and_opaque_thread_id(
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
         independent_review_model=FakeIndependentReviewModel(),
+        candidate_preference_memory=FakeCandidatePreferenceMemory(),
         alternate_evidence_search=search,
         thread_id="candidate-research-cli-test",
         checkpointer=create_test_checkpointer(),

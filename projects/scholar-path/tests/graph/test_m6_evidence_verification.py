@@ -36,6 +36,7 @@ from scholarpath.tools import (
     SearchProviderError,
 )
 from tests.fakes import (
+    FakeCandidatePreferenceMemory,
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
     FakeIndependentReviewModel,
@@ -96,6 +97,7 @@ def _run(
             thread_id="legacy-m6-evidence",
             candidate_review_responses=(approval,),
             planning_model=FakePlanningModel(),
+            candidate_preference_memory=FakeCandidatePreferenceMemory(),
             supervisor_search=FakeSupervisorSearch(),
             tavily_search=FakeSupervisorSearch(),
             content_extractor=content_extractor or FakeContentExtraction(),

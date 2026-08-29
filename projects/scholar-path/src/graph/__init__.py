@@ -37,6 +37,7 @@ from .state import (
     ToolErrorRecord,
     append_items,
     create_initial_state,
+    merge_candidate_memory_records,
     merge_supervisors_by_id,
 )
 from .verification import (
@@ -52,6 +53,7 @@ from .verification import (
 from .workflow import (
     CANDIDATE_REVIEW_GATE,
     CANONICAL_NODE_NAMES,
+    LEARN_CANDIDATE_PREFERENCES,
     GraphFixtureConfig,
     UtcClockPort,
     build_scholarpath_graph,
@@ -62,6 +64,7 @@ from .workflow import (
 __all__ = [
     "CANONICAL_NODE_NAMES",
     "CANDIDATE_REVIEW_GATE",
+    "LEARN_CANDIDATE_PREFERENCES",
     "CandidateApproveResponse",
     "CandidateIndependentReviewOutcome",
     "CandidateRejectionReason",
@@ -99,6 +102,7 @@ __all__ = [
     "create_test_checkpointer",
     "create_initial_state",
     "default_review_decision",
+    "merge_candidate_memory_records",
     "merge_supervisors_by_id",
     "open_local_sqlite_checkpointer",
     "parse_candidate_review_response",

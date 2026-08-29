@@ -14,6 +14,7 @@ from ..domain import (
     SearchPlan,
     SearchSourceType,
 )
+from ..memory.models import CandidateMemoryRecord
 
 MAX_PLANNING_OUTPUT_ATTEMPTS = 2
 
@@ -40,6 +41,7 @@ class PlanningInput(BaseModel):
     remembered_candidate_preferences: tuple[CandidatePreferenceRevision, ...]
     target_regions: tuple[str, ...]
     exclusions: tuple[str, ...]
+    remembered_candidate_memories: tuple[CandidateMemoryRecord, ...] = ()
 
     @classmethod
     def from_candidate_profile(
@@ -47,6 +49,7 @@ class PlanningInput(BaseModel):
         candidate_profile: CandidateProfile,
         remembered_candidate_preferences: tuple[CandidatePreferenceRevision, ...],
         *,
+        remembered_candidate_memories: tuple[CandidateMemoryRecord, ...] = (),
         target_regions: tuple[str, ...],
         exclusions: tuple[str, ...],
     ) -> Self:
@@ -58,6 +61,7 @@ class PlanningInput(BaseModel):
             preferred_research_orientation=candidate_profile.preferred_research_orientation,
             methodological_interests=candidate_profile.methodological_interests,
             remembered_candidate_preferences=remembered_candidate_preferences,
+            remembered_candidate_memories=remembered_candidate_memories,
             target_regions=target_regions,
             exclusions=exclusions,
         )
@@ -186,6 +190,7 @@ class ResearchPlanningAgent:
         candidate_profile: CandidateProfile,
         remembered_candidate_preferences: tuple[CandidatePreferenceRevision, ...],
         *,
+        remembered_candidate_memories: tuple[CandidateMemoryRecord, ...] = (),
         target_regions: tuple[str, ...],
         exclusions: tuple[str, ...],
     ) -> SearchPlan:
@@ -193,6 +198,7 @@ class ResearchPlanningAgent:
         planning_input = PlanningInput.from_candidate_profile(
             candidate_profile,
             remembered_candidate_preferences,
+            remembered_candidate_memories=remembered_candidate_memories,
             target_regions=target_regions,
             exclusions=exclusions,
         )

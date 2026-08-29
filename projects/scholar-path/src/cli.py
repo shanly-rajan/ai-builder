@@ -17,6 +17,7 @@ from .graph import (
     open_local_sqlite_checkpointer,
     run_scholarpath_graph,
 )
+from .memory import CandidatePreferenceMemoryPort
 from .tools import ContentExtractionPort, SupervisorSearchPort
 
 
@@ -28,6 +29,7 @@ def main(
     evidence_model: EvidenceVerificationModelPort | None = None,
     research_fit_model: ResearchFitModelPort | None = None,
     independent_review_model: IndependentReviewModelPort | None = None,
+    candidate_preference_memory: CandidatePreferenceMemoryPort | None = None,
     alternate_evidence_search: SupervisorSearchPort | None = None,
     *,
     thread_id: str | None = None,
@@ -51,6 +53,7 @@ def main(
             evidence_model=evidence_model,
             research_fit_model=research_fit_model,
             independent_review_model=independent_review_model,
+            candidate_preference_memory=candidate_preference_memory,
             alternate_evidence_search=alternate_evidence_search,
         )
 

@@ -14,18 +14,17 @@ any Supervisor is shortlisted or any outreach is drafted.
 
 ## Project status
 
-Milestone M9 replaces the synchronous review fixture with a real Candidate-controlled
-LangGraph interrupt. Each run pauses on an evidence-backed proposal, persists its state,
-and resumes only when the same opaque thread ID supplies a typed `approve`, `reject`, or
-`request_more` response. Explicit approval can select any ordered subset of the five
-proposed Supervisors.
+Milestone M10 adds persistent Candidate preference memory through the official Mem0 SDK.
+Each run loads versioned, Candidate-scoped preference records before planning. A dedicated
+post-review learning node writes only after a typed `approve`, `reject`, or `request_more`
+action; merely viewing the proposed shortlist causes no memory write.
 
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
 graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. Unit and
 graph tests use an isolated in-memory checkpointer; trusted local development can use the
-SQLite checkpointer at the ignored configured path. Mem0, Streamlit, and outreach drafting
-remain deferred.
+SQLite checkpointer at the ignored configured path. Mem0 failure is non-fatal and the
+current CandidateProfile remains available. Streamlit and outreach drafting remain deferred.
 
 ## M0 foundation
 
@@ -45,8 +44,9 @@ See [current architecture](docs/architecture.md), the historical
 [M5 generated graph](docs/m5-resilient-discovery-graph.mmd), the historical
 [M6 generated graph](docs/m6-evidence-verification-graph.mmd), the current
 [M7 Research Fit graph](docs/m7-research-fit-graph.mmd), the historical
-[M8 independent-review graph](docs/m8-independent-review-graph.mmd), the current
-[M9 Candidate-review persistence graph](docs/m9-candidate-review-persistence-graph.mmd), and
+[M8 independent-review graph](docs/m8-independent-review-graph.mmd), the historical
+[M9 Candidate-review persistence graph](docs/m9-candidate-review-persistence-graph.mmd),
+the current [M10 Candidate-memory graph](docs/m10-candidate-preference-memory-graph.mmd), and
 [canonical terminology](docs/terminology.md) for the current boundaries.
 
 ## M1 domain contracts
@@ -81,7 +81,7 @@ verified = make_verified_supervisors()  # 6 records
 assessments = make_research_fit_assessments()  # 5 records
 ```
 
-## M2 walking skeleton, extended through M9
+## M2 walking skeleton, extended through M10
 
 ```mermaid
 flowchart TD
@@ -110,9 +110,11 @@ flowchart TD
     Human -->|approve explicit IDs| Gate
     Human -->|reject with per-Supervisor reasons| Gate
     Human -->|request_more with revised preferences| Gate
-    Gate -->|approved| Save[save_shortlisted_supervisors]
-    Gate -->|rejected or request_more| Plan
-    Gate -->|bounded retry exhausted| END
+    Gate -->|valid explicit action| Learn[learn_candidate_preferences]
+    Learn -->|approved| Save[save_shortlisted_supervisors]
+    Learn -->|rejected or request_more| Plan
+    Learn -->|bounded retry exhausted| END
+    Gate -->|invalid input exhausted| END
     Save --> Brief[generate_shortlist_briefing]
     Brief --> END
 ```
@@ -433,6 +435,46 @@ Pydantic URL values—executable pickle fallback is not enabled. Treat the local
 database as Candidate data: restrict file access, define retention before production, and
 do not share a thread ID between research runs.
 
+## M10 persistent Candidate preference memory
+
+```mermaid
+sequenceDiagram
+    participant Graph as LangGraph
+    participant Planner as Research Planning Agent
+    participant Candidate
+    participant Learning as Preference Learning Agent
+    participant Mem0
+
+    Graph->>Mem0: load(filters: user_id = candidate_id)
+    alt Mem0 available
+        Mem0-->>Graph: versioned CandidateMemoryRecord values
+    else unavailable
+        Graph->>Graph: retain CandidateProfile + recoverable tool error
+    end
+    Graph->>Planner: profile + remembered preferences
+    Graph-->>Candidate: interrupt with proposed shortlist
+    Note over Graph,Mem0: Viewing stops here; no memory write
+    Candidate->>Graph: approve / reject / request_more
+    Graph->>Learning: checkpointed explicit action
+    Learning->>Mem0: add exact typed JSON, infer=false, scoped user_id
+    Learning->>Graph: continue even if Mem0 is unavailable
+```
+
+`CandidatePreferenceMemoryPort` isolates graph and agent code from Mem0.
+`CandidateMemoryRecord` permits only durable preference kinds: themes, regions, study
+modes, orientation, methods, constraints, exclusions, Candidate-authored rejection
+reasons, and previously useful search concepts. Approval stores the current plan's
+expanded concepts as a positive search signal; rejection stores only the opaque
+Supervisor ID and the Candidate's reason.
+
+The record schema has no fields for affiliation, publications, availability, evidence
+URLs, Research Fit Scores, or graph position. The stable Candidate ID is a separate
+required port argument and Mem0 `user_id` filter; it is not copied into memory content.
+Writes use `infer=False`, so Mem0 stores the validated JSON rather than asking another
+model to infer or broaden a preference. Case-and-whitespace-normalized semantic IDs,
+pre-write scoped lookup, and a checkpointed feedback cursor suppress duplicates across
+normal resumes and repeated actions.
+
 ## Setup
 
 Run these commands from the repository root:
@@ -450,7 +492,8 @@ No API key is required to install the package, import `scholarpath`, render the 
 or run the default non-live test suite. The copied `.env` contains placeholders only
 and is ignored by Git. OpenAI, You.com, and Nebius keys are validated only when their
 respective adapters are instantiated. The shared Tavily key is validated only when
-fallback search or evidence extraction is actually reached.
+fallback search or evidence extraction is actually reached. Mem0 is imported and its
+key validated only when persistent memory is first loaded; failure remains recoverable.
 
 Run commands from `projects/scholar-path`, because the application resolves `.env`
 relative to the current working directory. Keep the local file private:
@@ -486,14 +529,20 @@ TAVILY_EXTRACT_PROVIDER_TIMEOUT_SECONDS=20
 TAVILY_EXTRACT_REQUEST_TIMEOUT_SECONDS=25
 TAVILY_EXTRACT_DEPTH=advanced
 TAVILY_EXTRACT_MAX_CONTENT_CHARACTERS=50000
+MEM0_API_KEY=your-mem0-key
+MEM0_TIMEOUT_SECONDS=20
+MEM0_MEMORY_LIMIT=100
+MEM0_TELEMETRY=false
 SCHOLARPATH_DISCOVERY_FAILURE_MODE=off
 SCHOLARPATH_CHECKPOINT_DATABASE_PATH=.scholarpath/checkpoints.sqlite3
 ```
 
 `OPENAI_API_KEY`, `NEBIUS_API_KEY`, `YDC_API_KEY`, and `TAVILY_API_KEY` are required for
-a complete live M9 graph path: OpenAI plans searches, extracts typed evidence, and
+a complete live M10 graph path: OpenAI plans searches, extracts typed evidence, and
 evaluates Research Fit; Nebius independently reviews each assessment; You.com performs
 primary discovery; and Tavily retrieves known evidence pages or handles search fallback.
+`MEM0_API_KEY` is optional: when present it enables cross-run preference recall; when
+absent the graph continues from current profile and checkpoint data.
 Endpoint, model, timeout, result-count, extraction, and failure-mode values shown are
 the current non-secret defaults.
 
@@ -507,7 +556,7 @@ LANGSMITH_PROJECT=scholarpath
 
 To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_API_KEY`. `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag;
-the implementation supplies the fixed `graph-version:m9` tag. Disabling tracing does
+the implementation supplies the fixed `graph-version:m10` tag. Disabling tracing does
 not construct a LangSmith client, even if another process has globally enabled
 tracing.
 
@@ -569,14 +618,14 @@ To exercise the same full graph without secrets, provider calls, or network acce
 inject the test fake from the CLI:
 
 ```bash
-LANGSMITH_TRACING=false python -c 'from scholarpath.cli import main; from tests.fakes import FakeContentExtraction, FakeEvidenceVerificationModel, FakeIndependentReviewModel, FakePlanningModel, FakeResearchFitModel, FakeSupervisorSearch; search=FakeSupervisorSearch(); raise SystemExit(main(planning_model=FakePlanningModel(), supervisor_search=search, tavily_search=search, content_extractor=FakeContentExtraction(), evidence_model=FakeEvidenceVerificationModel(), research_fit_model=FakeResearchFitModel(), independent_review_model=FakeIndependentReviewModel(), alternate_evidence_search=search))'
+LANGSMITH_TRACING=false python -c 'from scholarpath.cli import main; from tests.fakes import FakeCandidatePreferenceMemory, FakeContentExtraction, FakeEvidenceVerificationModel, FakeIndependentReviewModel, FakePlanningModel, FakeResearchFitModel, FakeSupervisorSearch; search=FakeSupervisorSearch(); raise SystemExit(main(planning_model=FakePlanningModel(), supervisor_search=search, tavily_search=search, content_extractor=FakeContentExtraction(), evidence_model=FakeEvidenceVerificationModel(), research_fit_model=FakeResearchFitModel(), independent_review_model=FakeIndependentReviewModel(), candidate_preference_memory=FakeCandidatePreferenceMemory(), alternate_evidence_search=search))'
 ```
 
 To demonstrate an offline, deterministic You.com failure followed by successful
 Tavily routing, inject both fakes and enable the failure mode for one process:
 
 ```bash
-SCHOLARPATH_DISCOVERY_FAILURE_MODE=you_retryable_error LANGSMITH_TRACING=false python -c 'from scholarpath.graph import run_scholarpath_graph; from tests.fakes import FakeContentExtraction, FakeEvidenceVerificationModel, FakeIndependentReviewModel, FakePlanningModel, FakeResearchFitModel, FakeSupervisorSearch; search=FakeSupervisorSearch(); state=run_scholarpath_graph(thread_id="offline-fallback-demo", planning_model=FakePlanningModel(), supervisor_search=search, tavily_search=search, content_extractor=FakeContentExtraction(), evidence_model=FakeEvidenceVerificationModel(), research_fit_model=FakeResearchFitModel(), independent_review_model=FakeIndependentReviewModel(), alternate_evidence_search=search); print("fallback_search_used:", state["fallback_search_used"]); print([(a.provider_used.value, a.attempt_number, a.error_category.value if a.error_category else None) for a in state["search_attempts"]])'
+SCHOLARPATH_DISCOVERY_FAILURE_MODE=you_retryable_error LANGSMITH_TRACING=false python -c 'from scholarpath.graph import run_scholarpath_graph; from tests.fakes import FakeCandidatePreferenceMemory, FakeContentExtraction, FakeEvidenceVerificationModel, FakeIndependentReviewModel, FakePlanningModel, FakeResearchFitModel, FakeSupervisorSearch; search=FakeSupervisorSearch(); state=run_scholarpath_graph(thread_id="offline-fallback-demo", planning_model=FakePlanningModel(), supervisor_search=search, tavily_search=search, content_extractor=FakeContentExtraction(), evidence_model=FakeEvidenceVerificationModel(), research_fit_model=FakeResearchFitModel(), independent_review_model=FakeIndependentReviewModel(), candidate_preference_memory=FakeCandidatePreferenceMemory(), alternate_evidence_search=search); print("fallback_search_used:", state["fallback_search_used"]); print([(a.provider_used.value, a.attempt_number, a.error_category.value if a.error_category else None) for a in state["search_attempts"]])'
 ```
 
 Use `you_timeout_once` to demonstrate a successful single retry, or
@@ -598,6 +647,21 @@ The test uses a temporary ignored database, so it does not need provider keys an
 no project data behind. For application code, pass the same opaque `thread_id` both to the
 initial invocation and to `Command(resume=...)`; changing the ID deliberately selects a
 different research run.
+
+### 60-second M10 preference-memory demonstration
+
+Run the two focused graph examples. The first pauses after viewing and proves there were
+zero writes; the second resumes an approval and proves useful search concepts were stored:
+
+```bash
+pytest -o addopts='' -q -s \
+  tests/graph/test_m10_candidate_preference_memory.py::test_viewing_candidate_review_results_does_not_write_memory \
+  tests/graph/test_m10_candidate_preference_memory.py::test_approval_stores_useful_search_concepts_after_explicit_approval
+```
+
+Both use `FakeCandidatePreferenceMemory`, so the demonstration is deterministic and has
+no network access. Inspect the matching tests to see the stable Candidate scope and exact
+record kinds asserted at the boundary.
 
 ## Quality and test commands
 
@@ -674,6 +738,16 @@ set -a
 source .env
 set +a
 SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_tavily_extraction_live.py
+```
+
+The optional Mem0 smoke test uses a UUID-scoped synthetic Candidate, verifies another
+Candidate cannot retrieve the record, and deletes the synthetic scope in `finally`:
+
+```bash
+set -a
+source .env
+set +a
+MEM0_TELEMETRY=false SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -q -rs -m live tests/integration/test_mem0_memory_live.py
 ```
 
 The GitHub Actions workflow runs the same installation and quality commands on Python
@@ -785,11 +859,12 @@ Streamlit is the planned Candidate-facing web interface.
 
 ## Future production evolution
 
-M9 keeps Candidate feedback in thread-scoped graph state and reruns planning, resilient
-discovery, verification, and Research Fit evaluation after rejection or `request_more`.
-A later milestone may add Mem0 behind a typed port without changing the approval gate.
+M10 keeps Candidate feedback in thread-scoped graph state and also persists the permitted
+durable preference projection through Mem0. The graph state remains authoritative for the
+current position, while Supervisor facts remain authoritative only in verified evidence.
 Streamlit must render the interrupt payload and resume the same thread; it must never
-translate viewing a proposal into approval. Source freshness and authority weighting,
-trace evaluation, checkpoint encryption and retention, and multi-process SQLite writer
-coordination remain deferred. Retry limits, sufficiency thresholds, arithmetic, routing,
-and ranking remain explicit deterministic configuration rather than model decisions.
+translate viewing a proposal into approval. Mem0 consent, retention, deletion, residency,
+and access controls; source freshness and authority weighting; trace evaluation; checkpoint
+encryption and retention; and multi-process persistence remain deferred. Retry limits,
+sufficiency thresholds, arithmetic, routing, and ranking remain explicit deterministic
+configuration rather than model decisions.

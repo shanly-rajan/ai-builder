@@ -32,6 +32,23 @@ REQUIRED_STATE_FIELDS = {
     "review_status",
     "execution_log",
 }
+M2_CANONICAL_NODE_NAMES = (
+    "load_candidate_preferences",
+    "plan_supervisor_searches",
+    "discover_prospective_supervisors",
+    "enough_supervisors_found",
+    "fallback_supervisor_search",
+    "deduplicate_supervisors",
+    "extract_supervisor_evidence",
+    "supervisor_evidence_sufficient",
+    "retry_alternate_evidence_source",
+    "evaluate_research_fit",
+    "review_fit_assessments",
+    "synthesize_supervisor_shortlist",
+    "candidate_review_gate",
+    "save_shortlisted_supervisors",
+    "generate_shortlist_briefing",
+)
 
 
 def test_scholarpath_state_contains_every_required_m2_channel() -> None:
@@ -55,17 +72,17 @@ def test_append_only_history_channels_have_reducers() -> None:
         assert len(get_args(annotation)) == 2
 
 
-def test_compiled_graph_contains_exactly_the_fifteen_canonical_nodes() -> None:
+def test_compiled_graph_contains_the_current_canonical_nodes() -> None:
     graph_nodes = set(build_scholarpath_graph().get_graph().nodes)
 
     assert graph_nodes - {"__start__", "__end__"} == set(CANONICAL_NODE_NAMES)
-    assert len(CANONICAL_NODE_NAMES) == 15
+    assert len(CANONICAL_NODE_NAMES) == 16
 
 
 def test_historical_m2_mermaid_preserves_the_fifteen_node_walking_skeleton() -> None:
     saved = (PROJECT_ROOT / "docs" / "m2-walking-skeleton.mmd").read_text(encoding="utf-8")
 
-    for node_name in CANONICAL_NODE_NAMES:
+    for node_name in M2_CANONICAL_NODE_NAMES:
         historical_name = (
             "candidate_review_gate_stub" if node_name == "candidate_review_gate" else node_name
         )
@@ -87,7 +104,7 @@ def test_runtime_does_not_import_test_fixtures_or_deferred_integrations() -> Non
     assert "langchain-tavily==0.2.17" in dependencies
     assert "langgraph>=1.2.11,<2" in dependencies
     assert "langsmith>=0.11.2,<1" in dependencies
-    for deferred_dependency in ("streamlit", "mem0"):
+    for deferred_dependency in ("streamlit",):
         assert deferred_dependency not in normalized_dependencies
 
 

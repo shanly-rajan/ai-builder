@@ -37,6 +37,7 @@ from scholarpath.graph import (
 )
 from scholarpath.tools import SearchErrorCategory, SearchProvider, SearchProviderError
 from tests.fakes import (
+    FakeCandidatePreferenceMemory,
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
     FakeIndependentReviewModel,
@@ -58,6 +59,7 @@ HAPPY_PATH_LOG = [
     "review_fit_assessments",
     "synthesize_supervisor_shortlist",
     "candidate_review_gate",
+    "learn_candidate_preferences",
     "save_shortlisted_supervisors",
     "generate_shortlist_briefing",
 ]
@@ -89,6 +91,7 @@ def _run_graph(
             thread_id="legacy-workflow",
             candidate_review_responses=responses,
             planning_model=planning_model or FakePlanningModel(),
+            candidate_preference_memory=FakeCandidatePreferenceMemory(),
             supervisor_search=supervisor_search or FakeSupervisorSearch(),
             tavily_search=tavily_search or FakeSupervisorSearch(),
             content_extractor=content_extractor or FakeContentExtraction(),
@@ -273,7 +276,7 @@ def test_request_more_records_preferences_and_returns_to_search_planning() -> No
             lambda: GraphFixtureConfig(max_review_retries=1),
             lambda: (_request_more(), _request_more()),
             "review_retry_exhausted",
-            "candidate_review_gate",
+            "learn_candidate_preferences",
             "review",
             "plan_supervisor_searches",
             2,
@@ -381,7 +384,11 @@ def test_graph_paths_never_use_candidate_as_a_supervisor_label() -> None:
     candidate_nodes = {name for name in graph_node_names if "candidate" in name.casefold()}
 
     assert set(CANONICAL_NODE_NAMES) <= graph_node_names
-    assert candidate_nodes == {"load_candidate_preferences", "candidate_review_gate"}
+    assert candidate_nodes == {
+        "load_candidate_preferences",
+        "candidate_review_gate",
+        "learn_candidate_preferences",
+    }
 
     mermaid = render_scholarpath_mermaid().casefold()
     for banned_phrase in (

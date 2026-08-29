@@ -22,6 +22,7 @@ from scholarpath.graph import (
 )
 from scholarpath.tools import SupervisorSearchTimeoutError
 from tests.fakes import (
+    FakeCandidatePreferenceMemory,
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
     FakeIndependentReviewModel,
@@ -48,6 +49,7 @@ def _run_with_fake(
             thread_id="legacy-m4-discovery",
             candidate_review_responses=(approval,),
             planning_model=FakePlanningModel(),
+            candidate_preference_memory=FakeCandidatePreferenceMemory(),
             supervisor_search=supervisor_search,
             tavily_search=tavily_search or FakeSupervisorSearch(),
             content_extractor=FakeContentExtraction(),

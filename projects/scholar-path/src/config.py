@@ -505,6 +505,59 @@ class TavilyExtractionSettings(BaseSettings):
         )
 
 
+class Mem0MemoryConfiguration(BaseModel):
+    """Validated settings passed only to the hosted Mem0 preference adapter."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        hide_input_in_errors=True,
+        str_strip_whitespace=True,
+    )
+
+    api_key: SecretStr
+    timeout_seconds: float = Field(gt=0, le=120)
+    memory_limit: int = Field(ge=1, le=200)
+    telemetry: bool = False
+
+    @field_validator("api_key")
+    @classmethod
+    def api_key_must_not_be_blank(cls, value: SecretStr) -> SecretStr:
+        """Reject blank Mem0 credentials only when long-term memory is activated."""
+        if not value.get_secret_value().strip():
+            raise ValueError("Mem0 API key must not be blank")
+        return value
+
+
+class Mem0MemorySettings(BaseSettings):
+    """Mem0 settings that remain inert until persistent memory is requested."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="MEM0_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        frozen=True,
+        hide_input_in_errors=True,
+        str_strip_whitespace=True,
+    )
+
+    api_key: Annotated[SecretStr | None, Field(repr=False)] = None
+    timeout_seconds: float = Field(default=20.0, gt=0, le=120)
+    memory_limit: int = Field(default=100, ge=1, le=200)
+    telemetry: bool = False
+
+    def for_memory_adapter(self) -> Mem0MemoryConfiguration:
+        """Validate credentials only when the hosted Mem0 adapter is requested."""
+        if self.api_key is None or not self.api_key.get_secret_value().strip():
+            raise ProviderConfigurationError("Missing API key for provider 'mem0'.")
+        return Mem0MemoryConfiguration(
+            api_key=self.api_key,
+            timeout_seconds=self.timeout_seconds,
+            memory_limit=self.memory_limit,
+            telemetry=self.telemetry,
+        )
+
+
 class LangSmithSettings(BaseSettings):
     """Optional LangSmith settings loaded from the provider's canonical variables."""
 
@@ -609,6 +662,11 @@ def load_tavily_search_settings() -> TavilySearchSettings:
 def load_tavily_extraction_settings() -> TavilyExtractionSettings:
     """Load optional Tavily Extract settings without requiring credentials."""
     return TavilyExtractionSettings()
+
+
+def load_mem0_memory_settings() -> Mem0MemorySettings:
+    """Load optional Mem0 settings without constructing its SDK client."""
+    return Mem0MemorySettings()
 
 
 def load_langsmith_settings() -> LangSmithSettings:

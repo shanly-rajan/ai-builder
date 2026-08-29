@@ -55,6 +55,7 @@ from ..config import (
     ApplicationSettings,
     DiscoveryFailureMode,
     LangSmithSettings,
+    Mem0MemorySettings,
     NebiusReviewSettings,
     OpenAIEvidenceSettings,
     OpenAIPlanningSettings,
@@ -64,6 +65,7 @@ from ..config import (
     TavilySearchSettings,
     YouSearchSettings,
     load_langsmith_settings,
+    load_mem0_memory_settings,
     load_nebius_review_settings,
     load_openai_evidence_settings,
     load_openai_planning_settings,
@@ -86,6 +88,14 @@ from ..domain import (
     VerificationStatus,
     apply_candidate_review,
     create_supervisor_shortlist,
+)
+from ..memory import (
+    CandidateMemoryRecord,
+    CandidatePreferenceMemoryError,
+    CandidatePreferenceMemoryPort,
+    Mem0CandidatePreferenceAdapter,
+    PreferenceLearningAgent,
+    project_memories_to_preference_revision,
 )
 from ..observability import LangSmithObservability
 from ..tools import (
@@ -157,6 +167,7 @@ EVALUATE_RESEARCH_FIT: Final = "evaluate_research_fit"
 REVIEW_FIT_ASSESSMENTS: Final = "review_fit_assessments"
 SYNTHESIZE_SUPERVISOR_SHORTLIST: Final = "synthesize_supervisor_shortlist"
 CANDIDATE_REVIEW_GATE: Final = "candidate_review_gate"
+LEARN_CANDIDATE_PREFERENCES: Final = "learn_candidate_preferences"
 SAVE_SHORTLISTED_SUPERVISORS: Final = "save_shortlisted_supervisors"
 GENERATE_SHORTLIST_BRIEFING: Final = "generate_shortlist_briefing"
 
@@ -174,6 +185,7 @@ CANONICAL_NODE_NAMES = (
     REVIEW_FIT_ASSESSMENTS,
     SYNTHESIZE_SUPERVISOR_SHORTLIST,
     CANDIDATE_REVIEW_GATE,
+    LEARN_CANDIDATE_PREFERENCES,
     SAVE_SHORTLISTED_SUPERVISORS,
     GENERATE_SHORTLIST_BRIEFING,
 )
@@ -189,6 +201,7 @@ type DiscoveryRoute = Literal[
 type EvidenceRoute = Literal["retry_alternate_evidence_source", "evaluate_research_fit", "__end__"]
 type ReviewRoute = Literal[
     "candidate_review_gate",
+    "learn_candidate_preferences",
     "save_shortlisted_supervisors",
     "plan_supervisor_searches",
     "__end__",
@@ -277,6 +290,7 @@ class DeterministicScholarPathNodes:
         evidence_model: EvidenceVerificationModelPort | None = None,
         research_fit_model: ResearchFitModelPort | None = None,
         independent_review_model: IndependentReviewModelPort | None = None,
+        candidate_preference_memory: CandidatePreferenceMemoryPort | None = None,
         alternate_evidence_search: SupervisorSearchPort | None = None,
         utc_clock: UtcClockPort | None = None,
     ) -> None:
@@ -300,6 +314,9 @@ class DeterministicScholarPathNodes:
             independent_review_model,
             policy=config.independent_review_policy,
         )
+        if candidate_preference_memory is None:
+            raise ValueError("Candidate preference learning requires an injected memory port")
+        self.preference_learning_agent = PreferenceLearningAgent(candidate_preference_memory)
         self.shortlist_agent = ShortlistSynthesisAgent(max_results=config.shortlist_size)
 
     @staticmethod
@@ -340,9 +357,33 @@ class DeterministicScholarPathNodes:
         return fallback
 
     def load_candidate_preferences(self, state: ScholarPathState) -> ScholarPathStateUpdate:
-        """Load a typed preference snapshot from the fixture Candidate profile."""
+        """Load scoped durable memory while retaining the current Candidate profile."""
+        profile = state["candidate_profile"]
+        preferences = [preferences_from_profile(profile)]
+        try:
+            records = self.preference_learning_agent.load(profile.candidate_id)
+        except Exception:
+            return {
+                "candidate_preferences": preferences,
+                "candidate_memory_available": False,
+                "tool_errors": [
+                    self._error(
+                        LOAD_CANDIDATE_PREFERENCES,
+                        "candidate_memory_load_unavailable",
+                        "Long-term Candidate preference memory was unavailable; current "
+                        "CandidateProfile preferences were retained.",
+                        recoverable=True,
+                    )
+                ],
+                "execution_log": [LOAD_CANDIDATE_PREFERENCES],
+            }
+        remembered_revision = project_memories_to_preference_revision(profile, records)
+        if remembered_revision is not None:
+            preferences.append(remembered_revision)
         return {
-            "candidate_preferences": [preferences_from_profile(state["candidate_profile"])],
+            "candidate_preferences": preferences,
+            "candidate_memory_records": list(records),
+            "candidate_memory_available": True,
             "execution_log": [LOAD_CANDIDATE_PREFERENCES],
         }
 
@@ -355,6 +396,7 @@ class DeterministicScholarPathNodes:
             plan = self.planning_agent.plan(
                 profile,
                 tuple(state["candidate_preferences"]),
+                remembered_candidate_memories=tuple(state["candidate_memory_records"]),
                 target_regions=regions,
                 exclusions=exclusions,
             )
@@ -1328,16 +1370,59 @@ class DeterministicScholarPathNodes:
         return base_update
 
     def route_after_candidate_review(self, state: ScholarPathState) -> ReviewRoute:
-        """Route approval forward and bounded feedback paths back to planning."""
-        if state["review_status"] is ReviewStatus.APPROVED:
-            return SAVE_SHORTLISTED_SUPERVISORS
-        if state["review_status"] in {ReviewStatus.REJECTED, ReviewStatus.REQUEST_MORE}:
-            return PLAN_SUPERVISOR_SEARCHES
+        """Persist a valid explicit action before any forward or feedback route."""
+        if len(state["candidate_feedback"]) > state["candidate_memory_processed_feedback_count"]:
+            return LEARN_CANDIDATE_PREFERENCES
         if (
             state["review_status"] is ReviewStatus.PROPOSED
             and state["candidate_review_error"] is not None
         ):
             return CANDIDATE_REVIEW_GATE
+        return "__end__"
+
+    def learn_candidate_preferences(self, state: ScholarPathState) -> ScholarPathStateUpdate:
+        """Store only new explicit Candidate actions through the scoped memory port."""
+        processed_count = state["candidate_memory_processed_feedback_count"]
+        new_decisions = tuple(state["candidate_feedback"][processed_count:])
+        records = self.preference_learning_agent.records_from_actions(
+            new_decisions,
+            state["search_plan"],
+            _validated_utc_timestamp(self.utc_clock),
+        )
+        update: ScholarPathStateUpdate = {
+            "candidate_memory_processed_feedback_count": len(state["candidate_feedback"]),
+            "candidate_memory_records": list(records),
+            "execution_log": [LEARN_CANDIDATE_PREFERENCES],
+        }
+        if not records:
+            return update
+        try:
+            self.preference_learning_agent.store(
+                state["candidate_profile"].candidate_id,
+                records,
+            )
+        except Exception:
+            update["candidate_memory_available"] = False
+            update["tool_errors"] = [
+                self._error(
+                    LEARN_CANDIDATE_PREFERENCES,
+                    "candidate_memory_store_unavailable",
+                    "The explicit Candidate action remains in graph state, but long-term "
+                    "preference memory was unavailable.",
+                    recoverable=True,
+                )
+            ]
+            return update
+        update["candidate_memory_available"] = True
+        return update
+
+    @staticmethod
+    def route_after_preference_learning(state: ScholarPathState) -> ReviewRoute:
+        """Continue the already-persisted Candidate action through deterministic routing."""
+        if state["review_status"] is ReviewStatus.APPROVED:
+            return SAVE_SHORTLISTED_SUPERVISORS
+        if state["review_status"] in {ReviewStatus.REJECTED, ReviewStatus.REQUEST_MORE}:
+            return PLAN_SUPERVISOR_SEARCHES
         return "__end__"
 
     def save_shortlisted_supervisors(self, state: ScholarPathState) -> ScholarPathStateUpdate:
@@ -1444,6 +1529,22 @@ class _UnconfiguredIndependentReviewModel:
     def review(self, review_input: IndependentReviewInput) -> IndependentReviewResult:
         del review_input
         raise IndependentReviewModelInvocationError("No independent-review model was injected.")
+
+
+class _UnconfiguredCandidatePreferenceMemory:
+    """Fail non-fatally if a topology-only graph is accidentally executed."""
+
+    def load(self, candidate_id: str) -> tuple[CandidateMemoryRecord, ...]:
+        del candidate_id
+        raise CandidatePreferenceMemoryError("load")
+
+    def store(
+        self,
+        candidate_id: str,
+        records: tuple[CandidateMemoryRecord, ...],
+    ) -> tuple[CandidateMemoryRecord, ...]:
+        del candidate_id, records
+        raise CandidatePreferenceMemoryError("store")
 
 
 class _LazyTavilySearch:
@@ -1554,6 +1655,35 @@ class _LazyNebiusReviewModel:
         return self._adapter.review(review_input)
 
 
+class _LazyMem0CandidatePreferenceMemory:
+    """Defer Mem0 import, credential validation, and network access until graph start."""
+
+    def __init__(self, settings: Mem0MemorySettings) -> None:
+        self._settings = settings
+        self._adapter: Mem0CandidatePreferenceAdapter | None = None
+
+    def _resolved_adapter(self) -> Mem0CandidatePreferenceAdapter:
+        if self._adapter is None:
+            try:
+                configuration = self._settings.for_memory_adapter()
+            except ProviderConfigurationError:
+                raise CandidatePreferenceMemoryError("configuration") from None
+            self._adapter = Mem0CandidatePreferenceAdapter(configuration)
+        return self._adapter
+
+    def load(self, candidate_id: str) -> tuple[CandidateMemoryRecord, ...]:
+        """Load one Candidate's memories through a lazily constructed adapter."""
+        return self._resolved_adapter().load(candidate_id)
+
+    def store(
+        self,
+        candidate_id: str,
+        records: tuple[CandidateMemoryRecord, ...],
+    ) -> tuple[CandidateMemoryRecord, ...]:
+        """Store one Candidate's memories through a lazily constructed adapter."""
+        return self._resolved_adapter().store(candidate_id, records)
+
+
 def _with_failure_injection(
     port: SupervisorSearchPort,
     provider: SearchProvider,
@@ -1576,6 +1706,7 @@ def build_scholarpath_graph(
     evidence_model: EvidenceVerificationModelPort | None = None,
     research_fit_model: ResearchFitModelPort | None = None,
     independent_review_model: IndependentReviewModelPort | None = None,
+    candidate_preference_memory: CandidatePreferenceMemoryPort | None = None,
     alternate_evidence_search: SupervisorSearchPort | None = None,
     observability: LangSmithObservability | None = None,
     utc_clock: UtcClockPort | None = None,
@@ -1591,6 +1722,9 @@ def build_scholarpath_graph(
     resolved_independent_review_model = (
         independent_review_model or _UnconfiguredIndependentReviewModel()
     )
+    resolved_candidate_preference_memory = (
+        candidate_preference_memory or _UnconfiguredCandidatePreferenceMemory()
+    )
     resolved_alternate_search = alternate_evidence_search or resolved_tavily_search
     nodes = DeterministicScholarPathNodes(
         resolved_config,
@@ -1601,6 +1735,7 @@ def build_scholarpath_graph(
         resolved_evidence_model,
         resolved_research_fit_model,
         resolved_independent_review_model,
+        resolved_candidate_preference_memory,
         resolved_alternate_search,
         utc_clock,
     )
@@ -1667,6 +1802,7 @@ def build_scholarpath_graph(
     )
     builder.add_node(SYNTHESIZE_SUPERVISOR_SHORTLIST, nodes.synthesize_supervisor_shortlist)
     builder.add_node(CANDIDATE_REVIEW_GATE, nodes.candidate_review_gate)
+    builder.add_node(LEARN_CANDIDATE_PREFERENCES, nodes.learn_candidate_preferences)
     builder.add_node(SAVE_SHORTLISTED_SUPERVISORS, nodes.save_shortlisted_supervisors)
     builder.add_node(GENERATE_SHORTLIST_BRIEFING, nodes.generate_shortlist_briefing)
 
@@ -1703,13 +1839,18 @@ def build_scholarpath_graph(
     builder.add_conditional_edges(
         CANDIDATE_REVIEW_GATE,
         nodes.route_after_candidate_review,
-        [CANDIDATE_REVIEW_GATE, SAVE_SHORTLISTED_SUPERVISORS, PLAN_SUPERVISOR_SEARCHES, END],
+        [CANDIDATE_REVIEW_GATE, LEARN_CANDIDATE_PREFERENCES, END],
+    )
+    builder.add_conditional_edges(
+        LEARN_CANDIDATE_PREFERENCES,
+        nodes.route_after_preference_learning,
+        [SAVE_SHORTLISTED_SUPERVISORS, PLAN_SUPERVISOR_SEARCHES, END],
     )
     builder.add_edge(SAVE_SHORTLISTED_SUPERVISORS, GENERATE_SHORTLIST_BRIEFING)
     builder.add_edge(GENERATE_SHORTLIST_BRIEFING, END)
     return builder.compile(
         checkpointer=checkpointer,
-        name="ScholarPath M9 durable Candidate review graph",
+        name="ScholarPath M10 persistent Candidate preference memory graph",
     )
 
 
@@ -1726,6 +1867,7 @@ def run_scholarpath_graph(
     evidence_model: EvidenceVerificationModelPort | None = None,
     research_fit_model: ResearchFitModelPort | None = None,
     independent_review_model: IndependentReviewModelPort | None = None,
+    candidate_preference_memory: CandidatePreferenceMemoryPort | None = None,
     alternate_evidence_search: SupervisorSearchPort | None = None,
     application_settings: ApplicationSettings | None = None,
     openai_settings: OpenAIPlanningSettings | None = None,
@@ -1735,6 +1877,7 @@ def run_scholarpath_graph(
     openai_evidence_settings: OpenAIEvidenceSettings | None = None,
     openai_research_fit_settings: OpenAIResearchFitSettings | None = None,
     nebius_review_settings: NebiusReviewSettings | None = None,
+    mem0_memory_settings: Mem0MemorySettings | None = None,
     langsmith_settings: LangSmithSettings | None = None,
     utc_clock: UtcClockPort | None = None,
 ) -> ScholarPathState | dict[str, object]:
@@ -1784,6 +1927,12 @@ def run_scholarpath_graph(
     if resolved_independent_review_model is None:
         resolved_nebius_review_settings = nebius_review_settings or load_nebius_review_settings()
         resolved_independent_review_model = _LazyNebiusReviewModel(resolved_nebius_review_settings)
+    resolved_candidate_preference_memory = candidate_preference_memory
+    if resolved_candidate_preference_memory is None:
+        resolved_mem0_settings = mem0_memory_settings or load_mem0_memory_settings()
+        resolved_candidate_preference_memory = _LazyMem0CandidatePreferenceMemory(
+            resolved_mem0_settings
+        )
     resolved_supervisor_search = _with_failure_injection(
         resolved_supervisor_search,
         SearchProvider.YOU,
@@ -1805,6 +1954,7 @@ def run_scholarpath_graph(
         evidence_model=resolved_evidence_model,
         research_fit_model=resolved_research_fit_model,
         independent_review_model=resolved_independent_review_model,
+        candidate_preference_memory=resolved_candidate_preference_memory,
         alternate_evidence_search=resolved_alternate_evidence_search,
         observability=observability,
         utc_clock=utc_clock,

@@ -41,6 +41,7 @@ from scholarpath.graph import (
 )
 from scholarpath.graph.workflow import DeterministicScholarPathNodes
 from tests.fakes import (
+    FakeCandidatePreferenceMemory,
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
     FakeIndependentReviewModel,
@@ -83,6 +84,7 @@ def _run_graph(
             thread_id="legacy-state-and-config",
             candidate_review_responses=candidate_review_responses or (default_approval,),
             planning_model=FakePlanningModel(),
+            candidate_preference_memory=FakeCandidatePreferenceMemory(),
             supervisor_search=FakeSupervisorSearch(),
             content_extractor=FakeContentExtraction(),
             evidence_model=FakeEvidenceVerificationModel(),
@@ -134,6 +136,9 @@ def test_initial_state_populates_every_channel_with_safe_defaults() -> None:
     state = create_initial_state(fixtures.candidate_profile)
 
     assert state["candidate_profile"] == fixtures.candidate_profile
+    assert state["candidate_memory_records"] == []
+    assert state["candidate_memory_processed_feedback_count"] == 0
+    assert state["candidate_memory_available"] is None
     assert state["retry_counts"] == {
         "discovery": 0,
         "evidence": 0,
@@ -213,6 +218,7 @@ def test_planning_without_loaded_preferences_uses_candidate_profile_regions() ->
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
         independent_review_model=FakeIndependentReviewModel(),
+        candidate_preference_memory=FakeCandidatePreferenceMemory(),
     )
     state = create_initial_state(config.fixtures.candidate_profile)
 
@@ -285,6 +291,7 @@ def test_briefing_node_rejects_missing_shortlist() -> None:
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
         independent_review_model=FakeIndependentReviewModel(),
+        candidate_preference_memory=FakeCandidatePreferenceMemory(),
     )
     state = create_initial_state(config.fixtures.candidate_profile)
 

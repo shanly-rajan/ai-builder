@@ -19,6 +19,7 @@ from ..domain import (
     SupervisorVerificationRecord,
     VerifiedSupervisor,
 )
+from ..memory import CandidateMemoryRecord
 from .discovery import SearchAttempt
 from .verification import EvidenceExtractionAttempt, EvidenceSourceReference
 
@@ -40,6 +41,19 @@ def merge_supervisors_by_id(
         else:
             positions[supervisor.supervisor_id] = len(merged)
             merged.append(supervisor)
+    return merged
+
+
+def merge_candidate_memory_records(
+    left: list[CandidateMemoryRecord], right: list[CandidateMemoryRecord]
+) -> list[CandidateMemoryRecord]:
+    """Merge append-only Candidate memories by deterministic semantic identifier."""
+    merged = list(left)
+    seen = {record.memory_id for record in merged}
+    for record in right:
+        if record.memory_id not in seen:
+            merged.append(record)
+            seen.add(record.memory_id)
     return merged
 
 
@@ -110,6 +124,9 @@ class ScholarPathState(TypedDict):
 
     candidate_profile: CandidateProfile
     candidate_preferences: Annotated[list[CandidatePreferenceRevision], append_items]
+    candidate_memory_records: Annotated[list[CandidateMemoryRecord], merge_candidate_memory_records]
+    candidate_memory_processed_feedback_count: int
+    candidate_memory_available: bool | None
     search_plan: SearchPlan | None
     raw_search_results: Annotated[list[RawSupervisorSearchResult], append_items]
     prospective_supervisors: list[ProspectiveSupervisor]
@@ -141,6 +158,9 @@ class ScholarPathStateUpdate(TypedDict, total=False):
 
     candidate_profile: CandidateProfile
     candidate_preferences: list[CandidatePreferenceRevision]
+    candidate_memory_records: list[CandidateMemoryRecord]
+    candidate_memory_processed_feedback_count: int
+    candidate_memory_available: bool | None
     search_plan: SearchPlan | None
     raw_search_results: list[RawSupervisorSearchResult]
     prospective_supervisors: list[ProspectiveSupervisor]
@@ -172,6 +192,9 @@ def create_initial_state(candidate_profile: CandidateProfile) -> ScholarPathStat
     return ScholarPathState(
         candidate_profile=candidate_profile,
         candidate_preferences=[],
+        candidate_memory_records=[],
+        candidate_memory_processed_feedback_count=0,
+        candidate_memory_available=None,
         search_plan=None,
         raw_search_results=[],
         prospective_supervisors=[],

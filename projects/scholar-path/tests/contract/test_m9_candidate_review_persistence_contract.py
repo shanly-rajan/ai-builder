@@ -2,9 +2,6 @@
 
 from pathlib import Path
 
-from scholarpath.graph import render_scholarpath_mermaid
-from scholarpath.observability import GRAPH_VERSION
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -51,23 +48,24 @@ def test_m9_prompt_diagram_tests_and_journal_are_recorded() -> None:
     assert (PROJECT_ROOT / "tests" / "integration" / "test_m9_sqlite_persistence.py").is_file()
 
 
-def test_m9_mermaid_is_the_current_generated_graph_snapshot() -> None:
+def test_m9_mermaid_remains_the_historical_candidate_review_snapshot() -> None:
     saved = (PROJECT_ROOT / "docs" / "m9-candidate-review-persistence-graph.mmd").read_text(
         encoding="utf-8"
     )
 
-    assert saved.strip() == render_scholarpath_mermaid().strip()
     assert "candidate_review_gate" in saved
     assert "candidate_review_gate_stub" not in saved
+    assert "learn_candidate_preferences" not in saved
 
 
-def test_m9_updates_trace_version_without_adding_mem0_or_outreach() -> None:
-    pyproject = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8").casefold()
+def test_m9_prompt_preserves_its_no_mem0_scope_without_adding_outreach() -> None:
+    prompt = (
+        PROJECT_ROOT / "docs" / "prompts" / "m9-candidate-review-interrupt-and-persistence.md"
+    ).read_text(encoding="utf-8")
     graph_source = "\n".join(
         path.read_text(encoding="utf-8")
         for path in sorted((PROJECT_ROOT / "src" / "graph").glob("*.py"))
     ).casefold()
 
-    assert GRAPH_VERSION == "m9"
-    assert '"mem0' not in pyproject
+    assert "Do not add Mem0 yet." in prompt
     assert "outreach" not in graph_source

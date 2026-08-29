@@ -24,6 +24,7 @@ from ..domain import (
     SupervisorVerificationRecord,
     VerifiedSupervisor,
 )
+from ..memory import CandidateMemoryRecord
 from .discovery import SearchAttempt
 from .state import RawSupervisorSearchResult, ReviewStatus, ToolErrorRecord
 from .verification import EvidenceExtractionAttempt, EvidenceSourceReference
@@ -35,6 +36,7 @@ _VALUE_FIELD = "value"
 _CHECKPOINT_MODEL_TYPES: tuple[type[BaseModel], ...] = (
     CandidateProfile,
     CandidatePreferenceRevision,
+    CandidateMemoryRecord,
     SearchPlan,
     ProspectiveSupervisor,
     VerifiedSupervisor,

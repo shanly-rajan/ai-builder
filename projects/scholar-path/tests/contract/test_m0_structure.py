@@ -63,6 +63,7 @@ def test_runtime_dependencies_match_the_current_milestone() -> None:
         "langgraph>=1.2.11,<2",
         "langgraph-checkpoint-sqlite==3.1.1",
         "langsmith>=0.11.2,<1",
+        "mem0ai==2.0.19",
         "pydantic>=2.10,<3",
         "pydantic-settings>=2.7,<3",
     ]
@@ -74,7 +75,7 @@ def test_runtime_dependencies_match_the_current_milestone() -> None:
             *pyproject["project"]["optional-dependencies"]["dev"],
         ]
     ).lower()
-    for deferred_dependency in ("streamlit", "mem0"):
+    for deferred_dependency in ("streamlit",):
         assert deferred_dependency not in all_dependencies
 
 

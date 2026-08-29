@@ -20,6 +20,7 @@ from tests.fakes.independent_review import (
     make_accepted_review,
     make_revised_review,
 )
+from tests.fakes.memory import FakeCandidatePreferenceMemory, unavailable_candidate_memory
 from tests.fakes.planning import FakePlanningModel, make_valid_planning_response
 from tests.fakes.research_fit import (
     FakeResearchFitModel,
@@ -34,6 +35,7 @@ __all__ = [
     "FakeContentExtraction",
     "FakeEvidenceVerificationModel",
     "FakeIndependentReviewModel",
+    "FakeCandidatePreferenceMemory",
     "FakePlanningModel",
     "FakeResearchFitModel",
     "FakeSupervisorSearch",
@@ -54,4 +56,5 @@ __all__ = [
     "make_superficial_keyword_research_fit_response",
     "make_valid_planning_response",
     "make_weak_research_fit_response",
+    "unavailable_candidate_memory",
 ]

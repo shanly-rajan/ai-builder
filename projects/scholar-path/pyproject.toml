@@ -16,6 +16,7 @@ dependencies = [
     "langgraph>=1.2.11,<2",
     "langgraph-checkpoint-sqlite==3.1.1",
     "langsmith>=0.11.2,<1",
+    "mem0ai==2.0.19",
     "pydantic>=2.10,<3",
     "pydantic-settings>=2.7,<3",
 ]
@@ -89,6 +90,10 @@ strict = true
 pretty = true
 show_error_codes = true
 warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["mem0", "mem0.*"]
+ignore_missing_imports = true
 
 [tool.pyright]
 include = ["src", "tests"]

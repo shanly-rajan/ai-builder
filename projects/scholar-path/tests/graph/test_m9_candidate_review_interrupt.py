@@ -29,6 +29,7 @@ from scholarpath.graph import (
     create_test_checkpointer,
 )
 from tests.fakes import (
+    FakeCandidatePreferenceMemory,
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
     FakeIndependentReviewModel,
@@ -106,6 +107,7 @@ def _build_harness(config: GraphFixtureConfig | None = None) -> _GraphHarness:
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
         independent_review_model=FakeIndependentReviewModel(),
+        candidate_preference_memory=FakeCandidatePreferenceMemory(),
         alternate_evidence_search=FakeSupervisorSearch(),
     )
     return _GraphHarness(
@@ -377,6 +379,7 @@ def test_resume_reexecutes_only_the_interrupt_node_without_duplicate_updates() -
 
     assert tuple(state["execution_log"][: len(paused_log)]) == paused_log
     assert state["execution_log"].count(CANDIDATE_REVIEW_GATE) == 1
+    assert state["execution_log"].count("learn_candidate_preferences") == 1
     assert state["execution_log"].count("save_shortlisted_supervisors") == 1
     assert state["execution_log"].count("generate_shortlist_briefing") == 1
     assert state["execution_log"].count("synthesize_supervisor_shortlist") == 1

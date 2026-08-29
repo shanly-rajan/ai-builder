@@ -14,6 +14,8 @@ from scholarpath.config import (
     Environment,
     LangSmithSettings,
     LogLevel,
+    Mem0MemoryConfiguration,
+    Mem0MemorySettings,
     NebiusReviewConfiguration,
     NebiusReviewSettings,
     OpenAIEvidenceConfiguration,
@@ -30,6 +32,7 @@ from scholarpath.config import (
     YouSearchConfiguration,
     YouSearchSettings,
     load_langsmith_settings,
+    load_mem0_memory_settings,
     load_nebius_review_settings,
     load_openai_evidence_settings,
     load_openai_planning_settings,
@@ -53,6 +56,7 @@ def isolate_settings_environment(
                 "OPENAI_",
                 "NEBIUS_",
                 "LANGSMITH_",
+                "MEM0_",
                 "YDC_",
                 "YOU_",
                 "TAVILY_",
@@ -296,6 +300,63 @@ def test_nebius_review_settings_defer_credentials_until_model_is_requested(
     assert settings.review_timeout_seconds == 60.0
     with pytest.raises(ProviderConfigurationError, match="provider 'nebius'"):
         settings.for_review_model()
+
+
+def test_mem0_settings_defer_credentials_until_memory_is_requested(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+
+    settings = load_mem0_memory_settings()
+
+    assert settings.api_key is None
+    assert settings.timeout_seconds == 20.0
+    assert settings.memory_limit == 100
+    assert settings.telemetry is False
+    with pytest.raises(ProviderConfigurationError, match="provider 'mem0'"):
+        settings.for_memory_adapter()
+
+
+def test_mem0_settings_use_canonical_environment_and_mask_secret(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+    raw_secret = "not-a-real-mem0-secret"
+    monkeypatch.setenv("MEM0_API_KEY", raw_secret)
+    monkeypatch.setenv("MEM0_TIMEOUT_SECONDS", "9.5")
+    monkeypatch.setenv("MEM0_MEMORY_LIMIT", "42")
+    monkeypatch.setenv("MEM0_TELEMETRY", "true")
+
+    configuration = load_mem0_memory_settings().for_memory_adapter()
+
+    assert configuration.api_key.get_secret_value() == raw_secret
+    assert configuration.timeout_seconds == 9.5
+    assert configuration.memory_limit == 42
+    assert configuration.telemetry is True
+    assert raw_secret not in repr(configuration)
+    assert raw_secret not in str(configuration)
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"timeout_seconds": 0},
+        {"memory_limit": 0},
+        {"memory_limit": 201},
+    ],
+)
+def test_mem0_settings_reject_invalid_non_secret_options(values: dict[str, object]) -> None:
+    with pytest.raises(ValidationError):
+        Mem0MemorySettings.model_validate(values)
+
+
+def test_mem0_configuration_rejects_blank_secret() -> None:
+    with pytest.raises(ValidationError, match="Mem0 API key must not be blank"):
+        Mem0MemoryConfiguration(
+            api_key=SecretStr("   "),
+            timeout_seconds=10,
+            memory_limit=25,
+        )
 
 
 def test_nebius_review_settings_use_canonical_environment_and_mask_secret(

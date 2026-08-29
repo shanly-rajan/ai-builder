@@ -20,6 +20,7 @@ from scholarpath.graph import (
     run_scholarpath_graph,
 )
 from tests.fakes import (
+    FakeCandidatePreferenceMemory,
     FakeContentExtraction,
     FakeEvidenceVerificationModel,
     FakeIndependentReviewModel,
@@ -40,6 +41,7 @@ def _run_with_fake(model: FakePlanningModel) -> ScholarPathState:
             thread_id="legacy-m3-planning",
             candidate_review_responses=(approval,),
             planning_model=model,
+            candidate_preference_memory=FakeCandidatePreferenceMemory(),
             supervisor_search=FakeSupervisorSearch(),
             content_extractor=FakeContentExtraction(),
             evidence_model=FakeEvidenceVerificationModel(),

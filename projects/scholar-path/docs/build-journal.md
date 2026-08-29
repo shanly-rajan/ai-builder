@@ -1696,3 +1696,115 @@ The exact milestone prompt is archived as
   only in checkpointed graph state.
 - Add LangSmith evaluations for pause-to-decision latency, invalid-response rate, repeated
   refinement frequency, and premature-lifecycle-promotion regressions.
+
+## Milestone M10: persistent Candidate preference memory
+
+**Date:** 2026-08-29
+
+### Milestone objective
+
+Add persistent, Candidate-scoped preference memory through Mem0 without making memory the
+source of truth for Supervisor facts or graph position. Recall permitted durable preferences
+before planning; write only after an explicit Candidate action; keep viewing side-effect
+free; and continue safely when long-term memory is unavailable.
+
+### Prompt used
+
+The exact milestone prompt is archived as
+[`m10-persistent-candidate-preference-memory.md`](prompts/m10-persistent-candidate-preference-memory.md).
+
+### Files changed
+
+- Added `src/memory/models.py`, `ports.py`, `preference_learning.py`, and
+  `mem0_adapter.py` with a finite Pydantic memory allowlist, stable semantic IDs, a typed
+  `CandidatePreferenceMemoryPort`, deterministic action projection, and hosted Mem0
+  direct import using `infer=False`.
+- Added lazy `Mem0MemorySettings`, deferred credential validation, configured timeouts and
+  record limits, telemetry-off default, `.env.example` guidance, and the current official
+  `mem0ai==2.0.19` dependency.
+- Extended planning input with identity-free typed recalled records and extended graph
+  state with merged memory records, availability, and a processed-feedback cursor.
+- Replaced fixture-only preference loading with Candidate-scoped recall and added the
+  `learn_candidate_preferences` node after the durable Candidate review interrupt.
+- Registered memory records with the strict checkpoint serializer, advanced trace metadata
+  to `graph-version:m10`, and updated the CLI dependency-injection boundary.
+- Added `FakeCandidatePreferenceMemory`, updated existing offline graph harnesses, and
+  updated current architecture, README, the generated
+  [`m10-candidate-preference-memory-graph.mmd`](m10-candidate-preference-memory-graph.mmd),
+  historical contracts, and this journal.
+
+### Tests added
+
+- `tests/unit/memory/test_candidate_preference_memory.py` validates schema privacy,
+  Candidate isolation, deterministic duplicates, every explicit action, and exclusion of
+  Supervisor factual evidence.
+- `tests/unit/memory/test_mem0_adapter.py` validates exact scoped SDK requests, untrusted
+  result filtering, direct import, idempotency, and sanitized provider failures using a
+  recording client.
+- `tests/graph/test_m10_candidate_preference_memory.py` validates load-before-plan,
+  rejection and approval writes, zero writes while viewing, planning influence, non-fatal
+  read/write failures, and fake-only default execution.
+- `tests/integration/test_mem0_memory_live.py` provides an explicitly opted-in, UUID-scoped
+  Mem0 round trip with cross-Candidate isolation and scoped cleanup.
+- `tests/contract/test_m10_candidate_preference_memory_contract.py` locks the dependency,
+  typed boundary, saved prompt, current diagram, graph version, and no-outreach boundary.
+- Extended configuration, initial-state, topology, interrupt-idempotency, CLI, SQLite, and
+  historical milestone tests for the M10 composition.
+
+### Test results
+
+- Focused M10 offline memory tests: `22 passed`.
+- Focused configuration and M0/M2/M9 compatibility suite: `101 passed`.
+- The pinned SDK installed into the strict editable environment successfully.
+- `venv/bin/ruff format --check .`: all 154 Python files formatted.
+- `venv/bin/ruff check --no-cache .`: all lint checks passed.
+- `venv/bin/mypy src tests`: no issues in 127 source files.
+- `venv/bin/pytest -q`: 785 non-live tests passed, seven live tests were deselected, 45
+  terminology subtests passed, and combined statement/branch coverage was 90.71 percent.
+- The Mem0 live test skipped cleanly without explicit opt-in: `1 skipped`.
+- `venv/bin/pip check` reported no broken requirements; a fresh import exposed the typed
+  port and Mem0 adapter without constructing an SDK client or requiring a key.
+- The current Mermaid snapshot matched the compiled sixteen-node graph exactly.
+- The 60-second view/no-write plus approval/write demonstration passed: `2 passed in 0.68s`.
+- `git diff --check` passed.
+
+### Assumptions
+
+- `CandidateProfile` and explicit current-run revisions remain authoritative for the
+  current interaction; recalled memory enriches planning but cannot alter Supervisor facts.
+- Approval of the proposed shortlist makes the current expanded search concepts a durable
+  positive signal. It does not store approved Supervisor names, profiles, evidence, scores,
+  or availability.
+- A rejection memory may retain an opaque Supervisor ID and the Candidate-authored reason,
+  because the milestone explicitly permits rejected Supervisor reasons; no factual profile
+  fields accompany it.
+- Hosted Mem0 is the production adapter target. Writes use its additive asynchronous API,
+  so an accepted request is not treated as immediate read-after-write consistency.
+- Stable `candidate_id` scopes Mem0 across research runs; LangGraph `thread_id` continues to
+  isolate the position of one run and is never used as the long-term memory user key.
+
+### Lessons learned
+
+- Human-interrupt side effects are safest in a downstream node. The review node checkpoints
+  the valid action first, so displaying or pausing cannot create memory.
+- Exact typed JSON with provider inference disabled prevents a memory service from
+  broadening a Candidate preference beyond what ScholarPath validated.
+- External ADD-only memory needs two idempotency controls: a deterministic semantic record
+  key and a scoped pre-write lookup. The graph cursor prevents normal resume replays.
+- Provider memory is untrusted input. Parsing only a versioned schema and ignoring malformed
+  or unrelated entries prevents arbitrary account memories from entering model input.
+- Non-fatal memory must preserve both directions: current profile data survives read failure,
+  and explicit Candidate action plus local graph state survives write failure.
+
+### Remaining debt
+
+- Define Candidate consent, retention, deletion, export, residency, access logging, and
+  incident-response controls before using Mem0 with real Candidate data.
+- Add bounded polling or an event-status workflow if the product needs confirmed durable
+  write acknowledgement rather than accepted asynchronous submission.
+- Evaluate semantic memory relevance and limits with real opt-in Candidate feedback; M10
+  intentionally loads only the bounded, versioned ScholarPath record set.
+- Decide how a Candidate explicitly retracts or supersedes an older durable preference;
+  M10 deduplicates additive records but does not implement deletion or conflict resolution.
+- Add production metrics for memory availability, duplicate suppression, write latency,
+  and the effect of recalled preferences on recommendation relevance.
