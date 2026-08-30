@@ -1,19 +1,21 @@
 # ScholarPath Five-Minute Demonstration
 
-This demonstration has two layers:
+This demonstration has three deliberately separate layers:
 
 1. a deterministic offline release journey that always shows the complete
    reject/refine/approve route; and
-2. an optional traced Streamlit run for a real LangSmith route visualization.
+2. a development-only `deterministic_demo` Streamlit profile for the interactive five-minute
+   walkthrough; and
+3. an optional provider-backed `live` Streamlit profile for a real LangSmith route visualization.
 
-The offline journey is the release proof. The traced run is an operational demonstration and
+The offline journey is the release proof. The deterministic Streamlit profile uses fixed
+synthetic adapters, an in-memory checkpoint, and forced-off tracing. The optional traced profile
 requires configured provider credentials. Never paste credentials, a real Candidate's personal
 data, or full source content into a terminal transcript or screenshot.
 
 ## Before the timer
 
-From `projects/scholar-path`, install the exact-version constraints and load only the ignored
-local `.env` when you intend to run the traced layer:
+From `projects/scholar-path`, install the exact-version constraints:
 
 ```bash
 python -m pip install --upgrade "pip==26.1.2" "setuptools==84.0.0"
@@ -21,10 +23,11 @@ python -m pip install --constraint requirements.lock --no-build-isolation -e ".[
   --config-settings editable_mode=strict
 ```
 
-For the optional trace, `.env` must contain valid OpenAI, You.com, Tavily, Nebius, and LangSmith
-configuration. Set the correct LangSmith regional endpoint and workspace for the key. Keep
-`SCHOLARPATH_DISCOVERY_FAILURE_MODE=off` in the file; the demonstration overrides it for one
-process only.
+No `.env` or provider credential is required for the deterministic layer. For the optional live
+trace, `.env` must contain valid OpenAI, You.com, Tavily, Nebius, and LangSmith configuration.
+Set the correct LangSmith regional endpoint and workspace for the key. Keep
+`SCHOLARPATH_RUNTIME_PROFILE=live` and `SCHOLARPATH_DISCOVERY_FAILURE_MODE=off` in the file; the
+commands below use process-local overrides.
 
 ## 0:00–1:00 — Run the deterministic full journey
 
@@ -52,23 +55,29 @@ This test uses fake ports, an in-memory checkpointer, a fixed clock, and no netw
 that the failure is injected, partial provider work is retained, rejection is learned before
 replanning, and no Shortlisted Supervisor exists before explicit approval.
 
-## 1:00–2:00 — Start the traced application
+## 1:00–2:00 — Start the deterministic Streamlit application
 
-Load `.env`, then override tracing and failure injection for this process:
+Fully stop any existing Streamlit server, then run this exact block without loading provider
+credentials:
 
 ```bash
-set -a
-source .env
-set +a
-
-LANGSMITH_TRACING=true \
-SCHOLARPATH_DISCOVERY_FAILURE_MODE=you_retryable_error \
-streamlit run streamlit_app.py
+SCHOLARPATH_RUNTIME_PROFILE=deterministic_demo \
+SCHOLARPATH_ENVIRONMENT=development \
+LANGSMITH_TRACING=false \
+venv/bin/streamlit run streamlit_app.py
 ```
 
-The injected failure is typed and deterministic. It prevents the You.com call for this run and
-forces the existing bounded routing policy to Tavily. The setting is off by default and is
-rejected when `SCHOLARPATH_ENVIRONMENT=production`.
+The app must show the persistent, non-dismissible warning **Synthetic offline demonstration mode
+is active.** It explains that the runtime uses invented test data rather than live Supervisor
+research. Keep that warning visible in every screenshot and verify it remains present after
+reruns and stage changes. The demonstration composition makes no provider call, requires no
+provider key, forces tracing off regardless of broader environment settings, and stores its
+threads only in memory.
+
+`deterministic_demo` is rejected when `SCHOLARPATH_ENVIRONMENT=production`. Runtime composition
+is held by Streamlit's cached application service, so a browser refresh or rerun cannot switch
+profiles. Fully stop and restart the Streamlit server to change profiles; restarting discards the
+in-memory demonstration thread.
 
 ## 2:00–3:00 — Enter a synthetic Candidate profile
 
@@ -84,14 +93,13 @@ Use demonstration data, not personal data:
 | Methodological interests | design science; case study evaluation |
 | Exclusions | purely theoretical model pre-training |
 
-Select **Start Supervisor research**. Expand **Canonical LangGraph progress** and point out:
+Select **Start Supervisor research**. Expand **Canonical LangGraph progress** and point out the
+same real graph stages used by the provider-backed profile:
 
 ```text
 load_candidate_preferences
 plan_supervisor_searches
 discover_prospective_supervisors
-enough_supervisors_found
-fallback_supervisor_search
 enough_supervisors_found
 deduplicate_supervisors
 extract_supervisor_evidence
@@ -102,9 +110,11 @@ synthesize_supervisor_shortlist
 candidate_review_gate
 ```
 
-In the privacy-safe discovery diagnostics, show the typed primary failure, that Tavily fallback
-was used, and the raw/plausible/retained counts. Do not expand or copy provider content outside
-the application.
+Bounded fallback or alternate-source nodes appear only when the synthetic state reaches their
+existing route conditions; the demonstration profile does not force or bypass them. In the
+privacy-safe diagnostics, show aggregate discovery, retrieval, retained-claim, directly grounded,
+and verification counts. Emphasize that page retrieval success is not verification. Do not copy
+the fixed source content outside the application.
 
 ## 3:00–4:00 — Inspect evidence, reject, and refine
 
@@ -131,14 +141,42 @@ Submit the rejection. Show that:
 - the next planning round includes the durable rejection preference; and
 - the graph pauses again at Candidate review within its finite iteration budget.
 
-## 4:00–5:00 — Approve and inspect the trace
+## 4:00–5:00 — Approve and inspect the final shortlist
 
 Select the final Verified Supervisors and choose **Approve selected Supervisors**. Show:
 
 - `save_shortlisted_supervisors` occurs only after the approval;
 - `generate_shortlist_briefing` follows the save;
 - the final page labels the records as Shortlisted Supervisors; and
-- the briefing says the recommendations were Candidate-approved and evidence-backed.
+- the briefing says the recommendations were Candidate-approved and evidence-backed; and
+- the persistent warning still identifies every displayed result as synthetic.
+
+The demonstration exercises the unchanged identity, grounding, verification, minimum-count,
+alternate-retry, availability, Research Fit, independent-review, Candidate-approval, and
+lifecycle rules. Only dependency composition, tracing, persistence, and the synthetic warning
+differ from `live`.
+
+## Optional provider-backed traced Streamlit layer
+
+The `live` profile is the default provider-backed composition; the name does not make this
+trusted-local release production-ready. To run it, fully stop the deterministic Streamlit server,
+load the ignored `.env`, and start a new process:
+
+```bash
+set -a
+source .env
+set +a
+
+SCHOLARPATH_RUNTIME_PROFILE=live \
+LANGSMITH_TRACING=true \
+SCHOLARPATH_DISCOVERY_FAILURE_MODE=you_retryable_error \
+venv/bin/streamlit run streamlit_app.py
+```
+
+The typed failure injection prevents the You.com call for this process and exercises the existing
+bounded Tavily fallback; it is off by default and rejected in production. Use only the synthetic
+Candidate profile above even though the Supervisor results are live. The synthetic-runtime
+warning must not appear in `live`.
 
 In LangSmith, open the configured project and inspect the newest `scholarpath_graph` trace
 sequence. Interrupt resume is a new graph invocation, so the start, rejection resume, and
@@ -181,7 +219,11 @@ It must remain excluded from default pytest and CI.
 
 | Observation | Response |
 |---|---|
-| Missing provider key | Stop the traced layer and show the deterministic offline journey; do not paste the key into a command. |
+| Synthetic warning is absent in `deterministic_demo` | Stop immediately; verify the process environment and perform a full Streamlit server restart before demonstrating results. |
+| Profile change appears ignored | Stop the Streamlit process completely and relaunch it; browser refresh and rerun retain the cached application service. |
+| Demonstration thread disappears after restart | Expected: `deterministic_demo` uses an in-memory checkpointer. Start a new synthetic run. |
+| `deterministic_demo` is rejected in production | Expected safety behavior. Use it only with a non-production environment; never weaken the guard. |
+| Missing provider key in `live` | Stop the traced layer and show the deterministic profile or offline journey; do not paste the key into a command. |
 | LangSmith `403` | Verify endpoint region, workspace ID, key scope, and project; keep the offline release result separate. |
 | Too few live profiles | Explain the bounded recoverable state; do not weaken identity, evidence, or availability rules during a demonstration. |
 | Evidence remains partial | Show the retained evidence and missing categories; do not present the record as a Verified Supervisor. |

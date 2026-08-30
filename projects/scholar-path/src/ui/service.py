@@ -10,15 +10,34 @@ from typing import Any, Protocol, cast
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command, StateSnapshot
 
-from ..config import ApplicationSettings, load_settings
+from ..config import (
+    ApplicationSettings,
+    LangSmithSettings,
+    RuntimeProfile,
+    load_settings,
+)
 from ..domain import CandidateProfile
+from ..evaluation.fakes import (
+    FixedEvaluationClock,
+    InMemoryCandidatePreferenceMemory,
+    ScriptedContentExtraction,
+    ScriptedEvidenceModel,
+    ScriptedIndependentReviewModel,
+    ScriptedResearchFitModel,
+    ScriptedSupervisorSearch,
+    StaticPlanningModel,
+    make_evaluation_evidence_outcomes,
+    make_evaluation_search_outcomes,
+)
 from ..graph import (
     CandidateReviewResponse,
+    GraphFixtureConfig,
     ScholarPathRuntime,
     ScholarPathState,
     build_scholarpath_runtime,
     candidate_review_response_value,
     create_initial_state,
+    create_test_checkpointer,
     open_local_sqlite_checkpointer,
 )
 from .controller import (
@@ -227,3 +246,35 @@ def create_local_scholarpath_application_service(
         resources.close()
         raise
     return ScholarPathApplicationService(runtime, close_callback=resources.close)
+
+
+def create_deterministic_demo_application_service(
+    settings: ApplicationSettings | None = None,
+) -> ScholarPathApplicationService:
+    """Create an isolated no-network service over the unchanged release graph policies."""
+    resolved_settings = settings or load_settings()
+    if resolved_settings.runtime_profile is not RuntimeProfile.DETERMINISTIC_DEMO:
+        raise ValueError(
+            "Deterministic demo service requires the deterministic_demo runtime profile"
+        )
+
+    graph_config = GraphFixtureConfig()
+    search_outcomes = make_evaluation_search_outcomes(graph_config.fixtures)
+    content_outcomes, evidence_outcomes = make_evaluation_evidence_outcomes(graph_config.fixtures)
+    runtime = build_scholarpath_runtime(
+        graph_config,
+        checkpointer=create_test_checkpointer(),
+        planning_model=StaticPlanningModel(),
+        supervisor_search=ScriptedSupervisorSearch(search_outcomes),
+        tavily_search=ScriptedSupervisorSearch(search_outcomes),
+        content_extractor=ScriptedContentExtraction(content_outcomes),
+        evidence_model=ScriptedEvidenceModel(evidence_outcomes),
+        research_fit_model=ScriptedResearchFitModel(),
+        independent_review_model=ScriptedIndependentReviewModel(),
+        candidate_preference_memory=InMemoryCandidatePreferenceMemory(),
+        alternate_evidence_search=ScriptedSupervisorSearch({}),
+        application_settings=resolved_settings,
+        langsmith_settings=LangSmithSettings(tracing=False),
+        utc_clock=FixedEvaluationClock(graph_config.fixtures.generated_at),
+    )
+    return ScholarPathApplicationService(runtime)

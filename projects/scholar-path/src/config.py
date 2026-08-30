@@ -25,6 +25,13 @@ class Environment(StrEnum):
     PRODUCTION = "production"
 
 
+class RuntimeProfile(StrEnum):
+    """Explicit application compositions available at the outer runtime boundary."""
+
+    LIVE = "live"
+    DETERMINISTIC_DEMO = "deterministic_demo"
+
+
 class LogLevel(StrEnum):
     """Supported application log levels."""
 
@@ -648,19 +655,20 @@ class ApplicationSettings(BaseSettings):
 
     app_name: str = "ScholarPath"
     environment: Environment = Environment.DEVELOPMENT
+    runtime_profile: RuntimeProfile = RuntimeProfile.LIVE
     log_level: LogLevel = LogLevel.INFO
     discovery_failure_mode: DiscoveryFailureMode = DiscoveryFailureMode.OFF
     checkpoint_database_path: Path = Path(".scholarpath/checkpoints.sqlite3")
     provider_api_keys: dict[str, SecretStr] = Field(default_factory=dict, repr=False)
 
     @model_validator(mode="after")
-    def production_must_disable_failure_injection(self) -> Self:
-        """Prevent demonstration failures from being activated in production."""
-        if (
-            self.environment is Environment.PRODUCTION
-            and self.discovery_failure_mode is not DiscoveryFailureMode.OFF
-        ):
-            raise ValueError("Discovery failure injection must be off in production")
+    def production_must_disable_demonstration_controls(self) -> Self:
+        """Prevent synthetic providers or failure injection from running in production."""
+        if self.environment is Environment.PRODUCTION:
+            if self.discovery_failure_mode is not DiscoveryFailureMode.OFF:
+                raise ValueError("Discovery failure injection must be off in production")
+            if self.runtime_profile is RuntimeProfile.DETERMINISTIC_DEMO:
+                raise ValueError("Deterministic demo runtime profile must be off in production")
         return self
 
     def for_provider(self, provider: str) -> ProviderConfiguration:

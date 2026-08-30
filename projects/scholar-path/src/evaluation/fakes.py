@@ -317,17 +317,15 @@ def _fit_component(
     score: int,
     evidence_id: str | None,
     rationale: str,
+    *,
+    evidence_gap: str = "No directly supported evidence is available for this component.",
 ) -> StructuredResearchFitComponent:
     return StructuredResearchFitComponent(
         score=score,
         rationale=rationale,
         supporting_evidence_ids=[] if evidence_id is None else [evidence_id],
         confidence=EvidenceConfidence.LOW if evidence_id is None else EvidenceConfidence.HIGH,
-        evidence_gap=(
-            "No directly supported region or study-mode evidence was retrieved."
-            if evidence_id is None
-            else None
-        ),
+        evidence_gap=evidence_gap if evidence_id is None else None,
     )
 
 
@@ -339,7 +337,10 @@ def make_evaluation_research_fit_response(
     for item in fit_input.evidence:
         evidence_by_type.setdefault(item.claim_type, item.evidence_id)
     research_id = evidence_by_type.get(EvidenceClaimType.RESEARCH_INTEREST)
-    methodology_id = evidence_by_type.get(EvidenceClaimType.METHODOLOGY) or research_id
+    methodology_id = None
+    if fit_input.methodological_interests:
+        methodology_id = evidence_by_type.get(EvidenceClaimType.METHODOLOGY) or research_id
+    orientation_id = research_id if fit_input.preferred_research_orientation is not None else None
     publication_id = evidence_by_type.get(EvidenceClaimType.PUBLICATION)
     scores = _FIT_SCORES.get(fit_input.supervisor_name, (20, 10, 8, 8))
     return StructuredResearchFitResult(
@@ -351,12 +352,22 @@ def make_evaluation_research_fit_response(
         methodological_alignment=_fit_component(
             scores[1] if methodology_id else 0,
             methodology_id,
-            "Direct methodology evidence supports methodological alignment.",
+            (
+                "Direct methodology evidence supports methodological alignment."
+                if methodology_id
+                else "The Candidate did not state a methodological preference."
+            ),
+            evidence_gap="The Candidate did not state a methodological preference.",
         ),
         research_orientation_alignment=_fit_component(
-            scores[2] if research_id else 0,
-            research_id,
-            "Direct research evidence supports the Candidate's applied orientation.",
+            scores[2] if orientation_id else 0,
+            orientation_id,
+            (
+                "Direct research evidence supports the Candidate's stated orientation."
+                if orientation_id
+                else "The Candidate did not state a research-orientation preference."
+            ),
+            evidence_gap="The Candidate did not state a research-orientation preference.",
         ),
         recent_research_alignment=_fit_component(
             scores[3] if publication_id else 0,
@@ -367,6 +378,7 @@ def make_evaluation_research_fit_response(
             0,
             None,
             "The evidence does not establish region or study-mode compatibility.",
+            evidence_gap="No directly supported region or study-mode evidence was retrieved.",
         ),
         overall_rationale=(
             "The component scores reflect only cited, directly supported Supervisor evidence."

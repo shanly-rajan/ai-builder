@@ -51,6 +51,12 @@ page retrieval from verification, reports retained versus directly grounded clai
 evidence category, and shows which mandatory evidence gates remain missing. It is a read-only
 UI projection over existing checkpoint state and changes no evidence or routing rule.
 
+The bounded M13.2 repair makes runtime composition explicit. `live` remains the default,
+provider-backed profile. The development-only `deterministic_demo` profile runs the same graph
+with fixed synthetic adapters, forced-off tracing, and an in-memory checkpointer, while a
+persistent UI warning prevents synthetic results from being mistaken for live research. It is
+rejected in production and changes no verification or Candidate-approval rule.
+
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
 graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. Unit and
@@ -727,6 +733,29 @@ relative to the current working directory. Keep the local file private:
 chmod 600 .env
 ```
 
+### Runtime profiles
+
+`SCHOLARPATH_RUNTIME_PROFILE` has two explicit values. Missing configuration resolves to
+`live`; ScholarPath never interprets missing provider credentials as permission to substitute
+synthetic data.
+
+| Profile | Composition and intended use |
+|---|---|
+| `live` (default) | Existing provider-backed adapters and the configured local SQLite checkpoint. Credentials are validated lazily when their boundaries are reached. `live` names the runtime composition; it does not make the trusted-local release production-ready. |
+| `deterministic_demo` | Fixed synthetic adapters, no provider credentials or network calls, tracing forced off, and an in-memory checkpoint. Use only to demonstrate the workflow with synthetic inputs and results. |
+
+`deterministic_demo` is rejected when `SCHOLARPATH_ENVIRONMENT=production`. Streamlit also
+renders a persistent, non-dismissible warning beginning **Synthetic offline demonstration mode
+is active.** at every stage and on every rerun. The service is cached for the life of the
+Streamlit server, so changing the profile requires fully stopping and restarting Streamlit;
+refreshing the browser or triggering a rerun is not enough. Restarting also discards every
+in-memory demonstration thread.
+
+Both profiles execute the same LangGraph topology and deterministic domain policies. The
+demonstration profile does not relax identity checks, grounding, verification gates, the
+five-Supervisor minimum, the one alternate-source retry, availability semantics, Research Fit,
+independent review, Candidate approval, or lifecycle transitions.
+
 ### Provider configuration
 
 Set these variables in the ignored `.env` before running the live CLI:
@@ -758,6 +787,7 @@ MEM0_API_KEY=your-mem0-key
 MEM0_TIMEOUT_SECONDS=20
 MEM0_MEMORY_LIMIT=100
 MEM0_TELEMETRY=false
+SCHOLARPATH_RUNTIME_PROFILE=live
 SCHOLARPATH_DISCOVERY_FAILURE_MODE=off
 SCHOLARPATH_CHECKPOINT_DATABASE_PATH=.scholarpath/checkpoints.sqlite3
 ```
@@ -991,6 +1021,22 @@ For an installation-independent invocation, the equivalent command is:
 ```bash
 venv/bin/streamlit run streamlit_app.py
 ```
+
+To run the complete deterministic Streamlit demonstration without credentials or network access,
+fully stop any running Streamlit server and launch a new process with this exact block:
+
+```bash
+SCHOLARPATH_RUNTIME_PROFILE=deterministic_demo \
+SCHOLARPATH_ENVIRONMENT=development \
+LANGSMITH_TRACING=false \
+venv/bin/streamlit run streamlit_app.py
+```
+
+The deterministic composition forces tracing off regardless of any broader tracing setting and
+uses only an in-memory checkpointer. Its warning remains visible throughout the workflow so fixed
+synthetic Supervisors cannot be confused with live provider results. To return to the default
+provider-backed profile, stop the server and start it again with
+`SCHOLARPATH_RUNTIME_PROFILE=live`; a browser refresh cannot switch a cached application service.
 
 ### Editor interpreter
 

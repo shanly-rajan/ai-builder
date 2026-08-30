@@ -7,6 +7,7 @@ from collections.abc import Callable, Iterable
 import streamlit as st
 from pydantic import ValidationError
 
+from ..config import ApplicationSettings
 from ..graph import (
     CandidateApproveResponse,
     CandidateRejectionReason,
@@ -39,12 +40,23 @@ RECOVERABLE_SERVICE_MESSAGE = (
 )
 STUDY_MODE_OPTIONS = ("full-time", "part-time", "online", "hybrid", "on-campus")
 RESEARCH_ORIENTATION_OPTIONS = ("No preference", "applied", "theoretical", "mixed")
+DETERMINISTIC_DEMO_BANNER = (
+    "Synthetic offline demonstration mode is active. Displayed results and workflow outcomes "
+    "are invented test data, not real Supervisor information or recommendations. External "
+    "providers are not called."
+)
+
+
+@st.cache_resource(show_spinner=False)
+def application_settings() -> ApplicationSettings:
+    """Resolve one immutable composition snapshot for the Streamlit process."""
+    return dependencies.configured_application_settings()
 
 
 @st.cache_resource(show_spinner=False)
 def application_service() -> ScholarPathApplicationPort:
     """Cache only shared infrastructure; Candidate data remains checkpoint-scoped."""
-    return dependencies.create_application_service()
+    return dependencies.create_application_service(application_settings())
 
 
 def _humanize(value: str) -> str:
@@ -53,6 +65,12 @@ def _humanize(value: str) -> str:
 
 def _render_stage_navigation() -> None:
     st.caption("  →  ".join(STAGE_LABELS))
+
+
+def _render_runtime_profile_banner() -> None:
+    """Keep synthetic demonstration output visibly distinct from live-provider output."""
+    if dependencies.is_deterministic_demo(application_settings()):
+        st.warning(DETERMINISTIC_DEMO_BANNER)
 
 
 def _render_profile_form() -> None:
@@ -679,6 +697,7 @@ def main() -> None:
         "Discover, verify, evaluate, and review research-aligned Supervisors with "
         "evidence-backed Research Fit assessments."
     )
+    _render_runtime_profile_banner()
     _render_stage_navigation()
     thread_id = st.session_state.get("thread_id")
     if isinstance(thread_id, str) and thread_id.strip():

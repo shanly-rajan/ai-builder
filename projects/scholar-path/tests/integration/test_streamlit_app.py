@@ -11,6 +11,7 @@ from streamlit.testing.v1 import AppTest
 
 import scholarpath.ui.app as ui_app
 import scholarpath.ui.dependencies as ui_dependencies
+from scholarpath.config import ApplicationSettings, Environment
 from scholarpath.domain import SearchResultRejectionCounts
 from scholarpath.graph import (
     AlternateSourceRejectionCounts,
@@ -74,7 +75,12 @@ def _configure_ui_dependencies(
     thread_id_iterator = iter(thread_ids)
     candidate_id_iterator = iter(candidate_ids)
 
-    def create_application_service() -> ScholarPathApplicationPort:
+    settings = ApplicationSettings(environment=Environment.TEST)
+
+    def create_application_service(
+        resolved_settings: ApplicationSettings | None = None,
+    ) -> ScholarPathApplicationPort:
+        assert resolved_settings is settings
         return service
 
     def new_thread_id() -> str:
@@ -87,6 +93,11 @@ def _configure_ui_dependencies(
         ui_dependencies,
         "create_application_service",
         create_application_service,
+    )
+    monkeypatch.setattr(
+        ui_dependencies,
+        "configured_application_settings",
+        lambda: settings,
     )
     monkeypatch.setattr(ui_dependencies, "new_thread_id", new_thread_id)
     monkeypatch.setattr(ui_dependencies, "new_candidate_id", new_candidate_id)

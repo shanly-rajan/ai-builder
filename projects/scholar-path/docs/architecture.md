@@ -1081,6 +1081,53 @@ coordinates. Model-draft admission counts and first-failed grounding reasons are
 the existing state and remain deferred rather than inferred. Verification requirements,
 minimums, retries, routing, providers, and human approval are unchanged.
 
+## M13.2 explicit runtime-composition boundary
+
+```mermaid
+flowchart TB
+    RP[SCHOLARPATH_RUNTIME_PROFILE] --> SETTINGS[ApplicationSettings with RuntimeProfile]
+    ENV[SCHOLARPATH_ENVIRONMENT] --> SETTINGS
+    SETTINGS --> GUARD{Production guard}
+    GUARD -->|production + deterministic_demo| REJECT[Reject configuration]
+    GUARD -->|allowed profile| SELECT
+
+    SELECT -->|live: default| LIVE[Existing provider-backed adapters]
+    LIVE --> SQLITE[(Configured local SQLite checkpoint)]
+    LIVE --> TRACE[Optional allowlisted LangSmith tracing]
+
+    SELECT -->|deterministic_demo: development only| DEMO[Fixed synthetic adapters]
+    DEMO --> MEMORY[(In-memory checkpoint)]
+    DEMO --> NOTRACE[Tracing forced off]
+    DEMO --> WARNING[Persistent synthetic-data UI warning]
+
+    LIVE --> GRAPH[Same compiled LangGraph]
+    DEMO --> GRAPH
+    GRAPH --> RULES[Same verification, routing, lifecycle, and approval policies]
+
+    CACHE[Streamlit cached application service] -. profile resolved once .-> SELECT
+```
+
+`RuntimeProfile.LIVE` is the default and preserves the existing lazy provider-backed
+composition. Missing credentials remain typed provider-configuration failures; they never cause
+an implicit switch to synthetic adapters. The word `live` distinguishes dependency composition
+and does not claim that the trusted-local release has production authentication, authorization,
+storage, or governance controls.
+
+`RuntimeProfile.DETERMINISTIC_DEMO` composes fixed synthetic ports, an in-memory checkpointer,
+and disabled observability so it needs no provider credential and makes no provider or tracing
+call. It still executes the same graph and authoritative domain rules. Supervisor identity,
+grounding, verification gates, the five-Supervisor minimum, the one alternate-source retry,
+availability, Research Fit, independent review, Candidate approval, and lifecycle transitions
+are not bypassed or weakened.
+
+The settings boundary rejects `deterministic_demo` when the application environment is
+`production`. In allowed environments the UI renders a persistent, non-dismissible warning on
+every stage and rerun identifying all displayed Supervisors and evidence as fixed synthetic
+demonstration data. The runtime profile is resolved when Streamlit constructs its cached
+application service. Switching profiles therefore requires fully stopping and restarting the
+Streamlit server; browser refresh and Streamlit rerun reuse the cached composition. A restart
+also discards the demonstration profile's in-memory threads.
+
 ## Configuration and deferred provider activation
 
 ```mermaid
@@ -1117,10 +1164,11 @@ Mem0 settings and the SDK import remain lazy until the graph loads long-term pre
 Missing or invalid Mem0 credentials become a recoverable graph error rather than a startup
 failure. `MEM0_TELEMETRY` defaults to false and is set before the dynamic SDK import.
 
-M11 environment variables are:
+Runtime environment variables include:
 
 | Boundary | Variables |
 |---|---|
+| Runtime composition | `SCHOLARPATH_RUNTIME_PROFILE` (`live` by default; `deterministic_demo` only outside production), `SCHOLARPATH_ENVIRONMENT` |
 | OpenAI planning | `OPENAI_API_KEY`, `OPENAI_PLANNING_MODEL`, `OPENAI_PLANNING_TIMEOUT_SECONDS` |
 | OpenAI evidence | `OPENAI_API_KEY`, `OPENAI_EVIDENCE_MODEL`, `OPENAI_EVIDENCE_TIMEOUT_SECONDS` |
 | OpenAI Research Fit | `OPENAI_API_KEY`, `OPENAI_RESEARCH_FIT_MODEL`, `OPENAI_RESEARCH_FIT_TIMEOUT_SECONDS` |
@@ -1306,6 +1354,22 @@ ruff check .
 mypy src tests scripts
 pytest -m "not live"
 ```
+
+The command above uses the default `live` profile and the existing provider-backed composition.
+For an offline interactive demonstration, first stop any running Streamlit server, then launch
+the development-only profile with this exact block:
+
+```bash
+SCHOLARPATH_RUNTIME_PROFILE=deterministic_demo \
+SCHOLARPATH_ENVIRONMENT=development \
+LANGSMITH_TRACING=false \
+venv/bin/streamlit run streamlit_app.py
+```
+
+The deterministic composition forces tracing off and uses an in-memory checkpointer. Profile
+changes take effect only after a full Streamlit server restart because the application service is
+cached; restarting discards demonstration threads. The persistent UI warning identifies the
+synthetic runtime throughout the journey.
 
 The production CLI path requires the planning, discovery, evidence, Research Fit, and
 independent-review credentials. `MEM0_API_KEY` activates cross-run preference memory;

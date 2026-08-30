@@ -2963,3 +2963,103 @@ The agreed bounded repair prompt is archived as
   repair without weakening identity, affiliation, research, or provenance requirements.
 - Validate the panel against a fresh live thread and a labelled multilingual profile corpus
   without copying source or Candidate content into logs, traces, fixtures, or documentation.
+
+## M13.2 Repair: Deterministic Streamlit demonstration runtime
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Expose ScholarPath's complete Streamlit journey through an explicit, development-only,
+deterministic runtime composition without weakening the meaning of a Verified Supervisor. Keep
+the provider-backed composition as the default, prohibit synthetic adapters in production, and
+exercise the same verification, Research Fit, independent-review, Candidate-review, preference,
+shortlist, and briefing boundaries without credentials or network access.
+
+### Prompt used
+
+The agreed bounded repair prompt is archived as
+[`m13-2-deterministic-demo-runtime.md`](prompts/m13-2-deterministic-demo-runtime.md).
+
+### Files changed
+
+- Added `RuntimeProfile.LIVE` and `RuntimeProfile.DETERMINISTIC_DEMO` to `src/config.py`, with
+  `live` as the default and a production validator that rejects the synthetic composition.
+- Added one profile-selection seam in `src/ui/dependencies.py` and a packaged deterministic
+  service factory in `src/ui/service.py`; the latter injects fixed structured adapters, an
+  in-memory checkpointer, Candidate-scoped in-memory preference storage, a fixed clock, and
+  tracing disabled into the unchanged graph.
+- Added a persistent synthetic-data warning in `src/ui/app.py` and exported the demonstration
+  service factory through `src/ui/__init__.py`.
+- Made the packaged Research Fit fake respect an omitted Candidate methodology or orientation
+  preference, assigning zero points and an explicit evidence gap instead of producing invalid
+  structured output for the UI's minimum valid form submission.
+- Updated `.env.example`, `README.md`, `docs/architecture.md`, and
+  `docs/five-minute-demo.md`, and saved the exact M13.2 prompt.
+
+### Tests added
+
+- Settings tests for the default profile, explicit environment loading, and production rejection.
+- Unit tests proving the demonstration factory injects only packaged offline ports, forces
+  tracing off, uses an in-memory checkpointer and memory, rejects accidental live use, and that
+  the UI dependency seam selects exactly one composition.
+- A real-graph integration journey covering deterministic You.com failure, bounded Tavily
+  fallback, at least five strictly Verified Supervisors, evidence-backed Research Fit,
+  independent review, Candidate rejection, preference-guided replanning, Candidate approval,
+  five Shortlisted Supervisors, final briefing, and checkpoint isolation between service
+  instances.
+- AppTest coverage for warning persistence from intake through shortlist, warning absence in
+  `live`, safe static warning text, cached profile/banner consistency after environment changes,
+  and the real deterministic service reaching Candidate review and an approved five-Supervisor
+  shortlist from the minimum valid form.
+- Repository contracts for required artifacts, default-live behavior, unchanged five-Supervisor
+  verification and shortlist policies, no runtime form toggle, no `tests` package dependency,
+  forced-off demonstration tracing, and exact README instructions.
+
+### Test results
+
+- Ruff formatting: `186 files left unchanged`; Ruff linting: all checks passed.
+- Strict mypy across `src tests scripts`: no issues found in `179 source files`.
+- Focused M13.2 plus configuration, evaluation, Streamlit, M11, and M13 regressions:
+  `195 passed in 7.16s`.
+- Complete non-live pytest suite: `1,390 passed, 9 deselected in 18.97s`; branch coverage:
+  `90.81%`.
+- Offline LangSmith-compatible evaluation baseline: `11/11` scenarios passed; every applicable
+  deterministic metric passed and duplicate Supervisor rate remained `0.000`.
+- Strict editable installation without dependency resolution passed; `pip check` reported no
+  broken requirements, package import reported version `0.1.0`, bytecode compilation passed, and
+  `git diff --check` reported no whitespace errors.
+
+### Assumptions
+
+- `deterministic_demo` is a process-level dependency composition, not graph state, Candidate
+  state, or an interface choice; switching it requires a full Streamlit server restart.
+- Losing demonstration checkpoints and preference memory on restart is intentional isolation,
+  not a durability guarantee.
+- Synthetic evidence may become Verified only by satisfying the same identity, affiliation,
+  research, provenance, and grounding rules as the live path.
+- Tracing is forced off for the demonstration composition so invented results and Candidate form
+  input cannot be confused with a provider-backed LangSmith experiment.
+
+### Lessons learned
+
+- A complete vertical demonstration does not require weakening an authoritative gate when typed
+  adapters can provide controlled inputs that satisfy the gate legitimately.
+- Runtime composition belongs at the outer dependency boundary; putting it in graph state or the
+  Candidate form would allow mixed-mode threads and weaken auditability.
+- Packaged fakes reused by an interface must accept every valid interface input, including
+  optional preferences, while still obeying the same structured-output constraints.
+- A persistent warning and hard production validator address different failure modes and are both
+  required to keep invented Supervisor information visibly separated from live research.
+
+### Remaining debt
+
+- The synthetic composition currently reuses `scholarpath.evaluation.fakes`; move reusable demo
+  adapters into a dedicated demonstration package only if this profile grows beyond the bounded
+  release walkthrough.
+- Add authenticated Candidate identity and an authorization boundary before replacing the
+  isolated in-memory demonstration store with any shared persistence.
+- Repair the measured live affiliation and research grounding gaps with labelled official-page
+  fixtures; do not use the successful synthetic route as evidence that live recall is adequate.
+- Keep live LangSmith traces and provider canaries separately opt-in; a future synthetic trace
+  mode requires an explicit privacy review, distinct project, and synthetic-data tags.

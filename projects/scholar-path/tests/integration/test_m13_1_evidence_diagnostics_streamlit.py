@@ -10,6 +10,7 @@ import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 import scholarpath.ui.dependencies as ui_dependencies
+from scholarpath.config import ApplicationSettings, Environment
 from scholarpath.ui import (
     EvidenceClaimTypeCountsView,
     EvidenceExtractionFailureCountsView,
@@ -98,13 +99,23 @@ def _run_existing_thread(
     )
     service.start(private_profile, THREAD_ID)
 
-    def create_application_service() -> ScholarPathApplicationPort:
+    settings = ApplicationSettings(environment=Environment.TEST)
+
+    def create_application_service(
+        resolved_settings: ApplicationSettings | None = None,
+    ) -> ScholarPathApplicationPort:
+        assert resolved_settings is settings
         return service
 
     monkeypatch.setattr(
         ui_dependencies,
         "create_application_service",
         create_application_service,
+    )
+    monkeypatch.setattr(
+        ui_dependencies,
+        "configured_application_settings",
+        lambda: settings,
     )
     st.cache_resource.clear()
     app_test = AppTest.from_file(APP_PATH, default_timeout=10)

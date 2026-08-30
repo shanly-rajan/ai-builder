@@ -26,6 +26,7 @@ from scholarpath.config import (
     OpenAIResearchFitSettings,
     ProviderConfiguration,
     ProviderConfigurationError,
+    RuntimeProfile,
     TavilyExtractionConfiguration,
     TavilyExtractionSettings,
     TavilySearchConfiguration,
@@ -93,6 +94,7 @@ def test_settings_load_non_secret_defaults(monkeypatch: pytest.MonkeyPatch, tmp_
 
     assert settings.app_name == "ScholarPath"
     assert settings.environment is Environment.DEVELOPMENT
+    assert settings.runtime_profile is RuntimeProfile.LIVE
     assert settings.log_level is LogLevel.INFO
     assert settings.discovery_failure_mode is DiscoveryFailureMode.OFF
     assert settings.checkpoint_database_path == Path(".scholarpath/checkpoints.sqlite3")
@@ -609,6 +611,23 @@ def test_failure_injection_mode_is_loaded_deterministically(
     monkeypatch.setenv("SCHOLARPATH_DISCOVERY_FAILURE_MODE", "you_timeout_once")
 
     assert load_settings().discovery_failure_mode is DiscoveryFailureMode.YOU_TIMEOUT_ONCE
+
+
+def test_deterministic_demo_runtime_profile_is_loaded_explicitly(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    isolate_settings_environment(monkeypatch, tmp_path)
+    monkeypatch.setenv("SCHOLARPATH_RUNTIME_PROFILE", "deterministic_demo")
+
+    assert load_settings().runtime_profile is RuntimeProfile.DETERMINISTIC_DEMO
+
+
+def test_deterministic_demo_runtime_profile_is_rejected_in_production() -> None:
+    with pytest.raises(ValidationError, match="demo runtime profile must be off"):
+        ApplicationSettings(
+            environment=Environment.PRODUCTION,
+            runtime_profile=RuntimeProfile.DETERMINISTIC_DEMO,
+        )
 
 
 def test_failure_injection_is_rejected_in_production() -> None:
