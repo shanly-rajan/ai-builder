@@ -1077,6 +1077,58 @@ diagnostics, one alternate-source retry, five-Verified-Supervisor minimum, Resea
 and Candidate approval gate remain authoritative. An exploratory lower-minimum live profile is
 explicitly deferred until the strict live path completes at least one verification.
 
+### M13.5 privacy-safe graph execution logging
+
+ScholarPath emits simple structured application logs for every canonical node input, successful
+node output, interrupt, error category, and direct or conditional state transition. These local
+logs supplement LangSmith traces; they neither change graph state nor enable tracing.
+
+```mermaid
+flowchart LR
+    S[Typed graph state] --> P[Privacy-safe summary]
+    P --> IN[graph.node.input]
+    N[Canonical node] --> OUT[graph.node.output]
+    OUT --> T[graph.transition]
+    T --> NEXT[Next canonical node or END]
+    R[Actual Nebius adapter] --> PE[provider.lifecycle events]
+```
+
+Input and output events contain channel presence, collection counts, enum outcomes, retry values,
+fallback use, updated channel names, and sanitized error codes. They never contain Candidate or
+thread identifiers, research content, preferences or feedback reasons, search queries or result
+text, Supervisor identities, institutions, URLs, page content, evidence claims, rationales,
+critiques, briefing text, prompts, credentials, checkpoint tokens, exception messages, or
+tracebacks.
+
+The trace shown during M13.4 stopped after the second `supervisor_evidence_sufficient`; it did not
+call Nebius. A provider-backed independent review requires this sequence:
+
+```text
+evaluate_research_fit
+review_fit_assessments
+nebius_independent_review_structured_output
+```
+
+Only the real `NebiusReviewModelAdapter` emits a `provider.lifecycle` event with
+`provider=nebius`.
+Injected fakes produce graph review summaries but are never labelled as Nebius. A completed
+provider event contains only the structured decision, confidence, and unsupported/overlooked
+reference counts. Failures contain a typed category without the provider exception text.
+
+A `graph.transition` event records the next edge selected after a source node or deterministic
+router returns; it is not a checkpoint-commit receipt. The destination's `graph.node.input` event
+confirms that execution reached that node. Checkpoint durability remains owned by LangGraph.
+
+Set the existing non-secret level in `.env` and restart the application process:
+
+```bash
+SCHOLARPATH_LOG_LEVEL=INFO
+```
+
+Then launch Streamlit normally. Structured events appear in the terminal running Streamlit, not
+in the Candidate interface. Use `WARNING` or `ERROR` to suppress the informational node stream.
+LangSmith remains independently controlled by `LANGSMITH_TRACING`.
+
 ### Run the Streamlit application locally
 
 Complete the setup above, add the required provider credentials to the ignored `.env`,

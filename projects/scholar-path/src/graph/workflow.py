@@ -98,7 +98,11 @@ from ..memory import (
     PreferenceLearningAgent,
     project_memories_to_preference_revision,
 )
-from ..observability import LangSmithObservability
+from ..observability import (
+    GraphExecutionLogger,
+    LangSmithObservability,
+    configure_application_logging,
+)
 from ..tools import (
     ContentExtractionError,
     ContentExtractionErrorCategory,
@@ -1878,8 +1882,17 @@ def build_scholarpath_graph(
     builder: StateGraph[ScholarPathState, None, ScholarPathState, ScholarPathState] = StateGraph(
         ScholarPathState
     )
+    execution_logger = GraphExecutionLogger()
 
-    builder.add_node(LOAD_CANDIDATE_PREFERENCES, nodes.load_candidate_preferences)
+    builder.add_node(
+        LOAD_CANDIDATE_PREFERENCES,
+        execution_logger.wrap_node(
+            LOAD_CANDIDATE_PREFERENCES,
+            nodes.load_candidate_preferences,
+            fixed_target=PLAN_SUPERVISOR_SEARCHES,
+            source_from_start=True,
+        ),
+    )
     planning_metadata = (
         observability.planning_node_metadata
         if observability is not None
@@ -1890,7 +1903,10 @@ def build_scholarpath_graph(
     )
     builder.add_node(
         PLAN_SUPERVISOR_SEARCHES,
-        nodes.plan_supervisor_searches,
+        execution_logger.wrap_node(
+            PLAN_SUPERVISOR_SEARCHES,
+            nodes.plan_supervisor_searches,
+        ),
         metadata=planning_metadata,
     )
     primary_discovery_metadata = (
@@ -1908,10 +1924,20 @@ def build_scholarpath_graph(
     )
     builder.add_node(
         DISCOVER_PROSPECTIVE_SUPERVISORS,
-        nodes.discover_prospective_supervisors,
+        execution_logger.wrap_node(
+            DISCOVER_PROSPECTIVE_SUPERVISORS,
+            nodes.discover_prospective_supervisors,
+            fixed_target=ENOUGH_SUPERVISORS_FOUND,
+        ),
         metadata=primary_discovery_metadata,
     )
-    builder.add_node(ENOUGH_SUPERVISORS_FOUND, nodes.enough_supervisors_found)
+    builder.add_node(
+        ENOUGH_SUPERVISORS_FOUND,
+        execution_logger.wrap_node(
+            ENOUGH_SUPERVISORS_FOUND,
+            nodes.enough_supervisors_found,
+        ),
+    )
     fallback_discovery_metadata = (
         observability.discovery_node_metadata(
             provider=SearchProvider.TAVILY,
@@ -1927,13 +1953,28 @@ def build_scholarpath_graph(
     )
     builder.add_node(
         FALLBACK_SUPERVISOR_SEARCH,
-        nodes.fallback_supervisor_search,
+        execution_logger.wrap_node(
+            FALLBACK_SUPERVISOR_SEARCH,
+            nodes.fallback_supervisor_search,
+            fixed_target=ENOUGH_SUPERVISORS_FOUND,
+        ),
         metadata=fallback_discovery_metadata,
     )
-    builder.add_node(DEDUPLICATE_SUPERVISORS, nodes.deduplicate_supervisors)
+    builder.add_node(
+        DEDUPLICATE_SUPERVISORS,
+        execution_logger.wrap_node(
+            DEDUPLICATE_SUPERVISORS,
+            nodes.deduplicate_supervisors,
+            fixed_target=EXTRACT_SUPERVISOR_EVIDENCE,
+        ),
+    )
     builder.add_node(
         EXTRACT_SUPERVISOR_EVIDENCE,
-        nodes.extract_supervisor_evidence,
+        execution_logger.wrap_node(
+            EXTRACT_SUPERVISOR_EVIDENCE,
+            nodes.extract_supervisor_evidence,
+            fixed_target=SUPERVISOR_EVIDENCE_SUFFICIENT,
+        ),
         metadata=(
             observability.evidence_node_metadata
             if observability is not None
@@ -1943,11 +1984,28 @@ def build_scholarpath_graph(
             }
         ),
     )
-    builder.add_node(SUPERVISOR_EVIDENCE_SUFFICIENT, nodes.supervisor_evidence_sufficient)
-    builder.add_node(RETRY_ALTERNATE_EVIDENCE_SOURCE, nodes.retry_alternate_evidence_source)
+    builder.add_node(
+        SUPERVISOR_EVIDENCE_SUFFICIENT,
+        execution_logger.wrap_node(
+            SUPERVISOR_EVIDENCE_SUFFICIENT,
+            nodes.supervisor_evidence_sufficient,
+        ),
+    )
+    builder.add_node(
+        RETRY_ALTERNATE_EVIDENCE_SOURCE,
+        execution_logger.wrap_node(
+            RETRY_ALTERNATE_EVIDENCE_SOURCE,
+            nodes.retry_alternate_evidence_source,
+            fixed_target=EXTRACT_SUPERVISOR_EVIDENCE,
+        ),
+    )
     builder.add_node(
         EVALUATE_RESEARCH_FIT,
-        nodes.evaluate_research_fit,
+        execution_logger.wrap_node(
+            EVALUATE_RESEARCH_FIT,
+            nodes.evaluate_research_fit,
+            fixed_target=REVIEW_FIT_ASSESSMENTS,
+        ),
         metadata=(
             observability.research_fit_node_metadata(resolved_config.research_fit_rubric.version)
             if observability is not None
@@ -1960,7 +2018,11 @@ def build_scholarpath_graph(
     )
     builder.add_node(
         REVIEW_FIT_ASSESSMENTS,
-        nodes.review_fit_assessments,
+        execution_logger.wrap_node(
+            REVIEW_FIT_ASSESSMENTS,
+            nodes.review_fit_assessments,
+            fixed_target=SYNTHESIZE_SUPERVISOR_SHORTLIST,
+        ),
         metadata=(
             observability.independent_review_node_metadata
             if observability is not None
@@ -1970,23 +2032,59 @@ def build_scholarpath_graph(
             }
         ),
     )
-    builder.add_node(SYNTHESIZE_SUPERVISOR_SHORTLIST, nodes.synthesize_supervisor_shortlist)
-    builder.add_node(CANDIDATE_REVIEW_GATE, nodes.candidate_review_gate)
-    builder.add_node(LEARN_CANDIDATE_PREFERENCES, nodes.learn_candidate_preferences)
-    builder.add_node(SAVE_SHORTLISTED_SUPERVISORS, nodes.save_shortlisted_supervisors)
-    builder.add_node(GENERATE_SHORTLIST_BRIEFING, nodes.generate_shortlist_briefing)
+    builder.add_node(
+        SYNTHESIZE_SUPERVISOR_SHORTLIST,
+        execution_logger.wrap_node(
+            SYNTHESIZE_SUPERVISOR_SHORTLIST,
+            nodes.synthesize_supervisor_shortlist,
+            fixed_target=CANDIDATE_REVIEW_GATE,
+        ),
+    )
+    builder.add_node(
+        CANDIDATE_REVIEW_GATE,
+        execution_logger.wrap_node(CANDIDATE_REVIEW_GATE, nodes.candidate_review_gate),
+    )
+    builder.add_node(
+        LEARN_CANDIDATE_PREFERENCES,
+        execution_logger.wrap_node(
+            LEARN_CANDIDATE_PREFERENCES,
+            nodes.learn_candidate_preferences,
+        ),
+    )
+    builder.add_node(
+        SAVE_SHORTLISTED_SUPERVISORS,
+        execution_logger.wrap_node(
+            SAVE_SHORTLISTED_SUPERVISORS,
+            nodes.save_shortlisted_supervisors,
+            fixed_target=GENERATE_SHORTLIST_BRIEFING,
+        ),
+    )
+    builder.add_node(
+        GENERATE_SHORTLIST_BRIEFING,
+        execution_logger.wrap_node(
+            GENERATE_SHORTLIST_BRIEFING,
+            nodes.generate_shortlist_briefing,
+            fixed_target=END,
+        ),
+    )
 
     builder.add_edge(START, LOAD_CANDIDATE_PREFERENCES)
     builder.add_edge(LOAD_CANDIDATE_PREFERENCES, PLAN_SUPERVISOR_SEARCHES)
     builder.add_conditional_edges(
         PLAN_SUPERVISOR_SEARCHES,
-        nodes.route_after_planning,
+        execution_logger.wrap_conditional_route(
+            PLAN_SUPERVISOR_SEARCHES,
+            nodes.route_after_planning,
+        ),
         [DISCOVER_PROSPECTIVE_SUPERVISORS, END],
     )
     builder.add_edge(DISCOVER_PROSPECTIVE_SUPERVISORS, ENOUGH_SUPERVISORS_FOUND)
     builder.add_conditional_edges(
         ENOUGH_SUPERVISORS_FOUND,
-        nodes.route_after_discovery,
+        execution_logger.wrap_conditional_route(
+            ENOUGH_SUPERVISORS_FOUND,
+            nodes.route_after_discovery,
+        ),
         [
             DISCOVER_PROSPECTIVE_SUPERVISORS,
             FALLBACK_SUPERVISOR_SEARCH,
@@ -1999,7 +2097,10 @@ def build_scholarpath_graph(
     builder.add_edge(EXTRACT_SUPERVISOR_EVIDENCE, SUPERVISOR_EVIDENCE_SUFFICIENT)
     builder.add_conditional_edges(
         SUPERVISOR_EVIDENCE_SUFFICIENT,
-        nodes.route_after_evidence,
+        execution_logger.wrap_conditional_route(
+            SUPERVISOR_EVIDENCE_SUFFICIENT,
+            nodes.route_after_evidence,
+        ),
         [RETRY_ALTERNATE_EVIDENCE_SOURCE, EVALUATE_RESEARCH_FIT, END],
     )
     builder.add_edge(RETRY_ALTERNATE_EVIDENCE_SOURCE, EXTRACT_SUPERVISOR_EVIDENCE)
@@ -2008,12 +2109,18 @@ def build_scholarpath_graph(
     builder.add_edge(SYNTHESIZE_SUPERVISOR_SHORTLIST, CANDIDATE_REVIEW_GATE)
     builder.add_conditional_edges(
         CANDIDATE_REVIEW_GATE,
-        nodes.route_after_candidate_review,
+        execution_logger.wrap_conditional_route(
+            CANDIDATE_REVIEW_GATE,
+            nodes.route_after_candidate_review,
+        ),
         [CANDIDATE_REVIEW_GATE, LEARN_CANDIDATE_PREFERENCES, END],
     )
     builder.add_conditional_edges(
         LEARN_CANDIDATE_PREFERENCES,
-        nodes.route_after_preference_learning,
+        execution_logger.wrap_conditional_route(
+            LEARN_CANDIDATE_PREFERENCES,
+            nodes.route_after_preference_learning,
+        ),
         [SAVE_SHORTLISTED_SUPERVISORS, PLAN_SUPERVISOR_SEARCHES, END],
     )
     builder.add_edge(SAVE_SHORTLISTED_SUPERVISORS, GENERATE_SHORTLIST_BRIEFING)
@@ -2052,6 +2159,7 @@ def build_scholarpath_runtime(
     """Resolve production adapters once and compile a reusable graph runtime."""
     resolved_config = config or GraphFixtureConfig()
     resolved_application_settings = application_settings or load_settings()
+    configure_application_logging(resolved_application_settings.log_level)
     resolved_langsmith_settings = langsmith_settings or load_langsmith_settings()
     observability = LangSmithObservability(
         resolved_langsmith_settings, resolved_application_settings.environment

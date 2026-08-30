@@ -1,5 +1,6 @@
 """Nebius strict structured-output adapter for independent Research Fit review."""
 
+import logging
 from typing import cast
 
 from langchain_core.exceptions import OutputParserException
@@ -9,6 +10,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import ValidationError
 
 from ..config import NebiusReviewConfiguration
+from ..observability import emit_provider_event
 from .independent_review import (
     IndependentReviewInput,
     IndependentReviewModelInvocationError,
@@ -19,6 +21,8 @@ from .prompts import (
     INDEPENDENT_REVIEW_PROMPT_VERSION,
     INDEPENDENT_REVIEW_SYSTEM_PROMPT_V3,
 )
+
+_LOGGER = logging.getLogger("scholarpath.providers.nebius")
 
 
 class NebiusReviewModelAdapter:
@@ -65,23 +69,69 @@ class NebiusReviewModelAdapter:
                 "prompt_version": INDEPENDENT_REVIEW_PROMPT_VERSION,
             },
         }
+        emit_provider_event(
+            _LOGGER,
+            provider="nebius",
+            component="independent_review",
+            operation="invoke",
+            outcome="started",
+        )
         try:
             result = self._chain.invoke(
                 {"review_input": review_input.model_dump_json()},
                 config=runnable_config,
             )
         except (OutputParserException, ValidationError, ValueError) as error:
+            emit_provider_event(
+                _LOGGER,
+                provider="nebius",
+                component="independent_review",
+                operation="invoke",
+                outcome="failed",
+                metadata={"failure_category": "invalid_output"},
+            )
             raise IndependentReviewModelOutputError(
                 "Nebius returned invalid structured independent-review output."
             ) from error
         except Exception as error:
+            emit_provider_event(
+                _LOGGER,
+                provider="nebius",
+                component="independent_review",
+                operation="invoke",
+                outcome="failed",
+                metadata={"failure_category": "model_invocation"},
+            )
             raise IndependentReviewModelInvocationError(
                 "The Nebius independent-review request failed."
             ) from error
 
         try:
-            return IndependentReviewResult.model_validate(result)
+            validated_result = IndependentReviewResult.model_validate(result)
         except ValidationError as error:
+            emit_provider_event(
+                _LOGGER,
+                provider="nebius",
+                component="independent_review",
+                operation="invoke",
+                outcome="failed",
+                metadata={"failure_category": "invalid_output"},
+            )
             raise IndependentReviewModelOutputError(
                 "Nebius returned invalid structured independent-review output."
             ) from error
+        emit_provider_event(
+            _LOGGER,
+            provider="nebius",
+            component="independent_review",
+            operation="invoke",
+            outcome="succeeded",
+            metadata={
+                "decision": validated_result.decision,
+                "confidence": validated_result.confidence,
+                "unsupported_reference_count": len(validated_result.unsupported_claim_ids),
+                "overlooked_evidence_count": len(validated_result.overlooked_evidence_ids),
+                "structured_result_received": True,
+            },
+        )
+        return validated_result

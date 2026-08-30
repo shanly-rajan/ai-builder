@@ -1,5 +1,22 @@
-"""ScholarPath observability configuration and tracing controls."""
+"""ScholarPath observability, tracing, and privacy-safe logging controls."""
 
+from .graph_logging import (
+    APPLICATION_LOGGER_NAME,
+    GRAPH_LOG_NODE_NAMES,
+    LOG_SCHEMA_VERSION,
+    SAFE_PROVIDER_METADATA_KEYS,
+    SCHOLARPATH_STATE_FIELDS,
+    GraphExecutionLogger,
+    JsonScalar,
+    JsonValue,
+    SanitizedErrorType,
+    configure_application_logging,
+    emit_provider_event,
+    parse_json_log_line,
+    sanitize_error_type,
+    summarize_state,
+    summarize_update,
+)
 from .tracing import (
     GRAPH_VERSION,
     LANGSMITH_RETRY_STATUS_CODES,
@@ -12,12 +29,27 @@ from .tracing import (
 )
 
 __all__ = [
+    "APPLICATION_LOGGER_NAME",
+    "GRAPH_LOG_NODE_NAMES",
     "GRAPH_VERSION",
     "LANGSMITH_RETRY_STATUS_CODES",
+    "LOG_SCHEMA_VERSION",
+    "SAFE_PROVIDER_METADATA_KEYS",
     "SAFE_TRACE_METADATA_KEYS",
+    "SCHOLARPATH_STATE_FIELDS",
+    "GraphExecutionLogger",
+    "JsonScalar",
+    "JsonValue",
     "LangSmithObservability",
+    "SanitizedErrorType",
     "TraceScalar",
+    "configure_application_logging",
+    "emit_provider_event",
     "langsmith_retry_config",
     "langsmith_timeout_ms",
+    "parse_json_log_line",
+    "sanitize_error_type",
     "sanitize_trace_metadata",
+    "summarize_state",
+    "summarize_update",
 ]

@@ -1,10 +1,15 @@
 """Global pytest safety controls for ScholarPath's offline default suite."""
 
+import logging
 import socket
 from collections.abc import Iterator
+from io import StringIO
 from typing import Never
 
 import pytest
+
+from scholarpath.config import LogLevel
+from scholarpath.observability import configure_application_logging
 
 
 def _block_network(*args: object, **kwargs: object) -> Never:
@@ -23,3 +28,22 @@ def block_network_for_non_live_tests(
         monkeypatch.setattr(socket, "create_connection", _block_network)
         monkeypatch.setattr(socket.socket, "connect", _block_network)
     yield
+
+
+@pytest.fixture
+def application_log_stream() -> Iterator[StringIO]:
+    """Capture ScholarPath JSON logs and restore the process-global logger afterwards."""
+    logger = logging.getLogger("scholarpath")
+    original_handlers = list(logger.handlers)
+    original_level = logger.level
+    original_propagate = logger.propagate
+    logger.handlers.clear()
+    stream = StringIO()
+    try:
+        configure_application_logging(LogLevel.INFO, stream=stream)
+        yield stream
+    finally:
+        logger.handlers.clear()
+        logger.handlers.extend(original_handlers)
+        logger.setLevel(original_level)
+        logger.propagate = original_propagate

@@ -1260,6 +1260,57 @@ minimum, one alternate-source retry, availability semantics, Research Fit evalua
 independent review, lifecycle transitions, and explicit Candidate approval are unchanged. A
 lower-minimum exploratory live profile is outside this milestone.
 
+## M13.5 privacy-safe application logging boundary
+
+M13.5 observes the existing graph without adding a node, edge, state channel, checkpoint value,
+provider call, model call, retry, or routing decision. Every node is wrapped once at graph
+construction, while the original typed callable remains the sole producer of its state update.
+
+```mermaid
+flowchart TB
+    START[START] --> L[Transition logger]
+    L --> I[Safe input projector]
+    I --> NODE[Original canonical node]
+    NODE -->|typed update| O[Safe output projector]
+    NODE -->|Candidate interrupt| PAUSE[Safe paused event and unchanged re-raise]
+    NODE -->|exception| ERR[Sanitized error category and unchanged re-raise]
+    O --> ROUTE{Existing edge type}
+    ROUTE -->|direct| FIXED[Fixed transition event]
+    ROUTE -->|conditional| POLICY[Original deterministic router]
+    POLICY --> CHOSEN[Selected transition event]
+    FIXED --> NEXT[Next node or END]
+    CHOSEN --> NEXT
+
+    REVIEW[Actual Nebius adapter] --> PSTART[Provider start event]
+    PSTART --> CALL[Nebius structured-output call]
+    CALL -->|validated result| PDONE[Safe decision and aggregate counts]
+    CALL -->|typed failure| PFAIL[Safe failure category]
+```
+
+The logger projects every current `ScholarPathState` channel through a closed safe summary. It
+retains counts, presence flags, enum outcomes, bounded retry values, discovery round, fallback
+use, updated channel names, and sanitized error codes. It does not serialize Pydantic models or
+arbitrary values. Unknown future channels are counted but not rendered, so schema growth fails
+closed until its projection is reviewed.
+
+Candidate and Supervisor identifiers, thread and checkpoint identifiers, research content,
+preferences, feedback reasons, queries, search text, institutions, URLs, page content, evidence,
+scores and rationales, critiques, prompts, credentials, secret values, provider exception text,
+and tracebacks remain outside local structured logs. Logging configuration uses the existing
+`SCHOLARPATH_LOG_LEVEL`; LangSmith enablement and its hidden-input/output client remain separate.
+
+A `review_fit_assessments` graph event proves only that the provider-neutral review agent ran. A
+`provider.lifecycle` event labelled `nebius` is emitted exclusively inside
+`NebiusReviewModelAdapter`, so a fake review model cannot be mistaken for a live provider result.
+If evidence sufficiency routes to END before Research Fit, neither event is emitted. Logging is
+observational: wrappers re-raise interrupts and exceptions unchanged and return the original node
+update and router target without mutation.
+
+`graph.transition` means that the existing direct edge or deterministic router selected the next
+target after its source returned. It is not a checkpoint-commit acknowledgement; the target's
+subsequent `graph.node.input` event confirms arrival, while LangGraph remains responsible for
+reducers, scheduling, and checkpoint durability.
+
 ## Configuration and deferred provider activation
 
 ```mermaid

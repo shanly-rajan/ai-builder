@@ -1,6 +1,9 @@
 """Offline contracts for the Nebius independent-review adapter."""
 
 import json
+import logging
+from io import StringIO
+from typing import cast
 
 import pytest
 from langchain_core.runnables import RunnableConfig, RunnableLambda
@@ -16,6 +19,7 @@ from scholarpath.agents.nebius_review import NebiusReviewModelAdapter
 from scholarpath.agents.prompts import INDEPENDENT_REVIEW_PROMPT_VERSION
 from scholarpath.config import NebiusReviewConfiguration
 from scholarpath.domain import EvidenceConfidence, IndependentReviewDecision
+from scholarpath.observability import parse_json_log_line
 from tests.fixtures import (
     make_candidate_profile,
     make_research_fit_assessment,
@@ -116,6 +120,116 @@ def test_adapter_uses_nebius_endpoint_and_strict_schema_without_provider_retries
         "include_raw": False,
         "strict": True,
     }
+
+
+def test_actual_nebius_adapter_logs_only_safe_structured_provider_outcome(
+    monkeypatch: pytest.MonkeyPatch,
+    application_log_stream: StringIO,
+) -> None:
+    stream = application_log_stream
+    expected = _structured_result()
+    _patch_chat_openai(monkeypatch, expected)
+
+    result = NebiusReviewModelAdapter(_configuration()).review(_review_input())
+
+    assert result == expected
+    events = [
+        cast(dict[str, object], parse_json_log_line(line))
+        for line in stream.getvalue().splitlines()
+    ]
+    assert [(event["provider"], event["outcome"]) for event in events] == [
+        ("nebius", "started"),
+        ("nebius", "succeeded"),
+    ]
+    assert events[-1] == {
+        "component": "independent_review",
+        "confidence": "high",
+        "decision": "accept",
+        "event": "provider.lifecycle",
+        "level": "INFO",
+        "operation": "invoke",
+        "outcome": "succeeded",
+        "overlooked_evidence_count": 0,
+        "provider": "nebius",
+        "schema_version": 1,
+        "structured_result_received": True,
+        "unsupported_reference_count": 0,
+    }
+    serialized = stream.getvalue()
+    review_input = _review_input()
+    for sensitive_value in (
+        review_input.candidate_profile.candidate_id,
+        review_input.candidate_profile.proposed_research_statement,
+        review_input.verified_supervisor.full_name,
+        str(review_input.verified_supervisor.profile_url),
+        expected.critique,
+        "not-a-real-nebius-review-key",
+    ):
+        assert sensitive_value not in serialized
+
+
+@pytest.mark.parametrize(
+    ("outcome", "expected_category", "expected_error"),
+    [
+        (
+            ValueError("SENSITIVE-MALFORMED-OUTPUT"),
+            "invalid_output",
+            IndependentReviewModelOutputError,
+        ),
+        (
+            TimeoutError("SENSITIVE-PROVIDER-TIMEOUT"),
+            "model_invocation",
+            IndependentReviewModelInvocationError,
+        ),
+    ],
+)
+def test_actual_nebius_adapter_logs_only_sanitized_failure_category(
+    monkeypatch: pytest.MonkeyPatch,
+    application_log_stream: StringIO,
+    outcome: Exception,
+    expected_category: str,
+    expected_error: type[Exception],
+) -> None:
+    stream = application_log_stream
+    _patch_chat_openai(monkeypatch, outcome)
+
+    with pytest.raises(expected_error):
+        NebiusReviewModelAdapter(_configuration()).review(_review_input())
+
+    events = [
+        cast(dict[str, object], parse_json_log_line(line))
+        for line in stream.getvalue().splitlines()
+    ]
+    assert [(event["provider"], event["outcome"]) for event in events] == [
+        ("nebius", "started"),
+        ("nebius", "failed"),
+    ]
+    assert events[-1]["failure_category"] == expected_category
+    assert str(outcome) not in stream.getvalue()
+
+
+def test_broken_log_handler_cannot_discard_valid_nebius_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scholarpath.agents import nebius_review
+
+    class BrokenHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            del record
+            raise RuntimeError("private logging sink failure")
+
+    logger = logging.getLogger("scholarpath-test-broken-nebius-handler")
+    logger.handlers.clear()
+    logger.addHandler(BrokenHandler())
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    expected = _structured_result()
+    _patch_chat_openai(monkeypatch, expected)
+    monkeypatch.setattr(nebius_review, "_LOGGER", logger)
+
+    result = NebiusReviewModelAdapter(_configuration()).review(_review_input())
+
+    assert result == expected
 
 
 def test_provider_schema_requires_every_review_field() -> None:

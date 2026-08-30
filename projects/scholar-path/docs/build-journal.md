@@ -3242,3 +3242,86 @@ The agreed bounded repair prompt is archived as
   suffixes or accept weak prefixes speculatively.
 - Consider an explicitly labelled exploratory minimum only after the strict live path produces at
   least one Verified Supervisor; never score or shortlist partially verified records.
+
+## M13.5 Repair: Privacy-safe graph execution logging
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Make every canonical LangGraph node boundary and state transition visible in simple local
+structured logs, and distinguish a real Nebius independent-review call from a provider-neutral
+fake, without exposing Candidate content, Supervisor facts, evidence, credentials, or raw
+exceptions and without changing graph behavior.
+
+### Prompt used
+
+The bounded observability prompt is archived as
+[`m13-5-privacy-safe-graph-logging.md`](prompts/m13-5-privacy-safe-graph-logging.md).
+
+### Files changed
+
+- Added a closed, JSON-lines logging projection in `src/observability/graph_logging.py` and
+  exported its safe configuration, graph-wrapper, parsing, and provider-event APIs.
+- Wrapped every canonical node and direct or conditional edge during graph construction, including
+  START, END, Candidate interrupt, and resume behavior, while leaving the original callables and
+  routers authoritative.
+- Added provider lifecycle events only at the real `NebiusReviewModelAdapter` boundary; injected
+  review fakes remain provider-neutral.
+- Updated the active README, architecture, reliability review, exact saved prompt, and this journal.
+
+### Tests added
+
+- Added unit tests for complete typed-state coverage, fail-closed state/update summaries, stable
+  structured serialization, log-level configuration, allowlisted provider metadata, redaction,
+  node success/error/interrupt behavior, and direct and conditional transitions.
+- Added Nebius adapter tests for safe start, success, malformed-output, and invocation-failure
+  events without request, response, credential, critique, or exception content.
+- Added a graph regression that traverses primary failure, Tavily fallback, evidence retry,
+  Research Fit, fake independent review, Candidate interrupt/resume, approval, persistence, and END
+  while proving every canonical node and transition is logged and no fake is labelled Nebius.
+- Added a repository contract for documentation, the closed logging schema, and unchanged
+  five-Supervisor, one-retry, and five-result thresholds.
+
+### Test results
+
+- Focused logging, graph, Nebius adapter, and repository-contract selection: `39 passed in
+  0.33s`. The first focused invocation intentionally used the repository coverage options and
+  therefore reported insufficient repository-wide coverage despite all selected tests passing;
+  the focused rerun disabled only aggregate coverage options.
+- Ruff formatting reported `235 files left unchanged`; Ruff linting passed. Strict mypy reported
+  no issues in `186 source files`.
+- Complete non-live pytest passed: `1,463 passed, 9 deselected in 19.53s`; branch coverage was
+  `90.99%` against the required `90%` minimum.
+- The offline LangSmith-compatible evaluation baseline passed `11/11` scenarios; every applicable
+  deterministic metric passed and duplicate Supervisor rate remained `0.000`.
+- Editable installation without dependency resolution or build isolation passed; `pip check`
+  reported no broken requirements, package import reported version `0.1.0`, bytecode compilation
+  passed, and `git diff --check` found no whitespace errors.
+
+### Assumptions
+
+- “Input and output logging” means privacy-safe state-channel projections, never raw graph state.
+- A graph-level `review_fit_assessments` event proves only that the provider-neutral review node
+  ran. Only `provider.lifecycle` with `provider=nebius`, emitted by the real adapter, proves a
+  Nebius attempt.
+- Informational application logs are local operator output. LangSmith tracing remains separately
+  configured and is neither enabled nor disabled by the local logger.
+
+### Lessons learned
+
+- A LangSmith graph trace can show where execution stopped, but a provider-boundary event is needed
+  to distinguish an injected fake from an actual model call.
+- Closed projections provide useful route and volume diagnostics while making new state channels
+  fail closed until their logging treatment is reviewed.
+- Interrupts need their own event: a paused Candidate review has an input but correctly has no
+  successful node output until the same thread resumes.
+
+### Remaining debt
+
+- Add operator-selectable log sinks and retention policy only with a production logging milestone;
+  the current release intentionally writes JSON lines to the process terminal.
+- Correlating logs across processes would require a privacy-reviewed opaque correlation design;
+  Candidate IDs, thread IDs, and checkpoint IDs remain deliberately excluded.
+- Detailed content debugging still requires a controlled local reproduction or protected
+  LangSmith project, not broader application logs.
