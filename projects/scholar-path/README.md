@@ -73,12 +73,13 @@ provided no explicit institution conflicts. Search metadata still selects URLs o
 page claims must satisfy the unchanged evidence and verification gates.
 
 The bounded M13.7 MVP repair adds an explicit `identity_only_mvp` verification evidence
-standard. It keeps directly grounded identity mandatory and retains the five-Supervisor cohort,
-retry, provenance, availability, Candidate approval, and persistence controls. Affiliation and
-research evidence are deferred rather than silently treated as verified, every MVP result is
-marked `verified_with_concerns`, and evidence-free Research Fit is shown as not established
-instead of being presented as a genuine poor-fit score. The canonical `strict` standard remains
-the default.
+standard. It keeps directly grounded identity mandatory while affiliation and research evidence
+are deferred rather than silently treated as verified. Every MVP result is marked
+`verified_with_concerns`, and evidence-free Research Fit is shown as not established instead of
+being presented as a genuine poor-fit score. M13.8 lets this explicit MVP path continue with at
+least three identity-verified Supervisors; strict mode still requires five, and the proposed
+shortlist remains capped at five. Retry, provenance, availability, Candidate approval, and
+persistence controls remain unchanged. The canonical `strict` standard remains the default.
 
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
@@ -116,6 +117,7 @@ the [M11 Streamlit application boundary](docs/m11-streamlit-interface.mmd), the
 [M12.4 alternate-source diagnostics boundary](docs/m12-4-alternate-source-diagnostics.mmd), the
 [M13.1 evidence-verification diagnostics boundary](docs/m13-1-evidence-verification-diagnostics.mmd),
 the [M13.7 identity-only MVP flow](docs/m13-7-mvp-identity-evidence-standard.mmd),
+the [M13.8 three-Supervisor MVP cohort flow](docs/m13-8-mvp-three-supervisor-cohort.mmd),
 and the M13 [release architecture](docs/m13-release-architecture.mmd),
 [LangGraph node and edge diagram](docs/m13-langgraph-node-edge.mmd),
 [reliability review](docs/reliability-review.md),
@@ -787,17 +789,17 @@ in-memory demonstration thread.
 
 Both profiles execute the same LangGraph topology and deterministic domain policies. The runtime
 profile does not itself alter the selected verification evidence standard, identity grounding,
-the five-Supervisor minimum, the one alternate-source retry, availability semantics, Research
-Fit evidence rules, independent review, Candidate approval, or lifecycle transitions.
+standard-specific verified-cohort minimum, one alternate-source retry, availability semantics,
+Research Fit evidence rules, independent review, Candidate approval, or lifecycle transitions.
 
 ### Verification evidence standards
 
 ScholarPath exposes two closed standards; arbitrary threshold lists are not accepted:
 
-| Standard | Required lifecycle evidence | Intended use |
-|---|---|---|
-| `strict` (default) | Directly grounded identity, current affiliation, and research interest or publication | Evidence-backed research and normal operation |
-| `identity_only_mvp` | Directly grounded identity | Temporary MVP workflow validation while affiliation and research extraction are tuned |
+| Standard | Required lifecycle evidence | Minimum verified cohort | Intended use |
+|---|---|---:|---|
+| `strict` (default) | Directly grounded identity, current affiliation, and research interest or publication | 5 | Evidence-backed research and normal operation |
+| `identity_only_mvp` | Directly grounded identity | 3 | Temporary MVP workflow validation while affiliation and research extraction are tuned |
 
 Enable the bounded MVP path in the ignored `.env`, then fully stop and restart Streamlit:
 
@@ -810,17 +812,21 @@ flowchart LR
     Claims[Grounded evidence] --> Standard{Configured standard}
     Standard -->|strict| Three{Identity + affiliation + research}
     Standard -->|identity_only_mvp| One{Identity}
+    Three -->|5 Verified Supervisors| Fit[Evaluate Research Fit]
     One -->|present| Limited[Verified with concerns]
     Limited --> Gaps[Affiliation and research remain deferred]
-    Gaps --> Fit[Only supported fit components may score]
-    Fit --> Gate{{Candidate approval still mandatory}}
+    Gaps -->|3 identity-verified Supervisors| Fit
+    Fit --> Proposal[Propose up to 5 Supervisors]
+    Proposal --> Gate{{Candidate approval still mandatory}}
 ```
 
 In MVP mode, institution and department remain discovery information unless separately grounded.
 Identity evidence cannot support Research Fit. If no suitable research evidence exists,
 ScholarPath deterministically records zero points, low confidence, and explicit evidence gaps,
 while the UI says **Research Fit: not established**. Availability remains `not_stated` unless an
-explicit retrieved statement supports another status. Restore strict verification with:
+explicit retrieved statement supports another status. Three is a routing minimum, not a target
+that pads or fabricates results: synthesis can propose up to five eligible Verified Supervisors,
+based only on the retained cohort. Restore strict verification with:
 
 ```dotenv
 SCHOLARPATH_VERIFICATION_EVIDENCE_STANDARD=strict

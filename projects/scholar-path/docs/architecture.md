@@ -686,8 +686,37 @@ partial record. Institution and department remain discovery fields unless a grou
 claim exists. Identity cannot earn Research Fit points; when no scorable research evidence is
 available, the Research Fit agent bypasses the model and creates a deterministic evidence-limited
 assessment. The UI labels that outcome **Research Fit: not established** rather than presenting
-zero as measured poor fit. The five-Supervisor minimum, retry bound, availability derivation,
-independent review, and Candidate approval gate are unchanged.
+zero as measured poor fit. Retry bounds, availability derivation, independent review, and the
+Candidate approval gate are unchanged.
+
+### M13.8 three-Supervisor MVP verification cohort
+
+Verification evidence standard and cohort sufficiency are separate deterministic decisions. The
+canonical `strict` path still requires at least five fully Verified Supervisors. The explicit
+`identity_only_mvp` path may continue after at least three Supervisors pass its directly grounded
+identity gate. Partially verified records do not count toward either threshold.
+
+```mermaid
+flowchart LR
+    R[Verification records] --> S{Persisted evidence standard}
+    S -->|strict| C5{At least 5 Verified Supervisors?}
+    S -->|identity_only_mvp| C3{At least 3 identity-verified Supervisors?}
+    C5 -->|no| Retry[Bounded retry or recoverable stop]
+    C3 -->|no| Retry
+    C5 -->|yes| Fit[Evaluate Research Fit]
+    C3 -->|yes| Fit
+    Fit --> P[Propose up to 5 Supervisors]
+    P --> H{{Candidate review}}
+    H -->|approve explicit IDs| Save[Persist Shortlisted Supervisors]
+```
+
+The threshold is checked as soon as the active standard has a sufficient Verified cohort. In MVP
+mode this avoids spending the remaining alternate-source retry budget merely to reach five when
+three identity-verified Supervisors already exist. The shortlist size remains a maximum capacity
+of five, not a minimum or a padding instruction. Grounding and provenance remain mandatory;
+identity evidence still cannot support Research Fit, availability remains separately sourced, and
+no shortlist write occurs without explicit Candidate approval. See
+[`docs/m13-8-mvp-three-supervisor-cohort.mmd`](m13-8-mvp-three-supervisor-cohort.mmd).
 
 Availability is derived separately:
 

@@ -3480,3 +3480,89 @@ The bounded repair prompt is archived as
   be used to compare genuine Research Fit until research evidence is present.
 - Add a future operator control for the verification standard only if its safety labeling and
   authorization model are explicitly designed; M13.7 keeps it environment-configured.
+
+## M13.8 Repair: Three-Supervisor MVP verification cohort
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Let the explicit `identity_only_mvp` path continue to Research Fit and Candidate review as soon as
+three Supervisors have passed its directly grounded identity gate. Preserve the strict minimum of
+five, distinguish the routing minimum from the five-result proposal cap, and keep all grounding,
+approval, persistence, and retry controls intact.
+
+### Prompt used
+
+The bounded repair prompt is archived as
+[`m13-8-mvp-three-supervisor-cohort.md`](prompts/m13-8-mvp-three-supervisor-cohort.md).
+
+### Files changed
+
+- Added named strict and identity-only MVP cohort constants plus a pure standard-to-default helper.
+- Made `VerificationPolicy` default to five for `strict` and three for `identity_only_mvp`, while
+  retaining explicit overrides at or above the applicable safety floor.
+- Changed evidence routing so an MVP cohort of three progresses immediately without spending an
+  alternate-source retry on remaining partial records. Below three it still retries once and then
+  stops recoverably; strict mode retains retry-first behavior.
+- Reframed the existing value of five as the maximum proposed-shortlist capacity rather than a
+  requirement to fill all five positions. Proposal synthesis still never includes a partial
+  verification record.
+- Updated the Streamlit banner and verification diagnostics to show the active minimum and the
+  distinct maximum proposal size.
+- Updated `.env.example`, README, architecture, terminology, Mermaid flow, prompt archive, and
+  this journal.
+
+### Tests added
+
+- Pure routing tests for the standard-specific defaults, an explicit MVP override, immediate MVP
+  progression at three, one bounded retry followed by a stop at two, and unchanged strict routing.
+- Graph tests proving exactly three MVP Verified Supervisors reach Candidate review without an
+  alternate search, exactly two stop after one retry, strict four stops, and strict five advances
+  only after retry-first handling.
+- End-to-end graph coverage proving three MVP Supervisors can be explicitly approved, persisted as
+  Shortlisted Supervisors, and included in the final briefing.
+- Contract and Streamlit coverage for the visible three-result routing minimum, five-result
+  proposal cap, prompt archive, and documentation.
+- The historical M13.5 logging route now pins `strict` explicitly so the ignored local MVP `.env`
+  cannot change the retry path that test is designed to audit.
+
+### Test results
+
+- Focused M6, M13.7, M13.8, policy, contract, and Streamlit selection: `184 passed in 2.47s`.
+- Exact three-Supervisor approval path: `4 passed in 0.39s` for the M13.8 graph module.
+- Ruff formatting: `244 files already formatted`; Ruff linting: all checks passed.
+- Strict mypy: no issues in `192 source files`.
+- Complete non-live pytest: `1,489 passed, 9 deselected, 64 subtests passed in 21.24s`; total
+  coverage was `91.01%`, above the required 90 percent minimum.
+- The first complete run exposed one historical logging test inheriting the local MVP standard;
+  pinning that scenario to `strict` restored its intended retry route before the final green run.
+- `git diff --check`: passed.
+
+### Assumptions
+
+- “Move to the next stage” means route through Research Fit, independent review, synthesis, and
+  the Candidate interrupt; it does not authorize automatic shortlisting.
+- Three counts only completed `VerifiedSupervisor` records under the persisted identity-only MVP
+  standard. Partially verified records never count.
+- The maximum proposed shortlist remains five, but no result is fabricated or padded when only
+  three are eligible.
+- Immediate progression at the MVP threshold is preferable to spending provider calls trying to
+  fill optional proposal capacity during workflow validation.
+
+### Lessons learned
+
+- A minimum viable cohort and a maximum presentation capacity are different architectural
+  controls and should not share one invariant.
+- Standard-aware routing can reduce latency and provider cost without weakening the evidence gate
+  each retained Supervisor already passed.
+- The three-result route still needs an explicit approval regression because reaching Candidate
+  review alone does not prove persistence remains correctly gated.
+
+### Remaining debt
+
+- Measure whether three recommendations provide enough Candidate value during live trials; the
+  original success target remains five evidence-backed recommendations.
+- Restore `strict` before treating results as fully evidence-backed research recommendations.
+- Tune discovery identity quality and affiliation/research grounding separately; cohort routing
+  must not compensate for poor Prospective Supervisor extraction.

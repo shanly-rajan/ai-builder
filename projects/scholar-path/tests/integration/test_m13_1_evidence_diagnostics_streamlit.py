@@ -200,6 +200,8 @@ def test_current_round_evidence_diagnostics_render_complete_aggregate_taxonomy(
         assert expected_claim_count in rendered
 
     assert "Missing required evidence gates" in rendered
+    assert "strict path requires at least 5 Verified Supervisors" in rendered
+    assert "proposed shortlist remains capped at 5" in rendered
     assert "Identity: 1" in rendered
     assert "Current affiliation: 1" in rendered
     assert "Research interest or publication: 1" in rendered

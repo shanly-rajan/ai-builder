@@ -13,6 +13,7 @@ from scholarpath.config import (
     LangSmithSettings,
     LogLevel,
 )
+from scholarpath.domain import VerificationEvidenceStandard
 from scholarpath.graph import (
     CANONICAL_NODE_NAMES,
     CandidateApproveResponse,
@@ -97,6 +98,7 @@ def test_full_fake_route_logs_every_node_and_transition_without_private_content(
                 environment=Environment.TEST,
                 log_level=LogLevel.INFO,
                 discovery_failure_mode=DiscoveryFailureMode.YOU_RETRYABLE_ERROR,
+                verification_evidence_standard=VerificationEvidenceStandard.STRICT,
             ),
             langsmith_settings=LangSmithSettings(tracing=False),
         ),

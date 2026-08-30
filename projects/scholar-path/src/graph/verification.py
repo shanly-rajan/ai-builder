@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from enum import StrEnum
-from typing import Annotated, Self
+from typing import Annotated, Final, Self, cast
 from urllib.parse import urlsplit, urlunsplit
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, StrictBool, model_validator
@@ -20,6 +21,18 @@ from ..domain import (
 )
 from ..tools.content_extraction import ContentExtractionErrorCategory
 from ..tools.supervisor_search import SearchErrorCategory
+
+STRICT_MINIMUM_VERIFIED_SUPERVISORS: Final = 5
+IDENTITY_ONLY_MVP_MINIMUM_VERIFIED_SUPERVISORS: Final = 3
+
+
+def default_minimum_verified_supervisors(
+    standard: VerificationEvidenceStandard,
+) -> int:
+    """Return the deterministic cohort floor selected by the evidence standard."""
+    if standard is VerificationEvidenceStandard.IDENTITY_ONLY_MVP:
+        return IDENTITY_ONLY_MVP_MINIMUM_VERIFIED_SUPERVISORS
+    return STRICT_MINIMUM_VERIFIED_SUPERVISORS
 
 
 class EvidenceVerificationRoute(StrEnum):
@@ -41,7 +54,10 @@ class VerificationPolicy(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, validate_default=True)
 
-    minimum_verified_supervisors: int = Field(default=5, ge=1)
+    minimum_verified_supervisors: int = Field(
+        default=STRICT_MINIMUM_VERIFIED_SUPERVISORS,
+        ge=1,
+    )
     verification_evidence_standard: VerificationEvidenceStandard = (
         VerificationEvidenceStandard.STRICT
     )
@@ -49,6 +65,26 @@ class VerificationPolicy(BaseModel):
     stopping_condition: VerificationStoppingCondition = (
         VerificationStoppingCondition.RETRY_EACH_PARTIAL_THEN_REQUIRE_MINIMUM
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def apply_standard_specific_minimum(cls, data: object) -> object:
+        """Use a smaller cohort only when the MVP standard explicitly opts in."""
+        if not isinstance(data, Mapping):
+            return data
+        values = dict(cast(Mapping[str, object], data))
+        if "minimum_verified_supervisors" in values:
+            return values
+        standard = values.get(
+            "verification_evidence_standard",
+            VerificationEvidenceStandard.STRICT,
+        )
+        if standard in {
+            VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
+            VerificationEvidenceStandard.IDENTITY_ONLY_MVP.value,
+        }:
+            values["minimum_verified_supervisors"] = IDENTITY_ONLY_MVP_MINIMUM_VERIFIED_SUPERVISORS
+        return values
 
 
 class EvidenceSourceReference(BaseModel):
@@ -235,6 +271,16 @@ def route_after_evidence_sufficiency(
     """Route from immutable verification outcomes without invoking a model or provider."""
     if alternate_retry_count < 0:
         raise ValueError("alternate_retry_count must not be negative")
+    verified_count = sum(
+        record.verification_status is not VerificationStatus.PARTIALLY_VERIFIED
+        for record in verification_records
+    )
+    if (
+        policy.verification_evidence_standard is VerificationEvidenceStandard.IDENTITY_ONLY_MVP
+        and verified_count >= policy.minimum_verified_supervisors
+    ):
+        return EvidenceVerificationRoute.EVALUATE_RESEARCH_FIT
+
     has_partial = any(
         record.verification_status is VerificationStatus.PARTIALLY_VERIFIED
         for record in verification_records
@@ -242,10 +288,6 @@ def route_after_evidence_sufficiency(
     if has_partial and alternate_retry_count < policy.maximum_alternate_source_retries:
         return EvidenceVerificationRoute.RETRY_ALTERNATE
 
-    verified_count = sum(
-        record.verification_status is not VerificationStatus.PARTIALLY_VERIFIED
-        for record in verification_records
-    )
     if verified_count >= policy.minimum_verified_supervisors:
         return EvidenceVerificationRoute.EVALUATE_RESEARCH_FIT
     return EvidenceVerificationRoute.STOP_PARTIAL

@@ -158,6 +158,7 @@ from .verification import (
     VerificationPolicy,
     alternate_official_source_query,
     classify_evidence_source_kind,
+    default_minimum_verified_supervisors,
     evaluate_alternate_official_sources,
     route_after_evidence_sufficiency,
 )
@@ -197,7 +198,9 @@ CANONICAL_NODE_NAMES = (
     SAVE_SHORTLISTED_SUPERVISORS,
     GENERATE_SHORTLIST_BRIEFING,
 )
-REQUIRED_SHORTLIST_SIZE: Final = 5
+MAX_PROPOSED_SHORTLIST_SIZE: Final = 5
+# Compatibility alias retained for callers from the deterministic walking skeleton.
+REQUIRED_SHORTLIST_SIZE: Final = MAX_PROPOSED_SHORTLIST_SIZE
 MAX_CONFIGURED_RETRIES: Final = 5
 
 type DiscoveryRoute = Literal[
@@ -275,7 +278,7 @@ class GraphFixtureConfig:
     independent_review_policy: IndependentReviewPolicy = field(
         default_factory=IndependentReviewPolicy
     )
-    shortlist_size: int = REQUIRED_SHORTLIST_SIZE
+    shortlist_size: int = MAX_PROPOSED_SHORTLIST_SIZE
     max_review_retries: int = 1
     max_review_input_retries: int = 2
 
@@ -288,12 +291,19 @@ class GraphFixtureConfig:
             if value < 1:
                 raise ValueError(f"{field_name} must be at least 1")
 
-        if self.shortlist_size != REQUIRED_SHORTLIST_SIZE:
+        if self.shortlist_size != MAX_PROPOSED_SHORTLIST_SIZE:
             raise ValueError(
-                f"shortlist_size must be {REQUIRED_SHORTLIST_SIZE} for the M2 walking skeleton"
+                f"shortlist_size must be {MAX_PROPOSED_SHORTLIST_SIZE} as the maximum proposal size"
             )
-        if self.verification_policy.minimum_verified_supervisors < self.shortlist_size:
-            raise ValueError("minimum_verified_supervisors must not be less than shortlist_size")
+        standard_minimum = default_minimum_verified_supervisors(
+            self.verification_policy.verification_evidence_standard
+        )
+        if self.verification_policy.minimum_verified_supervisors < standard_minimum:
+            raise ValueError(
+                "minimum_verified_supervisors must be at least "
+                f"{standard_minimum} for "
+                f"{self.verification_policy.verification_evidence_standard.value}"
+            )
         if (
             self.discovery_policy.maximum_prospective_supervisors
             < self.verification_policy.minimum_verified_supervisors

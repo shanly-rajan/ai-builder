@@ -89,16 +89,18 @@ missing categories for a bounded alternate-source attempt.
 
 ## Verification evidence standards
 
-| Standard | Blocking evidence gates | Required presentation |
-|---|---|---|
-| `strict` | Directly grounded identity, current affiliation, and research interest or publication | Normal Verified Supervisor presentation |
-| `identity_only_mvp` | Directly grounded identity | `verified_with_concerns`; discovered affiliation is labelled unverified; deferred affiliation and research gaps stay visible |
+| Standard | Blocking evidence gates | Minimum verified cohort | Required presentation |
+|---|---|---:|---|
+| `strict` | Directly grounded identity, current affiliation, and research interest or publication | 5 | Normal Verified Supervisor presentation |
+| `identity_only_mvp` | Directly grounded identity | 3 | `verified_with_concerns`; discovered affiliation is labelled unverified; deferred affiliation and research gaps stay visible |
 
 The MVP standard is an explicit workflow-validation mode, not permission to fabricate stronger
 evidence. Identity evidence cannot support Research Fit components. When no fit-eligible evidence
 exists, Research Fit is **not established**: every component receives zero points, low confidence,
 and an explicit evidence gap. Availability still requires a direct statement, and Candidate
-approval remains mandatory before shortlist persistence.
+approval remains mandatory before shortlist persistence. The cohort value is a routing minimum,
+not a quality score or required shortlist length. The synthesis stage may propose at most five
+Verified Supervisors and never fills missing positions with partially verified records.
 
 ## Availability vocabulary
 

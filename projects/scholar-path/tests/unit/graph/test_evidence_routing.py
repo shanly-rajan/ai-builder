@@ -9,6 +9,7 @@ from scholarpath.domain import (
     SearchResult,
     SourceKind,
     SupervisorVerificationRecord,
+    VerificationEvidenceStandard,
     VerificationStatus,
     is_singular_person_profile_url,
 )
@@ -117,6 +118,95 @@ def test_policy_stops_with_partial_results_when_retry_exhausted_below_minimum() 
     )
 
     assert route is EvidenceVerificationRoute.STOP_PARTIAL
+
+
+def test_identity_only_mvp_uses_three_as_its_implicit_verified_cohort_minimum() -> None:
+    policy = VerificationPolicy(
+        verification_evidence_standard=VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
+    )
+
+    assert policy.minimum_verified_supervisors == 3
+    assert VerificationPolicy().minimum_verified_supervisors == 5
+
+
+def test_identity_only_mvp_preserves_an_explicit_verified_cohort_override() -> None:
+    policy = VerificationPolicy(
+        minimum_verified_supervisors=4,
+        verification_evidence_standard=VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
+    )
+    records = tuple(_verified_record(index) for index in range(1, 4)) + (_partial_record(4),)
+
+    assert policy.minimum_verified_supervisors == 4
+    assert (
+        route_after_evidence_sufficiency(policy, records, alternate_retry_count=0)
+        is EvidenceVerificationRoute.RETRY_ALTERNATE
+    )
+
+
+def test_identity_only_mvp_continues_immediately_with_three_verified_supervisors() -> None:
+    records = tuple(_verified_record(index) for index in range(1, 4)) + (_partial_record(4),)
+    policy = VerificationPolicy(
+        verification_evidence_standard=VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
+    )
+
+    route = route_after_evidence_sufficiency(
+        policy,
+        records,
+        alternate_retry_count=0,
+    )
+
+    assert route is EvidenceVerificationRoute.EVALUATE_RESEARCH_FIT
+
+
+def test_identity_only_mvp_retries_once_then_stops_with_only_two_verified_supervisors() -> None:
+    records = tuple(_verified_record(index) for index in range(1, 3)) + (_partial_record(3),)
+    policy = VerificationPolicy(
+        verification_evidence_standard=VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
+    )
+
+    assert (
+        route_after_evidence_sufficiency(policy, records, alternate_retry_count=0)
+        is EvidenceVerificationRoute.RETRY_ALTERNATE
+    )
+    assert (
+        route_after_evidence_sufficiency(policy, records, alternate_retry_count=1)
+        is EvidenceVerificationRoute.STOP_PARTIAL
+    )
+
+
+def test_strict_standard_keeps_five_minimum_and_retry_priority() -> None:
+    five_verified_with_one_partial = tuple(_verified_record(index) for index in range(1, 6)) + (
+        _partial_record(6),
+    )
+    four_verified_with_one_partial = tuple(_verified_record(index) for index in range(1, 5)) + (
+        _partial_record(5),
+    )
+    policy = VerificationPolicy()
+
+    assert (
+        route_after_evidence_sufficiency(
+            policy,
+            five_verified_with_one_partial,
+            alternate_retry_count=0,
+        )
+        is EvidenceVerificationRoute.RETRY_ALTERNATE
+    )
+    assert (
+        route_after_evidence_sufficiency(
+            policy,
+            five_verified_with_one_partial,
+            alternate_retry_count=1,
+        )
+        is EvidenceVerificationRoute.EVALUATE_RESEARCH_FIT
+    )
+    assert (
+        route_after_evidence_sufficiency(
+            policy,
+            four_verified_with_one_partial,
+            alternate_retry_count=1,
+        )
+        is EvidenceVerificationRoute.STOP_PARTIAL
+    )
 
 
 def test_policy_rejects_a_negative_runtime_retry_count() -> None:

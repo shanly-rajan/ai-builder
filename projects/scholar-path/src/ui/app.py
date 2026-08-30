@@ -10,10 +10,12 @@ from pydantic import ValidationError
 from ..config import ApplicationSettings
 from ..domain import VerificationEvidenceStandard
 from ..graph import (
+    MAX_PROPOSED_SHORTLIST_SIZE,
     CandidateApproveResponse,
     CandidateRejectionReason,
     CandidateRejectResponse,
     CandidateReviewResponse,
+    default_minimum_verified_supervisors,
 )
 from . import dependencies
 from .controller import build_candidate_submission, build_request_more_response
@@ -93,7 +95,11 @@ DETERMINISTIC_DEMO_BANNER = (
 )
 MVP_IDENTITY_ONLY_BANNER = (
     "MVP identity-only verification is active. Directly grounded identity is required; "
-    "current affiliation and research evidence are deferred and shown as limitations."
+    "current affiliation and research evidence are deferred and shown as limitations. "
+    f"The workflow continues with at least "
+    f"{default_minimum_verified_supervisors(VerificationEvidenceStandard.IDENTITY_ONLY_MVP)} "
+    "Verified "
+    f"Supervisors and may propose up to {MAX_PROPOSED_SHORTLIST_SIZE}."
 )
 
 
@@ -432,13 +438,22 @@ def _render_evidence_verification_diagnostics(
         "directly grounded claims to pass every required evidence gate. Names, URLs, excerpts, "
         "search queries, Candidate content, and credentials are not displayed."
     )
+    verified_cohort_minimum = default_minimum_verified_supervisors(
+        diagnostics.verification_evidence_standard
+    )
     if diagnostics.verification_evidence_standard is VerificationEvidenceStandard.IDENTITY_ONLY_MVP:
         panel.warning(
             "Active required gate: directly grounded identity. Current affiliation and "
-            "research evidence are deferred for this MVP run."
+            "research evidence are deferred for this MVP run. The graph may continue with at "
+            f"least {verified_cohort_minimum} Verified Supervisors under this standard; "
+            f"the proposed shortlist remains capped at {MAX_PROPOSED_SHORTLIST_SIZE}."
         )
     else:
-        panel.write("Active required gates: identity, current affiliation, and research.")
+        panel.write(
+            "Active required gates: identity, current affiliation, and research. The strict "
+            f"path requires at least {verified_cohort_minimum} Verified Supervisors; the "
+            f"proposed shortlist remains capped at {MAX_PROPOSED_SHORTLIST_SIZE}."
+        )
 
     panel.markdown("#### Primary-source page retrieval")
     primary_attempts, primary_successes, primary_failures = panel.columns(3)

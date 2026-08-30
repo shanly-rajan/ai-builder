@@ -1,0 +1,16 @@
+flowchart LR
+    E[Evidence verification records] --> S{Verification evidence standard}
+
+    S -->|strict| StrictCount{At least 5 Verified Supervisors?}
+    StrictCount -->|no| StrictRetry[Bounded alternate-source retry or recoverable stop]
+    StrictCount -->|yes| Fit[Evaluate evidence-backed Research Fit]
+
+    S -->|identity_only_mvp| Identity[Require directly grounded identity]
+    Identity --> MvpCount{At least 3 identity-verified Supervisors?}
+    MvpCount -->|no| MvpRetry[Bounded retry or recoverable stop]
+    MvpCount -->|yes| Fit
+
+    Fit --> Synthesis[Propose up to 5 Verified Supervisors]
+    Synthesis --> Review{{Candidate review}}
+    Review -->|approve explicit IDs| Persist[Persist Shortlisted Supervisors]
+    Review -->|reject or request more| Refine[Record feedback and refine]

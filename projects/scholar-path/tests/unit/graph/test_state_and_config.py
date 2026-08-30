@@ -19,6 +19,7 @@ from scholarpath.domain import (
     CandidateReviewAction,
     CandidateReviewDecision,
     SupervisorLifecycleStatus,
+    VerificationEvidenceStandard,
     apply_candidate_review,
 )
 from scholarpath.graph import (
@@ -213,7 +214,16 @@ def test_raw_search_result_revalidates_during_domain_conversion() -> None:
             lambda: GraphFixtureConfig(
                 verification_policy=VerificationPolicy(minimum_verified_supervisors=4)
             ),
-            "must not be less than shortlist_size",
+            "must be at least 5 for strict",
+        ),
+        (
+            lambda: GraphFixtureConfig(
+                verification_policy=VerificationPolicy(
+                    minimum_verified_supervisors=2,
+                    verification_evidence_standard=(VerificationEvidenceStandard.IDENTITY_ONLY_MVP),
+                )
+            ),
+            "must be at least 3 for identity_only_mvp",
         ),
         (lambda: GraphFixtureConfig(shortlist_size=4), "must be 5"),
         (lambda: GraphFixtureConfig(max_review_retries=6), "must not exceed 5"),
