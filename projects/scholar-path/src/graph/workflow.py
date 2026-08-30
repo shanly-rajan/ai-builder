@@ -217,6 +217,7 @@ type ReviewRoute = Literal[
     "candidate_review_gate",
     "learn_candidate_preferences",
     "save_shortlisted_supervisors",
+    "synthesize_supervisor_shortlist",
     "plan_supervisor_searches",
     "__end__",
 ]
@@ -1628,7 +1629,9 @@ class DeterministicScholarPathNodes:
         """Continue the already-persisted Candidate action through deterministic routing."""
         if state["review_status"] is ReviewStatus.APPROVED:
             return SAVE_SHORTLISTED_SUPERVISORS
-        if state["review_status"] in {ReviewStatus.REJECTED, ReviewStatus.REQUEST_MORE}:
+        if state["review_status"] is ReviewStatus.REJECTED:
+            return SYNTHESIZE_SUPERVISOR_SHORTLIST
+        if state["review_status"] is ReviewStatus.REQUEST_MORE:
             return PLAN_SUPERVISOR_SEARCHES
         return "__end__"
 
@@ -2189,7 +2192,12 @@ def build_scholarpath_graph(
             LEARN_CANDIDATE_PREFERENCES,
             nodes.route_after_preference_learning,
         ),
-        [SAVE_SHORTLISTED_SUPERVISORS, PLAN_SUPERVISOR_SEARCHES, END],
+        [
+            SAVE_SHORTLISTED_SUPERVISORS,
+            SYNTHESIZE_SUPERVISOR_SHORTLIST,
+            PLAN_SUPERVISOR_SEARCHES,
+            END,
+        ],
     )
     builder.add_edge(SAVE_SHORTLISTED_SUPERVISORS, GENERATE_SHORTLIST_BRIEFING)
     builder.add_edge(GENERATE_SHORTLIST_BRIEFING, END)

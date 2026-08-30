@@ -30,7 +30,8 @@ flowchart TD
     Gate -->|valid explicit action| Learn[learn_candidate_preferences]
     Gate -->|input retry exhausted| END
     Learn -->|approve exact IDs| Save[save_shortlisted_supervisors]
-    Learn -->|reject or request_more within limit| Plan
+    Learn -->|reject within limit| Synthesize
+    Learn -->|request_more within limit| Plan
     Learn -->|review limit exhausted| END
     Save --> Brief[generate_shortlist_briefing]
     Brief --> END

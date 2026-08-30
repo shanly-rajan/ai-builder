@@ -11,7 +11,6 @@ from langgraph.types import Command
 from scholarpath.domain import (
     CandidatePreferenceRevision,
     CandidateReviewAction,
-    SearchResult,
     SupervisorLifecycleStatus,
 )
 from scholarpath.graph import (
@@ -37,7 +36,6 @@ from tests.fakes import (
     FakePlanningModel,
     FakeResearchFitModel,
     FakeSupervisorSearch,
-    make_fake_search_outcomes,
 )
 
 type _CompiledGraph = CompiledStateGraph[
@@ -200,6 +198,8 @@ def test_resume_with_supervisor_specific_rejection_records_reason_and_repauses()
     harness = _build_harness()
     thread_id = "m9-reject"
     first_payload = _payload(harness.start(thread_id))
+    planning_calls = harness.planning_model.call_count
+    search_calls = tuple(harness.supervisor_search.calls)
     rejected_id = first_payload.proposed_supervisor_shortlist[-1].supervisor_id
     reason = "The Supervisor's applied research orientation does not match my direction."
 
@@ -223,29 +223,30 @@ def test_resume_with_supervisor_specific_rejection_records_reason_and_repauses()
     assert state["candidate_feedback"][-1].reason == reason
     assert state["candidate_feedback"][-1].supervisor_ids == (rejected_id,)
     assert state["shortlisted_supervisors"] == []
-    assert harness.planning_model.call_count == 2
+    assert state["discovery_round"] == 1
+    assert harness.planning_model.call_count == planning_calls == 1
+    assert tuple(harness.supervisor_search.calls) == search_calls
+
+    approved_ids = tuple(
+        item.supervisor_id for item in second_payload.proposed_supervisor_shortlist
+    )
+    completed = harness.resume(
+        thread_id,
+        CandidateApproveResponse(action="approve", supervisor_ids=approved_ids),
+    )
+    completed_state = harness.state(thread_id)
+
+    assert "__interrupt__" not in completed
+    assert completed_state["review_status"] is ReviewStatus.COMPLETED
+    assert (
+        tuple(item.supervisor_id for item in completed_state["shortlisted_supervisors"])
+        == approved_ids
+    )
+    assert rejected_id not in approved_ids
 
 
-def test_rejected_supervisor_identity_alias_is_absent_from_the_next_review() -> None:
-    first_round = make_fake_search_outcomes()
-    scripted_rounds: dict[str, list[tuple[SearchResult, ...] | Exception]] = {}
-    for query, results in first_round.items():
-        second_round = tuple(
-            SearchResult.model_validate(
-                {
-                    **result.model_dump(mode="python"),
-                    "url": (
-                        "https://profiles.scholarpath.example/faculty/amara-ndlovu"
-                        if "Amara Ndlovu" in result.title
-                        else result.url
-                    ),
-                }
-            )
-            for result in results
-        )
-        scripted_rounds[query] = [results, second_round]
-
-    harness = _build_harness(supervisor_search=FakeSupervisorSearch(scripts=scripted_rounds))
+def test_rejected_supervisor_identity_is_absent_from_immediate_reconsideration() -> None:
+    harness = _build_harness()
     thread_id = "m9-rejected-identity-alias"
     first_payload = _payload(harness.start(thread_id))
     rejected = next(
@@ -274,13 +275,8 @@ def test_rejected_supervisor_identity_alias_is_absent_from_the_next_review() -> 
         "Amara Ndlovu" not in item.full_name
         for item in second_payload.proposed_supervisor_shortlist
     )
-    assert all(
-        "Amara Ndlovu" not in supervisor.full_name
-        for supervisor in state["prospective_supervisors"]
-    )
-    assert all(
-        "Amara Ndlovu" not in supervisor.full_name for supervisor in state["verified_supervisors"]
-    )
+    assert state["discovery_round"] == 1
+    assert harness.planning_model.call_count == 1
 
 
 def test_resume_with_request_more_updates_preferences_and_replans() -> None:

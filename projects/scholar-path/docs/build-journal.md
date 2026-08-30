@@ -4261,3 +4261,79 @@ The bounded repair prompt is archived as
 - The six pre-existing documentation-contract failures should be resolved in a separate
   documentation milestone by either restoring current artifacts or deliberately retiring their
   stale tests and root links.
+
+## M14.2: Candidate rejection shortlist reconsideration repair
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Prevent an explicit Candidate rejection from starting an unnecessary provider round that can
+terminate before a new approval checkpoint exists. Reconsider the already-verified evidence set
+immediately, remove the rejected identity, and allow the Candidate to approve the remaining
+proposal through the same durable thread.
+
+### Prompt used
+
+The bounded repair prompt is archived as
+[`m14-2-rejection-shortlist-reconsideration.md`](prompts/m14-2-rejection-shortlist-reconsideration.md).
+
+### Files changed
+
+- Changed the deterministic post-memory route so `reject` returns to
+  `synthesize_supervisor_shortlist`, while `request_more` alone returns to
+  `plan_supervisor_searches`.
+- Added the synthesis destination to the compiled LangGraph conditional edge and its typed route.
+- Regenerated the checked-in LangGraph Mermaid snapshot and updated current README, architecture,
+  terminology, release-diagram, and release-checklist descriptions.
+- Preserved Verified Supervisor evidence as historical state while excluding rejected identities
+  from the newly proposed shortlist and approval options.
+
+### Tests added
+
+- Graph regression proving rejection creates a second review interrupt without another planning
+  or provider-search call, and that approval of the remaining IDs reaches completion.
+- Deterministic walking-skeleton coverage proving one planning pass and two synthesis passes.
+- Fake-provider release coverage proving rejection memory is written, no second extraction,
+  Research Fit, or independent-review round occurs, and final approval persists the shortlist.
+- Real Streamlit AppTest coverage driving reject, verifying the rejected ID is absent, approving
+  the reconsidered proposal, and rendering Stage 6.
+
+### Test results
+
+- Focused reject, request-more, runtime, release, and graph-snapshot regressions: passed.
+- Ruff formatting: `264 files already formatted`; Ruff linting: all checks passed.
+- Strict mypy: no issues in `205 source files`.
+- Complete non-live pytest selected `1,584` tests and reached `91.14%` coverage. The runtime and
+  repair suite produced `1,578 passed`; the same six pre-existing documentation contracts from
+  M14.1 failed because earlier commits deliberately removed `docs/five-minute-demo.md` and
+  `docs/project-submission.md` without retiring their historical contracts.
+- Re-running the complete suite while deselecting exactly those six known stale documentation
+  contracts produced `1,578 passed, 15 deselected in 23.16s` with `91.14%` coverage.
+- `git diff --check`: passed.
+
+### Assumptions
+
+- A rejection means “remove this Supervisor from the current proposal,” not “spend another search
+  round.” The existing `request_more` action remains the unambiguous request for new research.
+- The already-verified cohort and its evidence, scores, and independent reviews remain valid after
+  a rejection; only deterministic proposal membership and rank need recalculation.
+- If no eligible Verified Supervisor remains, synthesis stops safely rather than silently starting
+  external searches that the Candidate did not request.
+
+### Lessons learned
+
+- The supplied log exposed a valid rejection followed by a second-round provider response-contract
+  failure; the apparent approval-tab problem was a missing second review checkpoint, not corrupted
+  Streamlit Session State.
+- Human actions should have narrow, unsurprising semantics: reject reconsiders current evidence,
+  while request-more authorizes provider work.
+- Reusing verified results makes the review loop faster, cheaper, and less failure-prone without
+  weakening evidence or approval controls.
+
+### Remaining debt
+
+- A future UI improvement can display a short “reconsidering the verified cohort” progress message
+  while the rejection command resumes.
+- The six pre-existing documentation-contract failures remain a separate repository-documentation
+  cleanup and were not changed in this runtime repair.

@@ -29,7 +29,9 @@ flowchart LR
 
     Graph --> Gate{{Candidate review interrupt}}
     Gate -->|approve exact IDs| Shortlist[(Shortlisted Supervisors)]
-    Gate -->|reject or request more| Graph
+    Gate -->|reject| Reconsider[Re-synthesize verified cohort]
+    Reconsider --> Gate
+    Gate -->|request more| Graph
     Gate --> Memory[Preference Learning Agent]
     Memory --> Mem0[(Candidate-scoped Mem0)]
 

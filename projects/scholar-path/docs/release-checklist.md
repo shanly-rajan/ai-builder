@@ -69,8 +69,8 @@ git diff --check
 - [ ] Strict mypy passes across `src`, `tests`, and `scripts`.
 - [ ] The complete non-live pytest suite passes with at least 90% branch coverage.
 - [ ] Non-live tests retain the socket blocker and make no external request.
-- [ ] The M13 fake-provider journey passes through reject, preference capture, refined search,
-  approval, shortlist persistence, and final briefing.
+- [ ] The M13 fake-provider journey passes through reject, preference capture, immediate
+  shortlist reconsideration, approval, shortlist persistence, and final briefing.
 - [ ] The local LangSmith-compatible baseline passes every applicable deterministic metric.
 - [ ] Exact commands, test counts, deselected live-test count, coverage, and evaluation outcome
   are copied into `docs/build-journal.md` and `docs/evaluation-baseline.md`.
@@ -119,9 +119,9 @@ pytest -o addopts='' -q -rs -m live \
   tests/integration/test_m13_live_canary.py
 ```
 
-- [ ] The offline five-minute demonstration in [`five-minute-demo.md`](five-minute-demo.md)
-  visibly shows the injected You.com failure, Tavily fallback, evidence, Research Fit,
-  rejection, preference learning, refined search, approval, and final briefing.
+- [ ] The offline five-minute demonstration visibly shows the injected You.com failure, Tavily
+  fallback, evidence, Research Fit, rejection, preference learning, shortlist reconsideration,
+  approval, and final briefing.
 - [ ] `tests/integration/test_m13_live_canary.py` is marked `live`, skipped by default, requires
   `SCHOLARPATH_RUN_LIVE_TESTS=true`, `SCHOLARPATH_RUN_LIVE_CANARY=true`, all needed keys, and
   the three non-secret public target settings.

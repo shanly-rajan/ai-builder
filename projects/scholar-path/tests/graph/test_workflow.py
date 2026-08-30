@@ -197,7 +197,7 @@ def test_candidate_approval_reaches_end_with_shortlisted_statuses() -> None:
     )
 
 
-def test_candidate_rejection_records_feedback_and_returns_to_planning() -> None:
+def test_candidate_rejection_records_feedback_and_reconsiders_existing_shortlist() -> None:
     reject = _reject((FIXTURE_IDS[4],))
     approve_remaining = _approve(RANKED_IDS_AFTER_REJECTION)
     config = GraphFixtureConfig(max_review_retries=1)
@@ -214,7 +214,8 @@ def test_candidate_rejection_records_feedback_and_returns_to_planning() -> None:
         CandidateReviewAction.REJECT,
         CandidateReviewAction.APPROVE,
     ]
-    assert final_state["execution_log"].count("plan_supervisor_searches") == 2
+    assert final_state["execution_log"].count("plan_supervisor_searches") == 1
+    assert final_state["execution_log"].count("synthesize_supervisor_shortlist") == 2
     assert final_state["execution_log"].count("candidate_review_gate") == 2
     assert final_state["retry_counts"]["review"] == 1
     assert final_state["review_status"] is ReviewStatus.COMPLETED

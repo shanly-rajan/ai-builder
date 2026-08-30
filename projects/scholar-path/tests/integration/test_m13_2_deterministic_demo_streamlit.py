@@ -155,7 +155,7 @@ def test_runtime_profile_and_warning_remain_bound_to_cached_composition(
     assert _demo_banners(app_test) == [ui_app.DETERMINISTIC_DEMO_BANNER]
 
 
-def test_real_demo_composition_reaches_review_and_approved_shortlist(
+def test_real_demo_composition_rejects_then_reaches_approved_shortlist(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Drive Streamlit over the real strict graph with only packaged offline ports."""
@@ -185,7 +185,22 @@ def test_real_demo_composition_reaches_review_and_approved_shortlist(
     assert len(paused.review_supervisors) == 5
     assert _demo_banners(app_test) == [ui_app.DETERMINISTIC_DEMO_BANNER]
 
-    approved_ids = [supervisor.supervisor_id for supervisor in paused.review_supervisors]
+    rejected_id = paused.review_supervisors[-1].supervisor_id
+    app_test.selectbox(key="reject_supervisor_id").set_value(rejected_id)
+    app_test.text_area(key="reject_supervisor_reason").input(
+        "The demonstrated research direction is outside the intended scope."
+    )
+    app_test.button(key="reject_supervisor_submit").click().run()
+
+    reconsidered = service.inspect(THREAD_ID)
+    assert not app_test.exception
+    assert reconsidered is not None
+    assert reconsidered.stage is UiStage.REVIEW_SUPERVISORS
+    assert rejected_id not in {
+        supervisor.supervisor_id for supervisor in reconsidered.review_supervisors
+    }
+
+    approved_ids = [supervisor.supervisor_id for supervisor in reconsidered.review_supervisors]
     app_test.multiselect(key="approve_supervisor_ids").set_value(approved_ids)
     app_test.button(key="approve_supervisors_submit").click().run()
 

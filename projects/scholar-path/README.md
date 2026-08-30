@@ -59,7 +59,9 @@ flowchart LR
     Fit --> Review[Nebius independent review]
     Review --> Gate{{LangGraph Candidate interrupt}}
     Gate -->|valid explicit action| Memory[Mem0 preference learning]
-    Memory -->|reject or request more| Plan
+    Memory -->|reject| Reconsider[Re-synthesize verified cohort]
+    Reconsider --> Gate
+    Memory -->|request more| Plan
     Memory -->|approve exact IDs| Shortlist[Persisted shortlist + briefing]
 
     classDef human fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
@@ -217,7 +219,9 @@ flowchart LR
     Verify --> Fit[Evidence-cited Research Fit]
     Fit --> Review[Independent review]
     Review --> Gate{{Candidate approval}}
-    Gate -->|reject or request more| Plan
+    Gate -->|reject| Reconsider[Re-synthesize verified cohort]
+    Reconsider --> Gate
+    Gate -->|request more| Plan
     Gate -->|approve exact IDs| Shortlist[Shortlisted Supervisors]
 
     classDef human fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
@@ -302,7 +306,8 @@ flowchart TD
     Human -->|request_more with revised preferences| Gate
     Gate -->|valid explicit action| Learn[learn_candidate_preferences]
     Learn -->|approved| Save[save_shortlisted_supervisors]
-    Learn -->|rejected or request_more| Plan
+    Learn -->|rejected| Synthesize
+    Learn -->|request_more| Plan
     Learn -->|bounded retry exhausted| END
     Gate -->|invalid input exhausted| END
     Save --> Brief[generate_shortlist_briefing]
@@ -310,8 +315,9 @@ flowchart TD
 ```
 
 The proposal contains at most five ranked, evidence-backed records. No lifecycle change
-or shortlist save occurs while the graph is interrupted. Rejection and `request_more`
-return to planning only while the explicit review iteration budget remains.
+or shortlist save occurs while the graph is interrupted. Rejection removes the targeted
+Supervisor identity and re-synthesizes the existing Verified Supervisor cohort. Only
+`request_more` returns to planning while the explicit review iteration budget remains.
 Discovery uses explicit per-provider budgets; evidence and review retain their own
 bounded controls. The graph never relies on LangGraph's recursion limit for normal
 termination.
@@ -724,8 +730,11 @@ sequenceDiagram
     alt approve
         Graph->>Graph: save only explicitly approved IDs
         Graph-->>App: completed SupervisorShortlist
-    else reject or request_more
-        Graph->>Graph: record feedback and re-plan within limit
+    else reject
+        Graph->>Graph: record feedback and re-synthesize existing Verified Supervisors
+        Graph-->>App: next bounded review interrupt
+    else request_more
+        Graph->>Graph: record revised preferences and re-plan within limit
         Graph-->>App: next bounded review interrupt
     end
 ```

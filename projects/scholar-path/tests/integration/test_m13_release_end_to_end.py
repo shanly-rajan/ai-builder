@@ -75,26 +75,10 @@ def _state(runtime: ScholarPathRuntime, thread_id: str) -> ScholarPathState:
     return cast(ScholarPathState, snapshot.values)
 
 
-def test_release_journey_falls_back_learns_replans_and_requires_approval() -> None:
+def test_release_journey_falls_back_learns_reconsiders_and_requires_approval() -> None:
     """Prove the complete fake-provider release journey on one durable graph thread."""
     initial_response = make_valid_planning_response()
-    refined_response = make_valid_planning_response(
-        expanded_research_concepts=[
-            "applied enterprise AI governance",
-            "design science architecture evaluation",
-            "traceable agentic systems",
-        ],
-        search_queries=[
-            item.model_copy(update={"query": f"{item.query} applied design science"})
-            for item in initial_response.search_queries
-        ],
-        rationale=(
-            "Refine the search toward explicit applied and design-science evidence after the "
-            "Candidate's rejection."
-        ),
-    )
     initial_query = initial_response.search_queries[0].query
-    refined_queries = tuple(item.query for item in refined_response.search_queries)
     retry_failure = SearchProviderError(
         "Synthetic retryable failure after the configured timeout.",
         provider=SearchProvider.YOU,
@@ -103,12 +87,8 @@ def test_release_journey_falls_back_learns_replans_and_requires_approval() -> No
     )
 
     graph_config = GraphFixtureConfig()
-    planning_model = FakePlanningModel((initial_response, refined_response))
+    planning_model = FakePlanningModel((initial_response,))
     primary_search = FakeSupervisorSearch(
-        outcomes={
-            query: (_profile_results(query) if index == 0 else ())
-            for index, query in enumerate(refined_queries)
-        },
         scripts={initial_query: [retry_failure]},
     )
     fallback_search = FakeSupervisorSearch(
@@ -218,9 +198,6 @@ def test_release_journey_falls_back_learns_replans_and_requires_approval() -> No
         ),
     )
     second_state = _state(runtime, thread_id)
-    second_round_attempts = [
-        attempt for attempt in second_state["search_attempts"] if attempt.discovery_round == 2
-    ]
     second_proposal_ids = tuple(item.supervisor_id for item in second_pause.review_supervisors)
 
     assert second_pause.stage is UiStage.REVIEW_SUPERVISORS
@@ -228,22 +205,11 @@ def test_release_journey_falls_back_learns_replans_and_requires_approval() -> No
     assert len(second_proposal_ids) == 5
     assert rejected_id not in second_proposal_ids
     assert second_state["review_status"] is ReviewStatus.PROPOSED
-    assert second_state["discovery_round"] == 2
+    assert second_state["discovery_round"] == 1
     assert second_state["retry_counts"]["review"] == 1
-    assert all(attempt.provider_used is SearchProvider.YOU for attempt in second_round_attempts)
-    assert [attempt.query for attempt in second_round_attempts] == list(refined_queries)
-    assert all(attempt.error_category is None for attempt in second_round_attempts)
-    assert primary_search.calls == [initial_query, *refined_queries]
+    assert primary_search.calls == [initial_query]
     assert fallback_search.calls == [initial_query]
-    assert planning_model.call_count == 2
-    remembered_rejections = tuple(
-        record
-        for record in planning_model.inputs[1].remembered_candidate_memories
-        if record.kind is CandidateMemoryKind.REJECTED_SUPERVISOR_REASON
-    )
-    assert len(remembered_rejections) == 1
-    assert remembered_rejections[0].value == rejection_reason
-    assert remembered_rejections[0].related_supervisor_id == rejected_id
+    assert planning_model.call_count == 1
     assert len(memory.store_calls) == 1
     stored_candidate_id, rejection_batch = memory.store_calls[0]
     assert stored_candidate_id == profile.candidate_id
@@ -253,7 +219,7 @@ def test_release_journey_falls_back_learns_replans_and_requires_approval() -> No
     assert second_state["supervisor_shortlist"] is None
     assert second_state["shortlist_briefing"] is None
     print("Candidate action: reject 1 Supervisor; shortlist writes: 0")
-    print("Preference learning: rejection reason stored; planning round: 2")
+    print("Preference learning: rejection reason stored; existing shortlist reconsidered")
 
     completed = service.resume(
         thread_id,
@@ -285,7 +251,7 @@ def test_release_journey_falls_back_learns_replans_and_requires_approval() -> No
     approval_candidate_id, approval_batch = memory.store_calls[1]
     assert approval_candidate_id == profile.candidate_id
     assert {record.value for record in approval_batch} == set(
-        refined_response.expanded_research_concepts
+        initial_response.expanded_research_concepts
     )
     assert all(
         record.kind is CandidateMemoryKind.USEFUL_SEARCH_CONCEPT for record in approval_batch
@@ -296,24 +262,24 @@ def test_release_journey_falls_back_learns_replans_and_requires_approval() -> No
     print("Candidate action: approve 5 Supervisor IDs")
     print(f"Final briefing: {shortlist.briefing}")
     assert alternate_search.calls == []
-    assert len(content_extractor.calls) == 11
-    assert evidence_model.call_count == 11
-    assert research_fit_model.call_count == 11
-    assert review_model.call_count == 11
+    assert len(content_extractor.calls) == 6
+    assert evidence_model.call_count == 6
+    assert research_fit_model.call_count == 6
+    assert review_model.call_count == 6
 
     node_counts = Counter(final_state["execution_log"])
     assert node_counts == Counter(
         {
             "load_candidate_preferences": 1,
-            "plan_supervisor_searches": 2,
-            "discover_prospective_supervisors": 2,
-            "enough_supervisors_found": 3,
+            "plan_supervisor_searches": 1,
+            "discover_prospective_supervisors": 1,
+            "enough_supervisors_found": 2,
             "fallback_supervisor_search": 1,
-            "deduplicate_supervisors": 2,
-            "extract_supervisor_evidence": 2,
-            "supervisor_evidence_sufficient": 2,
-            "evaluate_research_fit": 2,
-            "review_fit_assessments": 2,
+            "deduplicate_supervisors": 1,
+            "extract_supervisor_evidence": 1,
+            "supervisor_evidence_sufficient": 1,
+            "evaluate_research_fit": 1,
+            "review_fit_assessments": 1,
             "synthesize_supervisor_shortlist": 2,
             "candidate_review_gate": 2,
             "learn_candidate_preferences": 2,

@@ -63,10 +63,11 @@ The M9 interrupted proposal also keeps every included record verified; the word
 | **Request-more response** | Revised research interests, regions, study modes, orientation, methods, constraints, or exclusions used for another bounded search. |
 | **Thread ID** | An opaque run identifier that isolates one Candidate research workflow's checkpoints. |
 
-Viewing or receiving an interrupt payload is never approval. Rejection and
-`request_more` preserve feedback in graph state and can trigger another review only
-within configured limits. A thread ID identifies workflow state; it is not a Candidate
-name, email address, or authorization credential.
+Viewing or receiving an interrupt payload is never approval. Rejection preserves feedback,
+excludes the targeted Supervisor identity, and re-synthesizes the existing Verified Supervisor
+cohort. `request_more` preserves revised preferences and launches another bounded search. Both
+actions can trigger another review only within configured limits. A thread ID identifies workflow
+state; it is not a Candidate name, email address, or authorization credential.
 
 ## Typed lifecycle values
 

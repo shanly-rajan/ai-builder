@@ -87,9 +87,9 @@ def test_demo_runtime_falls_back_verifies_learns_and_requires_approval() -> None
     assert "learn_candidate_preferences" in {
         event.node_name for event in second_review.progress_events
     }
-    assert "plan_supervisor_searches" in {
-        event.node_name for event in second_review.progress_events
-    }
+    progress_nodes = [event.node_name for event in second_review.progress_events]
+    assert progress_nodes.count("plan_supervisor_searches") == 1
+    assert progress_nodes.count("synthesize_supervisor_shortlist") == 2
 
     approved_ids = tuple(
         supervisor.supervisor_id for supervisor in second_review.review_supervisors

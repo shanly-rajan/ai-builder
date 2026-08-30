@@ -1,8 +1,8 @@
 # ScholarPath Architecture
 
-This document records the current implementation architecture through M13.14. M14 changes only
-the reviewer-facing submission documentation and does not alter runtime topology, state, provider,
-evidence, memory, or approval behavior.
+This document records the current implementation architecture through M14.2. Candidate rejection
+now re-synthesizes the existing Verified Supervisor cohort after preference learning; only an
+explicit `request_more` action launches another planning and provider-search round.
 
 M11 adds a Candidate-facing Streamlit delivery layer over the durable LangGraph workflow.
 The UI depends on a typed application port, streams only canonical node names, and reads a
@@ -61,7 +61,8 @@ flowchart LR
     PS --> VS[4. Verified Supervisors]
     VS --> R[5. Review Supervisors]
     R -->|approve explicit IDs| S[6. Your Supervisor Shortlist]
-    R -->|reject with reason| X
+    R -->|reject with reason| RR[Reconsider verified cohort]
+    RR --> R
     R -->|request more + revised preferences| X
 ```
 
@@ -106,6 +107,7 @@ flowchart LR
     LEARN -->|durable preference records| MEM
     LEARN -->|approve explicit IDs| SS[Shortlisted Supervisor]
     LEARN -->|reject with reasons| RS[Rejected Supervisor]
+    RS --> SYNTH
     LEARN -->|request_more| PLAN
 
     classDef human fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
@@ -292,7 +294,7 @@ sequenceDiagram
     alt approve
         LG->>LG: validate proposal IDs and save approved subset
     else reject
-        LG->>LG: retain per-Supervisor reasons and re-plan
+        LG->>LG: retain per-Supervisor reasons and re-synthesize verified cohort
     else request_more
         LG->>LG: append revised preferences and re-plan
     end
@@ -310,7 +312,9 @@ ordered proposal IDs; `CandidateRejectResponse` carries a non-empty reason per I
 shape, while ordinary Python validates that each referenced ID belongs to the exact paused
 proposal. Invalid input re-enters the interrupt only within `max_review_input_retries`.
 Repeated rejection or `request_more` consumes `max_review_retries`; neither loop relies on
-the global recursion limit.
+the global recursion limit. Rejection does not call search providers. It deterministically
+removes rejected identities from the proposal and re-ranks the remaining Verified Supervisors.
+Only `request_more` returns to planning and discovery.
 
 The node performs only deterministic payload construction before `interrupt()`. LangGraph
 re-executes that code when resuming, so keeping it side-effect-free makes resume idempotent:
@@ -966,7 +970,8 @@ flowchart TD
     Candidate -->|reject reasons or request_more| Gate
     Gate -->|valid explicit action| Learn[learn_candidate_preferences]
     Learn -->|approved| Save[save_shortlisted_supervisors]
-    Learn -->|rejected or request_more| Plan
+    Learn -->|rejected| Synthesize
+    Learn -->|request_more| Plan
     Learn -->|exhausted| END
     Gate -->|invalid response exhausted| END
     Save --> Brief[generate_shortlist_briefing]
