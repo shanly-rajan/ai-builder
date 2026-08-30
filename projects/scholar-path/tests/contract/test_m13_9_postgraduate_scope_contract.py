@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+from scholarpath.ui.app import HERO_SUBTITLE
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TAGLINE = "Evidence-backed supervisor discovery for postgraduate research."
 LEGACY_TAGLINE = "Evidence-backed Supervisor discovery for Master's and doctoral research."
@@ -14,7 +16,6 @@ LEGACY_TAGLINE = "Evidence-backed Supervisor discovery for Master's and doctoral
     (
         "README.md",
         "docs/architecture.md",
-        "docs/five-minute-demo.md",
     ),
 )
 def test_active_presentation_docs_use_exact_postgraduate_tagline(relative_path: str) -> None:
@@ -22,6 +23,10 @@ def test_active_presentation_docs_use_exact_postgraduate_tagline(relative_path: 
 
     assert TAGLINE in document
     assert LEGACY_TAGLINE not in document
+
+
+def test_streamlit_hero_uses_exact_postgraduate_tagline() -> None:
+    assert HERO_SUBTITLE == TAGLINE
 
 
 def test_current_terminology_uses_postgraduate_scope_without_weakening_source_scope() -> None:

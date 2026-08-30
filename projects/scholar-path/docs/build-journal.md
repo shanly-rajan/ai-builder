@@ -4337,3 +4337,77 @@ The bounded repair prompt is archived as
   while the rejection command resumes.
 - The six pre-existing documentation-contract failures remain a separate repository-documentation
   cleanup and were not changed in this runtime repair.
+
+## M14.3: CI documentation-contract alignment
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Restore the ScholarPath GitHub Actions quality job by aligning active documentation links and
+contract tests with the deliberate retirement of two outdated submission documents, without
+weakening any runtime, lint, type, coverage, or terminology quality gate.
+
+### Prompt used
+
+The bounded repair prompt is archived as
+[`m14-3-ci-documentation-contract-alignment.md`](prompts/m14-3-ci-documentation-contract-alignment.md).
+
+### Files changed
+
+- Removed broken links to the retired submission write-up and five-minute demonstration from the
+  repository and ScholarPath READMEs.
+- Updated the root architecture flow so rejection re-synthesizes the verified cohort while
+  `request_more` alone starts another planning round.
+- Retired assertions that required the deliberately deleted documents and moved their useful
+  behavioural checks to active code, tests, and documentation.
+- Replaced the stale M14 submission-document contract with checks for current reviewer handoff
+  artifacts, archived milestone history, and valid relative links from active entry points.
+
+### Tests added or updated
+
+- Updated six documentation-contract modules that still referenced retired artifacts.
+- Added direct coverage for the live postgraduate tagline and the current deterministic Streamlit
+  demonstration entry point.
+- Added an explicit retirement contract preventing obsolete documents or links from silently
+  returning while preserving current reviewer artifacts and link integrity.
+
+### Test results
+
+- Initial CI-equivalent run: `6 failed, 1,578 passed, 9 deselected`; every failure referenced one
+  of the two deliberately retired documents. Coverage was `91.14%`.
+- Focused affected contract suite: `26 passed in 0.18s`.
+- Ruff formatting: `266 files already formatted`.
+- Ruff linting: all checks passed.
+- Strict mypy: no issues in `205 source files`.
+- Complete non-live pytest: `1,587 passed, 9 deselected in 22.36s` with `91.14%` coverage.
+- Final active-document, terminology, and engineering-contract subset with project-wide coverage
+  disabled: `20 passed, 74 subtests passed in 0.05s`. Running that subset with the global
+  `90%` coverage threshold left enabled correctly exited on insufficient subset coverage even
+  though all selected tests passed; the complete suite above is the coverage authority.
+- Installed-environment dependency check: no broken requirements found.
+- `git diff --check`: passed before the milestone record was appended and is rerun at completion.
+
+### Assumptions
+
+- Commits that deliberately removed the two outdated documents are authoritative; restoring stale
+  content would misrepresent the current workflow.
+- Historical build-journal entries and archived prompts remain immutable evidence of the earlier
+  milestone even when its delivery artifacts have been retired.
+- Active READMEs, architecture, reliability review, release checklist, and evaluation baseline are
+  the current reviewer entry points.
+
+### Lessons learned
+
+- Contract tests must evolve when a repository intentionally retires an artifact; otherwise they
+  enforce history rather than the current product contract.
+- Documentation links are executable architecture handoffs and deserve automated integrity checks.
+- Reproducing the exact CI commands locally separates workflow-environment issues from deterministic
+  repository failures quickly.
+
+### Remaining debt
+
+- The repaired commit must be pushed so GitHub Actions can confirm the same result on its hosted
+  Python 3.12 runner.
+- The local environment does not include the GitHub CLI, so the hosted annotation itself could not
+  be fetched; the workflow file and all of its commands were reproduced locally instead.

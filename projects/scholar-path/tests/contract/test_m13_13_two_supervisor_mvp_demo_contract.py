@@ -38,10 +38,8 @@ def test_prompt_and_current_docs_record_the_bounded_adjustment() -> None:
     readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
     architecture = (PROJECT_ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
     terminology = (PROJECT_ROOT / "docs" / "terminology.md").read_text(encoding="utf-8")
-    demo = (PROJECT_ROOT / "docs" / "five-minute-demo.md").read_text(encoding="utf-8")
 
     assert "lets lower the verified supervisors to be 2 instead of 3" in prompt
     assert "M13.13" in readme
     assert "M13.13 two-Supervisor MVP and blank demo methodology" in architecture
     assert "| `identity_only_mvp` | Directly grounded identity | 2 |" in terminology
-    assert "| Methodological interests | Leave empty |" in demo

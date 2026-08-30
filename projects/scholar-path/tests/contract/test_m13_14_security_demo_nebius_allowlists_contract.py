@@ -53,10 +53,8 @@ def test_prompt_and_current_docs_record_the_bounded_repair() -> None:
     ).read_text(encoding="utf-8")
     readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
     architecture = (PROJECT_ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
-    demo = (PROJECT_ROOT / "docs" / "five-minute-demo.md").read_text(encoding="utf-8")
 
     assert "Automated vulnerability detection" in prompt
     assert 'why the "Independent Research Fit" was unavailable' in prompt
     assert "M13.14" in readme
     assert "M13.14 security demo profile" in architecture
-    assert "Computer Security; Software Security" in demo

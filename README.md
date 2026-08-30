@@ -25,16 +25,17 @@ flowchart LR
     Discover --> Verify[Verify evidence]
     Verify --> Fit[Evaluate Research Fit]
     Fit --> Gate{{Candidate review}}
-    Gate -->|reject or request more| Plan
+    Gate -->|reject| Reconsider[Re-synthesize verified cohort]
+    Reconsider --> Gate
+    Gate -->|request more| Plan
     Gate -->|approve exact IDs| Shortlist[Persist shortlist]
 ```
 
 Reviewer links:
 
 - [Project README](projects/scholar-path/README.md)
-- [Submission write-up](projects/scholar-path/docs/project-submission.md)
-- [Five-minute recording script](projects/scholar-path/docs/five-minute-demo.md)
-- [Architecture and reliability review](projects/scholar-path/docs/reliability-review.md)
+- [Architecture](projects/scholar-path/docs/architecture.md)
+- [Reliability review](projects/scholar-path/docs/reliability-review.md)
 
 ## All projects
 

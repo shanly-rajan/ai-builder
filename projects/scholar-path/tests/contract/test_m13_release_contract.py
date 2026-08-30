@@ -25,7 +25,6 @@ def test_m13_release_artifacts_and_architecture_record_are_present() -> None:
         "docs/prompts/m13-reliability-hardening-and-release.md",
         "docs/reliability-review.md",
         "docs/release-checklist.md",
-        "docs/five-minute-demo.md",
         "docs/m13-release-architecture.mmd",
         "docs/m13-langgraph-node-edge.mmd",
         "requirements.lock",

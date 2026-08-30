@@ -12,7 +12,7 @@ def test_m13_2_prompt_documentation_and_journal_are_present() -> None:
     required_paths = (
         "docs/prompts/m13-2-deterministic-demo-runtime.md",
         "docs/architecture.md",
-        "docs/five-minute-demo.md",
+        "tests/integration/test_m13_2_deterministic_demo_streamlit.py",
     )
     for relative_path in required_paths:
         assert (PROJECT_ROOT / relative_path).is_file(), f"Missing M13.2 artifact: {relative_path}"

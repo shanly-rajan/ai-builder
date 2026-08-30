@@ -204,7 +204,7 @@ the [M13.9 postgraduate presentation boundary](docs/m13-9-postgraduate-presentat
 and the M13 [release architecture](docs/m13-release-architecture.mmd),
 [LangGraph node and edge diagram](docs/m13-langgraph-node-edge.mmd),
 [reliability review](docs/reliability-review.md),
-[five-minute demonstration](docs/five-minute-demo.md), [release checklist](docs/release-checklist.md),
+[release checklist](docs/release-checklist.md),
 and [canonical terminology](docs/terminology.md) for the current boundaries.
 
 ## M13 project overview and release scope
@@ -1522,13 +1522,12 @@ retained claims, directly grounded claims, verification outcomes, and missing ev
 accounted for separately. Fakes and fixed data keep names, URLs, excerpts, Candidate content,
 credentials, provider calls, model calls, and network access outside the demonstration.
 
-### Five-minute M13 release demonstration
+### End-to-end M13 release demonstration
 
-The complete script is in
-[`docs/five-minute-demo.md`](docs/five-minute-demo.md). Its deterministic release proof runs
-the real checkpointed graph with fake providers through a You.com failure, Tavily fallback,
-verification, Research Fit evaluation, independent review, Candidate rejection, preference
-learning, refined search, Candidate approval, shortlist persistence, and final briefing:
+The deterministic release proof runs the real checkpointed graph with fake providers through a
+You.com failure, Tavily fallback, verification, Research Fit evaluation, independent review,
+Candidate rejection, preference learning, shortlist reconsideration, Candidate approval,
+shortlist persistence, and final briefing:
 
 ```bash
 LANGSMITH_TRACING=false pytest -o addopts='' -q -s \
