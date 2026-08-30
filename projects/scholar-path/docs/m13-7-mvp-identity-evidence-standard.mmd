@@ -1,0 +1,15 @@
+flowchart LR
+    E[Retrieved and grounded claims] --> S{Verification evidence standard}
+    S -->|strict| G3{Identity + affiliation + research}
+    S -->|identity_only_mvp| G1{Directly grounded identity}
+    G3 -->|missing| P[Partially verified record]
+    G3 -->|present| V[Verified Supervisor]
+    G1 -->|missing| P
+    G1 -->|present| MVC[Verified with concerns]
+    MVC --> D[Affiliation and research gaps remain visible]
+    D --> F{Fit-eligible evidence exists?}
+    F -->|no| Z[Research Fit not established: 0 / LOW / explicit gaps]
+    F -->|yes| R[Evidence-cited Research Fit]
+    Z --> H{{Candidate review}}
+    R --> H
+    H -->|explicit approval only| L[Shortlisted Supervisor]

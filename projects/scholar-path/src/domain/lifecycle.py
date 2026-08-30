@@ -9,6 +9,7 @@ from .enums import (
     AvailabilityStatus,
     CandidateReviewAction,
     SupervisorLifecycleStatus,
+    VerificationEvidenceStandard,
     VerificationStatus,
 )
 from .models import (
@@ -19,6 +20,7 @@ from .models import (
     VerifiedSupervisor,
     derive_availability_status,
     missing_verification_evidence,
+    verification_standard_concerns,
 )
 
 _STRUCTURAL_TRANSITIONS: dict[SupervisorLifecycleStatus, frozenset[SupervisorLifecycleStatus]] = {
@@ -82,17 +84,35 @@ def verify_supervisor(
     *,
     availability_status: AvailabilityStatus | None = None,
     verification_concerns: Sequence[str] = (),
+    verification_evidence_standard: VerificationEvidenceStandard = (
+        VerificationEvidenceStandard.STRICT
+    ),
 ) -> VerifiedSupervisor:
     """Create a Verified Supervisor after deterministic evidence checks."""
     validate_structural_transition(supervisor.status, SupervisorLifecycleStatus.VERIFIED)
     evidence_tuple = tuple(evidence)
-    missing = missing_verification_evidence(evidence_tuple, supervisor)
+    missing = missing_verification_evidence(
+        evidence_tuple,
+        supervisor,
+        verification_evidence_standard,
+    )
     if missing:
         raise SupervisorVerificationError(
             f"Cannot verify Supervisor; missing evidence: {', '.join(missing)}."
         )
 
-    concerns_tuple = tuple(verification_concerns)
+    concerns_tuple = tuple(
+        dict.fromkeys(
+            (
+                *verification_concerns,
+                *verification_standard_concerns(
+                    evidence_tuple,
+                    supervisor,
+                    verification_evidence_standard,
+                ),
+            )
+        )
+    )
     resolved_availability_status = availability_status or derive_availability_status(
         evidence_tuple, supervisor.supervisor_id
     )
@@ -107,6 +127,7 @@ def verify_supervisor(
                 "evidence": evidence_tuple,
                 "status": SupervisorLifecycleStatus.VERIFIED,
                 "verification_status": verification_status,
+                "verification_evidence_standard": verification_evidence_standard,
                 "availability_status": resolved_availability_status,
                 "verification_concerns": concerns_tuple,
             }

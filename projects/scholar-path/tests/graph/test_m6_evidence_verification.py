@@ -15,6 +15,7 @@ from scholarpath.domain import (
     EvidenceConfidence,
     SearchResult,
     SourceKind,
+    VerificationEvidenceStandard,
     VerificationStatus,
 )
 from scholarpath.graph import (
@@ -109,6 +110,7 @@ def _run(
             application_settings=ApplicationSettings(
                 environment=Environment.TEST,
                 discovery_failure_mode=DiscoveryFailureMode.OFF,
+                verification_evidence_standard=VerificationEvidenceStandard.STRICT,
             ),
             langsmith_settings=LangSmithSettings(tracing=False),
         ),

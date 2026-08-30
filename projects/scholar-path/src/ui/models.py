@@ -22,6 +22,7 @@ from ..domain import (
     SearchResultRejectionCounts,
     SourceKind,
     SupervisorLifecycleStatus,
+    VerificationEvidenceStandard,
     VerificationStatus,
 )
 from ..graph.verification import AlternateSourceRejectionCounts
@@ -264,12 +265,18 @@ class EvidenceVerificationDiagnosticsView(BaseModel):
     alternate_retrieval_success_count: Annotated[int, Field(strict=True, ge=0)]
     alternate_retrieval_failure_count: Annotated[int, Field(strict=True, ge=0)]
     extraction_failure_counts: EvidenceExtractionFailureCountsView
+    verification_evidence_standard: VerificationEvidenceStandard = (
+        VerificationEvidenceStandard.STRICT
+    )
     verification_record_count: Annotated[int, Field(strict=True, ge=0)]
     completed_verification_record_count: Annotated[int, Field(strict=True, ge=0)]
     partial_verification_record_count: Annotated[int, Field(strict=True, ge=0)]
     retained_claim_counts: EvidenceClaimTypeCountsView
     directly_grounded_claim_counts: EvidenceClaimTypeCountsView
     missing_required_evidence_counts: MissingRequiredEvidenceCountsView
+    deferred_evidence_gap_counts: MissingRequiredEvidenceCountsView = Field(
+        default_factory=MissingRequiredEvidenceCountsView
+    )
 
     @model_validator(mode="after")
     def aggregate_counts_must_be_consistent(self) -> EvidenceVerificationDiagnosticsView:
@@ -320,21 +327,43 @@ class EvidenceVerificationDiagnosticsView(BaseModel):
             raise ValueError("Every partial record must identify at least one missing gate")
         grounded_counts = self.directly_grounded_claim_counts
         records_requiring_identity = self.verification_record_count - missing_counts.identity
-        records_requiring_affiliation = (
-            self.verification_record_count - missing_counts.current_affiliation
-        )
-        records_requiring_research = (
-            self.verification_record_count - missing_counts.research_interest_or_publication
-        )
         if grounded_counts.identity < records_requiring_identity:
             raise ValueError("Grounded identity evidence cannot support the record outcomes")
-        if grounded_counts.current_affiliation < records_requiring_affiliation:
-            raise ValueError("Grounded affiliation evidence cannot support the record outcomes")
-        if (
-            grounded_counts.research_interest + grounded_counts.publication
-            < records_requiring_research
-        ):
-            raise ValueError("Grounded research evidence cannot support the record outcomes")
+        deferred = self.deferred_evidence_gap_counts
+        if self.verification_evidence_standard is VerificationEvidenceStandard.STRICT:
+            if deferred.total:
+                raise ValueError("Strict verification cannot report deferred evidence gates")
+            records_requiring_affiliation = (
+                self.verification_record_count - missing_counts.current_affiliation
+            )
+            records_requiring_research = (
+                self.verification_record_count - missing_counts.research_interest_or_publication
+            )
+            if grounded_counts.current_affiliation < records_requiring_affiliation:
+                raise ValueError("Grounded affiliation evidence cannot support the record outcomes")
+            if (
+                grounded_counts.research_interest + grounded_counts.publication
+                < records_requiring_research
+            ):
+                raise ValueError("Grounded research evidence cannot support the record outcomes")
+        else:
+            if (
+                missing_counts.current_affiliation
+                or missing_counts.research_interest_or_publication
+            ):
+                raise ValueError("MVP verification may require only the identity evidence gate")
+            if missing_counts.identity != self.partial_verification_record_count:
+                raise ValueError("Every partial MVP record must be missing grounded identity")
+            if deferred.identity:
+                raise ValueError("Identity cannot be deferred by the MVP evidence standard")
+            if any(
+                count > self.verification_record_count
+                for count in (
+                    deferred.current_affiliation,
+                    deferred.research_interest_or_publication,
+                )
+            ):
+                raise ValueError("A deferred gate cannot exceed the verification record count")
         return self
 
 
@@ -375,7 +404,11 @@ class VerifiedSupervisorView(BaseModel):
     department: NonEmptyUiText
     profile_url: HttpUrl
     verification_status: VerificationStatus
+    verification_evidence_standard: VerificationEvidenceStandard = (
+        VerificationEvidenceStandard.STRICT
+    )
     research_fit_score: Annotated[int, Field(strict=True, ge=0, le=100)] | None = None
+    research_fit_evidence_limited: bool = False
     fit_explanation: NonEmptyUiText | None = None
     evidence_confidence: EvidenceConfidence
     evidence_sources: tuple[EvidenceSourceView, ...] = Field(min_length=1)

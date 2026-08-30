@@ -26,12 +26,14 @@ from ..domain import (
     ProspectiveSupervisor,
     SourceKind,
     SupervisorVerificationRecord,
+    VerificationEvidenceStandard,
     VerificationStatus,
     derive_availability_status,
     evidence_claim_is_grounded_for_supervisor,
     is_singular_person_profile_url,
     missing_verification_evidence,
     supervisor_names_are_title_equivalent,
+    verification_standard_concerns,
     verify_supervisor,
 )
 from ..tools.content_extraction import ExtractedContent
@@ -394,8 +396,16 @@ def _has_same_page_availability_conflict(
 class EvidenceVerificationAgent:
     """Ground structured model output and apply deterministic verification rules."""
 
-    def __init__(self, model: EvidenceVerificationModelPort) -> None:
+    def __init__(
+        self,
+        model: EvidenceVerificationModelPort,
+        *,
+        verification_evidence_standard: VerificationEvidenceStandard = (
+            VerificationEvidenceStandard.STRICT
+        ),
+    ) -> None:
         self._model = model
+        self._verification_evidence_standard = verification_evidence_standard
 
     def extract_claims(
         self,
@@ -606,6 +616,7 @@ class EvidenceVerificationAgent:
                 prospective_supervisor=supervisor,
                 evidence=merged,
                 verification_status=VerificationStatus.PARTIALLY_VERIFIED,
+                verification_evidence_standard=self._verification_evidence_standard,
                 availability_status=availability,
                 verification_concerns=concerns,
                 missing_required_evidence=missing,
@@ -616,11 +627,13 @@ class EvidenceVerificationAgent:
             merged,
             availability_status=availability,
             verification_concerns=concerns,
+            verification_evidence_standard=self._verification_evidence_standard,
         )
         return SupervisorVerificationRecord(
             prospective_supervisor=supervisor,
             evidence=merged,
             verification_status=verified.verification_status,
+            verification_evidence_standard=verified.verification_evidence_standard,
             availability_status=availability,
             verification_concerns=verified.verification_concerns,
             verified_supervisor=verified,
@@ -708,20 +721,31 @@ class EvidenceVerificationAgent:
             )
         return tuple(linked_claims)
 
-    @staticmethod
     def _missing_required_evidence(
+        self,
         supervisor: ProspectiveSupervisor,
         evidence: tuple[EvidenceClaim, ...],
     ) -> tuple[str, ...]:
-        return missing_verification_evidence(evidence, supervisor)
+        return missing_verification_evidence(
+            evidence,
+            supervisor,
+            self._verification_evidence_standard,
+        )
 
-    @staticmethod
     def _verification_concerns(
+        self,
         supervisor: ProspectiveSupervisor,
         evidence: tuple[EvidenceClaim, ...],
         additional_concerns: tuple[str, ...],
     ) -> tuple[str, ...]:
         concerns = list(additional_concerns)
+        concerns.extend(
+            verification_standard_concerns(
+                evidence,
+                supervisor,
+                self._verification_evidence_standard,
+            )
+        )
         affiliations = [
             claim
             for claim in evidence

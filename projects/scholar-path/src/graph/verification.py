@@ -14,6 +14,7 @@ from ..domain import (
     SearchResult,
     SourceKind,
     SupervisorVerificationRecord,
+    VerificationEvidenceStandard,
     VerificationStatus,
     is_singular_person_profile_url,
 )
@@ -41,6 +42,9 @@ class VerificationPolicy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, validate_default=True)
 
     minimum_verified_supervisors: int = Field(default=5, ge=1)
+    verification_evidence_standard: VerificationEvidenceStandard = (
+        VerificationEvidenceStandard.STRICT
+    )
     maximum_alternate_source_retries: int = Field(default=1, ge=0, le=1)
     stopping_condition: VerificationStoppingCondition = (
         VerificationStoppingCondition.RETRY_EACH_PARTIAL_THEN_REQUIRE_MINIMUM

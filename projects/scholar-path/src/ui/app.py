@@ -8,6 +8,7 @@ import streamlit as st
 from pydantic import ValidationError
 
 from ..config import ApplicationSettings
+from ..domain import VerificationEvidenceStandard
 from ..graph import (
     CandidateApproveResponse,
     CandidateRejectionReason,
@@ -90,6 +91,10 @@ DETERMINISTIC_DEMO_BANNER = (
     "are invented test data, not real Supervisor information or recommendations. External "
     "providers are not called."
 )
+MVP_IDENTITY_ONLY_BANNER = (
+    "MVP identity-only verification is active. Directly grounded identity is required; "
+    "current affiliation and research evidence are deferred and shown as limitations."
+)
 
 
 @st.cache_resource(show_spinner=False)
@@ -121,9 +126,14 @@ def _render_hero() -> None:
 
 
 def _render_runtime_profile_banner() -> None:
-    """Keep synthetic demonstration output visibly distinct from live-provider output."""
+    """Keep non-strict runtime modes visibly distinct from the strict live path."""
     if dependencies.is_deterministic_demo(application_settings()):
         st.warning(DETERMINISTIC_DEMO_BANNER)
+    if (
+        application_settings().verification_evidence_standard
+        is VerificationEvidenceStandard.IDENTITY_ONLY_MVP
+    ):
+        st.warning(MVP_IDENTITY_ONLY_BANNER)
 
 
 def _render_profile_form() -> None:
@@ -328,13 +338,28 @@ def _render_verified_supervisor(
     show_evidence: bool,
 ) -> None:
     label = f"{supervisor.full_name} — {supervisor.institution}"
-    if supervisor.research_fit_score is not None:
+    if supervisor.research_fit_evidence_limited:
+        label = f"{label} · Research Fit: not established"
+    elif supervisor.research_fit_score is not None:
         label = f"{label} · Research Fit: {supervisor.research_fit_score}/100"
     with st.expander(label, expanded=False):
-        st.write(f"Institution: {supervisor.institution}")
+        if (
+            supervisor.verification_evidence_standard
+            is VerificationEvidenceStandard.IDENTITY_ONLY_MVP
+        ):
+            st.write(f"Discovered institution (not verified): {supervisor.institution}")
+            st.write("Verification standard: MVP — identity only")
+        else:
+            st.write(f"Institution: {supervisor.institution}")
+            st.write("Verification standard: Strict")
         st.write(f"Department: {supervisor.department}")
         st.write(f"Verification status: {_humanize(supervisor.verification_status.value)}")
-        if supervisor.research_fit_score is not None:
+        if supervisor.research_fit_evidence_limited:
+            st.warning(
+                "Research Fit is not established because directly supported research "
+                "evidence is insufficient. No unsupported points were awarded."
+            )
+        elif supervisor.research_fit_score is not None:
             st.metric("Research Fit Score", f"{supervisor.research_fit_score}/100")
         if supervisor.fit_explanation is not None:
             st.write(f"Fit explanation: {supervisor.fit_explanation}")
@@ -407,6 +432,13 @@ def _render_evidence_verification_diagnostics(
         "directly grounded claims to pass every required evidence gate. Names, URLs, excerpts, "
         "search queries, Candidate content, and credentials are not displayed."
     )
+    if diagnostics.verification_evidence_standard is VerificationEvidenceStandard.IDENTITY_ONLY_MVP:
+        panel.warning(
+            "Active required gate: directly grounded identity. Current affiliation and "
+            "research evidence are deferred for this MVP run."
+        )
+    else:
+        panel.write("Active required gates: identity, current affiliation, and research.")
 
     panel.markdown("#### Primary-source page retrieval")
     primary_attempts, primary_successes, primary_failures = panel.columns(3)
@@ -483,6 +515,17 @@ def _render_evidence_verification_diagnostics(
     panel.write(f"Identity: {missing.identity}")
     panel.write(f"Current affiliation: {missing.current_affiliation}")
     panel.write(f"Research interest or publication: {missing.research_interest_or_publication}")
+    if diagnostics.verification_evidence_standard is VerificationEvidenceStandard.IDENTITY_ONLY_MVP:
+        deferred = diagnostics.deferred_evidence_gap_counts
+        panel.markdown("#### Deferred evidence gaps (MVP)")
+        panel.caption(
+            "These gaps do not block identity-only lifecycle verification, but they remain "
+            "visible and cannot support Research Fit points."
+        )
+        panel.write(f"Current affiliation: {deferred.current_affiliation}")
+        panel.write(
+            f"Research interest or publication: {deferred.research_interest_or_publication}"
+        )
 
 
 def _render_verified_supervisors(snapshot: UiRunSnapshot) -> None:

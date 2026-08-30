@@ -72,6 +72,14 @@ through a controlled academic hostname when result text omits the full instituti
 provided no explicit institution conflicts. Search metadata still selects URLs only; retrieved
 page claims must satisfy the unchanged evidence and verification gates.
 
+The bounded M13.7 MVP repair adds an explicit `identity_only_mvp` verification evidence
+standard. It keeps directly grounded identity mandatory and retains the five-Supervisor cohort,
+retry, provenance, availability, Candidate approval, and persistence controls. Affiliation and
+research evidence are deferred rather than silently treated as verified, every MVP result is
+marked `verified_with_concerns`, and evidence-free Research Fit is shown as not established
+instead of being presented as a genuine poor-fit score. The canonical `strict` standard remains
+the default.
+
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
 graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. Unit and
@@ -107,6 +115,7 @@ the [M11 Streamlit application boundary](docs/m11-streamlit-interface.mmd), the
 [M11.3 academic-profile context repair](docs/m11-3-academic-profile-context-repair.mmd), the
 [M12.4 alternate-source diagnostics boundary](docs/m12-4-alternate-source-diagnostics.mmd), the
 [M13.1 evidence-verification diagnostics boundary](docs/m13-1-evidence-verification-diagnostics.mmd),
+the [M13.7 identity-only MVP flow](docs/m13-7-mvp-identity-evidence-standard.mmd),
 and the M13 [release architecture](docs/m13-release-architecture.mmd),
 [LangGraph node and edge diagram](docs/m13-langgraph-node-edge.mmd),
 [reliability review](docs/reliability-review.md),
@@ -776,10 +785,46 @@ Streamlit server, so changing the profile requires fully stopping and restarting
 refreshing the browser or triggering a rerun is not enough. Restarting also discards every
 in-memory demonstration thread.
 
-Both profiles execute the same LangGraph topology and deterministic domain policies. The
-demonstration profile does not relax identity checks, grounding, verification gates, the
-five-Supervisor minimum, the one alternate-source retry, availability semantics, Research Fit,
-independent review, Candidate approval, or lifecycle transitions.
+Both profiles execute the same LangGraph topology and deterministic domain policies. The runtime
+profile does not itself alter the selected verification evidence standard, identity grounding,
+the five-Supervisor minimum, the one alternate-source retry, availability semantics, Research
+Fit evidence rules, independent review, Candidate approval, or lifecycle transitions.
+
+### Verification evidence standards
+
+ScholarPath exposes two closed standards; arbitrary threshold lists are not accepted:
+
+| Standard | Required lifecycle evidence | Intended use |
+|---|---|---|
+| `strict` (default) | Directly grounded identity, current affiliation, and research interest or publication | Evidence-backed research and normal operation |
+| `identity_only_mvp` | Directly grounded identity | Temporary MVP workflow validation while affiliation and research extraction are tuned |
+
+Enable the bounded MVP path in the ignored `.env`, then fully stop and restart Streamlit:
+
+```dotenv
+SCHOLARPATH_VERIFICATION_EVIDENCE_STANDARD=identity_only_mvp
+```
+
+```mermaid
+flowchart LR
+    Claims[Grounded evidence] --> Standard{Configured standard}
+    Standard -->|strict| Three{Identity + affiliation + research}
+    Standard -->|identity_only_mvp| One{Identity}
+    One -->|present| Limited[Verified with concerns]
+    Limited --> Gaps[Affiliation and research remain deferred]
+    Gaps --> Fit[Only supported fit components may score]
+    Fit --> Gate{{Candidate approval still mandatory}}
+```
+
+In MVP mode, institution and department remain discovery information unless separately grounded.
+Identity evidence cannot support Research Fit. If no suitable research evidence exists,
+ScholarPath deterministically records zero points, low confidence, and explicit evidence gaps,
+while the UI says **Research Fit: not established**. Availability remains `not_stated` unless an
+explicit retrieved statement supports another status. Restore strict verification with:
+
+```dotenv
+SCHOLARPATH_VERIFICATION_EVIDENCE_STANDARD=strict
+```
 
 ### Provider configuration
 
@@ -813,6 +858,7 @@ MEM0_TIMEOUT_SECONDS=20
 MEM0_MEMORY_LIMIT=100
 MEM0_TELEMETRY=false
 SCHOLARPATH_RUNTIME_PROFILE=live
+SCHOLARPATH_VERIFICATION_EVIDENCE_STANDARD=identity_only_mvp
 SCHOLARPATH_DISCOVERY_FAILURE_MODE=off
 SCHOLARPATH_CHECKPOINT_DATABASE_PATH=.scholarpath/checkpoints.sqlite3
 ```

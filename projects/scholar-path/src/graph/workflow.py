@@ -341,7 +341,12 @@ class DeterministicScholarPathNodes:
         self.discovery_agent = SupervisorDiscoveryAgent()
         if evidence_model is None:
             raise ValueError("Evidence verification requires an injected model port")
-        self.evidence_agent = EvidenceVerificationAgent(evidence_model)
+        self.evidence_agent = EvidenceVerificationAgent(
+            evidence_model,
+            verification_evidence_standard=(
+                config.verification_policy.verification_evidence_standard
+            ),
+        )
         if research_fit_model is None:
             raise ValueError("Research Fit evaluation requires an injected model port")
         self.research_fit_agent = ResearchFitEvaluationAgent(research_fit_model)
@@ -2157,8 +2162,14 @@ def build_scholarpath_runtime(
     utc_clock: UtcClockPort | None = None,
 ) -> ScholarPathRuntime:
     """Resolve production adapters once and compile a reusable graph runtime."""
-    resolved_config = config or GraphFixtureConfig()
     resolved_application_settings = application_settings or load_settings()
+    resolved_config = config or GraphFixtureConfig(
+        verification_policy=VerificationPolicy(
+            verification_evidence_standard=(
+                resolved_application_settings.verification_evidence_standard
+            )
+        )
+    )
     configure_application_logging(resolved_application_settings.log_level)
     resolved_langsmith_settings = langsmith_settings or load_langsmith_settings()
     observability = LangSmithObservability(
@@ -2273,7 +2284,14 @@ def run_scholarpath_graph(
     utc_clock: UtcClockPort | None = None,
 ) -> ScholarPathState | dict[str, object]:
     """Execute or resume one isolated thread, stopping if no review response remains."""
-    resolved_config = config or GraphFixtureConfig()
+    resolved_application_settings = application_settings or load_settings()
+    resolved_config = config or GraphFixtureConfig(
+        verification_policy=VerificationPolicy(
+            verification_evidence_standard=(
+                resolved_application_settings.verification_evidence_standard
+            )
+        )
+    )
     runtime = build_scholarpath_runtime(
         resolved_config,
         checkpointer=checkpointer,
@@ -2286,7 +2304,7 @@ def run_scholarpath_graph(
         independent_review_model=independent_review_model,
         candidate_preference_memory=candidate_preference_memory,
         alternate_evidence_search=alternate_evidence_search,
-        application_settings=application_settings,
+        application_settings=resolved_application_settings,
         openai_settings=openai_settings,
         you_settings=you_settings,
         tavily_settings=tavily_settings,

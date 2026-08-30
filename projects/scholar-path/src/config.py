@@ -16,6 +16,8 @@ from pydantic import (
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from .domain.enums import VerificationEvidenceStandard
+
 
 class Environment(StrEnum):
     """Supported ScholarPath runtime environments."""
@@ -656,6 +658,9 @@ class ApplicationSettings(BaseSettings):
     app_name: str = "ScholarPath"
     environment: Environment = Environment.DEVELOPMENT
     runtime_profile: RuntimeProfile = RuntimeProfile.LIVE
+    verification_evidence_standard: VerificationEvidenceStandard = (
+        VerificationEvidenceStandard.STRICT
+    )
     log_level: LogLevel = LogLevel.INFO
     discovery_failure_mode: DiscoveryFailureMode = DiscoveryFailureMode.OFF
     checkpoint_database_path: Path = Path(".scholarpath/checkpoints.sqlite3")

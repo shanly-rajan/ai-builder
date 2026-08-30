@@ -98,6 +98,13 @@ class VerificationStatus(StrEnum):
     PARTIALLY_VERIFIED = "partially_verified"
 
 
+class VerificationEvidenceStandard(StrEnum):
+    """Closed evidence standards that may authorize lifecycle verification."""
+
+    STRICT = "strict"
+    IDENTITY_ONLY_MVP = "identity_only_mvp"
+
+
 class IndependentReviewDecision(StrEnum):
     """A model-proposed disposition for one Research Fit assessment."""
 

@@ -3393,3 +3393,90 @@ The bounded repair prompt is archived as
 - Pyright and Pylint are currently editor-compatible verification commands rather than CI
   dependencies; add them to the reproducible development toolchain only through a dedicated
   tooling decision.
+
+## M13.7 Repair: Identity-only MVP evidence standard
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Add one explicit, opt-in evidence gate for MVP workflow validation: a Prospective Supervisor may
+become a Verified Supervisor with concerns only when identity is directly grounded. Preserve the
+strict three-gate standard as the product default, keep deferred affiliation and research gaps
+visible, and prevent identity-only evidence from creating unsupported Research Fit points.
+
+### Prompt used
+
+The bounded repair prompt is archived as
+[`m13-7-mvp-identity-evidence-standard.md`](prompts/m13-7-mvp-identity-evidence-standard.md).
+
+### Files changed
+
+- Added the typed `strict` and `identity_only_mvp` verification evidence standards and persisted
+  the selected standard on verification records and Verified Supervisors.
+- Made lifecycle sufficiency, verification routing, and evidence-agent construction use the same
+  injected standard while retaining the five-Supervisor cohort minimum and one alternate-source
+  retry.
+- Added an application setting and documented environment opt-in; the ignored local `.env` uses
+  the MVP mode for the manual end-to-end demonstration without changing repository defaults.
+- Added deterministic concerns for deferred current-affiliation and research evidence.
+- Prevented identity, affiliation, and availability claims from earning Research Fit points. When
+  no fit-eligible evidence exists, the model is bypassed and the result is zero points, low
+  confidence, and explicit evidence gaps.
+- Updated the Streamlit projection and presentation with the active verification standard,
+  deferred-gap diagnostics, discovered-institution qualification, and **Research Fit: not
+  established** for evidence-limited results.
+- Updated the README, terminology, architecture, Mermaid flow, prompt archive, and this journal.
+
+### Tests added
+
+- Unit coverage for strict defaults, identity-only success, missing-identity failure, deterministic
+  concerns, JSON round trips, environment loading, privacy-safe diagnostics, and the evidence-free
+  Research Fit fallback.
+- Graph coverage proving strict mode still stops on identity-only evidence, MVP mode reaches the
+  Candidate interrupt, no shortlist is saved before approval, and exact approval persists five
+  Shortlisted Supervisors.
+- Streamlit AppTest coverage for the persistent MVP warning and collapsed evidence-limited result
+  labels.
+- Contract coverage for the explicit opt-in, unchanged cohort and retry bounds, strict repository
+  default, prompt archive, and documentation.
+- Existing M6 strict scenarios now set the standard explicitly so a developer's ignored local
+  `.env` cannot change deterministic regression semantics.
+
+### Test results
+
+- Ruff formatting: `241 files already formatted`; Ruff linting: all checks passed.
+- Strict mypy: no issues in `190 source files`.
+- Focused M6 and M13.7 contract tests: `14 passed in 0.94s`.
+- Complete non-live pytest: `1,477 passed, 9 deselected, 63 subtests passed in 20.09s`; total
+  coverage was `90.92%`, above the required 90 percent minimum.
+- `git diff --check`: passed.
+
+### Assumptions
+
+- “Only focus on 1 evidence gate” means an explicit MVP standard, not a silent global weakening of
+  the canonical strict standard.
+- The single MVP gate is directly grounded identity; discovery names and search snippets cannot
+  satisfy it.
+- Institution and department may still be displayed only as discovered, unverified context until
+  grounded affiliation evidence exists.
+- The goal is to validate the complete human-in-the-loop workflow before tuning evidence
+  extraction strictness; it is not to claim that research alignment has been established.
+
+### Lessons learned
+
+- A reduced MVP gate must be persisted with each verification result; otherwise checkpoint reloads
+  cannot explain which rule authorized a lifecycle transition.
+- A lower verification threshold also needs a scoring boundary. Without it, identity-only records
+  could accidentally create authoritative-looking Research Fit numbers.
+- Local demonstration configuration must be isolated from strict regression tests because
+  Pydantic settings legitimately load unspecified fields from `.env`.
+
+### Remaining debt
+
+- Tune directly grounded affiliation and research extraction using measured live failures, then
+  return demonstrations to `strict` before treating the MVP as production-ready.
+- The identity-only standard intentionally yields evidence-limited proposed results; it should not
+  be used to compare genuine Research Fit until research evidence is present.
+- Add a future operator control for the verification standard only if its safety labeling and
+  authorization model are explicitly designed; M13.7 keeps it environment-configured.

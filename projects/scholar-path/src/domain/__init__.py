@@ -12,6 +12,7 @@ from .enums import (
     SearchSourceType,
     SourceKind,
     SupervisorLifecycleStatus,
+    VerificationEvidenceStandard,
     VerificationStatus,
 )
 from .lifecycle import (
@@ -57,6 +58,7 @@ from .models import (
     supervisor_names_are_title_equivalent,
     validate_research_fit_evidence,
     validate_research_fit_scoring_prose,
+    verification_standard_concerns,
 )
 
 __all__ = [
@@ -95,6 +97,7 @@ __all__ = [
     "SupervisorVerificationRecord",
     "SupervisorVerificationError",
     "VerificationStatus",
+    "VerificationEvidenceStandard",
     "VerifiedSupervisor",
     "apply_candidate_review",
     "create_supervisor_shortlist",
@@ -111,5 +114,6 @@ __all__ = [
     "validate_research_fit_evidence",
     "validate_research_fit_scoring_prose",
     "validate_structural_transition",
+    "verification_standard_concerns",
     "verify_supervisor",
 ]

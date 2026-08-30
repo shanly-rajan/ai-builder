@@ -32,6 +32,7 @@ from .enums import (
     SearchSourceType,
     SourceKind,
     SupervisorLifecycleStatus,
+    VerificationEvidenceStandard,
     VerificationStatus,
 )
 
@@ -904,9 +905,11 @@ def evidence_claim_is_grounded_for_supervisor(
 
 
 def missing_verification_evidence(
-    evidence: tuple[EvidenceClaim, ...], supervisor: SupervisorProfile
+    evidence: tuple[EvidenceClaim, ...],
+    supervisor: SupervisorProfile,
+    standard: VerificationEvidenceStandard = VerificationEvidenceStandard.STRICT,
 ) -> tuple[str, ...]:
-    """Return required evidence categories absent for one Supervisor."""
+    """Return evidence categories absent under one explicit verification standard."""
     grounded_direct_evidence = tuple(
         claim
         for claim in evidence
@@ -923,6 +926,8 @@ def missing_verification_evidence(
     missing: list[str] = []
     if not has_identity:
         missing.append(EvidenceClaimType.IDENTITY.value)
+    if standard is VerificationEvidenceStandard.IDENTITY_ONLY_MVP:
+        return tuple(missing)
     if not has_affiliation:
         missing.append(EvidenceClaimType.CURRENT_AFFILIATION.value)
     research_claim_types = {
@@ -932,6 +937,32 @@ def missing_verification_evidence(
     if direct_claim_types.isdisjoint(research_claim_types):
         missing.append("research_interest_or_publication")
     return tuple(missing)
+
+
+def verification_standard_concerns(
+    evidence: tuple[EvidenceClaim, ...],
+    supervisor: SupervisorProfile,
+    standard: VerificationEvidenceStandard,
+) -> tuple[str, ...]:
+    """Return deterministic limitations required by a non-strict evidence standard."""
+    if standard is VerificationEvidenceStandard.STRICT:
+        return ()
+    concerns = [
+        "MVP identity-only verification is active; current affiliation and research "
+        "evidence are deferred."
+    ]
+    strict_missing = missing_verification_evidence(
+        evidence,
+        supervisor,
+        VerificationEvidenceStandard.STRICT,
+    )
+    if EvidenceClaimType.CURRENT_AFFILIATION.value in strict_missing:
+        concerns.append(
+            "Current affiliation is discovery information and has not been directly verified."
+        )
+    if "research_interest_or_publication" in strict_missing:
+        concerns.append("Research interests and recent research have not been directly verified.")
+    return tuple(concerns)
 
 
 def derive_availability_status(
@@ -968,7 +999,7 @@ def derive_availability_status(
 
 
 class VerifiedSupervisor(SupervisorProfile):
-    """A Supervisor whose identity, affiliation, and research evidence is sufficient."""
+    """A Supervisor verified under an explicit, persisted evidence standard."""
 
     evidence: tuple[EvidenceClaim, ...] = Field(min_length=1)
     status: Literal[
@@ -977,6 +1008,9 @@ class VerifiedSupervisor(SupervisorProfile):
         SupervisorLifecycleStatus.REJECTED,
     ] = SupervisorLifecycleStatus.VERIFIED
     verification_status: VerificationStatus = VerificationStatus.VERIFIED
+    verification_evidence_standard: VerificationEvidenceStandard = (
+        VerificationEvidenceStandard.STRICT
+    )
     availability_status: AvailabilityStatus = AvailabilityStatus.NOT_STATED
     verification_concerns: tuple[NonEmptyString, ...] = ()
     candidate_review_decision: CandidateReviewDecision | None = None
@@ -1009,7 +1043,11 @@ class VerifiedSupervisor(SupervisorProfile):
             ):
                 raise ValueError("Subject identity evidence must exist in the record")
 
-        missing = missing_verification_evidence(self.evidence, self)
+        missing = missing_verification_evidence(
+            self.evidence,
+            self,
+            self.verification_evidence_standard,
+        )
         if missing:
             raise ValueError(
                 f"Missing directly supported verification evidence: {', '.join(missing)}"
@@ -1060,6 +1098,11 @@ class VerifiedSupervisor(SupervisorProfile):
         has_concerns = bool(self.verification_concerns)
         if has_concerns != (self.verification_status is VerificationStatus.VERIFIED_WITH_CONCERNS):
             raise ValueError("Verification status and verification concerns must be consistent")
+        if (
+            self.verification_evidence_standard is VerificationEvidenceStandard.IDENTITY_ONLY_MVP
+            and self.verification_status is not VerificationStatus.VERIFIED_WITH_CONCERNS
+        ):
+            raise ValueError("MVP identity-only verification must retain visible concerns")
 
         decision = self.candidate_review_decision
         if self.status is SupervisorLifecycleStatus.VERIFIED:
@@ -1091,6 +1134,9 @@ class SupervisorVerificationRecord(DomainModel):
     prospective_supervisor: ProspectiveSupervisor
     evidence: tuple[EvidenceClaim, ...] = ()
     verification_status: VerificationStatus
+    verification_evidence_standard: VerificationEvidenceStandard = (
+        VerificationEvidenceStandard.STRICT
+    )
     availability_status: AvailabilityStatus = AvailabilityStatus.NOT_STATED
     verification_concerns: tuple[NonEmptyString, ...] = ()
     missing_required_evidence: tuple[NonEmptyString, ...] = ()
@@ -1138,6 +1184,7 @@ class SupervisorVerificationRecord(DomainModel):
         expected_missing = missing_verification_evidence(
             self.evidence,
             self.prospective_supervisor,
+            self.verification_evidence_standard,
         )
 
         expected_availability = derive_availability_status(
@@ -1167,6 +1214,8 @@ class SupervisorVerificationRecord(DomainModel):
             raise ValueError("Verified Supervisor must retain the complete evidence collection")
         if verified.verification_status is not self.verification_status:
             raise ValueError("Verification statuses must match")
+        if verified.verification_evidence_standard is not self.verification_evidence_standard:
+            raise ValueError("Verification evidence standards must match")
         if verified.availability_status is not self.availability_status:
             raise ValueError("Availability statuses must match")
         if verified.verification_concerns != self.verification_concerns:

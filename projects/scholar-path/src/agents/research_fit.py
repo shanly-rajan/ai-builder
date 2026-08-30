@@ -73,6 +73,14 @@ _ALLOWED_EVIDENCE_TYPES: dict[str, frozenset[EvidenceClaimType]] = {
     ),
     "practical_constraint_alignment": frozenset({EvidenceClaimType.CURRENT_AFFILIATION}),
 }
+_FIT_SCORABLE_EVIDENCE_TYPES = frozenset(
+    {
+        EvidenceClaimType.RESEARCH_INTEREST,
+        EvidenceClaimType.METHODOLOGY,
+        EvidenceClaimType.PUBLICATION,
+        EvidenceClaimType.PROJECT,
+    }
+)
 _CONFIDENCE_RANK = {
     EvidenceConfidence.LOW: 1,
     EvidenceConfidence.MEDIUM: 2,
@@ -357,6 +365,8 @@ class ResearchFitEvaluationAgent:
             supervisor,
             preferences,
         )
+        if not any(item.claim_type in _FIT_SCORABLE_EVIDENCE_TYPES for item in fit_input.evidence):
+            return self._evidence_limited_assessment(supervisor, resolved_rubric)
 
         for attempt in range(1, MAX_RESEARCH_FIT_OUTPUT_ATTEMPTS + 1):
             try:
@@ -390,6 +400,46 @@ class ResearchFitEvaluationAgent:
                 ) from error
 
         raise AssertionError("The bounded Research Fit loop must return or raise")
+
+    @staticmethod
+    def _evidence_limited_assessment(
+        supervisor: VerifiedSupervisor,
+        rubric: ResearchFitRubric,
+    ) -> ResearchFitAssessment:
+        """Return an honest zero assessment when no evidence can support fit scoring."""
+
+        def unavailable(dimension: str) -> ResearchFitComponentAssessment:
+            gap = f"No directly supported {dimension} evidence is available."
+            return ResearchFitComponentAssessment(
+                score=0,
+                rationale=gap,
+                supporting_evidence_ids=(),
+                confidence=EvidenceConfidence.LOW,
+                evidence_gap=gap,
+            )
+
+        breakdown = ResearchFitBreakdown(
+            topic_alignment=unavailable("research-topic alignment"),
+            methodological_alignment=unavailable("methodological alignment"),
+            research_orientation_alignment=unavailable("research-orientation alignment"),
+            recent_research_alignment=unavailable("recent-research activity"),
+            practical_constraint_alignment=unavailable("practical-constraint"),
+        )
+        assessment = ResearchFitAssessment(
+            supervisor_id=supervisor.supervisor_id,
+            rubric=rubric,
+            overall_score=0,
+            breakdown=breakdown,
+            rationale=(
+                "Research Fit is not established because the verified record contains no "
+                "directly supported research evidence suitable for scoring."
+            ),
+            supporting_evidence_ids=(),
+            confidence=EvidenceConfidence.LOW,
+            concerns=("The current evidence establishes identity but not research alignment.",),
+        )
+        validate_research_fit_evidence(supervisor, assessment)
+        return assessment
 
     @staticmethod
     def _component_items(

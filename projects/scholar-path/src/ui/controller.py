@@ -17,9 +17,11 @@ from ..domain import (
     ResearchFitAssessment,
     SearchResultRejectionCounts,
     SupervisorLifecycleStatus,
+    VerificationEvidenceStandard,
     VerificationStatus,
     VerifiedSupervisor,
     evidence_claim_is_grounded_for_supervisor,
+    missing_verification_evidence,
 )
 from ..graph import (
     CANONICAL_NODE_NAMES,
@@ -200,21 +202,29 @@ def _verified_supervisor_view(
     review: ReconciledResearchFitAssessment | None,
     recommendation: ProposedSupervisorRecommendation | None = None,
 ) -> VerifiedSupervisorView:
+    fit_evidence_ids: tuple[str, ...] | None = None
     if recommendation is not None:
         score = recommendation.effective_score
         explanation = recommendation.effective_rationale
         evidence_confidence = recommendation.evidence_confidence
         concerns = recommendation.concerns
+        fit_evidence_ids = (
+            recommendation.independent_review.effective_supporting_evidence_ids
+            if recommendation.independent_review is not None
+            else recommendation.assessment.supporting_evidence_ids
+        )
     elif review is not None:
         score = review.effective_score
         explanation = review.effective_rationale
         evidence_confidence = review.effective_confidence
         concerns = assessment.concerns if assessment is not None else ()
+        fit_evidence_ids = review.effective_supporting_evidence_ids
     elif assessment is not None:
         score = assessment.overall_score
         explanation = assessment.rationale
         evidence_confidence = assessment.confidence
         concerns = assessment.concerns
+        fit_evidence_ids = assessment.supporting_evidence_ids
     else:
         score = None
         explanation = None
@@ -244,7 +254,9 @@ def _verified_supervisor_view(
         department=supervisor.department,
         profile_url=supervisor.profile_url,
         verification_status=supervisor.verification_status,
+        verification_evidence_standard=supervisor.verification_evidence_standard,
         research_fit_score=score,
+        research_fit_evidence_limited=(fit_evidence_ids is not None and not fit_evidence_ids),
         fit_explanation=explanation,
         evidence_confidence=evidence_confidence,
         evidence_sources=evidence_sources,
@@ -378,6 +390,10 @@ def _evidence_verification_diagnostics(
     records = tuple(state.get("verification_records", []))
     if not current_attempts and not records:
         return None
+    standards = {record.verification_evidence_standard for record in records}
+    if len(standards) > 1:
+        raise ValueError("A graph run cannot mix verification evidence standards")
+    standard = next(iter(standards), VerificationEvidenceStandard.STRICT)
 
     primary_attempts = tuple(
         attempt for attempt in current_attempts if not attempt.alternate_source
@@ -416,6 +432,29 @@ def _evidence_verification_diagnostics(
             "research_interest_or_publication",
         )
     }
+    deferred_values = {
+        EvidenceClaimType.IDENTITY.value: 0,
+        EvidenceClaimType.CURRENT_AFFILIATION.value: sum(
+            EvidenceClaimType.CURRENT_AFFILIATION.value
+            in missing_verification_evidence(
+                record.evidence,
+                record.prospective_supervisor,
+                VerificationEvidenceStandard.STRICT,
+            )
+            and EvidenceClaimType.CURRENT_AFFILIATION.value not in record.missing_required_evidence
+            for record in records
+        ),
+        "research_interest_or_publication": sum(
+            "research_interest_or_publication"
+            in missing_verification_evidence(
+                record.evidence,
+                record.prospective_supervisor,
+                VerificationEvidenceStandard.STRICT,
+            )
+            and "research_interest_or_publication" not in record.missing_required_evidence
+            for record in records
+        ),
+    }
     return EvidenceVerificationDiagnosticsView(
         primary_retrieval_attempt_count=len(primary_attempts),
         primary_retrieval_success_count=sum(attempt.successful for attempt in primary_attempts),
@@ -428,6 +467,7 @@ def _evidence_verification_diagnostics(
         extraction_failure_counts=EvidenceExtractionFailureCountsView.model_validate(
             failure_values
         ),
+        verification_evidence_standard=standard,
         verification_record_count=len(records),
         completed_verification_record_count=sum(
             record.verification_status
@@ -445,6 +485,9 @@ def _evidence_verification_diagnostics(
         directly_grounded_claim_counts=EvidenceClaimTypeCountsView.model_validate(grounded_values),
         missing_required_evidence_counts=MissingRequiredEvidenceCountsView.model_validate(
             missing_values
+        ),
+        deferred_evidence_gap_counts=MissingRequiredEvidenceCountsView.model_validate(
+            deferred_values
         ),
     )
 

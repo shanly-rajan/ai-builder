@@ -632,9 +632,13 @@ flowchart TD
     Subject -->|yes| Type{Type-specific facts grounded?}
     Type -->|no| Indirect
     Type -->|yes| Direct[Directly supported claim]
-    Direct --> Required{Required evidence present?}
-    Required -->|identity + affiliation + research interest or publication| Verified[Verified Supervisor]
-    Required -->|missing category| Partial[Partially verified record]
+    Direct --> Standard{Verification evidence standard}
+    Standard -->|strict| Required{Identity + affiliation + research?}
+    Standard -->|identity_only_mvp| Identity{Directly grounded identity?}
+    Required -->|yes| Verified[Verified Supervisor]
+    Required -->|no| Partial[Partially verified record]
+    Identity -->|yes| Limited[Verified with concerns]
+    Identity -->|no| Partial
 ```
 
 Important deterministic rules are:
@@ -653,6 +657,37 @@ Important deterministic rules are:
    model output cannot invert accepting and not-accepting evidence.
 7. Evidence IDs include all grounded semantic fields. Identical claims merge without
    randomness; a same-ID/different-payload collision is rejected rather than dropped.
+
+### M13.7 identity-only MVP verification standard
+
+The canonical `strict` standard remains the default. The explicit `identity_only_mvp` standard
+changes only which evidence categories block the Prospective-to-Verified lifecycle transition:
+directly grounded identity remains mandatory, while current affiliation and research evidence
+are deferred. The standard is persisted on both `SupervisorVerificationRecord` and
+`VerifiedSupervisor`, so checkpoint revalidation cannot lose the rule that authorized the
+transition.
+
+```mermaid
+flowchart LR
+    I[Directly grounded identity] --> V[Verified with concerns]
+    A[Missing grounded affiliation] --> C[Deferred concern]
+    R[Missing grounded research] --> C
+    V --> F{Fit-eligible evidence?}
+    C --> F
+    F -->|none| Z[0 points + LOW + explicit gaps]
+    F -->|present| E[Evidence-cited Research Fit]
+    Z --> H{{Candidate review}}
+    E --> H
+    H -->|approve exact IDs| S[Shortlisted Supervisor]
+```
+
+This is not a global weakening of grounding. Ungrounded or missing identity still produces a
+partial record. Institution and department remain discovery fields unless a grounded affiliation
+claim exists. Identity cannot earn Research Fit points; when no scorable research evidence is
+available, the Research Fit agent bypasses the model and creates a deterministic evidence-limited
+assessment. The UI labels that outcome **Research Fit: not established** rather than presenting
+zero as measured poor fit. The five-Supervisor minimum, retry bound, availability derivation,
+independent review, and Candidate approval gate are unchanged.
 
 Availability is derived separately:
 

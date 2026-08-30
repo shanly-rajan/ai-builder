@@ -72,7 +72,7 @@ name, email address, or authorization credential.
 | Value | Domain meaning |
 |---|---|
 | `prospective` | Discovered but not yet supported by sufficient verification evidence. |
-| `verified` | Identity, current affiliation, and research-profile evidence are directly supported. |
+| `verified` | The Supervisor passed the explicitly persisted verification evidence standard. Strict records directly support identity, current affiliation, and research-profile evidence; MVP identity-only records directly support identity and are visibly marked with concerns. |
 | `shortlisted` | A Verified Supervisor explicitly approved by the Candidate. |
 | `rejected` | A Verified Supervisor excluded by the Candidate. |
 
@@ -86,6 +86,19 @@ that exact excerpt; page-level identity alone does not bind nearby facts to the 
 not a synonym for Verified Supervisor. It means retrieved evidence remains incomplete;
 the record stays a Prospective Supervisor and retains its evidence, concerns, and
 missing categories for a bounded alternate-source attempt.
+
+## Verification evidence standards
+
+| Standard | Blocking evidence gates | Required presentation |
+|---|---|---|
+| `strict` | Directly grounded identity, current affiliation, and research interest or publication | Normal Verified Supervisor presentation |
+| `identity_only_mvp` | Directly grounded identity | `verified_with_concerns`; discovered affiliation is labelled unverified; deferred affiliation and research gaps stay visible |
+
+The MVP standard is an explicit workflow-validation mode, not permission to fabricate stronger
+evidence. Identity evidence cannot support Research Fit components. When no fit-eligible evidence
+exists, Research Fit is **not established**: every component receives zero points, low confidence,
+and an explicit evidence gap. Availability still requires a direct statement, and Candidate
+approval remains mandatory before shortlist persistence.
 
 ## Availability vocabulary
 
