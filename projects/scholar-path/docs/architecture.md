@@ -1,4 +1,8 @@
-# ScholarPath M11 Architecture
+# ScholarPath Architecture
+
+This document records the current implementation architecture through M13.14. M14 changes only
+the reviewer-facing submission documentation and does not alter runtime topology, state, provider,
+evidence, memory, or approval behavior.
 
 M11 adds a Candidate-facing Streamlit delivery layer over the durable LangGraph workflow.
 The UI depends on a typed application port, streams only canonical node names, and reads a

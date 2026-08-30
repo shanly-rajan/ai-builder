@@ -4093,3 +4093,92 @@ The bounded repair prompt is archived as
   ungrounded reference subcategories without recording IDs or evidence content.
 - The optional live Nebius test remains explicitly opt-in and was not required for deterministic
   completion of this milestone.
+
+## M14: Submission documentation and five-minute recording script
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Turn the existing technical record into a reviewer-ready submission package without changing
+runtime behavior. Make ScholarPath discoverable from the ai-builder README, add a guideline-mapped
+project write-up, produce a natural five-minute read-aloud script, and clearly separate measured
+engineering evidence from the unvalidated product latency and relevance target.
+
+### Prompt used
+
+The milestone prompt and its bounded interpretation are archived as
+[`m14-submission-documentation.md`](prompts/m14-submission-documentation.md).
+
+### Files changed
+
+- Expanded the ai-builder README with a featured ScholarPath overview, compact architecture,
+  postgraduate terminology, project table, and direct reviewer links.
+- Added a reviewer quick path, current evidence/target table, and submission architecture near the
+  top of the ScholarPath README while preserving the detailed historical reference below.
+- Added `docs/project-submission.md`, mapping every supplied framework field to ScholarPath and
+  expanding the problem, agent design, tools, state, human authority, failure recovery, stack,
+  datasets, prompts, iterations, tuning, tests, metrics, lessons, limitations, and roadmap.
+- Converted the top of `docs/five-minute-demo.md` into a 463-word timed read-aloud
+  script with separate screen directions, while preserving the exact setup commands and
+  contingencies as an operator appendix.
+- Renamed the architecture document's stale M11 title and clarified that runtime architecture is
+  current through M13.14; M14 is documentation-only.
+- Replayed and refreshed the deterministic offline evaluation baseline with current prompt
+  versions and quality-gate counts.
+
+### Tests added
+
+- Added one M14 repository contract covering the root README, ScholarPath reviewer entry point,
+  every guideline framework field, required submission sections, six operational integrations,
+  honest target language, all eight recording time boxes, a 430–520-word narration budget, a
+  per-section 120-words-per-minute ceiling, relative-link resolution, cross-document metrics,
+  measured results, archived prompt, and journal link.
+- Existing canonical-terminology and engineering-contract tests continue to scan the new
+  documentation and prompt archive.
+
+### Test results
+
+- Local fake evaluation replay: `11/11` scenarios passed; every applicable deterministic metric
+  met its threshold and no external network or LangSmith client was used.
+- Focused documentation and engineering contracts: `18 passed, 71 subtests passed in 0.03s`.
+- Ruff formatting: `212 files already formatted`; Ruff linting: all checks passed.
+- Strict mypy: no issues in `205 source files`.
+- Complete non-live pytest: `1579 passed, 9 deselected, 71 subtests passed in 22.75s` with
+  `91.09%` total coverage.
+- `git diff --check`: passed.
+
+### Assumptions
+
+- The supplied guideline has no numeric scoring weights, so the documentation does not invent a
+  rubric. It prioritises the guideline's explicit signals: agentic control flow, state, tools,
+  failure recovery, human handoff, end-to-end completion, documentation, video, and code.
+- The current `scholar-path` branch URL is the appropriate repository link for the submission; the
+  final video itself will be attached through the external submission form.
+- The deterministic Streamlit profile is the predictable interactive demonstration, while any
+  LangSmith trace shown beside it must be identified as a separate provider-backed live run.
+- `1,579` is the confirmed non-live test count after adding exactly one M14 contract; the
+  reviewer documents and refreshed baseline use the same result.
+
+### Lessons learned
+
+- A comprehensive README can still be a poor reviewer entry point when milestone chronology hides
+  the problem, architecture, evidence, and demonstration path.
+- Product targets and measured engineering gates serve different purposes. Presenting them in the
+  same table with explicit status prevents deterministic proof from being mistaken for live-user
+  validation.
+- A recording script works better when spoken narration is separated from screen directions and
+  operational contingencies.
+- The append-only prompt archive and journal provide stronger evidence of the AI-assisted approach
+  than a retrospective statement that merely says an AI coding tool was used.
+
+### Remaining debt
+
+- Copy the Markdown submission into the required Google Doc, review its rendered formatting, and
+  attach the final video URL through the submission form.
+- Record representative provider-backed latency and Candidate relevance ratings before claiming
+  the five-under-15-minutes and four-of-five product target is achieved.
+- A future documentation milestone may move the long milestone chronology out of the main project
+  README once historical contract tests are deliberately migrated to the journal.
+- The release checklist remains a decision record rather than a claim that the `v0.1.0` tag has
+  already been issued.

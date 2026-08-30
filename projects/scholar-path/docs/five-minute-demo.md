@@ -1,19 +1,110 @@
-# ScholarPath Five-Minute Demonstration
+# ScholarPath Five-Minute Demonstration Script
 
-This demonstration has three deliberately separate layers:
+This is the read-aloud script for the submission video. Screen directions are italicised and are
+not spoken. The narration is deliberately honest about the difference between deterministic
+release proof, provider-backed traces, and the product outcome still requiring live-user
+calibration.
 
-1. a deterministic offline release journey that always shows the complete
-   reject/refine/approve route; and
-2. a development-only `deterministic_demo` Streamlit profile for the interactive five-minute
-   walkthrough; and
-3. an optional provider-backed `live` Streamlit profile for a real LangSmith route visualization.
+For a predictable recording, prepare three windows before starting the timer:
 
-The offline journey is the release proof. The deterministic Streamlit profile uses fixed
-synthetic adapters, an in-memory checkpoint, and forced-off tracing. The optional traced profile
-requires configured provider credentials. Never paste credentials, a real Candidate's personal
-data, or full source content into a terminal transcript or screenshot.
+1. the `deterministic_demo` Streamlit application at the profile stage;
+2. the completed offline end-to-end test transcript showing the injected You.com failure and
+   Tavily fallback; and
+3. a previously captured provider-backed LangSmith trace, clearly identified as a separate live
+   run because `deterministic_demo` forces tracing off.
 
-## Before the timer
+Never show credentials, a real Candidate's personal data, full page content, hidden reasoning, or
+raw model prompts in the recording.
+
+## Read-aloud recording script
+
+### 0:00–0:30 — Problem and outcome
+
+*Show the ScholarPath hero and the six application stages.*
+
+> ScholarPath is a human-controlled, multi-agent system for postgraduate Supervisor discovery. A
+> Candidate normally searches fragmented university profiles, publications, and supervision pages
+> by hand. ScholarPath plans that research, discovers Prospective Supervisors, verifies sourced
+> claims, evaluates Research Fit, and proposes a shortlist. A Supervisor is shortlisted only after
+> the Candidate approves that exact record.
+
+### 0:30–1:10 — Agentic approach and technology stack
+
+*Show the architecture diagram in the project README or submission document.*
+
+> I built this as a stateful workflow, not one large prompt. LangGraph owns typed state, routing,
+> bounded retries, resume, and the human interrupt; Pydantic validates model boundaries. OpenAI
+> plans, extracts evidence, and evaluates fit. You.com is primary search, Tavily is fallback and
+> extraction, Nebius independently reviews, and Mem0 stores durable preferences. Streamlit is the
+> interface and LangSmith provides optional observability. Python owns validation, deduplication,
+> arithmetic, lifecycle transitions, ranking, and approval.
+
+### 1:10–1:50 — Start the interactive application workflow
+
+*Enable **Use demo research profile** and briefly show the synthetic security-research values.
+Select **Start Supervisor research** and expand Canonical LangGraph progress.*
+
+> This synthetic profile covers vulnerability detection, secure code evaluation, and cloud
+> security. The toggle fills only the form; it bypasses no validation, evidence rule, graph node,
+> or approval. These canonical node names show progress without exposing hidden reasoning. Typed
+> state moves from planning through discovery and verification into Research Fit and Candidate
+> review.
+
+### 1:50–2:25 — Failure recovery and state
+
+*Show the prepared end-to-end transcript, then point to the fallback route in the graph or trace.*
+
+> A happy path was not enough. Here a You.com failure is deliberately injected. The graph follows
+> its bounded policy, routes to Tavily, preserves useful partial results, and terminates every loop
+> finitely. Search results create only Prospective Supervisors, not verified facts. A LangGraph
+> thread isolates the run, and SQLite supports local restart and resume.
+
+### 2:25–3:05 — Evidence, Research Fit, and independent review
+
+*Expand one Verified Supervisor or deterministic result card and point to the source links,
+confidence, concerns, availability, score, and independent-review status.*
+
+> Each factual claim retains its source URL, type, retrieval time, confidence, and direct-support
+> status. Availability remains separate and not stated unless a source states it. Research Fit
+> scores evidence-cited topics, methods, orientation, recent work, and practical constraints.
+> Nebius audits the assessment without browsing or adding evidence. Deterministic allowlists reject
+> unsafe references and preserve the original assessment with lower confidence.
+
+### 3:05–3:55 — Human control and preference memory
+
+*Reject one proposed Supervisor with a short reason, show the resumed thread and preference-
+learning node, then approve the final selected IDs and show the shortlist briefing.*
+
+> A write action requires a human. I reject this Supervisor because I want stronger applied
+> security evidence. ScholarPath resumes the same thread, records that explicit preference through
+> Mem0, replans, and pauses again; viewing alone writes nothing. I now approve exact IDs. Only then
+> does save-shortlisted-supervisors run, followed by the briefing. Before approval, the persisted
+> shortlist is empty.
+
+### 3:55–4:25 — Iterations, tuning, and AI-assisted engineering
+
+*Show the prompt archive and build-journal links.*
+
+> I used Codex as a senior pair engineer through small, test-gated milestones. I built a fixture-
+> backed walking skeleton, then replaced one node at a time. Observed failures drove narrow tuning:
+> discovery diagnostics, separate retrieval and verification, bounded planning repair, and Nebius
+> evidence allowlists. Every prompt and result is archived in the repository.
+
+### 4:25–5:00 — Evaluation, lessons, and close
+
+*Open the prepared provider-backed LangSmith trace, then return to the approved shortlist.*
+
+> The suite has 1,579 passing non-live tests, 91.09 percent coverage, and eleven passing evaluation
+> scenarios. This separate LangSmith trace shows a provider-backed route without exposing
+> Candidate data. The main lesson was that control flow, state, failure recovery, and human
+> authority were harder than prompt wording. Five recommendations under 15 minutes, with four
+> rated relevant, remains a product target requiring calibrated live-user evaluation.
+
+## Operator appendix
+
+The material below prepares the recording, provides exact commands, and documents contingencies.
+
+### Before the timer
 
 From `projects/scholar-path`, install the exact-version constraints:
 
@@ -29,7 +120,7 @@ Set the correct LangSmith regional endpoint and workspace for the key. Keep
 `SCHOLARPATH_RUNTIME_PROFILE=live` and `SCHOLARPATH_DISCOVERY_FAILURE_MODE=off` in the file; the
 commands below use process-local overrides.
 
-## 0:00–1:00 — Run the deterministic full journey
+### Run the deterministic full journey
 
 ```bash
 LANGSMITH_TRACING=false pytest -o addopts='' -q -s \
@@ -55,7 +146,7 @@ This test uses fake ports, an in-memory checkpointer, a fixed clock, and no netw
 that the failure is injected, partial provider work is retained, rejection is learned before
 replanning, and no Shortlisted Supervisor exists before explicit approval.
 
-## 1:00–2:00 — Start the deterministic Streamlit application
+### Start the deterministic Streamlit application
 
 Fully stop any existing Streamlit server, then run this exact block without loading provider
 credentials:
@@ -84,7 +175,7 @@ is held by Streamlit's cached application service, so a browser refresh or rerun
 profiles. Fully stop and restart the Streamlit server to change profiles; restarting discards the
 in-memory demonstration thread.
 
-## 2:00–3:00 — Enter a synthetic Candidate profile
+### Enter a synthetic Candidate profile
 
 Use demonstration data, not personal data. Enable **Use demo research profile** to populate the
 reviewer-ready postgraduate research example below. The control changes only the form values; it
@@ -130,7 +221,7 @@ retained-claim, directly grounded, and verification counts, then collapse each p
 Emphasize that page retrieval success is not verification. Do not copy fixed source content
 outside the application.
 
-## 3:00–4:00 — Inspect evidence, reject, and refine
+### Inspect evidence, reject, and refine
 
 Confirm every review outcome starts collapsed under a label containing the Supervisor's name,
 institution, and `Research Fit: N/100`. Expand one proposed recommendation and point out:
@@ -160,7 +251,7 @@ Submit the rejection. Show that:
 - the next planning round includes the durable rejection preference; and
 - the graph pauses again at Candidate review within its finite iteration budget.
 
-## 4:00–5:00 — Approve and inspect the final shortlist
+### Approve and inspect the final shortlist
 
 Select the final Verified Supervisors and choose **Approve selected Supervisors**. Show:
 
@@ -177,7 +268,7 @@ alternate-retry, availability, Research Fit, independent-review, Candidate-appro
 lifecycle rules. Only dependency composition, tracing, persistence, and the synthetic warning
 differ from `live`.
 
-## Optional provider-backed traced Streamlit layer
+### Optional provider-backed traced Streamlit layer
 
 The `live` profile is the default provider-backed composition; the name does not make this
 trusted-local release production-ready. To run it, fully stop the deterministic Streamlit server,
@@ -208,7 +299,7 @@ briefing. Confirm the trace metadata contains low-cardinality versions, provider
 categories, aggregate counts, fallback use, and review outcome—but not Candidate identity,
 research statement, query text, source URLs, page content, thread ID, or credentials.
 
-## Optional bounded live canary
+### Optional bounded live canary
 
 The canary validates one configured public official profile rather than spending the full
 five-result graph budget. Set these non-secret target values in the process environment:
@@ -236,7 +327,7 @@ call, two Research Fit calls, and one Nebius review call—at most nine provider
 The one-profile path creates a shortlist only after constructing an explicit approval decision.
 It must remain excluded from default pytest and CI.
 
-## Demonstration failure paths
+### Demonstration failure paths
 
 | Observation | Response |
 |---|---|

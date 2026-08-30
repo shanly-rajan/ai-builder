@@ -17,6 +17,57 @@ evidence, evaluates Research Fit, and learns from Candidate feedback. It introdu
 platform integrations incrementally while retaining a Candidate approval gate before
 any Supervisor is shortlisted or any outreach is drafted.
 
+## Reviewer quick path
+
+ScholarPath was built as an agentic workflow rather than a one-shot model call: it holds typed
+state across steps, chooses deterministic routes, calls bounded tools, preserves partial work,
+recovers from provider failures, and pauses at a durable human-review interrupt before any
+shortlist write.
+
+| Start here | Purpose |
+|---|---|
+| [Project submission write-up](docs/project-submission.md) | Guideline-mapped overview, agent framework, stack, prompts, iterations, tuning, metrics, lessons, and limitations |
+| [Five-minute recording script](docs/five-minute-demo.md) | Timed spoken narration, screen actions, setup, and contingency guidance |
+| [Architecture](docs/architecture.md) | Complete agent, graph, state, provider, evidence, memory, and UI boundaries |
+| [Reliability review](docs/reliability-review.md) | Timeouts, retries, partial-result preservation, privacy, approval, and release controls |
+| [Evaluation plan](docs/evaluation-plan.md) | Curated scenarios, deterministic evaluators, and optional judges |
+| [Recorded evaluation baseline](docs/evaluation-baseline.md) | Current prompt versions, scenario metrics, execution status, and accepted offline result |
+| [Prompt archive](docs/prompts/) and [build journal](docs/build-journal.md) | Incremental AI-assisted engineering record and result of every bounded prompt |
+
+### Current evidence and target
+
+| Measure | Current position |
+|---|---|
+| Complete deterministic suite | 1,579 non-live tests passed; nine live tests deselected; 91.09% coverage |
+| Curated offline evaluation | 11/11 synthetic scenarios passed every applicable deterministic evaluator |
+| Failure recovery | Typed You.com failure, bounded Tavily fallback, partial-result preservation, and finite loops are exercised end to end |
+| Human authority | Candidate approval is mechanically required before shortlist persistence; outreach remains unimplemented |
+| Product target | Five evidence-backed recommendations in under 15 minutes, with at least four rated relevant by the Candidate |
+
+The engineering results above are measured. The product latency and Candidate-relevance target is
+an explicit goal that still requires calibrated provider-backed runs and real Candidate ratings;
+it is not presented as achieved.
+
+### Submission architecture at a glance
+
+```mermaid
+flowchart LR
+    Profile[Candidate research profile] --> Plan[OpenAI typed SearchPlan]
+    Plan --> You[You.com discovery]
+    You -->|failure or insufficient results| Tavily[Tavily fallback]
+    You --> Verify[Evidence verification]
+    Tavily --> Verify
+    Verify --> Fit[OpenAI Research Fit]
+    Fit --> Review[Nebius independent review]
+    Review --> Gate{{LangGraph Candidate interrupt}}
+    Gate -->|valid explicit action| Memory[Mem0 preference learning]
+    Memory -->|reject or request more| Plan
+    Memory -->|approve exact IDs| Shortlist[Persisted shortlist + briefing]
+
+    classDef human fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
+    class Gate human;
+```
+
 ## Project status
 
 Milestone M13 hardens the complete workflow for a submission-ready `v0.1.0` local release. It
@@ -83,9 +134,11 @@ provenance, availability, Candidate approval, and persistence controls remain un
 canonical `strict` standard remains the default.
 
 M13.9 makes `postgraduate research` the active product umbrella and introduces two
-presentation-only reviewer controls. `Use demo research profile` fills the visible form with a
-fixed machine-learning and software-engineering example; turning it off clears unchanged sample
-values while preserving reviewer edits. `Light mode` (off means dark) switches the visual theme.
+presentation-only reviewer controls. `Use demo research profile` originally filled the visible
+form with a fixed machine-learning and software-engineering example; M13.14 replaces those active
+values with the current software- and cloud-security example. Turning the control off clears
+unchanged sample values while preserving reviewer edits. `Light mode` (off means dark) switches
+the visual theme.
 The reviewer still starts the same graph explicitly; neither control changes provider routing,
 evidence rules, Candidate memory, lifecycle state, or approval requirements.
 

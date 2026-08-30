@@ -1,4 +1,8 @@
-# ScholarPath M13 Release Evaluation Baseline
+# ScholarPath Offline Evaluation Baseline
+
+This baseline began with the M13 release. Its unchanged eleven-scenario dataset was replayed during
+the M14 documentation-only milestone after the M13.14 independent-review prompt repair. It remains
+a deterministic, offline result; no live provider, LangSmith upload, or LLM judge is implied.
 
 ## Baseline identity
 
@@ -27,10 +31,10 @@ an explicit, credentialed operation through the supported LangSmith `Client.eval
 | Application | `scholarpath` |
 | Graph version | `m13` |
 | Dataset schema version | `m12-scenarios-v1` |
-| Research Planning prompt version | `research-planning-v2` |
-| Evidence Verification prompt version | `evidence-verification-v3` |
+| Research Planning prompt version | `research-planning-v4` |
+| Evidence Verification prompt version | `evidence-verification-v4` |
 | Research Fit prompt version | `research-fit-evaluation-v1` |
-| Independent Review prompt version | `independent-review-v3` |
+| Independent Review prompt version | `independent-review-v4` |
 | Evaluation judge prompt versions | Not run |
 | Research Fit rubric version | `research-fit-rubric-v1` |
 | Model provider | `fake` |
@@ -122,10 +126,10 @@ must record only scenario ID, evaluator key, score, a privacy-safe category, and
 | M12 dataset evaluators plus M13 release, trace, contract, and live-gate tests | Passed within the complete non-live suite; live execution remained deselected |
 | Fake end-to-end graph regressions | Passed in the 11-scenario baseline |
 | Dataset synchronization tests with a mocked client | Passed |
-| Ruff formatting | Passed: 216 Python files formatted |
+| Ruff formatting | Passed: 212 Python files formatted |
 | Ruff linting | Passed |
-| mypy | Passed: 172 source files |
-| Full non-live pytest suite | Passed: 1,354 tests, nine live tests deselected, 90.69% branch coverage |
+| mypy | Passed: 205 source files |
+| Full non-live pytest suite | Passed: 1,579 tests, nine live tests deselected, 91.09% coverage |
 | Local fake evaluation | Passed: `11/11` scenarios |
 
 The root implementation run must record exact commands, counts, coverage, and durations in
