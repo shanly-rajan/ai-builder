@@ -9,6 +9,7 @@ from scholarpath.agents import (
     RESEARCH_PLANNING_SYSTEM_PROMPT_V1,
     RESEARCH_PLANNING_SYSTEM_PROMPT_V2,
     RESEARCH_PLANNING_SYSTEM_PROMPT_V3,
+    RESEARCH_PLANNING_SYSTEM_PROMPT_V4,
     PlanningModelPort,
     StructuredSearchPlanResponse,
 )
@@ -20,18 +21,20 @@ PROJECT_ROOT = TEST_FILE.parents[2]
 
 def test_planning_output_and_fake_satisfy_the_provider_neutral_contract() -> None:
     model: PlanningModelPort = FakePlanningModel()
+    normalized_active_prompt = " ".join(RESEARCH_PLANNING_SYSTEM_PROMPT_V4.split())
 
     assert issubclass(StructuredSearchPlanResponse, BaseModel)
     assert callable(model.generate)
-    assert RESEARCH_PLANNING_PROMPT_VERSION == "research-planning-v3"
+    assert RESEARCH_PLANNING_PROMPT_VERSION == "research-planning-v4"
     assert RESEARCH_PLANNING_SYSTEM_PROMPT_V1 != RESEARCH_PLANNING_SYSTEM_PROMPT_V2
     assert RESEARCH_PLANNING_SYSTEM_PROMPT_V2 != RESEARCH_PLANNING_SYSTEM_PROMPT_V3
+    assert RESEARCH_PLANNING_SYSTEM_PROMPT_V3 != RESEARCH_PLANNING_SYSTEM_PROMPT_V4
     assert "provider-portable" in RESEARCH_PLANNING_SYSTEM_PROMPT_V2
     assert "at most one site:" in RESEARCH_PLANNING_SYSTEM_PROMPT_V2
-    assert "Master's or doctoral research-degree interests" in (RESEARCH_PLANNING_SYSTEM_PROMPT_V3)
-    assert "explicit research-degree supervision information" in (
-        RESEARCH_PLANNING_SYSTEM_PROMPT_V3
-    )
+    assert "postgraduate research interests" in normalized_active_prompt
+    assert "explicit postgraduate research supervision information" in (normalized_active_prompt)
+    assert "preserve that exact degree scope" in normalized_active_prompt
+    assert "never broaden it to another postgraduate qualification" in normalized_active_prompt
 
 
 def test_openai_adapter_uses_structured_output_without_search_tools_or_prose_parsing() -> None:
@@ -40,7 +43,7 @@ def test_openai_adapter_uses_structured_output_without_search_tools_or_prose_par
     assert ".with_structured_output(" in source
     assert 'method="json_schema"' in source
     assert "strict=True" in source
-    assert "RESEARCH_PLANNING_SYSTEM_PROMPT_V3" in source
+    assert "RESEARCH_PLANNING_SYSTEM_PROMPT_V4" in source
     assert "max_retries=0" in source
     assert "bind_tools" not in source
     assert "json.loads" not in source

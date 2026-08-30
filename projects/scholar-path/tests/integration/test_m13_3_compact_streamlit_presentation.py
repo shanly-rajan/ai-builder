@@ -155,10 +155,7 @@ def test_academic_cap_hero_page_icon_and_research_degree_language(
     assert [item.value for item in app_test.title] == ["🎓 ScholarPath"]
     assert ui_app.HERO_SUBTITLE in rendered
     assert "1. Your Research Degree Profile" in rendered
-    assert (
-        "Describe your Master's or doctoral research direction and practical preferences"
-        in rendered
-    )
+    assert "Describe your postgraduate research direction and practical preferences" in rendered
     assert "Your Doctoral Research Profile" not in rendered
     normalized_styles = ui_app.APP_STYLES.casefold()
     assert normalized_styles.strip().startswith("<style>")

@@ -1,0 +1,15 @@
+flowchart LR
+    Scope[Postgraduate research presentation] --> Profile[Research profile form]
+    Demo{{Use demo research profile}} -->|on| Values[Reviewer-ready example values]
+    Values --> Profile
+    Profile -->|Candidate starts search| Graph[Existing LangGraph workflow]
+
+    Theme{{Light mode<br/>off = dark}} --> Shell[Streamlit presentation theme]
+    Shell -. no graph-state mutation .-> Graph
+
+    Evidence[Retrieved source evidence] --> Exact[Preserve exact degree context]
+    Exact --> Verify[Existing verification rules]
+    Verify --> Graph
+
+    classDef control fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
+    class Demo,Theme control;

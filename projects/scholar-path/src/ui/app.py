@@ -29,6 +29,7 @@ from .models import (
     VerifiedSupervisorView,
 )
 from .service import ScholarPathApplicationPort
+from .theme import inject_theme_styles, render_appearance_controls
 
 STAGE_LABELS = (
     "1. Your Research Degree Profile",
@@ -43,9 +44,20 @@ RECOVERABLE_SERVICE_MESSAGE = (
 )
 STUDY_MODE_OPTIONS = ("full-time", "part-time", "online", "hybrid", "on-campus")
 RESEARCH_ORIENTATION_OPTIONS = ("No preference", "applied", "theoretical", "mixed")
+DEMO_PROFILE_TOGGLE_KEY = "use_demo_research_profile"
+DEMO_PROFILE_RESEARCH_STATEMENT = (
+    "Applications of machine learning and artificial intelligence in software engineering."
+)
+DEMO_PROFILE_RESEARCH_TOPICS = (
+    "Machine Learning, Artificial Intelligence, Software Engineering, Data Science, "
+    "Computer Science"
+)
+DEMO_PROFILE_METHODOLOGICAL_INTERESTS = (
+    "Empirical studies, quantitative analysis, benchmark evaluation"
+)
 PAGE_ICON = "🎓"
 HERO_TITLE = "🎓 ScholarPath"
-HERO_SUBTITLE = "Evidence-backed Supervisor discovery for Master's and doctoral research."
+HERO_SUBTITLE = "Evidence-backed supervisor discovery for postgraduate research."
 APP_STYLES = """
 <style>
 [data-testid="stAppViewContainer"] {
@@ -142,11 +154,60 @@ def _render_runtime_profile_banner() -> None:
         st.warning(MVP_IDENTITY_ONLY_BANNER)
 
 
+def demo_profile_widget_values() -> dict[str, str | list[str]]:
+    """Return a fresh, deterministic set of editable Candidate form values."""
+    return {
+        "profile_research_statement": DEMO_PROFILE_RESEARCH_STATEMENT,
+        "profile_research_topics": DEMO_PROFILE_RESEARCH_TOPICS,
+        "profile_preferred_regions": "",
+        "profile_study_modes": [],
+        "profile_research_orientation": "No preference",
+        "profile_methodological_interests": DEMO_PROFILE_METHODOLOGICAL_INTERESTS,
+        "profile_exclusions": "",
+    }
+
+
+def empty_profile_widget_values() -> dict[str, str | list[str]]:
+    """Return the form defaults used when unchanged demonstration values are disabled."""
+    return {
+        "profile_research_statement": "",
+        "profile_research_topics": "",
+        "profile_preferred_regions": "",
+        "profile_study_modes": [],
+        "profile_research_orientation": "No preference",
+        "profile_methodological_interests": "",
+        "profile_exclusions": "",
+    }
+
+
+def _synchronize_demo_profile_toggle() -> None:
+    """Populate on opt-in and clear only sample values the reviewer did not edit."""
+    demo_values = demo_profile_widget_values()
+    if bool(st.session_state.get(DEMO_PROFILE_TOGGLE_KEY, False)):
+        st.session_state.update(demo_values)
+        return
+
+    empty_values = empty_profile_widget_values()
+    for key, demo_value in demo_values.items():
+        if st.session_state.get(key) == demo_value:
+            st.session_state[key] = empty_values[key]
+
+
 def _render_profile_form() -> None:
     st.header(STAGE_LABELS[0])
     st.write(
-        "Describe your Master's or doctoral research direction and practical preferences that "
+        "Describe your postgraduate research direction and practical preferences that "
         "should guide Supervisor discovery."
+    )
+    st.toggle(
+        "Use demo research profile",
+        key=DEMO_PROFILE_TOGGLE_KEY,
+        help="Populate an editable example profile without starting a Supervisor search.",
+        on_change=_synchronize_demo_profile_toggle,
+    )
+    st.caption(
+        "Demo values remain editable. Turning the control off clears unchanged sample values; "
+        "search starts only when you use the form button."
     )
     with st.form("candidate_profile_form", border=True):
         research_statement = st.text_area(
@@ -808,7 +869,9 @@ def _render_existing_thread(thread_id: str) -> None:
 def main() -> None:
     """Render the single ScholarPath application without constructing graph business logic."""
     st.set_page_config(page_title="ScholarPath", page_icon=PAGE_ICON, layout="wide")
+    theme = render_appearance_controls()
     _render_hero()
+    inject_theme_styles(theme)
     _render_runtime_profile_banner()
     _render_stage_navigation()
     thread_id = st.session_state.get("thread_id")

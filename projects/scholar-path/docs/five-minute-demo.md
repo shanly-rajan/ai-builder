@@ -75,9 +75,9 @@ provider key, forces tracing off regardless of broader environment settings, and
 threads only in memory.
 
 Confirm the active academic hero is exactly **🎓 ScholarPath** and its subtitle is exactly
-`Evidence-backed Supervisor discovery for Master's and doctoral research.` Stage one must read
+`Evidence-backed supervisor discovery for postgraduate research.` Stage one must read
 **1. Your Research Degree Profile**, with the exact guidance
-`Describe your Master's or doctoral research direction and practical preferences that should guide Supervisor discovery.`
+`Describe your postgraduate research direction and practical preferences that should guide Supervisor discovery.`
 
 `deterministic_demo` is rejected when `SCHOLARPATH_ENVIRONMENT=production`. Runtime composition
 is held by Streamlit's cached application service, so a browser refresh or rerun cannot switch
@@ -86,19 +86,21 @@ in-memory demonstration thread.
 
 ## 2:00–3:00 — Enter a synthetic Candidate profile
 
-Use demonstration data, not personal data. This walkthrough frames it as a Master's research
-direction; the same free-text profile supports doctoral research without adding a degree-type
-field or inferring programme eligibility:
+Use demonstration data, not personal data. Enable **Use demo research profile** to populate the
+reviewer-ready postgraduate research example below. The control changes only the form values; it
+does not bypass validation, graph nodes, evidence checks, or Candidate approval. The **Light
+mode** control (off means dark) changes presentation only and may be toggled without changing the
+research run.
 
 | Field | Demonstration value |
 |---|---|
-| Proposed research statement | Evaluate applied enterprise architecture controls for traceable agentic AI systems. |
-| Research topics | enterprise architecture; agentic AI governance |
-| Preferred regions | United Kingdom; Netherlands |
-| Study mode | part-time; remote |
-| Research orientation | applied |
-| Methodological interests | design science; case study evaluation |
-| Exclusions | purely theoretical model pre-training |
+| Proposed research statement | Applications of machine learning and artificial intelligence in software engineering. |
+| Research topics | Machine Learning; Artificial Intelligence; Software Engineering; Data Science; Computer Science |
+| Preferred regions | Leave empty |
+| Study mode | No preference |
+| Research orientation | No preference |
+| Methodological interests | Empirical studies; quantitative analysis; benchmark evaluation |
+| Exclusions | Leave empty |
 
 Select **Start Supervisor research** and observe **Canonical LangGraph progress** while it is
 active. After the graph pauses, confirm completed progress is collapsed by default, then expand it
@@ -140,9 +142,9 @@ institution, and `Research Fit: N/100`. Expand one proposed recommendation and p
 - availability status as a separate sourced fact; and
 - independent review status.
 
-For this Master's-scoped example, an explicit doctoral-availability statement remains evidence
-only for its stated doctoral context; it is not proof of Master's availability. Do not infer
-degree eligibility from the profile, Research Fit Score, or `not_stated`.
+For this postgraduate example, an availability statement scoped to one degree remains evidence
+only for its stated context; it is not proof of eligibility for another postgraduate degree. Do
+not infer degree eligibility from the profile, Research Fit Score, or `not_stated`.
 
 Open **Reject**, choose one Supervisor, enter:
 

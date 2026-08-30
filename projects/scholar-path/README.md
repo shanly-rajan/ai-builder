@@ -3,13 +3,13 @@
 **Multi-Agent Research-Degree Supervisor Discovery and Research-Fit System**
 
 **Canonical one-liner:** ScholarPath is a human-controlled, multi-agent system that discovers,
-verifies, evaluates, and shortlists research-aligned Supervisors for Master's and doctoral
-research with source-backed evidence.
+verifies, evaluates, and shortlists research-aligned Supervisors for postgraduate research with
+source-backed evidence.
 
-ScholarPath helps a Candidate pursuing a Master's degree or doctorate discover, verify,
+ScholarPath helps a Candidate pursuing postgraduate research discover, verify,
 evaluate, and shortlist research-aligned Supervisors through a Streamlit web application. Its
-active product promise is **Evidence-backed Supervisor discovery for Master's and doctoral
-research.** It is intended to replace hours of fragmented searching across university profiles
+active product promise is **Evidence-backed supervisor discovery for postgraduate research.**
+It is intended to replace hours of fragmented searching across university profiles
 and academic publications with an evidence-backed, human-controlled workflow.
 
 The system plans searches, discovers Prospective Supervisors, verifies supporting
@@ -59,7 +59,7 @@ persistent UI warning prevents synthetic results from being mistaken for live re
 rejected in production and changes no verification or Candidate-approval rule.
 
 The bounded M13.3 repair gives the active interface an academic `🎓 ScholarPath` hero and broadens
-its presentation scope to Master's and doctoral research degrees. Completed progress, outcome
+its presentation scope to postgraduate research. Completed progress, outcome
 cards, and the three privacy-safe diagnostic groups now start collapsed so the current Candidate
 decision remains prominent. Expanding them reveals the same evidence and aggregates as before;
 verification, availability, Research Fit, lifecycle, and explicit approval rules are unchanged.
@@ -80,6 +80,13 @@ being presented as a genuine poor-fit score. M13.8 lets this explicit MVP path c
 least three identity-verified Supervisors; strict mode still requires five, and the proposed
 shortlist remains capped at five. Retry, provenance, availability, Candidate approval, and
 persistence controls remain unchanged. The canonical `strict` standard remains the default.
+
+M13.9 makes `postgraduate research` the active product umbrella and introduces two
+presentation-only reviewer controls. `Use demo research profile` fills the visible form with a
+fixed machine-learning and software-engineering example; turning it off clears unchanged sample
+values while preserving reviewer edits. `Light mode` (off means dark) switches the visual theme.
+The reviewer still starts the same graph explicitly; neither control changes provider routing,
+evidence rules, Candidate memory, lifecycle state, or approval requirements.
 
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
@@ -118,6 +125,7 @@ the [M11 Streamlit application boundary](docs/m11-streamlit-interface.mmd), the
 [M13.1 evidence-verification diagnostics boundary](docs/m13-1-evidence-verification-diagnostics.mmd),
 the [M13.7 identity-only MVP flow](docs/m13-7-mvp-identity-evidence-standard.mmd),
 the [M13.8 three-Supervisor MVP cohort flow](docs/m13-8-mvp-three-supervisor-cohort.mmd),
+the [M13.9 postgraduate presentation boundary](docs/m13-9-postgraduate-presentation-controls.mmd),
 and the M13 [release architecture](docs/m13-release-architecture.mmd),
 [LangGraph node and edge diagram](docs/m13-langgraph-node-edge.mmd),
 [reliability review](docs/reliability-review.md),
@@ -145,7 +153,7 @@ flowchart LR
 
 | Release dimension | `v0.1.0` position |
 |---|---|
-| Primary user | A Candidate pursuing a research degree, such as a Master's degree or doctorate, using a trusted local Streamlit application |
+| Primary user | A Candidate pursuing postgraduate research using a trusted local Streamlit application |
 | Outcome | At most five ranked, evidence-backed recommendations for explicit Candidate review |
 | Human authority | No shortlist persistence or outreach drafting before approval |
 | Factual authority | Retrieved source evidence, never model knowledge or Candidate memory |
@@ -256,10 +264,12 @@ flowchart LR
     class Adapter,Native external;
 ```
 
-The versioned `research-planning-v3` system prompt requires four to eight distinct
+The versioned `research-planning-v4` system prompt uses postgraduate umbrella terminology and
+requires four to eight distinct
 queries whose combined targets cover official university profiles, department or
 research-group pages, recent publications, and explicit research-degree-supervision
-information. Each query carries its purpose and intended source types. Deterministic
+information. Degree-specific source scope must still be preserved. Each query carries its
+purpose and intended source types. Deterministic
 query-shape validation allows at most one `site:` restriction, two explicit uppercase
 Boolean operators, and one quoted phrase per query. An over-constrained model response
 uses the same single bounded format retry as any other malformed structured output.
@@ -317,7 +327,7 @@ limit to the official POST endpoint, applies an explicit HTTP timeout, and norma
 web/news results into typed `SearchResult` records. Provider snippets are whitespace
 normalized, deduplicated, and bounded to five excerpts of at most 1,000 characters each;
 full-page content is never retained during discovery. The adapter does not identify
-people, evaluate Research Fit, or infer Master's or doctoral research-degree availability.
+people, evaluate Research Fit, or infer postgraduate research supervision availability.
 
 `SupervisorDiscoveryAgent` uses conservative deterministic extraction because M4 does
 not introduce another model integration. A result must contain a plausible person name
@@ -713,9 +723,9 @@ flowchart LR
 ```
 
 The application opens with the hero **🎓 ScholarPath** and subtitle
-`Evidence-backed Supervisor discovery for Master's and doctoral research.` It then walks through
+`Evidence-backed supervisor discovery for postgraduate research.` It then walks through
 six visible stages, beginning with **1. Your Research Degree Profile**. The form guidance is
-`Describe your Master's or doctoral research direction and practical preferences that should guide Supervisor discovery.`
+`Describe your postgraduate research direction and practical preferences that should guide Supervisor discovery.`
 The remaining stages are **Supervisor Search Progress**, **Prospective Supervisors**, **Verified
 Supervisors**, **Review Supervisors**, and **Your Supervisor Shortlist**. The form captures the
 research statement, topics, regions, study mode, research orientation, methods, and exclusions.
@@ -1195,7 +1205,7 @@ streamlit run streamlit_app.py
 ```
 
 Open `http://localhost:8501` if Streamlit does not open it automatically. Confirm the
-**🎓 ScholarPath** hero and Master's/doctoral subtitle, complete **Your Research Degree Profile**,
+**🎓 ScholarPath** hero and postgraduate-research subtitle, complete **Your Research Degree Profile**,
 choose **Start Supervisor Research**, watch the canonical
 node names under **Supervisor Search Progress**, and use the review controls only after
 the graph pauses. The application persists local threads at
@@ -1575,7 +1585,7 @@ ScholarPath succeeds when one research run:
 
 | Term | Definition |
 |---|---|
-| **Candidate** | A person pursuing a research degree, such as a Master's degree or doctorate. |
+| **Candidate** | A person pursuing postgraduate research. |
 | **Supervisor** | An academic or researcher who may supervise the Candidate's research-degree work. |
 | **Prospective Supervisor** | A discovered Supervisor who has not yet completed verification and Candidate review. |
 | **Verified Supervisor** | A Supervisor whose relevant information has been checked against supporting sources. |
@@ -1701,8 +1711,8 @@ Briefing: 5 Candidate-approved, evidence-backed Supervisor recommendations.
 ```
 
 The example is synthetic. A Research Fit Score is an evidence-based alignment signal, not an
-admission probability, and `not_stated` must never be presented as accepting Master's or
-doctoral research-degree Candidates.
+admission probability, and `not_stated` must never be presented as accepting Candidates for
+postgraduate research.
 
 ## Known limitations
 
@@ -1713,9 +1723,9 @@ doctoral research-degree Candidates.
 - Provider processing is synchronous, so latency grows with the bounded Supervisor cohort.
 - Source evidence can become stale, and conservative alternate-source selection can reduce
   recall.
-- The active profile language supports Master's and doctoral research, but there is no degree-type
-  field and no inferred programme eligibility. A doctoral-only availability statement must not
-  be presented as evidence that the Supervisor accepts Master's Candidates, or vice versa.
+- The active profile language supports postgraduate research, but there is no degree-type field
+  and no inferred programme eligibility. An availability statement scoped to one postgraduate
+  degree must not be generalized to another.
 - Mem0 consent, deletion, residency, and retention governance requires production design.
 - Exact-version constraints are reproducible but not hash-locked supply-chain verification.
 - LLM-judge thresholds are not calibrated against a labelled set of Candidate ratings.

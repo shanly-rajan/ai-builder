@@ -4,7 +4,7 @@
 **Proposed release:** `v0.1.0`
 **Release scope:** submission-ready local application and bounded, opt-in live integrations
 
-ScholarPath turns a Candidate's doctoral research preferences into evidence-backed
+ScholarPath turns a Candidate's postgraduate research preferences into evidence-backed
 Supervisor recommendations while retaining deterministic routing, provenance, and an
 explicit Candidate approval boundary.
 
@@ -65,7 +65,7 @@ ScholarPath uses three distinct data categories:
 | Category | Included | Excluded or constrained |
 |---|---|---|
 | Discovery results | URL, title, bounded description/snippets, optional publication date, provider, and exact originating query | Search snippets may create a Prospective Supervisor but cannot verify a factual claim or imply availability. |
-| Verification sources | Retrieved official person profiles, department or research-group pages, publication or project pages, and explicit doctoral-supervision pages | Full page content is transient. State retains concise grounded claims, source URL, source kind, retrieval time, confidence, and conflicts. |
+| Verification sources | Retrieved official person profiles, department or research-group pages, publication or project pages, and explicit postgraduate-supervision pages | Full page content is transient. State retains concise grounded claims, source URL, source kind, retrieval time, confidence, and conflicts. |
 | Evaluation dataset | Eleven fictional, deterministic scenarios covering strong and weak fit, missing availability, conflicts, duplicates, fallback, extraction failure, reviewer disagreement, rejection, approval, and source-diverse planning | No real Candidate session, production trace, checkpoint, Mem0 record, credential, or full provider page is copied into the dataset. |
 
 Supervisor facts remain authoritative only when grounded in a retrieved source. Mem0 is never

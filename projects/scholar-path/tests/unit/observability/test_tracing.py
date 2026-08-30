@@ -33,7 +33,7 @@ def test_trace_metadata_uses_an_allowlist_and_redacts_sensitive_candidate_data()
             "environment": "test",
             "graph_version": GRAPH_VERSION,
             "component": "research_planning_agent",
-            "prompt_version": "research-planning-v3",
+            "prompt_version": "research-planning-v4",
             "candidate_name": candidate_name,
             "candidate_email": candidate_email,
             "candidate_id": "candidate-sensitive-001",

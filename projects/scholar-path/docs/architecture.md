@@ -344,8 +344,9 @@ flowchart LR
 ```
 
 The planner receives the Candidate's research statement and typed preferences but no
-search tool. `research-planning-v3` uses
-`with_structured_output(..., method="json_schema", strict=True)`; prose JSON parsing
+search tool. `research-planning-v4` uses postgraduate umbrella terminology while preserving
+degree-specific source scope, and uses `with_structured_output(..., method="json_schema",
+strict=True)`; prose JSON parsing
 is not used. Python and Pydantic enforce four-to-eight distinct queries, required
 source-category coverage, target regions, query uniqueness, and provider-portable query
 shape: at most one `site:` filter, two explicit uppercase Boolean operators, and one
@@ -729,8 +730,8 @@ flowchart TD
     Count -->|both from distinct pages| CE[conflicting_evidence]
 ```
 
-Only an explicit statement that a Supervisor is accepting or not accepting Master's or
-doctoral research-degree Candidates may create an availability claim. General supervision
+Only an explicit statement that a Supervisor is accepting or not accepting Candidates for
+postgraduate research may create an availability claim. General supervision
 history, student lists, invitations to collaborate, and contact details are not availability.
 `not_stated` never blocks verification. A confirmed not-accepting statement is retained
 as a concern; it is not silently discarded.
@@ -1192,18 +1193,18 @@ application service. Switching profiles therefore requires fully stopping and re
 Streamlit server; browser refresh and Streamlit rerun reuse the cached composition. A restart
 also discards the demonstration profile's in-memory threads.
 
-## M13.3 academic presentation and research-degree scope
+## M13.3 academic presentation and postgraduate research scope
 
 The active Streamlit shell presents the exact hero **🎓 ScholarPath** with the subtitle
-`Evidence-backed Supervisor discovery for Master's and doctoral research.` Stage one is
+`Evidence-backed supervisor discovery for postgraduate research.` Stage one is
 `1. Your Research Degree Profile`, with the exact guidance
-`Describe your Master's or doctoral research direction and practical preferences that should guide Supervisor discovery.`
+`Describe your postgraduate research direction and practical preferences that should guide Supervisor discovery.`
 This is a presentation-scope broadening over the existing `CandidateProfile`; it adds no
 degree-type state, graph edge, provider call, or eligibility inference.
 
 ```mermaid
 flowchart TB
-    HERO[🎓 ScholarPath hero<br/>Master's and doctoral research] --> PROFILE[1. Your Research Degree Profile]
+    HERO[🎓 ScholarPath hero<br/>Postgraduate research] --> PROFILE[1. Your Research Degree Profile]
     PROFILE --> RUN[Same typed LangGraph workflow]
     RUN --> PROGRESS{Canonical progress state}
     PROGRESS -->|active| OPEN[Expanded progress]
@@ -1241,12 +1242,12 @@ once in a collapsed outer expander labelled exactly `Discovery diagnostics`,
 `Alternate-source diagnostics`, or `Evidence-verification diagnostics`. Their counts, retrieval-
 versus-verification distinction, privacy exclusions, and legacy-state behavior are unchanged.
 
-The broader Master's/doctoral language does not infer degree eligibility or availability from a
-profile. Evidence retains its exact source meaning: a doctoral-only acceptance statement cannot
-establish Master's availability, or vice versa. Identity binding, grounding, required evidence,
-the five-Supervisor minimum, one alternate-source retry, availability derivation, Research Fit,
-independent review, explicit Candidate approval, and Supervisor lifecycle transitions remain
-authoritative and unchanged.
+The broader postgraduate language does not infer degree eligibility or availability from a
+profile. Evidence retains its exact source meaning: an acceptance statement scoped to one
+postgraduate degree cannot establish availability for another. Identity binding, grounding,
+required evidence, the five-Supervisor minimum, one alternate-source retry, availability
+derivation, Research Fit, independent review, explicit Candidate approval, and Supervisor
+lifecycle transitions remain authoritative and unchanged.
 
 ## M13.4 live discovery identity and official-source recovery boundary
 
@@ -1374,6 +1375,21 @@ update and router target without mutation.
 target after its source returned. It is not a checkpoint-commit acknowledgement; the target's
 subsequent `graph.node.input` event confirms arrival, while LangGraph remains responsible for
 reducers, scheduling, and checkpoint durability.
+
+## M13.9 postgraduate presentation and reviewer controls
+
+M13.9 makes `postgraduate research` the active product-level scope and uses the exact tagline
+`Evidence-backed supervisor discovery for postgraduate research.` This umbrella language does
+not erase source specificity: verification continues to preserve the precise postgraduate-degree
+context stated by each retrieved source.
+
+The presentation controls are shown in
+[`m13-9-postgraduate-presentation-controls.mmd`](m13-9-postgraduate-presentation-controls.mmd).
+`Use demo research profile` fills only the visible form with a reviewer-ready example. Turning it
+off clears unchanged sample values while preserving reviewer edits. The reviewer must still start
+the graph, and normal validation and workflow gates still run. `Light mode` (off means dark)
+changes only the Streamlit shell. Neither control is written into LangGraph state, Candidate
+memory, evidence, traces, or Supervisor lifecycle data.
 
 ## Configuration and deferred provider activation
 
@@ -1572,7 +1588,7 @@ already-running event-loop runtime.
 | Persistence | In-memory isolation in tests; ignored SQLite path for trusted local restart; opaque thread IDs partition runs |
 | Checkpoint serialization | Explicit MessagePack type allowlist, URL JSON projection, and no executable pickle fallback |
 | Preference memory | Typed port, exact `infer=False` records, Candidate-ID scope, explicit-action writes, deterministic semantic IDs, and non-fatal fallback |
-| User interface | Academic 🎓 hero for Master's and doctoral research, thin Streamlit adapter, collapsed-by-default outcome and diagnostic expanders, typed application port, safe view models, canonical progress allowlist, and recoverable errors without stack traces |
+| User interface | Academic 🎓 hero for postgraduate research, thin Streamlit adapter, collapsed-by-default outcome and diagnostic expanders, typed application port, safe view models, canonical progress allowlist, and recoverable errors without stack traces |
 | Session isolation | Opaque thread ID only in Session State; checkpoint owns graph state; AppTest starts fresh isolated sessions |
 | Research Fit | Injected typed model port proposes evidence-cited components; Python validates, totals, and bounds them |
 | Independent review | Nebius behind an injected typed port; no tools or browsing; Python validates references and reconciles outcomes |

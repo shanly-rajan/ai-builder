@@ -9,7 +9,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import ValidationError
 
 from ..config import OpenAIPlanningConfiguration
-from .prompts import RESEARCH_PLANNING_PROMPT_VERSION, RESEARCH_PLANNING_SYSTEM_PROMPT_V3
+from .prompts import RESEARCH_PLANNING_PROMPT_VERSION, RESEARCH_PLANNING_SYSTEM_PROMPT_V4
 from .research_planning import (
     PlanningInput,
     PlanningModelInvocationError,
@@ -36,7 +36,7 @@ class OpenAIPlanningModelAdapter:
         )
         prompt = ChatPromptTemplate.from_messages(
             (
-                ("system", RESEARCH_PLANNING_SYSTEM_PROMPT_V3),
+                ("system", RESEARCH_PLANNING_SYSTEM_PROMPT_V4),
                 ("human", "Candidate research planning input:\n{planning_input}"),
             )
         )

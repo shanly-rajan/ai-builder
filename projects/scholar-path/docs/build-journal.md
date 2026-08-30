@@ -3566,3 +3566,93 @@ The bounded repair prompt is archived as
 - Restore `strict` before treating results as fully evidence-backed research recommendations.
 - Tune discovery identity quality and affiliation/research grounding separately; cohort routing
   must not compensate for poor Prospective Supervisor extraction.
+
+## M13.9 Repair: Postgraduate presentation and reviewer controls
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Present ScholarPath consistently as postgraduate Supervisor discovery, add an opt-in reviewer
+profile that fills the supplied machine-learning and software-engineering example, and add an
+interface-only light/dark theme control. Preserve the existing graph, evidence, memory, lifecycle,
+provider, and Candidate-approval boundaries.
+
+### Prompt used
+
+The bounded repair prompt is archived as
+[`m13-9-demo-profile-theme-controls.md`](prompts/m13-9-demo-profile-theme-controls.md).
+
+### Files changed
+
+- Updated the Streamlit hero and form guidance to use the exact postgraduate tagline and product
+  scope.
+- Added `Use demo research profile`, which fills the supplied editable fields but never submits
+  the form or starts a graph run automatically. Turning it off clears only unchanged sample
+  values, so reviewer edits are retained.
+- Added a typed Streamlit appearance module with dark as the default and an interface-only `Light
+  mode` toggle backed by fixed local CSS palettes.
+- Preserved Research Planning prompt versions v1 through v3, added `research-planning-v4`, and made
+  its active product language postgraduate while retaining exact degree-specific source scope.
+- Updated active product documentation and the engineering contract to use postgraduate umbrella
+  terminology while preserving the exact degree context of retrieved evidence.
+- Added the M13.9 prompt archive and postgraduate presentation boundary diagram.
+- Updated historical M13.3 presentation assertions to reflect the current tagline without
+  rewriting its archived prompt or weakening degree-scoped evidence tests.
+- Recorded this milestone in the append-only build journal.
+
+### Tests added
+
+- Pure unit coverage for the complete demo-profile widget mapping and fresh mutable values.
+- Streamlit AppTest coverage for exact opt-in autofill, editability, explicit form submission, and
+  the resulting typed Candidate profile, plus toggle-off behavior that preserves edits.
+- Streamlit AppTest coverage for dark-by-default rendering, light-mode selection, input and thread
+  preservation across reruns, and fixed CSS without remote or script content.
+- Contract coverage for the exact tagline, postgraduate active documentation, source-specific
+  evidence language, prompt archive, and architecture diagram.
+
+### Test results
+
+- Focused M13.3 and M13.9 UI, unit, and contract selection: `20 passed in 1.52s`.
+- Ruff formatting: `250 files already formatted`; Ruff linting: all checks passed.
+- Strict mypy: no issues in `197 source files`.
+- Complete non-live pytest: `1,502 passed, 9 deselected, 65 subtests passed in 21.54s`; total
+  coverage was `91.06%`, above the required 90 percent minimum.
+- The first complete run exposed only the engineering-contract subtest requiring the new prompt
+  to be linked from this journal. This entry closed that expected audit gap before the final run.
+- Activating planning prompt v4 also required regenerating its exact Mermaid trace label; a
+  whitespace mismatch was corrected before the final green run.
+- `git diff --check`: passed.
+- The local synthetic Streamlit server started on the requested port, but no controllable browser
+  was connected to this session; screenshot-level light/dark contrast remains a manual check.
+
+### Assumptions
+
+- “Slider button” means Streamlit's accessible toggle control.
+- The supplied demonstration profile is an input convenience, not authorization to replace live
+  providers with synthetic data or to bypass normal workflow gates.
+- “Happy path” means the reviewer can populate a known broad profile and explicitly start the
+  currently configured workflow; the control does not guarantee a live provider outcome.
+- `postgraduate` is the product-level umbrella term. A source scoped to a particular degree keeps
+  that exact scope and cannot establish availability for another degree.
+- Theme preference is interface state only and does not belong in LangGraph state or long-term
+  Candidate memory.
+
+### Lessons learned
+
+- Separating sample input from deterministic demonstration composition prevents a harmless form
+  convenience from silently changing provider or evidence behavior.
+- A theme rerun needs explicit regression coverage for both unsent form values and an existing
+  checkpoint thread because Streamlit reruns the complete script.
+- Umbrella product language and source-level evidence precision solve different problems and must
+  be governed independently.
+
+### Remaining debt
+
+- Theme styling uses a bounded local CSS compatibility layer because Streamlit does not expose a
+  runtime theme API; visually verify selectors when upgrading Streamlit.
+- The broad demo profile can improve live discovery recall but cannot guarantee three verified
+  results; use the existing deterministic demonstration profile when a guaranteed offline route
+  is required.
+- Tune live strict verification separately before presenting identity-only MVP output as fully
+  research-aligned evidence.
