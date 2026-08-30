@@ -88,6 +88,12 @@ values while preserving reviewer edits. `Light mode` (off means dark) switches t
 The reviewer still starts the same graph explicitly; neither control changes provider routing,
 evidence rules, Candidate memory, lifecycle state, or approval requirements.
 
+M13.10 completes the light-theme compatibility layer for the pinned Streamlit version. Form
+controls, labels, captions, expanders, metrics, semantic alerts, buttons, and portal-rendered
+dropdowns/popovers receive explicit light foreground and surface colors. Deterministic WCAG AA
+contrast contracts protect important text pairs, while dark mode and all workflow behavior remain
+unchanged.
+
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
 graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. Unit and

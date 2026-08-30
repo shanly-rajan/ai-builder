@@ -3656,3 +3656,84 @@ The bounded repair prompt is archived as
   is required.
 - Tune live strict verification separately before presenting identity-only MVP output as fully
   research-aligned evidence.
+
+## M13.10 Repair: Light-theme readability
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Restore readable light-mode foreground, background, border, focus, and semantic-feedback pairs
+across the ScholarPath Streamlit interface shown in the supplied screenshot. Keep dark mode and
+all graph, evidence, provider, memory, lifecycle, and Candidate-approval behavior unchanged.
+
+### Prompt used
+
+The bounded repair prompt is archived as
+[`m13-10-light-theme-readability.md`](prompts/m13-10-light-theme-readability.md).
+
+### Files changed
+
+- Added a frozen typed light-theme palette with explicit page, surface, text, muted, border,
+  focus, primary, link, warning, information, error, and success colors.
+- Expanded the light-only Streamlit compatibility stylesheet to cover form inputs, labels,
+  captions, expanders, metrics, buttons, semantic alerts, disabled and focus states, and
+  portal-rendered dropdowns and popovers.
+- Kept the existing dark stylesheet unchanged and kept appearance selection in Streamlit Session
+  State rather than LangGraph or Candidate memory.
+- Documented the light-theme boundary, selector-version coupling, WCAG contracts, and upgrade
+  verification requirement in README and architecture documentation.
+- Archived this bounded prompt and added its repository contract.
+
+### Tests added
+
+- Pure WCAG relative-luminance and contrast-ratio tests for every important light-theme text pair
+  plus non-text control boundaries.
+- Deterministic selector contracts for visible Streamlit widgets, alerts, focus and placeholder
+  states, buttons, dropdowns, and popovers.
+- Streamlit AppTest coverage proving the light stylesheet and readable warning/form contracts are
+  rendered without starting provider or graph calls.
+- Repository contract coverage for the prompt archive, documentation, pinned Streamlit version,
+  separate dark/light stylesheets, and critical screenshot surfaces.
+
+### Test results
+
+- Focused unit, Streamlit, and contract selection: `44 passed in 0.75s`.
+- Ruff formatting: `253 files already formatted`; Ruff linting: all checks passed.
+- Strict mypy: no issues in `199 source files`.
+- Complete non-live pytest: `1,543 passed, 9 deselected, 66 subtests passed in 21.48s`; total
+  coverage was `91.07%`, above the required 90 percent minimum.
+- The first complete run exposed only the engineering-contract subtest requiring the new prompt
+  to be linked from this journal. This entry closes that expected audit gap before the final run.
+- A controllable in-app browser was unavailable in this session. The supplied screenshot guided
+  the repair, while deterministic contrast and AppTest contracts provide automated verification;
+  final rendered screenshot inspection remains a local manual check.
+
+### Assumptions
+
+- The screenshot reflects Streamlit 1.62.0, which is pinned in the project, and its stable
+  `data-testid` surface selectors are the appropriate compatibility boundary.
+- The theme toggle must remain per-session and must not change the process-wide native Streamlit
+  theme configuration.
+- Important normal-size text pairs target WCAG AA contrast of at least 4.5:1, while control
+  boundaries target at least 3:1.
+- Portal selectors are intentionally global within the light-only stylesheet because Streamlit
+  mounts dropdown and popover content outside the application container.
+
+### Lessons learned
+
+- Changing the application shell does not change Streamlit's internal Emotion theme tokens, so a
+  light shell can otherwise contain dark widgets and mismatched alert foregrounds.
+- Theme contracts must define both foreground and background values; checking that a hex color or
+  CSS selector merely exists cannot prove readability.
+- A pure contrast calculation catches accessibility regressions quickly, while AppTest confirms
+  the stylesheet is selected without triggering business behavior.
+
+### Remaining debt
+
+- Perform a final browser-level visual check on macOS after restarting Streamlit; no controllable
+  browser was connected to this execution session.
+- Re-audit compatibility selectors and both theme screenshots whenever the pinned Streamlit
+  version changes.
+- Browser-computed-style accessibility testing remains a useful future complement to deterministic
+  contrast and Streamlit AppTest contracts.

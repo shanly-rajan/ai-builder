@@ -11,9 +11,11 @@ from streamlit.testing.v1 import AppTest
 
 import scholarpath.ui.dependencies as ui_dependencies
 from scholarpath.config import ApplicationSettings, Environment
+from scholarpath.domain import VerificationEvidenceStandard
 from scholarpath.ui import ScholarPathApplicationPort
 from scholarpath.ui.theme import (
     DARK_THEME_STYLES,
+    LIGHT_THEME_PALETTE,
     LIGHT_THEME_STYLES,
     THEME_TOGGLE_KEY,
 )
@@ -35,8 +37,12 @@ def _clear_streamlit_resource_cache() -> Iterator[None]:
 def _configure_dependencies(
     monkeypatch: pytest.MonkeyPatch,
     service: FakeScholarPathApplication,
+    verification_standard: VerificationEvidenceStandard = VerificationEvidenceStandard.STRICT,
 ) -> None:
-    settings = ApplicationSettings(environment=Environment.TEST)
+    settings = ApplicationSettings(
+        environment=Environment.TEST,
+        verification_evidence_standard=verification_standard,
+    )
 
     def create_application_service(
         resolved_settings: ApplicationSettings | None = None,
@@ -125,3 +131,33 @@ def test_theme_css_is_fixed_and_contains_no_remote_or_script_content() -> None:
         assert normalized.strip().startswith("<style data-scholarpath-theme=")
         for unsafe_token in ("@import", "url(", "<script", "javascript:"):
             assert unsafe_token not in normalized
+
+
+def test_light_mode_renders_readable_form_and_warning_contracts_without_service_calls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = FakeScholarPathApplication()
+    _configure_dependencies(
+        monkeypatch,
+        service,
+        VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
+    )
+    app_test = AppTest.from_file(APP_PATH, default_timeout=10).run()
+
+    app_test.toggle(key=THEME_TOGGLE_KEY).set_value(True).run()
+
+    rendered_styles = _rendered_theme_styles(app_test)
+    assert not app_test.exception
+    assert app_test.warning
+    assert "MVP identity-only verification is active" in app_test.warning[0].value
+    assert app_test.text_area(key="profile_research_statement")
+    assert app_test.text_input(key="profile_preferred_regions")
+    assert app_test.selectbox(key="profile_research_orientation")
+    assert app_test.multiselect(key="profile_study_modes")
+    assert 'data-testid="stTextAreaRootElement"' in rendered_styles
+    assert 'data-testid="stTextInputRootElement"' in rendered_styles
+    assert 'data-testid="stAlertContentWarning"' in rendered_styles
+    assert LIGHT_THEME_PALETTE.text in rendered_styles
+    assert LIGHT_THEME_PALETTE.warning_text in rendered_styles
+    assert service.start_calls == []
+    assert service.resume_calls == []

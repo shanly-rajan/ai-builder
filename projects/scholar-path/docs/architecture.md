@@ -1391,6 +1391,32 @@ the graph, and normal validation and workflow gates still run. `Light mode` (off
 changes only the Streamlit shell. Neither control is written into LangGraph state, Candidate
 memory, evidence, traces, or Supervisor lifecycle data.
 
+## M13.10 light-theme readability boundary
+
+M13.10 treats the per-session light theme as a presentation compatibility layer for the pinned
+Streamlit 1.62 runtime. Streamlit's internal widget theme does not inherit the application-level
+CSS variables consistently, so switching only the page shell can create a light page containing
+dark fields or low-contrast alerts. A fixed typed palette now explicitly covers the visible
+widget, feedback, outcome, and portal surfaces while leaving the existing dark stylesheet
+unchanged.
+
+```mermaid
+flowchart LR
+    T[Light mode toggle] --> S[Light-only stylesheet]
+    S --> W[Form controls and labels]
+    S --> O[Expanders, metrics, and outcomes]
+    S --> A[Semantic alerts]
+    S --> P[Dropdown and popover portals]
+    C[WCAG contrast contracts] --> S
+    S -. presentation only .-> X[No LangGraph, memory, evidence, or lifecycle mutation]
+```
+
+The palette defines both foreground and background values for every important text pair. Unit
+contracts calculate WCAG contrast ratios rather than relying on visual snapshots alone. Stable
+`data-testid` selectors are intentionally coupled to the pinned Streamlit version; a Streamlit
+upgrade therefore requires selector and visual verification. Portal rules are light-only but
+global because Streamlit mounts dropdown and popover content outside the application container.
+
 ## Configuration and deferred provider activation
 
 ```mermaid
