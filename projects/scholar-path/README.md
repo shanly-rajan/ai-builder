@@ -768,7 +768,7 @@ sequenceDiagram
     end
     Graph->>Planner: profile + remembered preferences
     Graph-->>Candidate: interrupt with proposed shortlist
-    Note over Graph,Mem0: Viewing stops here; no memory write
+    Note over Graph,Mem0: Viewing alone creates no memory write
     Candidate->>Graph: approve / reject / request_more
     Graph->>Learning: checkpointed explicit action
     Learning->>Mem0: add exact typed JSON, infer=false, scoped user_id

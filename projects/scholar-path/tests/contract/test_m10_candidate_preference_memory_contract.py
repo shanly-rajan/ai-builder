@@ -44,6 +44,13 @@ def test_m10_mermaid_is_the_current_generated_graph_snapshot() -> None:
     assert "learn_candidate_preferences" in CANONICAL_NODE_NAMES
 
 
+def test_m10_readme_sequence_note_uses_github_safe_mermaid_syntax() -> None:
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert "Note over Graph,Mem0: Viewing alone creates no memory write" in readme
+    assert "Note over Graph,Mem0: Viewing stops here; no memory write" not in readme
+
+
 def test_m10_updates_trace_version_without_adding_outreach() -> None:
     source_files = tuple((PROJECT_ROOT / "src").rglob("*.py"))
     source = "\n".join(path.read_text(encoding="utf-8") for path in source_files)
