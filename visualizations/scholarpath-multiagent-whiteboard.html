@@ -1,0 +1,400 @@
+<section id="scholarpath-multiagent-whiteboard" aria-labelledby="scholarpath-workflow-title">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Kalam:wght@400&display=swap');
+
+    #scholarpath-multiagent-whiteboard,
+    #scholarpath-multiagent-whiteboard * {
+      box-sizing: border-box;
+    }
+
+    #scholarpath-multiagent-whiteboard {
+      width: 100%;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: clamp(14px, 3vw, 34px);
+      color: var(--foreground);
+      font-family: "Kalam", inherit;
+      background: transparent;
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-sheet {
+      padding: clamp(18px, 4vw, 42px);
+      background-image: radial-gradient(circle, color-mix(in srgb, var(--muted-foreground) 24%, transparent) 1px, transparent 1.2px);
+      background-size: 22px 22px;
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 16px;
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-kicker {
+      margin: 0 0 2px;
+      color: var(--viz-series-2);
+      font-size: clamp(13px, 1.8vw, 16px);
+    }
+
+    #scholarpath-multiagent-whiteboard h2 {
+      margin: 0;
+      font-size: clamp(27px, 5vw, 48px);
+      line-height: 1.05;
+      font-weight: 400;
+      letter-spacing: -0.02em;
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-note {
+      max-width: 290px;
+      margin: 0;
+      padding: 8px 13px 6px;
+      border-bottom: 3px solid var(--viz-series-4);
+      color: var(--muted-foreground);
+      font-size: clamp(12px, 1.6vw, 14px);
+      line-height: 1.35;
+      transform: rotate(-1deg);
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-desktop {
+      display: block;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-desktop text {
+      font-family: "Kalam", inherit;
+      fill: var(--foreground);
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-desktop .muted-text {
+      fill: var(--muted-foreground);
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-desktop .agent-box {
+      fill: color-mix(in srgb, var(--card) 78%, transparent);
+      stroke: var(--foreground);
+      stroke-width: 2;
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-desktop .human-box {
+      fill: color-mix(in srgb, var(--viz-series-5) 12%, transparent);
+      stroke: var(--viz-series-5);
+      stroke-width: 3;
+      stroke-dasharray: 9 5;
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-desktop .provider-box {
+      fill: color-mix(in srgb, var(--viz-series-2) 9%, transparent);
+      stroke: var(--viz-series-2);
+      stroke-width: 2;
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-desktop .memory-box {
+      fill: color-mix(in srgb, var(--viz-series-4) 10%, transparent);
+      stroke: var(--viz-series-4);
+      stroke-width: 2;
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-desktop .flow-line {
+      fill: none;
+      stroke: var(--foreground);
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      marker-end: url(#wb-arrow-main);
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-desktop .fallback-line {
+      fill: none;
+      stroke: var(--viz-series-3);
+      stroke-width: 2.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 8 6;
+      marker-end: url(#wb-arrow-fallback);
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-desktop .feedback-line {
+      fill: none;
+      stroke: var(--viz-series-4);
+      stroke-width: 2.6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      marker-end: url(#wb-arrow-feedback);
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-mobile {
+      display: none;
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-footer {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: end;
+      margin-top: 10px;
+      padding-top: 14px;
+      border-top: 2px dashed var(--border);
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-rule {
+      margin: 0;
+      color: var(--muted-foreground);
+      font-size: clamp(13px, 1.8vw, 16px);
+      line-height: 1.4;
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-rule strong {
+      color: var(--foreground);
+      font-weight: 400;
+      text-decoration: underline;
+      text-decoration-color: var(--viz-series-1);
+      text-decoration-thickness: 3px;
+      text-underline-offset: 3px;
+    }
+
+    #scholarpath-multiagent-whiteboard .wb-signature {
+      margin: 0;
+      color: var(--muted-foreground);
+      font-size: 13px;
+      white-space: nowrap;
+      transform: rotate(-1deg);
+    }
+
+    @media (max-width: 620px) {
+      #scholarpath-multiagent-whiteboard {
+        padding-inline: 10px;
+      }
+
+      #scholarpath-multiagent-whiteboard .wb-head,
+      #scholarpath-multiagent-whiteboard .wb-footer {
+        grid-template-columns: 1fr;
+        align-items: start;
+      }
+
+      #scholarpath-multiagent-whiteboard .wb-note {
+        max-width: none;
+      }
+
+      #scholarpath-multiagent-whiteboard .wb-desktop {
+        display: none;
+      }
+
+      #scholarpath-multiagent-whiteboard .wb-mobile {
+        display: block;
+        margin: 22px 0;
+      }
+
+      #scholarpath-multiagent-whiteboard .wb-mobile ol {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      #scholarpath-multiagent-whiteboard .wb-mobile li {
+        position: relative;
+        margin: 0 0 26px 12px;
+        padding: 3px 0 8px 42px;
+        border-bottom: 2px solid var(--border);
+        font-size: max(13px, 3.8vw);
+        line-height: 1.35;
+      }
+
+      #scholarpath-multiagent-whiteboard .wb-mobile li:not(:last-child)::after {
+        content: "↓";
+        position: absolute;
+        left: 14px;
+        bottom: -25px;
+        color: var(--muted-foreground);
+        font-size: 18px;
+      }
+
+      #scholarpath-multiagent-whiteboard .wb-mobile .m-number {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border: 2px solid var(--foreground);
+        border-radius: 43% 57% 51% 49%;
+      }
+
+      #scholarpath-multiagent-whiteboard .wb-mobile strong {
+        display: block;
+        font-weight: 400;
+        color: var(--foreground);
+      }
+
+      #scholarpath-multiagent-whiteboard .wb-mobile span:not(.m-number) {
+        color: var(--muted-foreground);
+      }
+
+      #scholarpath-multiagent-whiteboard .wb-mobile .m-fallback,
+      #scholarpath-multiagent-whiteboard .wb-mobile .m-feedback {
+        margin: -10px 0 24px 54px;
+        padding: 7px 10px;
+        border-left: 3px dashed var(--viz-series-3);
+        color: var(--muted-foreground);
+        font-size: max(12px, 3.5vw);
+      }
+
+      #scholarpath-multiagent-whiteboard .wb-mobile .m-feedback {
+        border-left-color: var(--viz-series-4);
+      }
+
+      #scholarpath-multiagent-whiteboard .wb-signature {
+        white-space: normal;
+      }
+    }
+  </style>
+
+  <div class="wb-sheet">
+    <header class="wb-head">
+      <div>
+        <p class="wb-kicker">ScholarPath under the hood</p>
+        <h2 id="scholarpath-workflow-title">A multi-agent research relay</h2>
+      </div>
+      <p class="wb-note">LangChain structures model interactions. LangGraph orchestrates the workflow. LangSmith traces every step.</p>
+    </header>
+
+    <svg class="wb-desktop" viewBox="0 0 1080 1060" role="img" aria-labelledby="wb-svg-title wb-svg-desc">
+      <title id="wb-svg-title">ScholarPath multi-agent workflow</title>
+      <desc id="wb-svg-desc">A hand-drawn flow from Candidate research profile through planning, discovery with fallback, evidence verification, Research Fit evaluation, independent review, shortlist synthesis, and a Candidate approval gate with a preference-learning feedback loop.</desc>
+      <defs>
+        <marker id="wb-arrow-main" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--foreground)"/>
+        </marker>
+        <marker id="wb-arrow-fallback" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--viz-series-3)"/>
+        </marker>
+        <marker id="wb-arrow-feedback" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--viz-series-4)"/>
+        </marker>
+        <filter id="wb-wobble" x="-5%" y="-5%" width="110%" height="110%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="1" seed="7" result="noise"/>
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.2" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+      </defs>
+
+      <text x="38" y="56" font-size="17" fill="var(--viz-series-5)">HUMAN + MEMORY</text>
+      <text x="355" y="56" font-size="17" fill="var(--viz-series-1)">AGENT RELAY</text>
+      <text x="830" y="56" font-size="17" fill="var(--viz-series-2)">TOOLS + MODELS</text>
+
+      <rect class="human-box" x="34" y="86" width="250" height="90" rx="22" filter="url(#wb-wobble)"/>
+      <text x="159" y="119" text-anchor="middle" font-size="22">Candidate</text>
+      <text class="muted-text" x="159" y="146" text-anchor="middle" font-size="15">research profile + constraints</text>
+
+      <rect class="agent-box" x="350" y="86" width="365" height="90" rx="21" filter="url(#wb-wobble)"/>
+      <text x="532" y="118" text-anchor="middle" font-size="21">1 · Candidate Intake Agent</text>
+      <text class="muted-text" x="532" y="146" text-anchor="middle" font-size="15">structure intent; load durable preferences</text>
+      <path class="flow-line" d="M285 131 C307 129 322 131 345 131"/>
+
+      <rect class="provider-box" x="810" y="89" width="235" height="82" rx="34 20 32 18" filter="url(#wb-wobble)"/>
+      <text x="928" y="121" text-anchor="middle" font-size="20">Mem0</text>
+      <text class="muted-text" x="928" y="145" text-anchor="middle" font-size="14">Candidate-scoped memory</text>
+      <path class="flow-line" d="M805 131 C770 131 758 131 720 131"/>
+
+      <rect class="agent-box" x="350" y="210" width="365" height="90" rx="17 26 18 24" filter="url(#wb-wobble)"/>
+      <text x="532" y="243" text-anchor="middle" font-size="21">2 · Research Planning Agent</text>
+      <text class="muted-text" x="532" y="271" text-anchor="middle" font-size="15">four–eight purposeful search queries</text>
+      <path class="flow-line" d="M532 177 C534 187 530 195 532 205"/>
+
+      <rect class="provider-box" x="810" y="213" width="235" height="82" rx="18 31 20 29" filter="url(#wb-wobble)"/>
+      <text x="928" y="246" text-anchor="middle" font-size="20">OpenAI</text>
+      <text class="muted-text" x="928" y="271" text-anchor="middle" font-size="14">typed SearchPlan</text>
+      <path class="flow-line" d="M805 254 C770 254 754 254 720 254"/>
+
+      <rect class="agent-box" x="350" y="334" width="365" height="90" rx="24 18 27 16" filter="url(#wb-wobble)"/>
+      <text x="532" y="367" text-anchor="middle" font-size="21">3 · Supervisor Discovery Agent</text>
+      <text class="muted-text" x="532" y="395" text-anchor="middle" font-size="15">plausible people + exact provenance</text>
+      <path class="flow-line" d="M532 301 C530 310 534 320 532 329"/>
+
+      <rect class="provider-box" x="810" y="321" width="235" height="56" rx="19 28 17 25" filter="url(#wb-wobble)"/>
+      <text x="928" y="356" text-anchor="middle" font-size="18">You.com · primary</text>
+      <rect class="provider-box" x="810" y="393" width="235" height="56" rx="28 17 25 20" filter="url(#wb-wobble)"/>
+      <text x="928" y="428" text-anchor="middle" font-size="18">Tavily · fallback</text>
+      <path class="flow-line" d="M805 349 C770 349 751 358 720 371"/>
+      <path class="fallback-line" d="M928 378 C929 383 928 386 928 390"/>
+      <text x="1000" y="387" font-size="13" fill="var(--viz-series-3)">timeout / too few</text>
+
+      <rect class="agent-box" x="350" y="458" width="365" height="90" rx="19 24 16 27" filter="url(#wb-wobble)"/>
+      <text x="532" y="491" text-anchor="middle" font-size="21">4 · Evidence Verification Agent</text>
+      <text class="muted-text" x="532" y="519" text-anchor="middle" font-size="15">source-linked claims; availability only if stated</text>
+      <path class="flow-line" d="M532 425 C534 435 530 443 532 453"/>
+
+      <rect class="provider-box" x="810" y="463" width="235" height="80" rx="29 17 31 21" filter="url(#wb-wobble)"/>
+      <text x="928" y="494" text-anchor="middle" font-size="19">Tavily Extract + OpenAI</text>
+      <text class="muted-text" x="928" y="519" text-anchor="middle" font-size="14">retrieve + classify claims</text>
+      <path class="flow-line" d="M805 503 C769 503 752 503 720 503"/>
+
+      <rect class="agent-box" x="350" y="582" width="365" height="90" rx="26 18 22 17" filter="url(#wb-wobble)"/>
+      <text x="532" y="615" text-anchor="middle" font-size="21">5 · Research Fit Evaluation Agent</text>
+      <text class="muted-text" x="532" y="643" text-anchor="middle" font-size="15">100-point rubric + supporting evidence IDs</text>
+      <path class="flow-line" d="M532 549 C530 558 534 568 532 577"/>
+
+      <rect class="provider-box" x="810" y="587" width="235" height="80" rx="17 29 19 27" filter="url(#wb-wobble)"/>
+      <text x="928" y="620" text-anchor="middle" font-size="20">OpenAI</text>
+      <text class="muted-text" x="928" y="645" text-anchor="middle" font-size="14">typed fit assessment</text>
+      <path class="flow-line" d="M805 627 C770 627 752 627 720 627"/>
+
+      <rect class="agent-box" x="350" y="706" width="365" height="90" rx="18 27 16 24" filter="url(#wb-wobble)"/>
+      <text x="532" y="739" text-anchor="middle" font-size="21">6 · Independent Review Agent</text>
+      <text class="muted-text" x="532" y="767" text-anchor="middle" font-size="15">challenge unsupported or inflated scoring</text>
+      <path class="flow-line" d="M532 673 C534 682 530 692 532 701"/>
+
+      <rect class="provider-box" x="810" y="711" width="235" height="80" rx="30 19 27 17" filter="url(#wb-wobble)"/>
+      <text x="928" y="744" text-anchor="middle" font-size="20">Nebius</text>
+      <text class="muted-text" x="928" y="769" text-anchor="middle" font-size="14">accept or recommend revision</text>
+      <path class="flow-line" d="M805 751 C769 751 752 751 720 751"/>
+
+      <rect class="agent-box" x="350" y="830" width="365" height="84" rx="24 17 29 18" filter="url(#wb-wobble)"/>
+      <text x="532" y="862" text-anchor="middle" font-size="21">7 · Shortlist Synthesis Agent</text>
+      <text class="muted-text" x="532" y="889" text-anchor="middle" font-size="15">rank up to five—still only proposed</text>
+      <path class="flow-line" d="M532 797 C530 806 534 816 532 825"/>
+
+      <path class="human-box" d="M532 936 L680 990 L532 1044 L384 990 Z" filter="url(#wb-wobble)"/>
+      <text x="532" y="982" text-anchor="middle" font-size="21">8 · Candidate Review Gate</text>
+      <text class="muted-text" x="532" y="1007" text-anchor="middle" font-size="14">approve · reject · request more</text>
+      <path class="flow-line" d="M532 915 C534 922 530 927 532 933"/>
+
+      <rect class="memory-box" x="35" y="820" width="250" height="91" rx="21 29 18 25" filter="url(#wb-wobble)"/>
+      <text x="160" y="853" text-anchor="middle" font-size="20">Preference Learning Agent</text>
+      <text class="muted-text" x="160" y="880" text-anchor="middle" font-size="14">store explicit feedback in Mem0</text>
+      <path class="feedback-line" d="M382 990 C277 989 162 965 160 916"/>
+      <path class="feedback-line" d="M160 816 C160 587 163 265 345 255"/>
+      <text x="54" y="950" font-size="14" fill="var(--viz-series-4)">reject / request more</text>
+
+      <path class="flow-line" d="M682 990 C756 990 799 964 834 930"/>
+      <text x="734" y="975" font-size="14" fill="var(--viz-series-5)">approve exact IDs</text>
+      <path d="M828 858 h208 v98 h-208 z" class="human-box" filter="url(#wb-wobble)"/>
+      <text x="932" y="894" text-anchor="middle" font-size="20">Save shortlist</text>
+      <text class="muted-text" x="932" y="919" text-anchor="middle" font-size="14">then generate briefing</text>
+    </svg>
+
+    <div class="wb-mobile" aria-label="ScholarPath multi-agent workflow for narrow screens">
+      <ol>
+        <li><span class="m-number">1</span><strong>Candidate Intake Agent</strong><span>Structures the research profile and loads Candidate-scoped preferences.</span></li>
+        <li><span class="m-number">2</span><strong>Research Planning Agent</strong><span>OpenAI returns a typed SearchPlan with purposeful queries.</span></li>
+        <li><span class="m-number">3</span><strong>Supervisor Discovery Agent</strong><span>You.com searches first; deterministic rules retain plausible people and provenance.</span></li>
+      </ol>
+      <p class="m-fallback">↪ On timeout, retryable error, or too few useful profiles: route to Tavily, preserve partial results, then continue.</p>
+      <ol start="4">
+        <li><span class="m-number">4</span><strong>Evidence Verification Agent</strong><span>Tavily retrieves pages; OpenAI extracts source-linked claims without inventing facts.</span></li>
+        <li><span class="m-number">5</span><strong>Research Fit Evaluation Agent</strong><span>OpenAI applies the 100-point rubric and cites supporting evidence IDs.</span></li>
+        <li><span class="m-number">6</span><strong>Independent Review Agent</strong><span>Nebius accepts or recommends a grounded revision.</span></li>
+        <li><span class="m-number">7</span><strong>Shortlist Synthesis Agent</strong><span>Deterministically ranks up to five Verified Supervisors as proposed.</span></li>
+        <li><span class="m-number">8</span><strong>Candidate Review Gate</strong><span>Approve exact IDs, reject with reasons, or request more research.</span></li>
+      </ol>
+      <p class="m-feedback">↩ Rejection or revised preferences flow through the Preference Learning Agent into Mem0, then back to planning. Approval alone unlocks shortlist persistence and the final briefing.</p>
+    </div>
+
+    <footer class="wb-footer">
+      <p class="wb-rule"><strong>Models propose.</strong> Deterministic code validates and routes. <strong>The Candidate decides.</strong></p>
+      <p class="wb-signature">Shanly Rajan | AI Builder</p>
+    </footer>
+  </div>
+</section>

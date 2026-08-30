@@ -1,0 +1,356 @@
+<section id="scholarpath-overview-viz" aria-labelledby="scholarpath-overview-title">
+  <style>
+    #scholarpath-overview-viz,
+    #scholarpath-overview-viz * {
+      box-sizing: border-box;
+    }
+
+    #scholarpath-overview-viz {
+      width: 100%;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: clamp(18px, 4vw, 44px);
+      color: var(--foreground);
+      font-family: inherit;
+      background: transparent;
+    }
+
+    #scholarpath-overview-viz .sp-head {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: clamp(14px, 2.5vw, 24px);
+      align-items: center;
+      padding-bottom: clamp(18px, 3vw, 28px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #scholarpath-overview-viz .sp-cap {
+      display: grid;
+      place-items: center;
+      width: clamp(58px, 8vw, 78px);
+      aspect-ratio: 1;
+      border: 1px solid color-mix(in srgb, var(--viz-series-1) 55%, var(--border));
+      border-radius: 50%;
+      color: var(--viz-series-1);
+      background: color-mix(in srgb, var(--viz-series-1) 11%, transparent);
+    }
+
+    #scholarpath-overview-viz .sp-cap svg {
+      width: 58%;
+      height: 58%;
+    }
+
+    #scholarpath-overview-viz .sp-kicker,
+    #scholarpath-overview-viz .sp-stage-label,
+    #scholarpath-overview-viz .sp-principle-label {
+      margin: 0;
+      color: var(--muted-foreground);
+      font-size: clamp(11px, 1.4vw, 13px);
+      font-weight: 500;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    #scholarpath-overview-viz h2 {
+      margin: 3px 0 5px;
+      font-size: clamp(30px, 6vw, 58px);
+      line-height: 0.98;
+      font-weight: 500;
+      letter-spacing: -0.035em;
+    }
+
+    #scholarpath-overview-viz .sp-tagline {
+      max-width: 760px;
+      margin: 0;
+      color: var(--muted-foreground);
+      font-size: clamp(14px, 2vw, 18px);
+      line-height: 1.45;
+    }
+
+    #scholarpath-overview-viz .sp-promise {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(210px, 0.7fr);
+      gap: clamp(18px, 4vw, 42px);
+      align-items: end;
+      padding: clamp(22px, 4vw, 42px) 0;
+    }
+
+    #scholarpath-overview-viz .sp-promise h3 {
+      max-width: 720px;
+      margin: 0;
+      font-size: clamp(23px, 4.2vw, 42px);
+      line-height: 1.08;
+      font-weight: 500;
+      letter-spacing: -0.025em;
+    }
+
+    #scholarpath-overview-viz .sp-promise-note {
+      margin: 0;
+      padding-left: 16px;
+      border-left: 3px solid var(--viz-series-2);
+      color: var(--muted-foreground);
+      font-size: clamp(13px, 1.7vw, 15px);
+      line-height: 1.5;
+    }
+
+    #scholarpath-overview-viz .sp-journey-title {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin: 0 0 15px;
+      font-size: clamp(14px, 2vw, 17px);
+      font-weight: 500;
+    }
+
+    #scholarpath-overview-viz .sp-journey-title::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    #scholarpath-overview-viz .sp-journey {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: clamp(18px, 2.5vw, 28px);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    #scholarpath-overview-viz .sp-stage {
+      position: relative;
+      min-height: 154px;
+      padding: 15px 13px 14px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: color-mix(in srgb, var(--card) 86%, transparent);
+    }
+
+    #scholarpath-overview-viz .sp-stage:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      top: 50%;
+      right: calc(clamp(18px, 2.5vw, 28px) * -0.72);
+      z-index: 2;
+      transform: translate(50%, -50%);
+      color: var(--muted-foreground);
+      font-size: 20px;
+    }
+
+    #scholarpath-overview-viz .sp-stage-number {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      margin-bottom: 16px;
+      border-radius: 50%;
+      color: var(--background);
+      background: var(--sp-accent, var(--viz-series-1));
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    #scholarpath-overview-viz .sp-stage:nth-child(2) { --sp-accent: var(--viz-series-2); }
+    #scholarpath-overview-viz .sp-stage:nth-child(3) { --sp-accent: var(--viz-series-3); }
+    #scholarpath-overview-viz .sp-stage:nth-child(4) { --sp-accent: var(--viz-series-4); }
+    #scholarpath-overview-viz .sp-stage:nth-child(5) { --sp-accent: var(--viz-series-5); }
+
+    #scholarpath-overview-viz .sp-stage h4 {
+      margin: 4px 0 7px;
+      font-size: clamp(14px, 1.8vw, 17px);
+      line-height: 1.2;
+      font-weight: 500;
+    }
+
+    #scholarpath-overview-viz .sp-stage p {
+      margin: 0;
+      color: var(--muted-foreground);
+      font-size: clamp(12px, 1.45vw, 14px);
+      line-height: 1.42;
+    }
+
+    #scholarpath-overview-viz .sp-stage.sp-human {
+      border-style: dashed;
+      border-color: color-mix(in srgb, var(--viz-series-5) 70%, var(--border));
+      background: color-mix(in srgb, var(--viz-series-5) 9%, var(--card));
+    }
+
+    #scholarpath-overview-viz .sp-principles {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(14px, 3vw, 28px);
+      margin-top: clamp(24px, 4vw, 38px);
+      padding-top: clamp(18px, 3vw, 25px);
+      border-top: 1px solid var(--border);
+    }
+
+    #scholarpath-overview-viz .sp-principle {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 11px;
+      align-items: start;
+    }
+
+    #scholarpath-overview-viz .sp-principle-mark {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      color: var(--viz-series-1);
+      background: color-mix(in srgb, var(--viz-series-1) 12%, transparent);
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    #scholarpath-overview-viz .sp-principle:nth-child(2) .sp-principle-mark {
+      color: var(--viz-series-3);
+      background: color-mix(in srgb, var(--viz-series-3) 12%, transparent);
+    }
+
+    #scholarpath-overview-viz .sp-principle:nth-child(3) .sp-principle-mark {
+      color: var(--viz-series-5);
+      background: color-mix(in srgb, var(--viz-series-5) 12%, transparent);
+    }
+
+    #scholarpath-overview-viz .sp-principle p {
+      margin: 5px 0 0;
+      color: var(--muted-foreground);
+      font-size: clamp(12px, 1.5vw, 14px);
+      line-height: 1.45;
+    }
+
+    #scholarpath-overview-viz .sp-signature {
+      margin: clamp(24px, 4vw, 38px) 0 0;
+      color: var(--muted-foreground);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-align: right;
+    }
+
+    @media (max-width: 760px) {
+      #scholarpath-overview-viz .sp-promise {
+        grid-template-columns: 1fr;
+        align-items: start;
+      }
+
+      #scholarpath-overview-viz .sp-journey {
+        grid-template-columns: 1fr;
+        gap: 28px;
+      }
+
+      #scholarpath-overview-viz .sp-stage {
+        min-height: auto;
+      }
+
+      #scholarpath-overview-viz .sp-stage:not(:last-child)::after {
+        content: "↓";
+        top: auto;
+        right: 50%;
+        bottom: -25px;
+        transform: translateX(50%);
+      }
+
+      #scholarpath-overview-viz .sp-principles {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 420px) {
+      #scholarpath-overview-viz {
+        padding-inline: 14px;
+      }
+
+      #scholarpath-overview-viz .sp-head {
+        grid-template-columns: 1fr;
+      }
+
+      #scholarpath-overview-viz .sp-cap {
+        width: 54px;
+      }
+    }
+  </style>
+
+  <header class="sp-head">
+    <div class="sp-cap" aria-hidden="true">
+      <svg viewBox="0 0 48 48" fill="none">
+        <path d="M5 18.5 24 9l19 9.5L24 28 5 18.5Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M13 23.5V32c5.8 5.4 16.2 5.4 22 0v-8.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M43 19v12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="43" cy="34" r="2.2" fill="currentColor"/>
+      </svg>
+    </div>
+    <div>
+      <p class="sp-kicker">Postgraduate research discovery</p>
+      <h2 id="scholarpath-overview-title">ScholarPath</h2>
+      <p class="sp-tagline">Evidence-backed Supervisor discovery for postgraduate research.</p>
+    </div>
+  </header>
+
+  <div class="sp-promise">
+    <h3>From fragmented academic search to a shortlist the Candidate can trust—and control.</h3>
+    <p class="sp-promise-note">Models help interpret evidence. Deterministic code validates, routes, scores, and enforces lifecycle rules.</p>
+  </div>
+
+  <h3 class="sp-journey-title">The Candidate journey</h3>
+  <ol class="sp-journey" aria-label="ScholarPath Candidate journey">
+    <li class="sp-stage">
+      <span class="sp-stage-number">1</span>
+      <p class="sp-stage-label">Intent</p>
+      <h4>Research profile</h4>
+      <p>Capture themes, methods, regions, study mode, orientation, and exclusions.</p>
+    </li>
+    <li class="sp-stage">
+      <span class="sp-stage-number">2</span>
+      <p class="sp-stage-label">Explore</p>
+      <h4>Plan &amp; discover</h4>
+      <p>Generate purposeful queries and find plausible academic profiles across resilient providers.</p>
+    </li>
+    <li class="sp-stage">
+      <span class="sp-stage-number">3</span>
+      <p class="sp-stage-label">Ground</p>
+      <h4>Verify evidence</h4>
+      <p>Preserve source links for identity, affiliation, research activity, and stated availability.</p>
+    </li>
+    <li class="sp-stage">
+      <span class="sp-stage-number">4</span>
+      <p class="sp-stage-label">Evaluate</p>
+      <h4>Research Fit</h4>
+      <p>Assess alignment, cite evidence IDs, and independently review the first assessment.</p>
+    </li>
+    <li class="sp-stage sp-human">
+      <span class="sp-stage-number">5</span>
+      <p class="sp-stage-label">Human authority</p>
+      <h4>Review &amp; shortlist</h4>
+      <p>The Candidate approves exact Supervisor IDs—or rejects and refines the search.</p>
+    </li>
+  </ol>
+
+  <div class="sp-principles" aria-label="ScholarPath trust principles">
+    <div class="sp-principle">
+      <span class="sp-principle-mark" aria-hidden="true">✓</span>
+      <div>
+        <p class="sp-principle-label">Evidence first</p>
+        <p>Every factual claim retains its source provenance and verification confidence.</p>
+      </div>
+    </div>
+    <div class="sp-principle">
+      <span class="sp-principle-mark" aria-hidden="true">↻</span>
+      <div>
+        <p class="sp-principle-label">Resilient workflow</p>
+        <p>Bounded retries, provider fallback, partial results, and durable graph state.</p>
+      </div>
+    </div>
+    <div class="sp-principle">
+      <span class="sp-principle-mark" aria-hidden="true">◆</span>
+      <div>
+        <p class="sp-principle-label">Candidate decides</p>
+        <p>No persistent shortlist or outreach action occurs before explicit approval.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="sp-signature">Shanly Rajan | AI Builder</p>
+</section>
