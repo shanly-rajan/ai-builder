@@ -154,6 +154,7 @@ def test_initial_state_populates_every_channel_with_safe_defaults() -> None:
     assert state["research_fit_review_records"] == []
     assert state["candidate_review_error"] is None
     assert state["evidence_extraction_attempts"] == []
+    assert state["alternate_source_attempts"] == []
     assert state["alternate_evidence_sources"] == {}
     assert state["fallback_search_used"] is False
     assert state["fallback_search_round"] is None

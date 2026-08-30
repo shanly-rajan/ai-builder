@@ -147,13 +147,15 @@ from .state import (
     create_initial_state,
 )
 from .verification import (
+    AlternateSourceAttempt,
+    AlternateSourceSelectionOutcome,
     EvidenceExtractionAttempt,
     EvidenceVerificationRoute,
     VerificationPolicy,
     alternate_official_source_query,
     classify_evidence_source_kind,
+    evaluate_alternate_official_sources,
     route_after_evidence_sufficiency,
-    select_alternate_official_source,
 )
 
 LOAD_CANDIDATE_PREFERENCES: Final = "load_candidate_preferences"
@@ -1113,7 +1115,9 @@ class DeterministicScholarPathNodes:
     def retry_alternate_evidence_source(self, state: ScholarPathState) -> ScholarPathStateUpdate:
         """Search once per partial record and retain only a selected official source URL."""
         current_retry = state["retry_counts"]["evidence"]
+        attempt_number = current_retry + 1
         alternate_sources = dict(state["alternate_evidence_sources"])
+        alternate_source_attempts: list[AlternateSourceAttempt] = []
         errors: list[ToolErrorRecord] = []
         partial_records = [
             record
@@ -1124,6 +1128,16 @@ class DeterministicScholarPathNodes:
             supervisor = record.prospective_supervisor
             query = alternate_official_source_query(supervisor)
             if self.alternate_evidence_search is None:
+                alternate_source_attempts.append(
+                    AlternateSourceAttempt(
+                        supervisor_id=supervisor.supervisor_id,
+                        attempt_number=attempt_number,
+                        discovery_round=state["discovery_round"],
+                        outcome=AlternateSourceSelectionOutcome.NOT_CONFIGURED,
+                        result_count=0,
+                        eligible_result_count=0,
+                    )
+                )
                 errors.append(
                     self._error(
                         RETRY_ALTERNATE_EVIDENCE_SOURCE,
@@ -1136,6 +1150,17 @@ class DeterministicScholarPathNodes:
             try:
                 results = self.alternate_evidence_search.search(query)
             except SearchProviderError as error:
+                alternate_source_attempts.append(
+                    AlternateSourceAttempt(
+                        supervisor_id=supervisor.supervisor_id,
+                        attempt_number=attempt_number,
+                        discovery_round=state["discovery_round"],
+                        outcome=AlternateSourceSelectionOutcome.PROVIDER_ERROR,
+                        result_count=0,
+                        eligible_result_count=0,
+                        error_category=error.category,
+                    )
+                )
                 errors.append(
                     self._search_error_record(
                         RETRY_ALTERNATE_EVIDENCE_SOURCE,
@@ -1147,6 +1172,17 @@ class DeterministicScholarPathNodes:
                     break
                 continue
             except Exception:
+                alternate_source_attempts.append(
+                    AlternateSourceAttempt(
+                        supervisor_id=supervisor.supervisor_id,
+                        attempt_number=attempt_number,
+                        discovery_round=state["discovery_round"],
+                        outcome=AlternateSourceSelectionOutcome.PROVIDER_ERROR,
+                        result_count=0,
+                        eligible_result_count=0,
+                        error_category=SearchErrorCategory.UNKNOWN,
+                    )
+                )
                 errors.append(
                     self._error(
                         RETRY_ALTERNATE_EVIDENCE_SOURCE,
@@ -1157,11 +1193,23 @@ class DeterministicScholarPathNodes:
                 )
                 continue
 
-            selected = select_alternate_official_source(
+            evaluation = evaluate_alternate_official_sources(
                 supervisor,
                 results,
                 query=query,
             )
+            alternate_source_attempts.append(
+                AlternateSourceAttempt(
+                    supervisor_id=supervisor.supervisor_id,
+                    attempt_number=attempt_number,
+                    discovery_round=state["discovery_round"],
+                    outcome=evaluation.outcome,
+                    result_count=evaluation.result_count,
+                    eligible_result_count=evaluation.eligible_result_count,
+                    rejection_counts=evaluation.rejection_counts,
+                )
+            )
+            selected = evaluation.selected_source
             if selected is None:
                 errors.append(
                     self._error(
@@ -1176,6 +1224,7 @@ class DeterministicScholarPathNodes:
 
         update: ScholarPathStateUpdate = {
             "retry_counts": self._retry_counts(state, "evidence", current_retry + 1),
+            "alternate_source_attempts": alternate_source_attempts,
             "alternate_evidence_sources": alternate_sources,
             "execution_log": [RETRY_ALTERNATE_EVIDENCE_SOURCE],
         }

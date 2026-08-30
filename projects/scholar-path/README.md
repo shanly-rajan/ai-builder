@@ -30,6 +30,11 @@ profiles. It accepts one only when a person-like title, matching singular profil
 same-identity positive scholarly context, and owner-linked complete institution all agree;
 planned topic phrases and unrelated-person results remain excluded.
 
+The bounded M12.4 repair makes alternate official-source failures explainable without
+changing verification. It records typed, replay-safe selection outcomes and first-failed-gate
+counts, then exposes only current-round aggregates in Streamlit. Search queries, returned text,
+URLs, Supervisor identities, Candidate research content, and secrets remain outside the view.
+
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
 graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. Unit and
@@ -62,7 +67,8 @@ See [current architecture](docs/architecture.md), the historical
 the current [M10 Candidate-memory graph](docs/m10-candidate-preference-memory-graph.mmd),
 the [M11 Streamlit application boundary](docs/m11-streamlit-interface.mmd), the
 [M11.2 discovery-completion repair](docs/m11-2-discovery-completion-repair.mmd), the
-[M11.3 academic-profile context repair](docs/m11-3-academic-profile-context-repair.mmd), and
+[M11.3 academic-profile context repair](docs/m11-3-academic-profile-context-repair.mmd), the
+[M12.4 alternate-source diagnostics boundary](docs/m12-4-alternate-source-diagnostics.mmd), and
 [canonical terminology](docs/terminology.md) for the current boundaries.
 
 ## M1 domain contracts
@@ -727,7 +733,7 @@ To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_WORKSPACE_ID` only when the API key is scoped to more than one workspace.
 These values are loaded from `.env` and passed explicitly to the LangSmith client.
 `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag; the implementation
-supplies the fixed `graph-version:m12.3` tag. Disabling tracing does not construct a
+supplies the fixed `graph-version:m12.4` tag. Disabling tracing does not construct a
 LangSmith client, even if another process has globally enabled tracing.
 
 ### Run the M12 evaluation suite
@@ -857,6 +863,24 @@ The identity, current institution and department, research evidence, five-Verifi
 threshold, one alternate-source pass, separate availability status, and Candidate approval
 gate remain unchanged. See
 [`docs/m12-3-official-profile-context-repair.mmd`](docs/m12-3-official-profile-context-repair.mmd).
+
+### M12.4 privacy-safe alternate-source diagnostics repair
+
+Each partially verified Supervisor that reaches the existing alternate lookup now produces a
+typed outcome: `selected`, `no_results`, `rejected_all`, `provider_error`, or
+`not_configured`. Every returned result is accounted for exactly once as eligible or rejected
+at its first failed deterministic gate: query binding, primary-URL duplication, HTTPS/host,
+exact person text, exact institution text, singular person route, academic host, or supported
+source kind. The first eligible source is still selected; no selector rule is relaxed.
+
+Checkpointed attempt records retain an opaque Supervisor ID, discovery round, bounded attempt
+number, outcome, aggregate counts, and optional typed error category. The Streamlit projection
+combines only the current discovery round and omits identities, queries, result text, URLs,
+retrieved pages, Candidate research content, and secrets. Empty results can therefore be
+distinguished from rejected results and provider failures without exposing search content.
+The one alternate-source pass, verification threshold, evidence rules, availability status,
+Research Fit behavior, and Candidate approval gate remain unchanged. See
+[`docs/m12-4-alternate-source-diagnostics.mmd`](docs/m12-4-alternate-source-diagnostics.mmd).
 
 ### Run the Streamlit application locally
 
@@ -1045,6 +1069,21 @@ Expected result: `3 passed`. The cases prove collaborator-safe identity handling
 mocked You.com transport-to-domain boundary for a `/persons/<name>` profile and a generic
 topic page, and downstream graph continuation without Tavily. No provider key, model,
 trace client, checkpoint file, or external network is used.
+
+### 60-second M12.4 alternate-source diagnostics demonstration
+
+Run the focused offline accounting, graph, and interface regressions:
+
+```bash
+pytest -o addopts='' -q \
+  tests/unit/graph/test_alternate_source_diagnostics.py::test_selector_counts_every_first_failed_gate_and_preserves_first_selection \
+  tests/graph/test_m6_evidence_verification.py::test_same_surname_wrong_person_is_not_used_as_an_alternate_source \
+  tests/integration/test_streamlit_app.py::test_alternate_source_rejection_breakdown_is_rendered_without_sensitive_content
+```
+
+Expected result: `3 passed`. These cases prove exact result accounting, a typed
+wrong-person rejection on the real graph route, and aggregate-only Streamlit rendering. They
+use fakes and fixed data, so no provider key, model, checkpoint file, or network call is used.
 
 ## Quality and test commands
 

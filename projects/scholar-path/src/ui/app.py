@@ -16,6 +16,7 @@ from ..graph import (
 from . import dependencies
 from .controller import build_candidate_submission, build_request_more_response
 from .models import (
+    AlternateSourceDiagnosticsView,
     DiscoveryDiagnosticsView,
     GraphProgressEvent,
     UiRunSnapshot,
@@ -284,8 +285,44 @@ def _render_verified_supervisor(
                 )
 
 
+def _render_alternate_source_diagnostics(
+    diagnostics: AlternateSourceDiagnosticsView,
+) -> None:
+    """Render aggregate official-profile selection facts without source content."""
+    st.subheader("Privacy-safe alternate-source diagnostics")
+    st.caption(
+        "Aggregate counts only. Search queries, result text, URLs, Supervisor identities, "
+        "Candidate research content, and credentials are not displayed."
+    )
+    attempted_column, result_column, eligible_column, selected_column = st.columns(4)
+    attempted_column.metric(
+        "Prospective Supervisors searched",
+        diagnostics.attempted_supervisor_count,
+    )
+    result_column.metric("Alternate search results", diagnostics.result_count)
+    eligible_column.metric("Eligible official profiles", diagnostics.eligible_result_count)
+    selected_column.metric("Selected official sources", diagnostics.selected_source_count)
+    st.write(f"Searches with no results: {diagnostics.no_results_count}")
+    st.write(f"Searches with every result rejected: {diagnostics.rejected_all_count}")
+    st.write(f"Provider errors: {diagnostics.provider_error_count}")
+    st.write(f"Unconfigured searches: {diagnostics.not_configured_count}")
+    st.markdown("#### Why alternate results were excluded")
+    counts = diagnostics.rejection_counts
+    st.caption(f"First-failed selector gates account for {counts.total} alternate search results.")
+    st.write(f"Originating-query mismatch: {counts.query_mismatch}")
+    st.write(f"Same as the discovered profile URL: {counts.same_url}")
+    st.write(f"HTTPS or hostname invalid: {counts.https_or_host_invalid}")
+    st.write(f"Exact person text missing: {counts.exact_person_text_missing}")
+    st.write(f"Exact institution text missing: {counts.exact_institution_text_missing}")
+    st.write(f"Singular person-profile route missing: {counts.singular_route_mismatch}")
+    st.write(f"Academic institution host mismatch: {counts.academic_host_mismatch}")
+    st.write(f"Official source kind unsupported: {counts.source_kind_unsupported}")
+
+
 def _render_verified_supervisors(snapshot: UiRunSnapshot) -> None:
     st.header(STAGE_LABELS[3])
+    if snapshot.alternate_source_diagnostics is not None:
+        _render_alternate_source_diagnostics(snapshot.alternate_source_diagnostics)
     if not snapshot.verified_supervisors:
         st.info("No Verified Supervisors are available yet.")
         return

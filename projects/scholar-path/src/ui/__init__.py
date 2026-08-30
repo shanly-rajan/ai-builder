@@ -8,6 +8,7 @@ from .controller import (
     project_graph_state_to_ui,
 )
 from .models import (
+    AlternateSourceDiagnosticsView,
     CandidateResearchProfileSubmission,
     DiscoveryAttemptView,
     DiscoveryDiagnosticsView,
@@ -28,6 +29,7 @@ from .service import (
 )
 
 __all__ = [
+    "AlternateSourceDiagnosticsView",
     "CandidateResearchProfileSubmission",
     "DiscoveryAttemptView",
     "DiscoveryDiagnosticsView",

@@ -4,8 +4,8 @@
 
 | Field | Value |
 |---|---|
-| Baseline identifier | `scholarpath-m12-3-fake-baseline-2026-08-29` |
-| Date | 2026-08-29 |
+| Baseline identifier | `scholarpath-m12-4-fake-baseline-2026-08-30` |
+| Date | 2026-08-30 |
 | Dataset | `scholarpath-m12-regression-v1` |
 | Dataset size | 11 curated synthetic scenarios |
 | Execution mode | Direct offline fake targets and deterministic evaluators |
@@ -25,7 +25,7 @@ an explicit, credentialed operation through the supported LangSmith `Client.eval
 | Version | Recorded value |
 |---|---|
 | Application | `scholarpath` |
-| Graph version | `m12.3` |
+| Graph version | `m12.4` |
 | Dataset schema version | `m12-scenarios-v1` |
 | Research Planning prompt version | `research-planning-v2` |
 | Evidence Verification prompt version | `evidence-verification-v3` |

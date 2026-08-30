@@ -1,0 +1,39 @@
+flowchart LR
+    P[Partially verified Supervisor] --> Q[Build existing alternate official-source query]
+    Q --> S[Run the existing bounded search once]
+    S --> O{Provider outcome}
+    O -->|Not configured| NC[Record not_configured]
+    O -->|Typed error| PE[Record provider_error category]
+    O -->|Results| G[Apply selector gates in fixed order]
+
+    G --> QM[Originating-query match]
+    QM --> SU[Different from primary URL]
+    SU --> HH[Valid HTTPS and hostname]
+    HH --> PN[Exact person text]
+    PN --> IN[Exact institution text]
+    IN --> SR[Singular person-profile route]
+    SR --> AH[Matching academic host]
+    AH --> SK[Supported official source kind]
+
+    QM -. first failure .-> R[Increment one typed rejection count]
+    SU -. first failure .-> R
+    HH -. first failure .-> R
+    PN -. first failure .-> R
+    IN -. first failure .-> R
+    SR -. first failure .-> R
+    AH -. first failure .-> R
+    SK -. first failure .-> R
+    SK -->|Eligible| F[Count eligible result and retain first source]
+
+    R --> A[Build rejected_all or selected attempt]
+    F --> A
+    O -->|Zero results| Z[Record no_results]
+    NC --> C[Checkpoint replay-safe AlternateSourceAttempt]
+    PE --> C
+    A --> C
+    Z --> C
+    F --> E[Existing alternate extraction retry]
+
+    C --> U[Aggregate current discovery round]
+    U --> V[Streamlit counts and first-failed-gate breakdown]
+    X[Queries, result text, URLs, identities, page content, Candidate content, secrets] -. omitted .-> V

@@ -23,6 +23,7 @@ from ..domain import (
     SupervisorLifecycleStatus,
     VerificationStatus,
 )
+from ..graph.verification import AlternateSourceRejectionCounts
 from ..tools import SearchErrorCategory, SearchProvider
 
 NonEmptyUiText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
@@ -161,6 +162,40 @@ class DiscoveryDiagnosticsView(BaseModel):
         return self
 
 
+class AlternateSourceDiagnosticsView(BaseModel):
+    """Current-round alternate-profile diagnostics with all source content omitted."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, validate_default=True)
+
+    attempted_supervisor_count: Annotated[int, Field(strict=True, ge=1)]
+    result_count: Annotated[int, Field(strict=True, ge=0)]
+    eligible_result_count: Annotated[int, Field(strict=True, ge=0)]
+    selected_source_count: Annotated[int, Field(strict=True, ge=0)]
+    no_results_count: Annotated[int, Field(strict=True, ge=0)]
+    rejected_all_count: Annotated[int, Field(strict=True, ge=0)]
+    provider_error_count: Annotated[int, Field(strict=True, ge=0)]
+    not_configured_count: Annotated[int, Field(strict=True, ge=0)]
+    rejection_counts: AlternateSourceRejectionCounts
+
+    @model_validator(mode="after")
+    def aggregate_counts_must_be_consistent(self) -> AlternateSourceDiagnosticsView:
+        """Prevent incomplete or impossible evidence-source diagnostics."""
+        outcome_count = (
+            self.selected_source_count
+            + self.no_results_count
+            + self.rejected_all_count
+            + self.provider_error_count
+            + self.not_configured_count
+        )
+        if outcome_count != self.attempted_supervisor_count:
+            raise ValueError("Alternate-source outcomes must equal the attempt count")
+        if self.eligible_result_count + self.rejection_counts.total != self.result_count:
+            raise ValueError("Alternate-source result counts must be fully accounted for")
+        if self.selected_source_count > self.eligible_result_count:
+            raise ValueError("Selected sources cannot exceed eligible results")
+        return self
+
+
 class EvidenceSourceView(BaseModel):
     """Concise evidence provenance suitable for Candidate display."""
 
@@ -229,6 +264,7 @@ class UiRunSnapshot(BaseModel):
     checkpoint_token: NonEmptyUiText
     progress_events: tuple[GraphProgressEvent, ...] = ()
     discovery_diagnostics: DiscoveryDiagnosticsView | None = None
+    alternate_source_diagnostics: AlternateSourceDiagnosticsView | None = None
     prospective_supervisors: tuple[ProspectiveSupervisorView, ...] = ()
     verified_supervisors: tuple[VerifiedSupervisorView, ...] = ()
     review_supervisors: tuple[VerifiedSupervisorView, ...] = ()

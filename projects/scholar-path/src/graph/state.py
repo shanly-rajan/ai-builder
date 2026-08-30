@@ -21,7 +21,7 @@ from ..domain import (
 )
 from ..memory import CandidateMemoryRecord
 from .discovery import SearchAttempt
-from .verification import EvidenceExtractionAttempt, EvidenceSourceReference
+from .verification import AlternateSourceAttempt, EvidenceExtractionAttempt, EvidenceSourceReference
 
 
 def append_items[T](left: list[T], right: list[T]) -> list[T]:
@@ -54,6 +54,26 @@ def merge_candidate_memory_records(
         if record.memory_id not in seen:
             merged.append(record)
             seen.add(record.memory_id)
+    return merged
+
+
+def merge_alternate_source_attempts(
+    left: list[AlternateSourceAttempt], right: list[AlternateSourceAttempt]
+) -> list[AlternateSourceAttempt]:
+    """Merge replay-safe alternate-source audits by bounded attempt identity."""
+    merged = list(left)
+    positions = {
+        (attempt.discovery_round, attempt.attempt_number, attempt.supervisor_id): index
+        for index, attempt in enumerate(merged)
+    }
+    for attempt in right:
+        key = (attempt.discovery_round, attempt.attempt_number, attempt.supervisor_id)
+        position = positions.get(key)
+        if position is None:
+            positions[key] = len(merged)
+            merged.append(attempt)
+        else:
+            merged[position] = attempt
     return merged
 
 
@@ -133,6 +153,9 @@ class ScholarPathState(TypedDict):
     verified_supervisors: list[VerifiedSupervisor]
     verification_records: list[SupervisorVerificationRecord]
     evidence_extraction_attempts: Annotated[list[EvidenceExtractionAttempt], append_items]
+    alternate_source_attempts: Annotated[
+        list[AlternateSourceAttempt], merge_alternate_source_attempts
+    ]
     alternate_evidence_sources: dict[str, EvidenceSourceReference]
     research_fit_assessments: list[ResearchFitAssessment]
     research_fit_review_records: list[ReconciledResearchFitAssessment]
@@ -167,6 +190,7 @@ class ScholarPathStateUpdate(TypedDict, total=False):
     verified_supervisors: list[VerifiedSupervisor]
     verification_records: list[SupervisorVerificationRecord]
     evidence_extraction_attempts: list[EvidenceExtractionAttempt]
+    alternate_source_attempts: list[AlternateSourceAttempt]
     alternate_evidence_sources: dict[str, EvidenceSourceReference]
     research_fit_assessments: list[ResearchFitAssessment]
     research_fit_review_records: list[ReconciledResearchFitAssessment]
@@ -201,6 +225,7 @@ def create_initial_state(candidate_profile: CandidateProfile) -> ScholarPathStat
         verified_supervisors=[],
         verification_records=[],
         evidence_extraction_attempts=[],
+        alternate_source_attempts=[],
         alternate_evidence_sources={},
         research_fit_assessments=[],
         research_fit_review_records=[],

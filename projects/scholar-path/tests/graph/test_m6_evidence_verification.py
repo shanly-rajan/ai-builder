@@ -18,6 +18,7 @@ from scholarpath.domain import (
     VerificationStatus,
 )
 from scholarpath.graph import (
+    AlternateSourceSelectionOutcome,
     CandidateApproveResponse,
     ReviewStatus,
     ScholarPathState,
@@ -239,6 +240,13 @@ def test_failed_profile_uses_one_alternate_official_source_and_retries_once() ->
         (1, False),
         (2, True),
     ]
+    assert len(final_state["alternate_source_attempts"]) == 1
+    source_attempt = final_state["alternate_source_attempts"][0]
+    assert source_attempt.supervisor_id == supervisor.supervisor_id
+    assert source_attempt.outcome is AlternateSourceSelectionOutcome.SELECTED
+    assert source_attempt.result_count == 1
+    assert source_attempt.eligible_result_count == 1
+    assert source_attempt.rejection_counts.total == 0
 
 
 def test_failed_profile_accepts_one_person_page_on_an_abbreviated_academic_host() -> None:
@@ -335,6 +343,14 @@ def test_same_surname_wrong_person_is_not_used_as_an_alternate_source() -> None:
     assert any(
         error.code == "alternate_official_source_not_found" for error in final_state["tool_errors"]
     )
+    source_attempt = next(
+        item
+        for item in final_state["alternate_source_attempts"]
+        if item.supervisor_id == supervisor.supervisor_id
+    )
+    assert source_attempt.outcome is AlternateSourceSelectionOutcome.REJECTED_ALL
+    assert source_attempt.result_count == 1
+    assert source_attempt.rejection_counts.exact_person_text_missing == 1
 
 
 def test_exact_academic_host_collection_page_is_not_used_as_an_alternate_source() -> None:
@@ -375,6 +391,14 @@ def test_exact_academic_host_collection_page_is_not_used_as_an_alternate_source(
     assert any(
         error.code == "alternate_official_source_not_found" for error in final_state["tool_errors"]
     )
+    source_attempt = next(
+        item
+        for item in final_state["alternate_source_attempts"]
+        if item.supervisor_id == supervisor.supervisor_id
+    )
+    assert source_attempt.outcome is AlternateSourceSelectionOutcome.REJECTED_ALL
+    assert source_attempt.result_count == 1
+    assert source_attempt.rejection_counts.singular_route_mismatch == 1
 
 
 def test_returned_primary_url_is_used_for_conservative_source_provenance() -> None:
@@ -451,6 +475,11 @@ def test_retry_exhaustion_retains_five_successes_and_partial_records() -> None:
         for record in partial
     )
     assert "evaluate_research_fit" in final_state["execution_log"]
+    assert len(final_state["alternate_source_attempts"]) == 3
+    assert all(
+        attempt.outcome is AlternateSourceSelectionOutcome.NO_RESULTS and attempt.result_count == 0
+        for attempt in final_state["alternate_source_attempts"]
+    )
 
 
 def test_non_retryable_alternate_search_error_stops_further_search_calls() -> None:
@@ -482,6 +511,10 @@ def test_non_retryable_alternate_search_error_stops_further_search_calls() -> No
     assert len(final_state["verified_supervisors"]) == 5
     assert final_state["retry_counts"]["evidence"] == 1
     assert any(error.code == "tavily_search_authentication" for error in final_state["tool_errors"])
+    assert len(final_state["alternate_source_attempts"]) == 1
+    source_attempt = final_state["alternate_source_attempts"][0]
+    assert source_attempt.outcome is AlternateSourceSelectionOutcome.PROVIDER_ERROR
+    assert source_attempt.error_category is SearchErrorCategory.AUTHENTICATION
 
 
 def test_below_minimum_after_retry_exhaustion_stops_with_recoverable_status() -> None:

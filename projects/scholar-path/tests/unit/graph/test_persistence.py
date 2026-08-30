@@ -4,7 +4,12 @@ import pytest
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from pydantic import BaseModel
 
-from scholarpath.graph import SearchAttempt
+from scholarpath.graph import (
+    AlternateSourceAttempt,
+    AlternateSourceRejectionCounts,
+    AlternateSourceSelectionOutcome,
+    SearchAttempt,
+)
 from scholarpath.graph.persistence import _checkpoint_serializer
 
 
@@ -71,3 +76,24 @@ def test_checkpoint_serializer_restores_pre_m11_2_search_attempts() -> None:
 
     assert isinstance(restored, SearchAttempt)
     assert restored.rejection_counts is None
+
+
+def test_checkpoint_serializer_round_trips_privacy_safe_alternate_source_attempt() -> None:
+    serializer = _checkpoint_serializer()
+    attempt = AlternateSourceAttempt(
+        supervisor_id="supervisor-001",
+        attempt_number=1,
+        discovery_round=2,
+        outcome=AlternateSourceSelectionOutcome.REJECTED_ALL,
+        result_count=2,
+        eligible_result_count=0,
+        rejection_counts=AlternateSourceRejectionCounts(
+            exact_person_text_missing=1,
+            exact_institution_text_missing=1,
+        ),
+    )
+
+    restored = serializer.loads_typed(serializer.dumps_typed(attempt))
+
+    assert restored == attempt
+    assert isinstance(restored, AlternateSourceAttempt)

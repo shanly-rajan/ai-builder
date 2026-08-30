@@ -20,6 +20,8 @@ from ..domain import (
 )
 from ..graph import (
     CANONICAL_NODE_NAMES,
+    AlternateSourceRejectionCounts,
+    AlternateSourceSelectionOutcome,
     CandidateRequestMoreResponse,
     CandidateReviewInterruptPayload,
     ReviewStatus,
@@ -28,6 +30,7 @@ from ..graph import (
 )
 from ..tools import SearchProvider
 from .models import (
+    AlternateSourceDiagnosticsView,
     CandidateResearchProfileSubmission,
     DiscoveryAttemptView,
     DiscoveryDiagnosticsView,
@@ -314,6 +317,48 @@ def _discovery_diagnostics(state: ScholarPathState) -> DiscoveryDiagnosticsView 
     )
 
 
+def _alternate_source_diagnostics(
+    state: ScholarPathState,
+) -> AlternateSourceDiagnosticsView | None:
+    """Aggregate current-round selector outcomes without exposing source or Candidate data."""
+    current_attempts = tuple(
+        attempt
+        for attempt in state.get("alternate_source_attempts", [])
+        if attempt.discovery_round == state["discovery_round"]
+    )
+    if not current_attempts:
+        return None
+    rejection_counts = AlternateSourceRejectionCounts()
+    for attempt in current_attempts:
+        rejection_counts = rejection_counts.combine(attempt.rejection_counts)
+    return AlternateSourceDiagnosticsView(
+        attempted_supervisor_count=len(current_attempts),
+        result_count=sum(attempt.result_count for attempt in current_attempts),
+        eligible_result_count=sum(attempt.eligible_result_count for attempt in current_attempts),
+        selected_source_count=sum(
+            attempt.outcome is AlternateSourceSelectionOutcome.SELECTED
+            for attempt in current_attempts
+        ),
+        no_results_count=sum(
+            attempt.outcome is AlternateSourceSelectionOutcome.NO_RESULTS
+            for attempt in current_attempts
+        ),
+        rejected_all_count=sum(
+            attempt.outcome is AlternateSourceSelectionOutcome.REJECTED_ALL
+            for attempt in current_attempts
+        ),
+        provider_error_count=sum(
+            attempt.outcome is AlternateSourceSelectionOutcome.PROVIDER_ERROR
+            for attempt in current_attempts
+        ),
+        not_configured_count=sum(
+            attempt.outcome is AlternateSourceSelectionOutcome.NOT_CONFIGURED
+            for attempt in current_attempts
+        ),
+        rejection_counts=rejection_counts,
+    )
+
+
 def project_graph_state_to_ui(
     state: ScholarPathState,
     *,
@@ -397,6 +442,7 @@ def project_graph_state_to_ui(
         checkpoint_token=checkpoint_token,
         progress_events=progress_events_from_execution_log(state["execution_log"]),
         discovery_diagnostics=_discovery_diagnostics(state),
+        alternate_source_diagnostics=_alternate_source_diagnostics(state),
         prospective_supervisors=prospective_views,
         verified_supervisors=verified_views,
         review_supervisors=review_views if review_payload is not None else (),

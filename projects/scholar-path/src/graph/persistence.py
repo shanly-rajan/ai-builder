@@ -27,7 +27,7 @@ from ..domain import (
 from ..memory import CandidateMemoryRecord
 from .discovery import SearchAttempt
 from .state import RawSupervisorSearchResult, ReviewStatus, ToolErrorRecord
-from .verification import EvidenceExtractionAttempt, EvidenceSourceReference
+from .verification import AlternateSourceAttempt, EvidenceExtractionAttempt, EvidenceSourceReference
 
 _MODEL_TYPE_FIELD = "__scholarpath_checkpoint_model__"
 _ENUM_TYPE_FIELD = "__scholarpath_checkpoint_enum__"
@@ -50,6 +50,7 @@ _CHECKPOINT_MODEL_TYPES: tuple[type[BaseModel], ...] = (
     RawSupervisorSearchResult,
     ToolErrorRecord,
     EvidenceExtractionAttempt,
+    AlternateSourceAttempt,
     EvidenceSourceReference,
 )
 _CHECKPOINT_MODELS = {

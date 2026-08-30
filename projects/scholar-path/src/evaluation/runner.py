@@ -52,7 +52,7 @@ from .targets import (
 )
 from .tracing import EVALUATION_APPLICATION, sanitize_evaluation_trace_metadata
 
-LOCAL_BASELINE_NAME: Final = "scholarpath-m12-3-fake-baseline-2026-08-29"
+LOCAL_BASELINE_NAME: Final = "scholarpath-m12-4-fake-baseline-2026-08-30"
 _EVALUATION_EXAMPLE_NAMESPACE: Final = UUID("1c83477e-5985-49fc-bffd-1edb8cfbf5cc")
 _PROMPT_VERSIONS: Final = (
     RESEARCH_PLANNING_PROMPT_VERSION,

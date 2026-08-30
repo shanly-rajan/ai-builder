@@ -2683,3 +2683,95 @@ and
 - Add governed institution-domain authority data for official `.nl` and `.de` university hosts
   rather than broadly trusting country-code domains.
 - Confirm the repair with a fresh live thread only after the exposed Tavily credential is rotated.
+
+## M12.4 Repair: Privacy-safe alternate-source diagnostics
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Make the bounded alternate official-source pass operationally explainable after a live run in
+which most partially verified Supervisors produced the same generic source-not-found error.
+Distinguish empty provider responses, rejected result sets, typed provider errors, missing
+configuration, and successful selection without exposing search or Candidate content and
+without weakening any verification or routing rule.
+
+### Prompt used
+
+The inferred bounded repair prompt is archived as
+[`m12-4-alternate-source-diagnostics.md`](prompts/m12-4-alternate-source-diagnostics.md).
+
+### Files changed
+
+- Added typed first-failed-gate categories, aggregate rejection counts, selection evaluation,
+  attempt outcomes, and cross-field invariants in `src/graph/verification.py`.
+- Added replay-safe `alternate_source_attempts` state, checkpoint serialization, graph exports,
+  and workflow recording in `src/graph/state.py`, `src/graph/persistence.py`,
+  `src/graph/workflow.py`, and `src/graph/__init__.py`.
+- Added a current-round aggregate UI projection and privacy-safe Streamlit panel in
+  `src/ui/models.py`, `src/ui/controller.py`, `src/ui/app.py`, and `src/ui/__init__.py`.
+- Advanced the safe graph tag and offline evaluation baseline identifier to M12.4 in
+  `src/observability/tracing.py` and `src/evaluation/runner.py`, with current-version contract
+  expectations aligned.
+- Added focused unit, graph, SQLite, controller, and AppTest coverage under `tests/`.
+- Added the archived prompt, Mermaid boundary, README guidance, architecture description, and
+  this build-journal entry.
+
+### Tests added
+
+- Selector tests account for every result exactly once, preserve first eligible selection, and
+  distinguish `no_results` from `rejected_all`.
+- Schema tests reject inconsistent outcome, result, eligible, rejection, and typed-error totals.
+- Graph tests retain typed selected, wrong-person, wrong-route, empty-result, and authentication
+  outcomes while preserving the existing one-pass retry behavior.
+- Reducer and serializer tests cover idempotent replay, typed MessagePack round trips, and SQLite
+  close-and-reopen restoration.
+- Controller tests aggregate only the current discovery round, reject impossible UI totals, omit
+  internal identifiers and source content, and leave legacy or early states without invented
+  diagnostic zeroes.
+- Streamlit AppTest coverage renders the aggregate first-failed-gate breakdown while proving
+  queries, URLs, result content, Candidate research content, and secrets are absent.
+
+### Test results
+
+- Focused alternate-source unit and graph suites: `23 passed`.
+- Persistence, controller, and Streamlit AppTest suites: `48 passed`.
+- Repository M12.4, M12 evaluation, and canonical terminology contracts: `26 passed`.
+- Combined M12.4 focused regression selection: `233 passed`; the 60-second demonstration:
+  `3 passed`.
+- Ruff formatting: `209 files already formatted`; Ruff linting: all checks passed.
+- Strict mypy checking: no issues found in `166 source files`.
+- Full non-live pytest suite: `1,339 passed, 8 deselected`; branch coverage: `90.60%`.
+- Offline LangSmith-compatible regression replay: `11/11` scenarios passed and every
+  deterministic metric remained at its expected baseline.
+- Strict editable installation completed without dependency resolution; `pip check` reported
+  no broken requirements; package import, bytecode compilation, and `git diff --check` passed.
+
+### Assumptions
+
+- The first deterministic selector gate that fails is the most actionable bounded reason for
+  excluding a result; a result is therefore counted in exactly one rejection category.
+- The opaque Supervisor ID is required inside the checkpoint for idempotent audit replacement,
+  but it is not needed in the Candidate-facing aggregate projection.
+- Current-round counts are more useful and less misleading than combining attempts from earlier
+  revised searches.
+- An absent diagnostic record in an older or early checkpoint means unknown, not a synthetic
+  all-zero attempt.
+
+### Lessons learned
+
+- A transport-success signal does not explain whether alternate results were empty, unsafe, or
+  simply incompatible with a strict official-profile selector.
+- Cross-field count invariants make privacy-safe aggregates auditable without retaining result
+  titles, descriptions, queries, or URLs in the diagnostic record.
+- Replay-safe state and a narrower UI projection solve different concerns: durable debugging and
+  Candidate-facing privacy should not share the same schema.
+
+### Remaining debt
+
+- Validate the category distribution with a fresh live thread after credentials are confirmed
+  safe, without copying raw provider content into traces or the UI.
+- Evaluate selector precision against a labelled multilingual official-profile corpus before
+  changing any identity, institution, host, route, or source-kind gate.
+- Decide whether long-term aggregate monitoring belongs in a separate privacy-reviewed
+  observability feature; M12.4 intentionally limits presentation to the active discovery round.

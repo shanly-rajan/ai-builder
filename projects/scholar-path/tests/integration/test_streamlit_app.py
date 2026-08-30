@@ -13,12 +13,14 @@ import scholarpath.ui.app as ui_app
 import scholarpath.ui.dependencies as ui_dependencies
 from scholarpath.domain import SearchResultRejectionCounts
 from scholarpath.graph import (
+    AlternateSourceRejectionCounts,
     CandidateApproveResponse,
     CandidateRejectResponse,
     CandidateRequestMoreResponse,
 )
 from scholarpath.tools import SearchProvider
 from scholarpath.ui import (
+    AlternateSourceDiagnosticsView,
     DiscoveryAttemptView,
     DiscoveryDiagnosticsView,
     GraphProgressEvent,
@@ -395,6 +397,72 @@ def test_typed_discovery_rejection_breakdown_is_rendered_without_sensitive_conte
     assert "Rejection breakdown unavailable" not in rendered
     assert "private query" not in rendered
     assert "Candidate research statement" not in rendered
+
+
+def test_alternate_source_rejection_breakdown_is_rendered_without_sensitive_content(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    diagnostics = AlternateSourceDiagnosticsView(
+        attempted_supervisor_count=11,
+        result_count=47,
+        eligible_result_count=1,
+        selected_source_count=1,
+        no_results_count=2,
+        rejected_all_count=8,
+        provider_error_count=0,
+        not_configured_count=0,
+        rejection_counts=AlternateSourceRejectionCounts(
+            query_mismatch=1,
+            same_url=3,
+            https_or_host_invalid=2,
+            exact_person_text_missing=12,
+            exact_institution_text_missing=14,
+            singular_route_mismatch=8,
+            academic_host_mismatch=5,
+            source_kind_unsupported=1,
+        ),
+    )
+    snapshot = UiRunSnapshot(
+        stage=UiStage.STOPPED,
+        checkpoint_token="ui-alternate-source-diagnostics-checkpoint",
+        alternate_source_diagnostics=diagnostics,
+    )
+    service = FakeScholarPathApplication(start_snapshot=snapshot)
+    _configure_ui_dependencies(monkeypatch, service)
+    app_test = _new_app()
+
+    _submit_candidate_profile(app_test)
+
+    rendered = "\n".join(
+        (
+            *(item.value for item in app_test.subheader),
+            *(item.value for item in app_test.markdown),
+            *(item.value for item in app_test.caption),
+            *(item.value for item in app_test.info),
+        )
+    )
+    metrics = [(metric.label, metric.value) for metric in app_test.metric]
+    assert not app_test.exception
+    assert ("Prospective Supervisors searched", "11") in metrics
+    assert ("Alternate search results", "47") in metrics
+    assert ("Eligible official profiles", "1") in metrics
+    assert ("Selected official sources", "1") in metrics
+    assert "Privacy-safe alternate-source diagnostics" in rendered
+    assert "Why alternate results were excluded" in rendered
+    assert "First-failed selector gates account for 46 alternate search results" in rendered
+    assert "Exact person text missing: 12" in rendered
+    assert "Exact institution text missing: 14" in rendered
+    assert "Singular person-profile route missing: 8" in rendered
+    assert "Academic institution host mismatch: 5" in rendered
+    assert "Search queries, result text, URLs, Supervisor identities" in rendered
+    for private_value in (
+        "private query",
+        "https://private.example/profile",
+        "returned page content",
+        RESEARCH_STATEMENT,
+        "secret-token",
+    ):
+        assert private_value not in rendered
 
 
 def test_repeated_recoverable_errors_render_once_with_an_occurrence_count(

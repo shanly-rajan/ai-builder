@@ -12,16 +12,25 @@ from langgraph.types import Command
 
 from scholarpath.graph import (
     CANDIDATE_REVIEW_GATE,
+    AlternateSourceAttempt,
+    AlternateSourceSelectionOutcome,
     CandidateApproveResponse,
     GraphFixtureConfig,
     ReviewStatus,
     ScholarPathState,
     UtcClockPort,
+    alternate_official_source_query,
     build_scholarpath_graph,
     candidate_review_payload_from_graph_output,
     candidate_review_response_value,
     create_initial_state,
     open_local_sqlite_checkpointer,
+)
+from scholarpath.tools import (
+    ContentExtractionError,
+    ContentExtractionErrorCategory,
+    ContentExtractionProvider,
+    ExtractedContent,
 )
 from tests.fakes import (
     FakeCandidatePreferenceMemory,
@@ -31,6 +40,7 @@ from tests.fakes import (
     FakePlanningModel,
     FakeResearchFitModel,
     FakeSupervisorSearch,
+    make_graph_content_outcomes,
 )
 
 THREAD_ID = "candidate-research-run-001"
@@ -49,6 +59,9 @@ class _FixedUtcClock:
 def _build_graph(
     fixture_config: GraphFixtureConfig,
     checkpointer: BaseCheckpointSaver[Any],
+    *,
+    content_extractor: FakeContentExtraction | None = None,
+    alternate_evidence_search: FakeSupervisorSearch | None = None,
 ) -> CompiledStateGraph[ScholarPathState, None, ScholarPathState, ScholarPathState]:
     clock: UtcClockPort = _FixedUtcClock(fixture_config.fixtures.generated_at)
     return build_scholarpath_graph(
@@ -57,11 +70,12 @@ def _build_graph(
         planning_model=FakePlanningModel(),
         supervisor_search=FakeSupervisorSearch(),
         tavily_search=FakeSupervisorSearch(),
-        content_extractor=FakeContentExtraction(),
+        content_extractor=content_extractor or FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
         research_fit_model=FakeResearchFitModel(),
         independent_review_model=FakeIndependentReviewModel(),
         candidate_preference_memory=FakeCandidatePreferenceMemory(),
+        alternate_evidence_search=alternate_evidence_search or FakeSupervisorSearch(),
         utc_clock=clock,
     )
 
@@ -153,3 +167,55 @@ def test_local_sqlite_checkpointer_rejects_a_directory_path(
         open_local_sqlite_checkpointer(database_path),
     ):
         pytest.fail("A directory must not be opened as a SQLite checkpoint file")
+
+
+def test_sqlite_checkpoint_restores_typed_alternate_source_diagnostics(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "alternate-diagnostics.sqlite3"
+    fixture_config = GraphFixtureConfig()
+    supervisor = fixture_config.fixtures.raw_search_results[0].to_prospective_supervisor()
+    primary_url = str(supervisor.profile_url)
+    content_outcomes: dict[str, ExtractedContent | Exception] = {**make_graph_content_outcomes()}
+    content_outcomes[primary_url] = ContentExtractionError(
+        "Synthetic extraction failure.",
+        provider=ContentExtractionProvider.TAVILY,
+        category=ContentExtractionErrorCategory.EXTRACTION_FAILED,
+        retryable=True,
+        source_url=primary_url,
+    )
+    alternate_query = alternate_official_source_query(supervisor)
+    runnable_config: RunnableConfig = {
+        "configurable": {"thread_id": "alternate-diagnostic-thread"},
+        "recursion_limit": 80,
+    }
+
+    with open_local_sqlite_checkpointer(database_path) as checkpointer:
+        graph = _build_graph(
+            fixture_config,
+            checkpointer,
+            content_extractor=FakeContentExtraction(content_outcomes),
+            alternate_evidence_search=FakeSupervisorSearch({alternate_query: ()}),
+        )
+        graph.invoke(
+            create_initial_state(fixture_config.fixtures.candidate_profile),
+            config=runnable_config,
+        )
+        state = cast(ScholarPathState, graph.get_state(runnable_config).values)
+        assert len(state["alternate_source_attempts"]) == 1
+        assert state["alternate_source_attempts"][0].outcome is (
+            AlternateSourceSelectionOutcome.NO_RESULTS
+        )
+
+    with open_local_sqlite_checkpointer(database_path) as reopened_checkpointer:
+        reopened_graph = _build_graph(fixture_config, reopened_checkpointer)
+        reopened_state = cast(
+            ScholarPathState,
+            reopened_graph.get_state(runnable_config).values,
+        )
+
+    assert len(reopened_state["alternate_source_attempts"]) == 1
+    restored = reopened_state["alternate_source_attempts"][0]
+    assert isinstance(restored, AlternateSourceAttempt)
+    assert restored.outcome is AlternateSourceSelectionOutcome.NO_RESULTS
+    assert restored.result_count == 0

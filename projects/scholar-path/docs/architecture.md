@@ -805,6 +805,7 @@ flowchart LR
     HIST --> ERR[tool_errors]
     HIST --> LOG[execution_log]
     HIST --> MEM[candidate_memory_records merged by deterministic ID]
+    HIST --> ASA[alternate_source_attempts replay-safe by round, attempt, and Supervisor ID]
     SNAP --> PS[prospective_supervisors]
     SNAP --> VR[verification_records]
     SNAP --> VS[verified_supervisors]
@@ -818,6 +819,7 @@ flowchart LR
 |---|---|---|
 | Immutable Candidate input | `candidate_profile` | Preserved |
 | Append-only history | preferences, raw search results, feedback, errors, search attempts, evidence extraction attempts, execution log | Reducers append events |
+| Alternate-source attempt audit | `alternate_source_attempts` | Replay-safe merge by discovery round, attempt number, and opaque Supervisor ID |
 | Verification snapshots | `verification_records`, `verified_supervisors` | Node returns the complete current ordered snapshot |
 | Alternate-source selection | `alternate_evidence_sources` | Deterministic dictionary replacement keyed by `supervisor_id` |
 | Other entity snapshots | Prospective Supervisors, Research Fit assessments, reconciled review records, the typed proposal, and Shortlisted Supervisors | Latest node output replaces prior snapshot |
@@ -846,11 +848,11 @@ flowchart LR
     Root --> FitTrace[Research Fit node and rubric metadata]
     Root --> ReviewTrace[independent-review node metadata]
     Root --> Discovery[discovery node + aggregate attempt spans]
-    Tags[environment plus graph-version:m12.3] --> Root
+    Tags[environment plus graph-version:m12.4] --> Root
 ```
 
-The graph version is `m12.3`. Root tags are
-`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m12.3`. Planning, discovery,
+The graph version is `m12.4`. Root tags are
+`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m12.4`. Planning, discovery,
 evidence, Research Fit, and independent-review nodes add only safe component and version
 metadata. The fixed metadata allowlist is:
 
@@ -1024,6 +1026,39 @@ route, requires owner-linked context before using prose affiliation, and rejects
 publisher labels. Alternate-source selection uses the same singular-person URL policy and does
 not relax exact person, institution, HTTPS, academic-host, or source-kind requirements. The
 minimum evidence categories and one-pass retry policy are unchanged.
+
+## M12.4 privacy-safe alternate-source diagnostics boundary
+
+[`m12-4-alternate-source-diagnostics.mmd`](m12-4-alternate-source-diagnostics.mmd) shows the
+existing one-pass alternate lookup with a typed accounting layer. The selector still evaluates
+each result in a fixed order: originating-query binding, primary-URL difference, HTTPS and
+hostname validity, exact person text, exact institution text, singular person-profile route,
+academic-host match, and supported official source kind. A rejected result increments exactly
+one first-failed-gate category; an eligible result is counted and the first eligible source is
+retained. The invariant is:
+
+```text
+result_count = eligible_result_count + sum(first_failed_gate_counts)
+```
+
+One `AlternateSourceAttempt` records the bounded attempt outcome as `selected`, `no_results`,
+`rejected_all`, `provider_error`, or `not_configured`. The record contains its discovery round,
+attempt number, opaque Supervisor ID, aggregate result counts, and an optional typed error
+category. It stores no query, result title or description, source URL, page content, provider
+exception text, Candidate research content, or credential. The reducer replaces a replayed
+record with the same `(discovery_round, attempt_number, supervisor_id)` identity instead of
+duplicating it, and the checkpoint serializer explicitly restores the typed model.
+
+The UI projection aggregates only attempts from the active discovery round. Its view model
+validates that outcome totals equal attempted Supervisors, that every result is accounted for,
+and that selected sources cannot exceed eligible results. The Streamlit view displays counts
+only and omits the opaque Supervisor IDs as well as all search and page content. An older or
+early checkpoint without attempt data renders no diagnostic panel rather than presenting
+invented zeroes.
+
+This layer observes the selector; it does not change providers, query budgets, retry limits,
+source selection, evidence extraction, evidence sufficiency, availability, Research Fit,
+independent review, or Candidate approval.
 
 ## Configuration and deferred provider activation
 
@@ -1215,7 +1250,7 @@ already-running event-loop runtime.
 | Conflicts | Both affiliation claims and cross-referenced evidence IDs are preserved |
 | Retry | One deterministic alternate official-source search and extraction pass |
 | Network isolation | Default tests use fixed pages and fakes; `live` is excluded by default |
-| Observability | `graph-version:m12.3`, prompt and rubric versions, allowlisted aggregate discovery and evaluation metadata, hidden inputs and outputs |
+| Observability | `graph-version:m12.4`, prompt and rubric versions, allowlisted aggregate discovery and evaluation metadata, hidden inputs and outputs |
 | Evaluation | Eleven typed synthetic scenarios, fake-default targets, ten deterministic metrics, optional scoped judges, stable dataset IDs, and separate upload/live gates |
 | Human authority | A real interrupt requires typed explicit approval before Shortlisted status or briefing generation |
 | Persistence | In-memory isolation in tests; ignored SQLite path for trusted local restart; opaque thread IDs partition runs |

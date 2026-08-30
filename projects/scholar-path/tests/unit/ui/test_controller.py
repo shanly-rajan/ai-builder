@@ -1,6 +1,7 @@
 """Pure tests for M11 form, progress, and graph-state presentation transforms."""
 
 import json
+from typing import cast
 
 import pytest
 from pydantic import ValidationError
@@ -8,7 +9,11 @@ from pydantic import ValidationError
 from scholarpath.domain import SearchResultRejectionCounts
 from scholarpath.graph import (
     CANONICAL_NODE_NAMES,
+    AlternateSourceAttempt,
+    AlternateSourceRejectionCounts,
+    AlternateSourceSelectionOutcome,
     ReviewStatus,
+    ScholarPathState,
     SearchAttempt,
     ToolErrorRecord,
     build_walking_skeleton_fixtures,
@@ -16,6 +21,7 @@ from scholarpath.graph import (
 )
 from scholarpath.tools import SearchProvider
 from scholarpath.ui import (
+    AlternateSourceDiagnosticsView,
     UiDiscoveryRoute,
     UiStage,
     build_candidate_submission,
@@ -377,3 +383,111 @@ def test_discovery_diagnostics_aggregate_typed_rejections_without_result_content
     assert private_query not in rendered
     assert "Sensitive Candidate topic" not in rendered
     assert "originating_query" not in rendered
+
+
+def test_alternate_source_diagnostics_aggregate_only_the_current_round() -> None:
+    fixtures = build_walking_skeleton_fixtures()
+    state = create_initial_state(fixtures.candidate_profile)
+    state["discovery_round"] = 2
+    state["alternate_source_attempts"] = [
+        AlternateSourceAttempt(
+            supervisor_id="private-older-supervisor-id",
+            attempt_number=1,
+            discovery_round=1,
+            outcome=AlternateSourceSelectionOutcome.NO_RESULTS,
+            result_count=0,
+            eligible_result_count=0,
+        ),
+        AlternateSourceAttempt(
+            supervisor_id="private-current-supervisor-one",
+            attempt_number=1,
+            discovery_round=2,
+            outcome=AlternateSourceSelectionOutcome.SELECTED,
+            result_count=3,
+            eligible_result_count=1,
+            rejection_counts=AlternateSourceRejectionCounts(
+                exact_person_text_missing=1,
+                exact_institution_text_missing=1,
+            ),
+        ),
+        AlternateSourceAttempt(
+            supervisor_id="private-current-supervisor-two",
+            attempt_number=1,
+            discovery_round=2,
+            outcome=AlternateSourceSelectionOutcome.REJECTED_ALL,
+            result_count=2,
+            eligible_result_count=0,
+            rejection_counts=AlternateSourceRejectionCounts(
+                singular_route_mismatch=1,
+                academic_host_mismatch=1,
+            ),
+        ),
+    ]
+
+    snapshot = project_graph_state_to_ui(
+        state,
+        checkpoint_token="checkpoint-alternate-source-diagnostics",
+        review_payload=None,
+    )
+
+    diagnostics = snapshot.alternate_source_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.attempted_supervisor_count == 2
+    assert diagnostics.result_count == 5
+    assert diagnostics.eligible_result_count == 1
+    assert diagnostics.selected_source_count == 1
+    assert diagnostics.rejected_all_count == 1
+    assert diagnostics.rejection_counts.total == 4
+    rendered = snapshot.model_dump_json()
+    assert "private-older-supervisor-id" not in rendered
+    assert "private-current-supervisor-one" not in rendered
+    assert "private-current-supervisor-two" not in rendered
+    assert "originating_query" not in rendered
+    assert "source_url" not in rendered
+    assert "result text" not in rendered
+    assert "Candidate research statement" not in rendered
+    assert "secret-token" not in rendered
+
+
+def test_legacy_or_early_state_does_not_infer_alternate_source_diagnostic_zeros() -> None:
+    fixtures = build_walking_skeleton_fixtures()
+    state = create_initial_state(fixtures.candidate_profile)
+    legacy_state_data: dict[str, object] = dict(state)
+    legacy_state_data.pop("alternate_source_attempts")
+    legacy_state = cast(ScholarPathState, legacy_state_data)
+
+    snapshot = project_graph_state_to_ui(
+        legacy_state,
+        checkpoint_token="checkpoint-before-alternate-source-diagnostics",
+        review_payload=None,
+    )
+
+    assert snapshot.alternate_source_diagnostics is None
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"attempted_supervisor_count": 2},
+        {"result_count": 5},
+        {"eligible_result_count": 2},
+        {"selected_source_count": 2},
+    ],
+)
+def test_alternate_source_diagnostic_view_rejects_inconsistent_totals(
+    values: dict[str, int],
+) -> None:
+    valid: dict[str, object] = {
+        "attempted_supervisor_count": 1,
+        "result_count": 2,
+        "eligible_result_count": 1,
+        "selected_source_count": 1,
+        "no_results_count": 0,
+        "rejected_all_count": 0,
+        "provider_error_count": 0,
+        "not_configured_count": 0,
+        "rejection_counts": AlternateSourceRejectionCounts(exact_person_text_missing=1),
+    }
+
+    with pytest.raises(ValidationError):
+        AlternateSourceDiagnosticsView.model_validate({**valid, **values})
