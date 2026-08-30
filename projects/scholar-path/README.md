@@ -26,8 +26,6 @@ shortlist write.
 
 | Start here | Purpose |
 |---|---|
-| [Project submission write-up](docs/project-submission.md) | Guideline-mapped overview, agent framework, stack, prompts, iterations, tuning, metrics, lessons, and limitations |
-| [Five-minute recording script](docs/five-minute-demo.md) | Timed spoken narration, screen actions, setup, and contingency guidance |
 | [Architecture](docs/architecture.md) | Complete agent, graph, state, provider, evidence, memory, and UI boundaries |
 | [Reliability review](docs/reliability-review.md) | Timeouts, retries, partial-result preservation, privacy, approval, and release controls |
 | [Evaluation plan](docs/evaluation-plan.md) | Curated scenarios, deterministic evaluators, and optional judges |
