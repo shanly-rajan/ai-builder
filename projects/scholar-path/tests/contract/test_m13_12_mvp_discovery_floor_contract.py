@@ -23,11 +23,11 @@ def test_implicit_standard_policies_align_but_strict_default_remains_five() -> N
     assert (
         mvp.discovery_policy.minimum_unique_supervisors
         == mvp.verification_policy.minimum_verified_supervisors
-        == 3
+        == 2
     )
     assert DiscoveryPolicy().minimum_unique_supervisors == 5
-    assert "at least 3 Prospective Supervisors" in MVP_IDENTITY_ONLY_BANNER
-    assert "at least 3 Verified Supervisors" in MVP_IDENTITY_ONLY_BANNER
+    assert "at least 2 Prospective Supervisors" in MVP_IDENTITY_ONLY_BANNER
+    assert "at least 2 Verified Supervisors" in MVP_IDENTITY_ONLY_BANNER
 
 
 def test_prompt_and_docs_record_the_bounded_repair() -> None:

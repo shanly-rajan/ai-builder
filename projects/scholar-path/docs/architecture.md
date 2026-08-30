@@ -414,6 +414,36 @@ plausibility, duplicate and profile-quality checks, You.com and Tavily budgets, 
 provenance, availability semantics, lifecycle transitions, and Candidate approval are unchanged.
 Passing discovery authorizes evidence retrieval only; it never promotes a Prospective Supervisor.
 
+## M13.13 two-Supervisor MVP and blank demo methodology
+
+M13.13 supersedes the active implicit MVP cohort configured in M13.12 while preserving that
+earlier section as an implementation-history record. The current `identity_only_mvp` composition
+uses two quality-qualified Prospective Supervisors as its discovery floor and two directly
+identity-grounded Verified Supervisors as its verification floor. `strict` remains five/five, and
+an explicitly injected policy remains authoritative.
+
+The reviewer convenience profile now leaves methodological interests blank. The field remains
+editable and an entered value still reaches `CandidateProfile`; the toggle simply stops supplying
+a methodological preference that the reviewer did not choose.
+
+```mermaid
+flowchart LR
+    Toggle[Use demo research profile] --> Methods[Methodological interests: blank]
+    Standard{Verification evidence standard} -->|strict| Strict[Discovery 5 / Verified 5]
+    Standard -->|identity_only_mvp| MVP[Discovery 2 / Verified 2]
+    MVP --> Identity[Directly grounded identity required]
+    Identity --> Fit[Research Fit with visible evidence gaps]
+    Fit --> Review{{Candidate review}}
+    Review -->|explicit approval only| Save[Persist Shortlisted Supervisors]
+```
+
+The smaller floor is a workflow-routing compromise for MVP observation, not a relaxation of the
+identity evidence gate and not a guarantee that live providers will return two eligible records.
+Affiliation and research evidence remain visible limitations, availability remains separately
+sourced, partially verified records do not count, and shortlist persistence still requires
+explicit Candidate approval. Stopping discovery at two can reduce result diversity; restore
+`strict` for evidence-backed operation.
+
 ## M4–M5 resilient discovery boundary
 
 ```mermaid

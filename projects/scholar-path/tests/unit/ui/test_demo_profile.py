@@ -1,7 +1,6 @@
 """Pure contracts for the opt-in ScholarPath demonstration profile."""
 
 from scholarpath.ui.app import (
-    DEMO_PROFILE_METHODOLOGICAL_INTERESTS,
     DEMO_PROFILE_RESEARCH_STATEMENT,
     DEMO_PROFILE_RESEARCH_TOPICS,
     demo_profile_widget_values,
@@ -17,7 +16,7 @@ def test_demo_profile_widget_values_match_the_curated_reviewer_example() -> None
         "profile_preferred_regions": "",
         "profile_study_modes": [],
         "profile_research_orientation": "No preference",
-        "profile_methodological_interests": DEMO_PROFILE_METHODOLOGICAL_INTERESTS,
+        "profile_methodological_interests": "",
         "profile_exclusions": "",
     }
 

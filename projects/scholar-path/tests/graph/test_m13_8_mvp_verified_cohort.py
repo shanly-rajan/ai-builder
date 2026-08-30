@@ -93,18 +93,16 @@ def _run_with_verified_cohort(
     return cast(ScholarPathState, result), fit_model, alternate_search
 
 
-def test_three_identity_only_mvp_verified_supervisors_reach_candidate_review_without_retry() -> (
-    None
-):
+def test_two_identity_only_mvp_verified_supervisors_reach_candidate_review_without_retry() -> None:
     state, fit_model, alternate_search = _run_with_verified_cohort(
-        3,
+        2,
         standard=VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
     )
 
     assert state["review_status"] is ReviewStatus.PROPOSED
-    assert len(state["verified_supervisors"]) == 3
+    assert len(state["verified_supervisors"]) == 2
     assert state["proposed_shortlist"] is not None
-    assert len(state["proposed_shortlist"].recommendations) == 3
+    assert len(state["proposed_shortlist"].recommendations) == 2
     assert candidate_review_payload_from_graph_output(state) is not None
     assert state["retry_counts"]["evidence"] == 0
     assert "retry_alternate_evidence_source" not in state["execution_log"]
@@ -113,25 +111,27 @@ def test_three_identity_only_mvp_verified_supervisors_reach_candidate_review_wit
     assert state["shortlisted_supervisors"] == []
 
 
-def test_two_identity_only_mvp_verified_supervisors_retry_once_then_stop() -> None:
+def test_one_identity_only_mvp_verified_supervisor_retries_once_then_stops() -> None:
     state, fit_model, alternate_search = _run_with_verified_cohort(
-        2,
+        1,
         standard=VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
     )
 
     assert state["review_status"] is ReviewStatus.EVIDENCE_INCOMPLETE
-    assert len(state["verified_supervisors"]) == 2
+    assert len(state["verified_supervisors"]) == 1
     assert candidate_review_payload_from_graph_output(state) is None
     assert state["retry_counts"]["evidence"] == 1
     assert state["execution_log"].count("retry_alternate_evidence_source") == 1
-    assert len(alternate_search.calls) == 6
+    assert len(alternate_search.calls) == (
+        len(state["prospective_supervisors"]) - len(state["verified_supervisors"])
+    )
     assert fit_model.call_count == 0
     assert state["shortlisted_supervisors"] == []
 
 
-def test_three_identity_only_mvp_supervisors_can_complete_after_explicit_approval() -> None:
+def test_two_identity_only_mvp_supervisors_can_complete_after_explicit_approval() -> None:
     paused, _, _ = _run_with_verified_cohort(
-        3,
+        2,
         standard=VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
     )
     payload = candidate_review_payload_from_graph_output(paused)
@@ -141,15 +141,15 @@ def test_three_identity_only_mvp_supervisors_can_complete_after_explicit_approva
     )
 
     completed, fit_model, alternate_search = _run_with_verified_cohort(
-        3,
+        2,
         standard=VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
         approved_supervisor_ids=approved_ids,
     )
 
     assert completed["review_status"] is ReviewStatus.COMPLETED
-    assert len(completed["shortlisted_supervisors"]) == 3
+    assert len(completed["shortlisted_supervisors"]) == 2
     assert completed["supervisor_shortlist"] is not None
-    assert len(completed["supervisor_shortlist"].shortlisted_supervisors) == 3
+    assert len(completed["supervisor_shortlist"].shortlisted_supervisors) == 2
     assert completed["shortlist_briefing"] is not None
     assert completed["retry_counts"]["evidence"] == 0
     assert alternate_search.calls == []

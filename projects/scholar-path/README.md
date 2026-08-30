@@ -76,10 +76,11 @@ The bounded M13.7 MVP repair adds an explicit `identity_only_mvp` verification e
 standard. It keeps directly grounded identity mandatory while affiliation and research evidence
 are deferred rather than silently treated as verified. Every MVP result is marked
 `verified_with_concerns`, and evidence-free Research Fit is shown as not established instead of
-being presented as a genuine poor-fit score. M13.8 lets this explicit MVP path continue with at
-least three identity-verified Supervisors; strict mode still requires five, and the proposed
-shortlist remains capped at five. Retry, provenance, availability, Candidate approval, and
-persistence controls remain unchanged. The canonical `strict` standard remains the default.
+being presented as a genuine poor-fit score. M13.8 originally let this explicit MVP path continue
+with at least three identity-verified Supervisors. M13.13 now lowers the active MVP floor to two;
+strict mode still requires five, and the proposed shortlist remains capped at five. Retry,
+provenance, availability, Candidate approval, and persistence controls remain unchanged. The
+canonical `strict` standard remains the default.
 
 M13.9 makes `postgraduate research` the active product umbrella and introduces two
 presentation-only reviewer controls. `Use demo research profile` fills the visible form with a
@@ -97,9 +98,10 @@ unchanged.
 M13.11 hardens the live Research Planning boundary with native array constraints,
 semantics-preserving excess-quote normalization, typed transient-error classification, and one
 visible retry. M13.12 aligns the implicit discovery and verification cohort floors selected by the
-closed evidence standard: `strict` remains five/five, while `identity_only_mvp` uses three/three.
-Explicit graph policies remain authoritative, and no discovery-quality, evidence, lifecycle,
-Research Fit, or Candidate-approval rule is bypassed.
+closed evidence standard. M13.13 sets the active defaults to five/five for `strict` and two/two for
+`identity_only_mvp`, and leaves the demo profile's methodological interests blank. Explicit graph
+policies remain authoritative, and no discovery-quality, evidence, lifecycle, Research Fit, or
+Candidate-approval rule is bypassed.
 
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
@@ -831,7 +833,7 @@ ScholarPath exposes two closed standards; arbitrary threshold lists are not acce
 | Standard | Implicit discovery floor | Required lifecycle evidence | Minimum verified cohort | Intended use |
 |---|---:|---|---:|---|
 | `strict` (default) | 5 | Directly grounded identity, current affiliation, and research interest or publication | 5 | Evidence-backed research and normal operation |
-| `identity_only_mvp` | 3 | Directly grounded identity | 3 | Temporary MVP workflow validation while affiliation and research extraction are tuned |
+| `identity_only_mvp` | 2 | Directly grounded identity | 2 | Temporary MVP workflow validation while affiliation and research extraction are tuned |
 
 Enable the bounded MVP path in the ignored `.env`, then fully stop and restart Streamlit:
 
@@ -847,7 +849,7 @@ flowchart LR
     Three -->|5 Verified Supervisors| Fit[Evaluate Research Fit]
     One -->|present| Limited[Verified with concerns]
     Limited --> Gaps[Affiliation and research remain deferred]
-    Gaps -->|3 identity-verified Supervisors| Fit
+    Gaps -->|2 identity-verified Supervisors| Fit
     Fit --> Proposal[Propose up to 5 Supervisors]
     Proposal --> Gate{{Candidate approval still mandatory}}
 ```
@@ -860,7 +862,7 @@ In MVP mode, institution and department remain discovery information unless sepa
 Identity evidence cannot support Research Fit. If no suitable research evidence exists,
 ScholarPath deterministically records zero points, low confidence, and explicit evidence gaps,
 while the UI says **Research Fit: not established**. Availability remains `not_stated` unless an
-explicit retrieved statement supports another status. Three is a routing minimum, not a target
+explicit retrieved statement supports another status. Two is a routing minimum, not a target
 that pads or fabricates results: synthesis can propose up to five eligible Verified Supervisors,
 based only on the retained cohort. Restore strict verification with:
 

@@ -25,8 +25,8 @@ from tests.fakes import (
 )
 
 
-def _three_prospective_outcomes() -> dict[str, tuple[SearchResult, ...]]:
-    remaining = 3
+def _two_prospective_outcomes() -> dict[str, tuple[SearchResult, ...]]:
+    remaining = 2
     outcomes: dict[str, tuple[SearchResult, ...]] = {}
     for query, results in make_fake_search_outcomes().items():
         selected = results[:remaining]
@@ -40,12 +40,12 @@ def _empty_outcomes() -> dict[str, tuple[SearchResult, ...]]:
     return {query: () for query in make_fake_search_outcomes()}
 
 
-def _run_with_exactly_three_prospective_supervisors(
+def _run_with_exactly_two_prospective_supervisors(
     standard: VerificationEvidenceStandard,
     *,
     config: GraphFixtureConfig | None = None,
 ) -> tuple[ScholarPathState, FakeSupervisorSearch, FakeSupervisorSearch]:
-    you_search = FakeSupervisorSearch(_three_prospective_outcomes())
+    you_search = FakeSupervisorSearch(_two_prospective_outcomes())
     tavily_search = FakeSupervisorSearch(_empty_outcomes())
     output = run_scholarpath_graph(
         config,
@@ -77,19 +77,19 @@ def test_implicit_policy_floors_follow_the_closed_verification_standard() -> Non
 
     assert strict.discovery_policy.minimum_unique_supervisors == 5
     assert strict.verification_policy.minimum_verified_supervisors == 5
-    assert mvp.discovery_policy.minimum_unique_supervisors == 3
-    assert mvp.verification_policy.minimum_verified_supervisors == 3
+    assert mvp.discovery_policy.minimum_unique_supervisors == 2
+    assert mvp.verification_policy.minimum_verified_supervisors == 2
     assert DiscoveryPolicy().minimum_unique_supervisors == 5
 
 
-def test_exactly_three_mvp_prospective_supervisors_reach_candidate_review() -> None:
-    state, _, tavily_search = _run_with_exactly_three_prospective_supervisors(
+def test_exactly_two_mvp_prospective_supervisors_reach_candidate_review() -> None:
+    state, _, tavily_search = _run_with_exactly_two_prospective_supervisors(
         VerificationEvidenceStandard.IDENTITY_ONLY_MVP
     )
 
     assert state["review_status"] is ReviewStatus.PROPOSED
-    assert len(state["prospective_supervisors"]) == 3
-    assert len(state["verified_supervisors"]) == 3
+    assert len(state["prospective_supervisors"]) == 2
+    assert len(state["verified_supervisors"]) == 2
     assert "deduplicate_supervisors" in state["execution_log"]
     assert "extract_supervisor_evidence" in state["execution_log"]
     assert candidate_review_payload_from_graph_output(state) is not None
@@ -97,13 +97,13 @@ def test_exactly_three_mvp_prospective_supervisors_reach_candidate_review() -> N
     assert state["shortlisted_supervisors"] == []
 
 
-def test_exactly_three_strict_prospective_supervisors_stop_at_discovery() -> None:
-    state, _, tavily_search = _run_with_exactly_three_prospective_supervisors(
+def test_exactly_two_strict_prospective_supervisors_stop_at_discovery() -> None:
+    state, _, tavily_search = _run_with_exactly_two_prospective_supervisors(
         VerificationEvidenceStandard.STRICT
     )
 
     assert state["review_status"] is ReviewStatus.DISCOVERY_INCOMPLETE
-    assert len(state["prospective_supervisors"]) == 3
+    assert len(state["prospective_supervisors"]) == 2
     assert state["verified_supervisors"] == []
     assert "deduplicate_supervisors" not in state["execution_log"]
     assert "extract_supervisor_evidence" not in state["execution_log"]
@@ -112,13 +112,13 @@ def test_exactly_three_strict_prospective_supervisors_stop_at_discovery() -> Non
 
 def test_explicit_mvp_discovery_override_remains_authoritative() -> None:
     explicit_config = GraphFixtureConfig(
-        discovery_policy=DiscoveryPolicy(minimum_unique_supervisors=4),
+        discovery_policy=DiscoveryPolicy(minimum_unique_supervisors=3),
         verification_policy=VerificationPolicy(
             verification_evidence_standard=VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
         ),
     )
 
-    state, _, _ = _run_with_exactly_three_prospective_supervisors(
+    state, _, _ = _run_with_exactly_two_prospective_supervisors(
         VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
         config=explicit_config,
     )

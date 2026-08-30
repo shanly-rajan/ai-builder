@@ -103,10 +103,10 @@ def test_mvp_banner_and_evidence_limit_remain_visible_on_collapsed_results(
 
     assert not app_test.exception
     assert ui_app.MVP_IDENTITY_ONLY_BANNER in [item.value for item in app_test.warning]
-    assert "at least 3 Verified Supervisors" in ui_app.MVP_IDENTITY_ONLY_BANNER
+    assert "at least 2 Verified Supervisors" in ui_app.MVP_IDENTITY_ONLY_BANNER
     assert "may propose up to 5" in ui_app.MVP_IDENTITY_ONLY_BANNER
     rendered_warnings = "\n".join(item.value for item in app_test.warning)
-    assert "graph may continue with at least 3 Verified Supervisors" in rendered_warnings
+    assert "graph may continue with at least 2 Verified Supervisors" in rendered_warnings
     assert "proposed shortlist remains capped at 5" in rendered_warnings
     limited_expanders = [
         item for item in app_test.expander if "Research Fit: not established" in item.label

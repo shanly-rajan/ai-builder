@@ -52,9 +52,6 @@ DEMO_PROFILE_RESEARCH_TOPICS = (
     "Machine Learning, Artificial Intelligence, Software Engineering, Data Science, "
     "Computer Science"
 )
-DEMO_PROFILE_METHODOLOGICAL_INTERESTS = (
-    "Empirical studies, quantitative analysis, benchmark evaluation"
-)
 PAGE_ICON = "🎓"
 HERO_TITLE = "🎓 ScholarPath"
 HERO_SUBTITLE = "Evidence-backed supervisor discovery for postgraduate research."
@@ -164,7 +161,7 @@ def demo_profile_widget_values() -> dict[str, str | list[str]]:
         "profile_preferred_regions": "",
         "profile_study_modes": [],
         "profile_research_orientation": "No preference",
-        "profile_methodological_interests": DEMO_PROFILE_METHODOLOGICAL_INTERESTS,
+        "profile_methodological_interests": "",
         "profile_exclusions": "",
     }
 

@@ -99,7 +99,7 @@ research run.
 | Preferred regions | Leave empty |
 | Study mode | No preference |
 | Research orientation | No preference |
-| Methodological interests | Empirical studies; quantitative analysis; benchmark evaluation |
+| Methodological interests | Leave empty |
 | Exclusions | Leave empty |
 
 Select **Start Supervisor research** and observe **Canonical LangGraph progress** while it is

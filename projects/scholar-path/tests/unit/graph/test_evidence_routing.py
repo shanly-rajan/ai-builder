@@ -120,12 +120,12 @@ def test_policy_stops_with_partial_results_when_retry_exhausted_below_minimum() 
     assert route is EvidenceVerificationRoute.STOP_PARTIAL
 
 
-def test_identity_only_mvp_uses_three_as_its_implicit_verified_cohort_minimum() -> None:
+def test_identity_only_mvp_uses_two_as_its_implicit_verified_cohort_minimum() -> None:
     policy = VerificationPolicy(
         verification_evidence_standard=VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
     )
 
-    assert policy.minimum_verified_supervisors == 3
+    assert policy.minimum_verified_supervisors == 2
     assert VerificationPolicy().minimum_verified_supervisors == 5
 
 
@@ -143,8 +143,8 @@ def test_identity_only_mvp_preserves_an_explicit_verified_cohort_override() -> N
     )
 
 
-def test_identity_only_mvp_continues_immediately_with_three_verified_supervisors() -> None:
-    records = tuple(_verified_record(index) for index in range(1, 4)) + (_partial_record(4),)
+def test_identity_only_mvp_continues_immediately_with_two_verified_supervisors() -> None:
+    records = tuple(_verified_record(index) for index in range(1, 3)) + (_partial_record(3),)
     policy = VerificationPolicy(
         verification_evidence_standard=VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
     )
@@ -158,8 +158,8 @@ def test_identity_only_mvp_continues_immediately_with_three_verified_supervisors
     assert route is EvidenceVerificationRoute.EVALUATE_RESEARCH_FIT
 
 
-def test_identity_only_mvp_retries_once_then_stops_with_only_two_verified_supervisors() -> None:
-    records = tuple(_verified_record(index) for index in range(1, 3)) + (_partial_record(3),)
+def test_identity_only_mvp_retries_once_then_stops_with_only_one_verified_supervisor() -> None:
+    records = (_verified_record(1), _partial_record(2))
     policy = VerificationPolicy(
         verification_evidence_standard=VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
     )

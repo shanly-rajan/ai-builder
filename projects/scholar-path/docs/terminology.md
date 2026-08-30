@@ -93,7 +93,7 @@ missing categories for a bounded alternate-source attempt.
 | Standard | Blocking evidence gates | Minimum verified cohort | Required presentation |
 |---|---|---:|---|
 | `strict` | Directly grounded identity, current affiliation, and research interest or publication | 5 | Normal Verified Supervisor presentation |
-| `identity_only_mvp` | Directly grounded identity | 3 | `verified_with_concerns`; discovered affiliation is labelled unverified; deferred affiliation and research gaps stay visible |
+| `identity_only_mvp` | Directly grounded identity | 2 | `verified_with_concerns`; discovered affiliation is labelled unverified; deferred affiliation and research gaps stay visible |
 
 The MVP standard is an explicit workflow-validation mode, not permission to fabricate stronger
 evidence. Identity evidence cannot support Research Fit components. When no fit-eligible evidence
@@ -103,7 +103,7 @@ approval remains mandatory before shortlist persistence. The cohort value is a r
 not a quality score or required shortlist length. The synthesis stage may propose at most five
 Verified Supervisors and never fills missing positions with partially verified records.
 Implicit graph composition uses the same numeric floor at discovery and verification: five for
-`strict` and three for `identity_only_mvp`. Passing the discovery floor only permits evidence
+`strict` and two for `identity_only_mvp`. Passing the discovery floor only permits evidence
 verification to begin; it does not change a Prospective Supervisor's lifecycle status.
 
 ## Availability vocabulary

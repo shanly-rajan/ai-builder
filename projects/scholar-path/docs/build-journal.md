@@ -3916,3 +3916,83 @@ The bounded repair prompt is archived as
 - Live discovery identity quality still rejects most raw results; continue tuning person and
   institution extraction without weakening the retained-profile contract.
 - Restore `strict` before treating MVP recommendations as fully evidence-backed research results.
+
+## M13.13 Repair: Two-Supervisor MVP and blank demo methodology
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Leave methodological interests blank in the reviewer demo profile and lower the active implicit
+`identity_only_mvp` discovery and verification cohort floors from three to two. Keep directly
+grounded identity mandatory, keep `strict` at five/five, and preserve every provenance,
+availability, lifecycle, retry, Research Fit, persistence, and Candidate-approval boundary.
+
+### Prompt used
+
+The bounded repair prompt is archived as
+[`m13-13-two-supervisor-mvp-and-demo-methods.md`](prompts/m13-13-two-supervisor-mvp-and-demo-methods.md).
+
+### Files changed
+
+- Removed the fixed methodological-interests value from the editable demo-profile mapping; the
+  visible field now starts blank and normalizes to an empty typed preference tuple on submission.
+- Changed the single typed `identity_only_mvp` verified-cohort constant from three to two. Existing
+  standard-aware graph composition consequently selects two/two for implicit MVP discovery and
+  verification, while `strict` remains five/five and explicit policies remain authoritative.
+- Updated the active README, environment example, terminology, architecture, and five-minute demo
+  guidance while preserving earlier prompts, diagrams, and journal entries as historical records.
+- Added an M13.13 repository contract and updated threshold, graph, Streamlit, and demo-toggle
+  regression expectations.
+
+### Tests added
+
+- Repository contract coverage for the two/two MVP composition, unchanged five/five strict
+  composition, blank demo methodology, current documentation, and archived prompt.
+- Graph coverage proving exactly two MVP Prospective Supervisors can become Verified and reach the
+  Candidate interrupt, while one Verified Supervisor consumes one bounded alternate-source graph
+  retry and stops recoverably.
+- Strict regression proving two Prospective Supervisors do not pass the strict discovery gate.
+- Streamlit AppTest coverage proving the demo toggle leaves methodology blank, submits no
+  methodological preference, and preserves a reviewer-entered methodology when toggled off.
+
+### Test results
+
+- Focused graph, policy, Streamlit, unit, and contract selection: `182 passed in 1.80s`.
+- Ruff formatting check: `210 files already formatted`; Ruff linting: all checks passed.
+- Strict mypy: no issues in `203 source files`.
+- The first complete non-live run reached `1,571 passed, 9 deselected, 68 subtests passed` and
+  exposed only the expected audit contract requiring this new prompt link in the build journal.
+- Final complete non-live pytest: `1,571 passed, 9 deselected, 69 subtests passed in 21.71s`;
+  total coverage was `91.11%`, above the required 90 percent minimum.
+- `git diff --check`: passed.
+
+### Assumptions
+
+- The two-Supervisor setting is deliberately limited to the explicit `identity_only_mvp` standard;
+  it does not redefine the strict evidence-backed product path.
+- A blank demo methodology means the planner receives no methodological preference unless the
+  reviewer enters one; it is not replaced with an inferred default.
+- Lowering the cohort floor authorizes progression only when two records independently satisfy the
+  existing directly grounded identity gate. Partially verified records never count.
+- Existing paused or stopped SQLite checkpoints remain auditable historical runs. A full
+  Streamlit process restart and new research thread are required to exercise the new composition.
+
+### Lessons learned
+
+- A single standard-specific cohort constant already controls both implicit discovery and
+  verification through typed composition, so this change does not require duplicated routing
+  logic.
+- Demo inputs are safer when they avoid implying preferences the reviewer did not select; blank
+  input still exercises the same typed submission boundary.
+- Lowering the floor can expose the later workflow sooner, but it can also reduce live result
+  diversity because discovery may stop after two useful profiles.
+
+### Remaining debt
+
+- Provider-backed runs can still return fewer than two plausible or directly identity-grounded
+  profiles; the lower floor is not a deterministic live-data guarantee.
+- Continue tuning person, institution, and evidence extraction quality without using the MVP floor
+  to conceal weak identity evidence.
+- Restore `strict` before presenting results as fully evidence-backed recommendations, and revisit
+  the two-Supervisor compromise after the end-to-end MVP has been evaluated.

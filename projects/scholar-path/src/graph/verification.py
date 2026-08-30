@@ -23,7 +23,7 @@ from ..tools.content_extraction import ContentExtractionErrorCategory
 from ..tools.supervisor_search import SearchErrorCategory
 
 STRICT_MINIMUM_VERIFIED_SUPERVISORS: Final = 5
-IDENTITY_ONLY_MVP_MINIMUM_VERIFIED_SUPERVISORS: Final = 3
+IDENTITY_ONLY_MVP_MINIMUM_VERIFIED_SUPERVISORS: Final = 2
 
 
 def default_minimum_verified_supervisors(

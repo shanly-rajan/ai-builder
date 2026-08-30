@@ -16,9 +16,9 @@ def test_standard_specific_cohort_and_proposal_capacity_are_distinct() -> None:
     )
 
     assert strict.minimum_verified_supervisors == 5
-    assert mvp.minimum_verified_supervisors == 3
+    assert mvp.minimum_verified_supervisors == 2
     assert MAX_PROPOSED_SHORTLIST_SIZE == 5
-    assert "at least 3 Verified Supervisors" in MVP_IDENTITY_ONLY_BANNER
+    assert "at least 2 Verified Supervisors" in MVP_IDENTITY_ONLY_BANNER
     assert "may propose up to 5" in MVP_IDENTITY_ONLY_BANNER
 
 
@@ -39,4 +39,4 @@ def test_milestone_prompt_and_docs_explain_the_bounded_mvp_threshold() -> None:
     assert "three-Supervisor MVP verification cohort" in architecture
     assert "Minimum verified cohort" in terminology
     assert "At least 3 identity-verified Supervisors?" in diagram
-    assert "minimum cohort of three" in environment_example
+    assert "minimum cohort of two" in environment_example
