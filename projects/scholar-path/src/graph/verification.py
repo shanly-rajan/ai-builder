@@ -270,6 +270,7 @@ _GENERIC_INSTITUTION_TOKENS = {
     "university",
 }
 _INSTITUTION_ACRONYM_STOP_TOKENS = {"and", "for", "of", "the"}
+_NAMED_INSTITUTION_MARKERS = {"college", "institute", "university"}
 _OFFICIAL_ALTERNATE_SOURCE_KINDS = {
     SourceKind.DEPARTMENT_PAGE,
     SourceKind.INSTITUTIONAL_DIRECTORY,
@@ -351,6 +352,23 @@ def evaluate_alternate_official_sources(
             and academic_organization
             and all(token in academic_organization for token in institution_tokens)
         )
+        institution_abbreviation_matches = bool(
+            academic_organization
+            and _academic_organization_is_institution_abbreviation(
+                academic_organization,
+                supervisor.institution,
+            )
+        )
+        institution_matches_official_host = (
+            institution_matches_hostname or institution_abbreviation_matches
+        )
+        institution_matches_sparse_official_host = bool(
+            academic_organization
+            and _academic_organization_strongly_matches_institution(
+                academic_organization,
+                supervisor.institution,
+            )
+        )
         institution_matches_text = bool(
             institution_phrase_tokens
             and any(
@@ -358,7 +376,13 @@ def evaluate_alternate_official_sources(
                 for text in result_texts
             )
         )
-        if not institution_matches_text:
+        title_names_conflicting_institution = _title_names_conflicting_institution(
+            result.title,
+            institution_phrase_tokens,
+        )
+        if not institution_matches_text and not (
+            institution_matches_sparse_official_host and not title_names_conflicting_institution
+        ):
             rejection_counts = rejection_counts.increment(
                 AlternateSourceRejectionCategory.EXACT_INSTITUTION_TEXT_MISSING
             )
@@ -374,14 +398,7 @@ def evaluate_alternate_official_sources(
                 AlternateSourceRejectionCategory.SINGULAR_ROUTE_MISMATCH
             )
             continue
-        institution_abbreviation_matches = bool(
-            academic_organization
-            and _academic_organization_is_institution_abbreviation(
-                academic_organization,
-                supervisor.institution,
-            )
-        )
-        if not (institution_matches_hostname or institution_abbreviation_matches):
+        if not institution_matches_official_host:
             rejection_counts = rejection_counts.increment(
                 AlternateSourceRejectionCategory.ACADEMIC_HOST_MISMATCH
             )
@@ -499,6 +516,24 @@ def _contains_token_sequence(haystack: tuple[str, ...], needle: tuple[str, ...])
     )
 
 
+def _title_names_conflicting_institution(
+    title: str,
+    expected_institution_tokens: tuple[str, ...],
+) -> bool:
+    """Reject an explicit competing institution while allowing sparse profile titles.
+
+    Search metadata is used only to choose a page for extraction. A controlled academic
+    hostname may establish the expected institution when a sparse title names only the
+    person, but it must not override a different University, College, or Institute named
+    in that title. The retrieved page still has to provide directly grounded current-
+    affiliation evidence before verification can succeed.
+    """
+    title_tokens = tuple(_word_tokens(title))
+    if not title_tokens or _contains_token_sequence(title_tokens, expected_institution_tokens):
+        return False
+    return bool(set(title_tokens) & _NAMED_INSTITUTION_MARKERS)
+
+
 def _is_academic_hostname(hostname: str) -> bool:
     return _academic_organization_label(hostname) is not None
 
@@ -522,6 +557,26 @@ def _academic_organization_is_institution_abbreviation(
         and len(meaningful_tokens) == 1
         and meaningful_tokens[0].startswith(organization)
     ):
+        return True
+    acronym = "".join(
+        token[0] for token in institution_tokens if token not in _INSTITUTION_ACRONYM_STOP_TOKENS
+    )
+    return len(acronym) >= 2 and organization == acronym
+
+
+def _academic_organization_strongly_matches_institution(
+    academic_organization: str,
+    institution: str,
+) -> bool:
+    """Require an exact institution token, full label, or acronym for sparse metadata."""
+    organization = "".join(_word_tokens(academic_organization))
+    institution_tokens = _word_tokens(institution)
+    if len(organization) < 2 or not institution_tokens:
+        return False
+    meaningful_tokens = tuple(
+        token for token in institution_tokens if token not in _GENERIC_INSTITUTION_TOKENS
+    )
+    if organization in institution_tokens or organization == "".join(meaningful_tokens):
         return True
     acronym = "".join(
         token[0] for token in institution_tokens if token not in _INSTITUTION_ACRONYM_STOP_TOKENS

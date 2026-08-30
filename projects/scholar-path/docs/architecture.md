@@ -1184,6 +1184,82 @@ the five-Supervisor minimum, one alternate-source retry, availability derivation
 independent review, explicit Candidate approval, and Supervisor lifecycle transitions remain
 authoritative and unchanged.
 
+## M13.4 live discovery identity and official-source recovery boundary
+
+M13.4 changes two deterministic interpretation points revealed by the privacy-safe live
+diagnostics. It adds no graph node, provider call, model call, state field, retry, or relaxed
+verification route.
+
+```mermaid
+flowchart TB
+    RESULT[Provider-neutral SearchResult] --> ID{Deterministic identity shape}
+    ID -->|organization or department title| PERSON_REJECT[Existing person rejection]
+    ID -->|ordinary person| INSTITUTION
+    ID -->|academic prefix + exact repeated name + bounded role| CANON[Canonical person name]
+    CANON --> INSTITUTION{Complete institution shape}
+    INSTITUTION -->|terminal University of St or Saint| INCOMPLETE[Existing incomplete-institution rejection]
+    INSTITUTION -->|complete| PROSPECTIVE[Prospective Supervisor + exact provenance]
+
+    PROSPECTIVE --> PARTIAL[Partially verified after primary page]
+    PARTIAL -->|existing single retry| SEARCH[Alternate official-source search]
+    SEARCH --> QUERY{Query bound and not primary URL}
+    QUERY --> HTTPS{HTTPS and valid host}
+    HTTPS --> PERSON{Exact normalized person text}
+    PERSON --> CORRELATE{Institution correlation}
+    CORRELATE -->|exact phrase in result text| ROUTE
+    CORRELATE -->|strong academic-host correlation + no explicit institution conflict| ROUTE
+    CORRELATE -->|neither| REJECT[Existing first-failed selector category]
+    ROUTE{Singular person route bound to person or opaque ID} --> HOST{Academic host}
+    HOST --> KIND{Supported official source kind}
+    KIND -->|yes| SELECT[Select first eligible official URL]
+    KIND -->|no| REJECT
+    SELECT --> EXTRACT[Retrieve page]
+    EXTRACT --> STRICT{Authoritative grounded evidence gates}
+    STRICT -->|identity + current affiliation + research| VERIFIED[Verified Supervisor]
+    STRICT -->|missing required evidence| STILL_PARTIAL[Partially verified and stop below minimum]
+```
+
+### Discovery identity boundary
+
+An organization or department title cannot establish a person merely because its words are
+capitalized. A terminal `University of St` or `University of Saint` is an incomplete institution
+fragment; additional proper-name content, as in `University of St Andrews`, is required.
+
+Malformed repeated-name canonicalization is a closed positive pattern rather than general text
+cleanup. It requires an explicit academic prefix, the same exact person-name token sequence of at
+least two tokens twice, and a bounded trailing academic role. Only the canonical `full_name`
+changes; provider, query, URL, and other discovery provenance remain exact. Partial repetitions,
+different repeated names, untitled text, organizations, and arbitrary trailing prose retain their
+existing rejection behavior.
+
+### Alternate official-source correlation boundary
+
+The selector's fixed gate order remains:
+
+1. originating-query binding;
+2. primary-URL difference;
+3. HTTPS and hostname validity;
+4. exact normalized person text;
+5. institution correlation;
+6. singular person-profile route bound to that person or an opaque numeric identifier;
+7. academic-host validation; and
+8. supported official source kind.
+
+Institution correlation succeeds through the existing exact normalized institution phrase or a
+new deterministic host-correlated branch. The latter requires the controlled academic hostname's
+organization label to match through an exact meaningful-label concatenation, exact institution
+token, or exact acronym; a weak prefix is insufficient. It also rejects a result title that
+explicitly names a different University, College, or Institute. Host correlation cannot
+establish affiliation: it only permits the URL to reach extraction. Search titles, descriptions,
+snippets, and hostname labels remain inadmissible as `EvidenceClaim` content.
+
+Every result still increments exactly one existing first-failed selector category or the eligible
+count. The first eligible result remains selected, diagnostics remain aggregate-only, and legacy
+checkpoint records remain valid. The strict evidence requirements, five-Verified-Supervisor
+minimum, one alternate-source retry, availability semantics, Research Fit evaluation,
+independent review, lifecycle transitions, and explicit Candidate approval are unchanged. A
+lower-minimum exploratory live profile is outside this milestone.
+
 ## Configuration and deferred provider activation
 
 ```mermaid

@@ -69,7 +69,7 @@ def test_selector_counts_every_first_failed_gate_and_preserves_first_selection()
         ),
         _result(
             url="https://www.southerncape.ac.za/people/amara-ndlovu",
-            title="Dr Amara Ndlovu",
+            title="Dr Amara Ndlovu | Northbridge University",
             query=query,
         ),
         _result(

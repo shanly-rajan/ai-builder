@@ -3158,3 +3158,87 @@ The bounded repair prompt is archived as
   deterministic Streamlit AppTest remains the current automated rendering boundary.
 - Calibrate live search planning across a labelled mix of Master's and doctoral queries without
   weakening official-profile or evidence-verification thresholds.
+
+## M13.4 Repair: Live discovery identity and official-source recovery
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Repair the next two deterministic bottlenecks measured in a provider-backed run: malformed
+person and institution identities retained during discovery, and safe alternate official-profile
+results rejected before page extraction. Preserve the five-Verified-Supervisor cohort, one
+alternate-source retry, authoritative evidence gates, and Candidate approval boundary.
+
+### Prompt used
+
+The agreed bounded repair prompt is archived as
+[`m13-4-live-discovery-and-official-source-recovery.md`](prompts/m13-4-live-discovery-and-official-source-recovery.md).
+
+### Files changed
+
+- Hardened `src/agents/supervisor_discovery.py` to reject organization-shaped academic labels and
+  terminal `University of St` or `University of Saint` fragments, while narrowly canonicalizing
+  one exact repeated person-name pattern and preserving discovery provenance.
+- Extended `src/graph/verification.py` with a controlled academic-host institution-correlation
+  branch for sparse alternate-source metadata. Query binding, HTTPS, exact person text, singular
+  person route, academic host, supported source kind, and retrieved-page evidence remain required.
+- Added and updated fixed discovery, alternate-source, diagnostics, and graph regressions under
+  `tests/unit`, `tests/graph`, and `tests/contract`.
+- Updated `README.md` and `docs/architecture.md`, and saved the exact M13.4 prompt.
+
+### Tests added
+
+- Positive and negative discovery tests for exact repeated-name canonicalization, organization
+  labels, near-match repetitions, incomplete Saint fragments, complete `St Andrews`, and exact
+  provenance retention.
+- Alternate-source tests for sparse official profiles on strongly correlated academic hosts,
+  conflicting institutions, weak hostname prefixes, collection/content routes, unrelated hosts,
+  exact first-failed accounting, and successful graph continuation after stronger page retrieval.
+- Repository contracts proving documentation coverage, unchanged verification and shortlist
+  thresholds, the one-retry limit, and unchanged closed diagnostic taxonomies.
+
+### Test results
+
+- Focused M13.4 discovery, alternate-source, diagnostics, graph, and contract selection:
+  `262 passed in 1.56s`.
+- Ruff formatting reported `230 files left unchanged`; Ruff linting passed.
+- The first bare mypy invocation could not resolve the custom flattened editable-package mapping
+  under this Python 3.14 environment. Re-running strict mypy with the generated editable package
+  directory on `MYPYPATH` passed: no issues found in `182 source files`.
+- Complete non-live pytest passed: `1,430 passed, 9 deselected in 19.72s`; branch coverage was
+  `90.82%` against the required `90%` minimum.
+- The offline LangSmith-compatible evaluation baseline passed `11/11` scenarios; every applicable
+  deterministic metric passed and duplicate Supervisor rate remained `0.000`.
+- Strict editable installation without dependency resolution passed; `pip check` reported no
+  broken requirements, package import reported version `0.1.0`, bytecode compilation passed, and
+  `git diff --check` reported no whitespace errors.
+
+### Assumptions
+
+- A controlled academic hostname is a page-selection signal only. It cannot establish current
+  affiliation or become an `EvidenceClaim`.
+- Exact duplicated-name repair applies only beneath an explicit academic prefix, with an identical
+  two-to-four-token name repeated twice and one bounded trailing role.
+- A sparse result title may omit the expected institution, but an explicitly different University,
+  College, or Institute in that title remains a conflict.
+- This repair targets measured interpretation failures. It adds no provider, call, retry, graph
+  edge, runtime profile, or threshold override.
+
+### Lessons learned
+
+- Provider recall and evidence authority can be improved independently: conservative URL recovery
+  may increase extraction opportunities without admitting search snippets as evidence.
+- Identity cleanup is safe when expressed as a closed positive grammar; general fuzzy cleanup
+  would obscure provenance and create new false-positive paths.
+- Aggregate diagnostics are most useful when each rejected result maps to exactly one stable
+  first-failed category.
+
+### Remaining debt
+
+- Re-run the same provider-backed research profile and compare the privacy-safe discovery and
+  alternate-source aggregates against the captured baseline.
+- Add new host-correlation patterns only from labelled failures; do not broaden controlled academic
+  suffixes or accept weak prefixes speculatively.
+- Consider an explicitly labelled exploratory minimum only after the strict live path produces at
+  least one Verified Supervisor; never score or shortlist partially verified records.

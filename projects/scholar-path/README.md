@@ -64,6 +64,14 @@ cards, and the three privacy-safe diagnostic groups now start collapsed so the c
 decision remains prominent. Expanding them reveals the same evidence and aggregates as before;
 verification, availability, Research Fit, lifecycle, and explicit approval rules are unchanged.
 
+The bounded M13.4 repair addresses the next measured live-path bottlenecks without lowering the
+verification minimum. Discovery rejects organization-shaped identities and incomplete
+institutions, while narrowly canonicalizing an exactly repeated person name under an explicit
+academic title. Alternate-source selection may strongly correlate the expected institution
+through a controlled academic hostname when result text omits the full institution phrase,
+provided no explicit institution conflicts. Search metadata still selects URLs only; retrieved
+page claims must satisfy the unchanged evidence and verification gates.
+
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
 graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. Unit and
@@ -1013,6 +1021,61 @@ remains in the separate M12.4 panel. Verification requirements, the five-Supervi
 the one alternate-source retry, providers, routing, availability, Research Fit, and Candidate
 approval remain unchanged. See
 [`docs/m13-1-evidence-verification-diagnostics.mmd`](docs/m13-1-evidence-verification-diagnostics.mmd).
+
+### M13.4 live discovery identity and official-source recovery
+
+M13.4 repairs the deterministic boundaries exposed by a provider-backed run that retained
+Prospective Supervisors but completed no verification. It does not reduce the five-Verified-
+Supervisor cohort requirement or treat a partially verified record as Verified.
+
+```mermaid
+flowchart LR
+    R[SearchResult] --> P{Person established?}
+    P -->|organization title| X[Reject]
+    P -->|exact name repeated under academic prefix| C[Bounded name canonicalization]
+    P -->|valid person| I{Institution complete?}
+    C --> I
+    I -->|terminal University of St or Saint| X
+    I -->|yes| PS[Prospective Supervisor]
+
+    PS --> E[Primary evidence remains partial]
+    E --> A[One alternate official-source search]
+    A --> B{Exact person and institution correlation?}
+    B -->|exact institution phrase| S[Continue strict selector]
+    B -->|strong academic-host correlation and no explicit conflict| S
+    B -->|no| X2[Existing first-failed category]
+    S --> U{Singular person route, academic host, supported kind?}
+    U -->|yes| R2[Retrieve selected official page]
+    U -->|no| X2
+    R2 --> V{Grounded identity + affiliation + research evidence?}
+    V -->|yes| VS[Verified Supervisor]
+    V -->|no| PV[Partially verified]
+```
+
+Discovery canonicalization is deliberately narrow. A title such as
+`Prof. Yan Liu Yan Liu Director` becomes `Prof. Yan Liu` only when the same complete
+two-or-more-token name occurs twice beneath an explicit academic prefix and is followed by a
+bounded role. Department or organization labels are not people. A terminal `University of St`
+or `University of Saint` is incomplete, while a complete proper name such as
+`University of St Andrews` remains valid. Exact discovery source and query provenance are
+retained.
+
+Alternate-source selection preserves query binding, primary-URL difference, HTTPS and hostname
+validity, exact normalized person text, singular person-profile routing, academic-host matching,
+and supported official source kind. Its institution gate accepts either the exact normalized
+institution phrase in result text or a deterministic correlation between the expected
+institution and a controlled academic hostname when the title contains no different University,
+College, or Institute. The host branch requires an exact meaningful-label concatenation, exact
+institution token, or exact acronym; a weak hostname prefix is insufficient. A conflicting
+institution, wrong person, collection route, non-academic host, or unsupported source kind
+remains rejected under the existing first-failed taxonomy.
+
+Provider result text and hostname correlation are source-discovery signals, never factual
+Supervisor evidence. Only extracted page content can establish identity, current affiliation,
+research evidence, or explicit availability. The same exact-result accounting, aggregate-only
+diagnostics, one alternate-source retry, five-Verified-Supervisor minimum, Research Fit rules,
+and Candidate approval gate remain authoritative. An exploratory lower-minimum live profile is
+explicitly deferred until the strict live path completes at least one verification.
 
 ### Run the Streamlit application locally
 

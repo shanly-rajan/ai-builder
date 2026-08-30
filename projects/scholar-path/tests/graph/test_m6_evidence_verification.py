@@ -249,7 +249,7 @@ def test_failed_profile_uses_one_alternate_official_source_and_retries_once() ->
     assert source_attempt.rejection_counts.total == 0
 
 
-def test_failed_profile_accepts_one_person_page_on_an_abbreviated_academic_host() -> None:
+def test_failed_profile_accepts_sparse_metadata_on_an_exactly_correlated_academic_host() -> None:
     fixtures = build_walking_skeleton_fixtures()
     supervisor = fixtures.raw_search_results[0].to_prospective_supervisor()
     primary_url = str(supervisor.profile_url)
@@ -277,7 +277,7 @@ def test_failed_profile_accepts_one_person_page_on_an_abbreviated_academic_host(
             query: (
                 _alternate_result(
                     url=alternate_url,
-                    title=("Dr Amara Ndlovu | Southern Cape Institute of Technology"),
+                    title="Dr Amara Ndlovu | Faculty profile",
                     query=query,
                 ),
             )

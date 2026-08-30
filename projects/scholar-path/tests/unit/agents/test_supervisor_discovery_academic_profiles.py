@@ -403,6 +403,93 @@ def test_repeated_abbreviated_title_does_not_extend_the_supervisor_name() -> Non
     ] == [("Prof Margaret A Boden", "University of Sussex")]
 
 
+def test_repeated_person_name_before_role_is_canonicalized_deterministically() -> None:
+    result = _result(
+        url="https://www.usc.edu/people/yan-liu",
+        title="Prof. Yan Liu Yan Liu Director | University of Southern California",
+        description="Official academic profile.",
+    )
+
+    discovery = SupervisorDiscoveryAgent().discover(_search_plan(), (result,))
+
+    assert discovery.rejection_counts == SearchResultRejectionCounts()
+    assert [
+        (supervisor.full_name, supervisor.institution)
+        for supervisor in discovery.prospective_supervisors
+    ] == [("Prof. Yan Liu", "University of Southern California")]
+    supervisor = discovery.prospective_supervisors[0]
+    assert str(supervisor.discovery_provenance[0].source_url) == str(result.url)
+    assert supervisor.discovery_provenance[0].originating_query == PROFILE_QUERY
+
+
+def test_non_exact_repeated_person_name_is_not_canonicalized() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://www.usc.edu/people/yan-liu",
+                title="Prof. Yan Liu Yan Li Director | University of Southern California",
+                description="Official academic profile.",
+            ),
+        ),
+    )
+
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(identity_conflict=1)
+
+
+def test_department_organization_label_is_not_treated_as_a_person() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://www.nyu.edu/faculty/nyu-computer-science",
+                title="NYU Computer Science — NYU Computer Science Department",
+                description="Academic faculty and research directory.",
+            ),
+        ),
+    )
+
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(
+        academic_context_not_established=1
+    )
+
+
+@pytest.mark.parametrize("institution", ["University of St", "University of Saint"])
+def test_terminal_saint_institution_fragment_is_incomplete(institution: str) -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://example.edu/people/jane-doe",
+                title=f"Professor Jane Doe | {institution}",
+                description="Official academic profile.",
+            ),
+        ),
+    )
+
+    assert discovery.prospective_supervisors == ()
+    assert discovery.rejection_counts == SearchResultRejectionCounts(incomplete_institution=1)
+
+
+def test_complete_saint_institution_name_is_preserved() -> None:
+    discovery = SupervisorDiscoveryAgent().discover(
+        _search_plan(),
+        (
+            _result(
+                url="https://example.edu/people/jane-doe",
+                title="Professor Jane Doe | University of St Andrews",
+                description="Official academic profile.",
+            ),
+        ),
+    )
+
+    assert [supervisor.institution for supervisor in discovery.prospective_supervisors] == [
+        "University of St Andrews"
+    ]
+
+
 def test_colon_breadcrumb_retains_only_the_strong_institution_fragment() -> None:
     discovery = SupervisorDiscoveryAgent().discover(
         _search_plan(),

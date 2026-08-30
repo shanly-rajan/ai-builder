@@ -487,6 +487,99 @@ def test_short_academic_host_label_can_match_one_unambiguous_institution_name() 
 
 
 @pytest.mark.parametrize(
+    ("institution", "url"),
+    [
+        (
+            "University of Southern California",
+            "https://viterbi.usc.edu/directory/faculty/amara-ndlovu",
+        ),
+        (
+            "University of the West of England",
+            "https://profiles.uwe.ac.uk/profile/48217",
+        ),
+        (
+            "Southern Cape Institute of Technology",
+            "https://www.southerncape.ac.za/people/amara-ndlovu",
+        ),
+    ],
+)
+def test_correlated_academic_host_recovers_a_sparse_official_person_profile(
+    institution: str,
+    url: str,
+) -> None:
+    supervisor = make_prospective_supervisor(1, institution=institution)
+    query = alternate_official_source_query(supervisor)
+    result = _search_result(
+        url=url,
+        title="Dr Amara Ndlovu | Faculty profile",
+        description="Official academic profile.",
+        query=query,
+    )
+
+    selected = select_alternate_official_source(supervisor, (result,), query=query)
+
+    assert selected is not None
+    assert selected.supervisor_id == supervisor.supervisor_id
+    assert str(selected.source_url) == url
+
+
+def test_correlated_academic_host_does_not_override_a_named_institution_conflict() -> None:
+    supervisor = make_prospective_supervisor(
+        1,
+        institution="University of the West of England",
+    )
+    query = alternate_official_source_query(supervisor)
+    result = _search_result(
+        url="https://www.uwe.ac.uk/persons/amara-ndlovu",
+        title="Dr Amara Ndlovu | University of Bristol",
+        description="Official academic profile.",
+        query=query,
+    )
+
+    assert select_alternate_official_source(supervisor, (result,), query=query) is None
+
+
+def test_sparse_metadata_recovery_rejects_a_host_prefix_without_exact_correlation() -> None:
+    supervisor = make_prospective_supervisor(1, institution="Oxford University")
+    query = alternate_official_source_query(supervisor)
+    result = _search_result(
+        url="https://www.ox.ac.uk/people/amara-ndlovu",
+        title="Dr Amara Ndlovu | Faculty profile",
+        description="Official academic profile.",
+        query=query,
+    )
+
+    assert select_alternate_official_source(supervisor, (result,), query=query) is None
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://www.usc.edu/people",
+        "https://www.usc.edu/staff",
+        "https://www.usc.edu/news/amara-ndlovu",
+        "https://www.unrelated.edu/people/amara-ndlovu",
+    ],
+)
+def test_sparse_metadata_recovery_still_rejects_lists_content_and_unrelated_hosts(
+    url: str,
+) -> None:
+    supervisor = make_prospective_supervisor(
+        1,
+        institution="University of Southern California",
+    )
+    query = alternate_official_source_query(supervisor)
+    result = _search_result(
+        url=url,
+        title="Dr Amara Ndlovu | Faculty profile",
+        description="Official academic profile.",
+        query=query,
+    )
+
+    assert select_alternate_official_source(supervisor, (result,), query=query) is None
+
+
+@pytest.mark.parametrize(
     "url",
     [
         "https://www.southerncape.ac.za/news/amara-ndlovu",

@@ -152,6 +152,7 @@ _NAME_STOP_WORDS = {
 }
 _ACADEMIC_SUBJECT_NAME_TOKENS = {
     "architecture",
+    "computer",
     "computing",
     "engineering",
     "intelligence",
@@ -162,6 +163,7 @@ _ACADEMIC_SUBJECT_NAME_TOKENS = {
     "systems",
     "technology",
 }
+_TRAILING_PERSON_ROLE_ARTIFACTS = {"dean", "director", "head"}
 _NON_INSTITUTION_ACRONYM_SUFFIXES = {
     "article",
     "directory",
@@ -179,6 +181,11 @@ _NON_INSTITUTION_ACRONYM_SUFFIXES = {
     "team",
 }
 _DANGLING_INSTITUTION_SUFFIXES = {"and", "at", "for", "of", "the", "with"}
+_TRUNCATED_SAINT_INSTITUTION_PATTERN = re.compile(
+    r"\b(?:university|institute|college|polytechnic|academy|school)\s+of\s+"
+    r"(?:st|saint)\.?$",
+    re.IGNORECASE,
+)
 _GENERIC_ONLY_INSTITUTION_LABELS = {
     "academy",
     "college",
@@ -436,11 +443,37 @@ def _title_name_tokens(value: str) -> tuple[str, ...]:
     return _clean_name_tokens(value)
 
 
+def _canonical_repeated_name_before_role(value: str) -> tuple[str, ...]:
+    """Collapse only an exact repeated person name followed by one bounded role artifact."""
+    raw_tokens = tuple(
+        token.strip(".,:;()[]{}") for token in value.split() if token.strip(".,:;()[]{}")
+    )
+    if len(raw_tokens) < 5 or raw_tokens[-1].casefold() not in _TRAILING_PERSON_ROLE_ARTIFACTS:
+        return ()
+
+    repeated_tokens = raw_tokens[:-1]
+    if len(repeated_tokens) % 2:
+        return ()
+    midpoint = len(repeated_tokens) // 2
+    if not 2 <= midpoint <= 4:
+        return ()
+    first_name = repeated_tokens[:midpoint]
+    second_name = repeated_tokens[midpoint:]
+    if tuple(_accent_folded_identity_text(token) for token in first_name) != tuple(
+        _accent_folded_identity_text(token) for token in second_name
+    ):
+        return ()
+    cleaned_tokens = _clean_name_tokens(" ".join(first_name))
+    return cleaned_tokens if len(cleaned_tokens) == len(first_name) else ()
+
+
 def _titled_identity_from_segment(segment: str) -> str | None:
     """Extract one explicit prefix- or suffix-role identity from a title segment."""
     prefix_match = _ACADEMIC_PREFIX_PATTERN.match(segment)
     if prefix_match is not None:
-        tokens = _clean_name_tokens(prefix_match.group(2))
+        tokens = _canonical_repeated_name_before_role(prefix_match.group(2)) or _clean_name_tokens(
+            prefix_match.group(2)
+        )
         if tokens and not any(
             token.casefold() in _ACADEMIC_SUBJECT_NAME_TOKENS for token in tokens
         ):
@@ -451,6 +484,21 @@ def _titled_identity_from_segment(segment: str) -> str | None:
         return None
     tokens = _clean_name_tokens(suffix_match.group("name"))
     return " ".join(tokens) if tokens else None
+
+
+def _identity_is_organization_or_subject_label(full_name: str) -> bool:
+    """Reject capitalized organizational/topic labels that only resemble person names."""
+    identity = _ACADEMIC_PREFIX_PATTERN.sub(r"\2", full_name).strip()
+    display_tokens = tuple(token.strip(".,:;()[]{}") for token in identity.split())
+    normalized_tokens = tuple(_normalized_identity_text(token) for token in display_tokens if token)
+    subject_token_count = sum(token in _ACADEMIC_SUBJECT_NAME_TOKENS for token in normalized_tokens)
+    all_tokens_are_subjects = bool(normalized_tokens) and subject_token_count == len(
+        normalized_tokens
+    )
+    contains_organization_acronym = any(
+        len(token) >= 2 and token.isupper() for token in display_tokens
+    )
+    return all_tokens_are_subjects or (contains_organization_acronym and subject_token_count > 0)
 
 
 def _title_segment_names_different_person(segment: str, full_name: str) -> bool:
@@ -536,6 +584,7 @@ def _has_complete_institution_shape(value: str) -> bool:
         value
         and not _is_generic_only_institution(value)
         and not _is_non_institution_activity_or_host_label(value)
+        and _TRUNCATED_SAINT_INSTITUTION_PATTERN.search(value) is None
         and _has_plausible_institution_suffix(value)
     )
 
@@ -758,6 +807,12 @@ def _extract_name(
     context = _result_context(result)
     contextual_names = _contextual_academic_names(context)
     if title_name is not None:
+        if _identity_is_organization_or_subject_label(title_name):
+            return (
+                None,
+                SearchResultRejectionCategory.ACADEMIC_CONTEXT_NOT_ESTABLISHED,
+                False,
+            )
         if title_has_academic_prefix:
             if _singular_profile_url_names_different_person(str(result.url), title_name):
                 return None, SearchResultRejectionCategory.IDENTITY_CONFLICT, False
@@ -838,8 +893,9 @@ def _has_incomplete_institution_fragment(
         has_institution_signal = bool(
             _STRONG_INSTITUTION_PATTERN.search(normalized) or _SCHOOL_PATTERN.search(normalized)
         )
-        if has_institution_signal and normalized.rsplit(maxsplit=1)[-1].casefold() in (
-            _DANGLING_INSTITUTION_SUFFIXES
+        if has_institution_signal and (
+            normalized.rsplit(maxsplit=1)[-1].casefold() in _DANGLING_INSTITUTION_SUFFIXES
+            or _TRUNCATED_SAINT_INSTITUTION_PATTERN.search(normalized)
         ):
             return True
     return False
