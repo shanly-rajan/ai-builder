@@ -6,7 +6,7 @@ from scholarpath.config import (
     Environment,
     RuntimeProfile,
 )
-from scholarpath.domain import CandidateProfile
+from scholarpath.domain import CandidateProfile, VerificationEvidenceStandard
 from scholarpath.graph import (
     CandidateApproveResponse,
     CandidateRejectionReason,
@@ -35,6 +35,7 @@ def _demo_settings() -> ApplicationSettings:
         environment=Environment.TEST,
         runtime_profile=RuntimeProfile.DETERMINISTIC_DEMO,
         discovery_failure_mode=DiscoveryFailureMode.YOU_RETRYABLE_ERROR,
+        verification_evidence_standard=VerificationEvidenceStandard.STRICT,
     )
 
 

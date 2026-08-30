@@ -108,7 +108,9 @@ DETERMINISTIC_DEMO_BANNER = (
 MVP_IDENTITY_ONLY_BANNER = (
     "MVP identity-only verification is active. Directly grounded identity is required; "
     "current affiliation and research evidence are deferred and shown as limitations. "
-    f"The workflow continues with at least "
+    f"Evidence verification begins with at least "
+    f"{default_minimum_verified_supervisors(VerificationEvidenceStandard.IDENTITY_ONLY_MVP)} "
+    f"Prospective Supervisors, and the workflow continues with at least "
     f"{default_minimum_verified_supervisors(VerificationEvidenceStandard.IDENTITY_ONLY_MVP)} "
     "Verified "
     f"Supervisors and may propose up to {MAX_PROPOSED_SHORTLIST_SIZE}."

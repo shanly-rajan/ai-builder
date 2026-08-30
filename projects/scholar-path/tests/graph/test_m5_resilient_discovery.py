@@ -17,6 +17,7 @@ from scholarpath.domain import (
     CandidatePreferenceRevision,
     SearchResult,
     SearchSourceType,
+    VerificationEvidenceStandard,
 )
 from scholarpath.graph import (
     CandidateApproveResponse,
@@ -234,6 +235,7 @@ def test_successful_you_route_does_not_construct_or_validate_tavily(
             application_settings=ApplicationSettings(
                 environment=Environment.TEST,
                 discovery_failure_mode=DiscoveryFailureMode.OFF,
+                verification_evidence_standard=VerificationEvidenceStandard.STRICT,
             ),
             langsmith_settings=LangSmithSettings(tracing=False),
         )
@@ -302,6 +304,7 @@ def test_lazy_tavily_adapter_is_constructed_once_and_reused(
             application_settings=ApplicationSettings(
                 environment=Environment.TEST,
                 discovery_failure_mode=DiscoveryFailureMode.OFF,
+                verification_evidence_standard=VerificationEvidenceStandard.STRICT,
             ),
             langsmith_settings=LangSmithSettings(tracing=False),
         )

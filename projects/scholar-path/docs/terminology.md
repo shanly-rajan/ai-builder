@@ -102,6 +102,9 @@ and an explicit evidence gap. Availability still requires a direct statement, an
 approval remains mandatory before shortlist persistence. The cohort value is a routing minimum,
 not a quality score or required shortlist length. The synthesis stage may propose at most five
 Verified Supervisors and never fills missing positions with partially verified records.
+Implicit graph composition uses the same numeric floor at discovery and verification: five for
+`strict` and three for `identity_only_mvp`. Passing the discovery floor only permits evidence
+verification to begin; it does not change a Prospective Supervisor's lifecycle status.
 
 ## Availability vocabulary
 

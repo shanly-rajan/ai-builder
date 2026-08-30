@@ -94,6 +94,13 @@ dropdowns/popovers receive explicit light foreground and surface colors. Determi
 contrast contracts protect important text pairs, while dark mode and all workflow behavior remain
 unchanged.
 
+M13.11 hardens the live Research Planning boundary with native array constraints,
+semantics-preserving excess-quote normalization, typed transient-error classification, and one
+visible retry. M13.12 aligns the implicit discovery and verification cohort floors selected by the
+closed evidence standard: `strict` remains five/five, while `identity_only_mvp` uses three/three.
+Explicit graph policies remain authoritative, and no discovery-quality, evidence, lifecycle,
+Research Fit, or Candidate-approval rule is bypassed.
+
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
 graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. Unit and
@@ -821,10 +828,10 @@ Research Fit evidence rules, independent review, Candidate approval, or lifecycl
 
 ScholarPath exposes two closed standards; arbitrary threshold lists are not accepted:
 
-| Standard | Required lifecycle evidence | Minimum verified cohort | Intended use |
-|---|---|---:|---|
-| `strict` (default) | Directly grounded identity, current affiliation, and research interest or publication | 5 | Evidence-backed research and normal operation |
-| `identity_only_mvp` | Directly grounded identity | 3 | Temporary MVP workflow validation while affiliation and research extraction are tuned |
+| Standard | Implicit discovery floor | Required lifecycle evidence | Minimum verified cohort | Intended use |
+|---|---:|---|---:|---|
+| `strict` (default) | 5 | Directly grounded identity, current affiliation, and research interest or publication | 5 | Evidence-backed research and normal operation |
+| `identity_only_mvp` | 3 | Directly grounded identity | 3 | Temporary MVP workflow validation while affiliation and research extraction are tuned |
 
 Enable the bounded MVP path in the ignored `.env`, then fully stop and restart Streamlit:
 
@@ -844,6 +851,10 @@ flowchart LR
     Fit --> Proposal[Propose up to 5 Supervisors]
     Proposal --> Gate{{Candidate approval still mandatory}}
 ```
+
+The standard-specific discovery floor applies to implicit production composition. Explicit graph
+policies remain authoritative. Meeting it only starts evidence verification; every retained record
+must still pass the selected evidence standard before it becomes a Verified Supervisor.
 
 In MVP mode, institution and department remain discovery information unless separately grounded.
 Identity evidence cannot support Research Fit. If no suitable research evidence exists,

@@ -86,6 +86,7 @@ from ..domain import (
     SearchPlan,
     SearchResult,
     SupervisorVerificationRecord,
+    VerificationEvidenceStandard,
     VerificationStatus,
     apply_candidate_review,
     create_supervisor_shortlist,
@@ -281,6 +282,22 @@ class GraphFixtureConfig:
     shortlist_size: int = MAX_PROPOSED_SHORTLIST_SIZE
     max_review_retries: int = 1
     max_review_input_retries: int = 2
+
+    @classmethod
+    def for_verification_standard(
+        cls,
+        standard: VerificationEvidenceStandard,
+    ) -> "GraphFixtureConfig":
+        """Align implicit discovery and verification floors for one closed standard."""
+        verification_policy = VerificationPolicy(
+            verification_evidence_standard=standard,
+        )
+        return cls(
+            discovery_policy=DiscoveryPolicy(
+                minimum_unique_supervisors=verification_policy.minimum_verified_supervisors,
+            ),
+            verification_policy=verification_policy,
+        )
 
     def __post_init__(self) -> None:
         """Reject invalid fixture controls before graph construction."""
@@ -2179,12 +2196,8 @@ def build_scholarpath_runtime(
 ) -> ScholarPathRuntime:
     """Resolve production adapters once and compile a reusable graph runtime."""
     resolved_application_settings = application_settings or load_settings()
-    resolved_config = config or GraphFixtureConfig(
-        verification_policy=VerificationPolicy(
-            verification_evidence_standard=(
-                resolved_application_settings.verification_evidence_standard
-            )
-        )
+    resolved_config = config or GraphFixtureConfig.for_verification_standard(
+        resolved_application_settings.verification_evidence_standard
     )
     configure_application_logging(resolved_application_settings.log_level)
     resolved_langsmith_settings = langsmith_settings or load_langsmith_settings()
@@ -2301,12 +2314,8 @@ def run_scholarpath_graph(
 ) -> ScholarPathState | dict[str, object]:
     """Execute or resume one isolated thread, stopping if no review response remains."""
     resolved_application_settings = application_settings or load_settings()
-    resolved_config = config or GraphFixtureConfig(
-        verification_policy=VerificationPolicy(
-            verification_evidence_standard=(
-                resolved_application_settings.verification_evidence_standard
-            )
-        )
+    resolved_config = config or GraphFixtureConfig.for_verification_standard(
+        resolved_application_settings.verification_evidence_standard
     )
     runtime = build_scholarpath_runtime(
         resolved_config,

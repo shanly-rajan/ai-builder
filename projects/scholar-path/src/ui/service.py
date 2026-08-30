@@ -258,7 +258,9 @@ def create_deterministic_demo_application_service(
             "Deterministic demo service requires the deterministic_demo runtime profile"
         )
 
-    graph_config = GraphFixtureConfig()
+    graph_config = GraphFixtureConfig.for_verification_standard(
+        resolved_settings.verification_evidence_standard
+    )
     search_outcomes = make_evaluation_search_outcomes(graph_config.fixtures)
     content_outcomes, evidence_outcomes = make_evaluation_evidence_outcomes(graph_config.fixtures)
     runtime = build_scholarpath_runtime(

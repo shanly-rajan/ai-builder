@@ -17,6 +17,7 @@ from scholarpath.domain import (
     ProspectiveSupervisor,
     SupervisorLifecycleStatus,
     SupervisorShortlist,
+    VerificationEvidenceStandard,
     VerifiedSupervisor,
 )
 from scholarpath.graph import (
@@ -102,6 +103,7 @@ def _run_graph(
             application_settings=ApplicationSettings(
                 environment=Environment.TEST,
                 discovery_failure_mode=DiscoveryFailureMode.OFF,
+                verification_evidence_standard=VerificationEvidenceStandard.STRICT,
             ),
             langsmith_settings=LangSmithSettings(tracing=False),
         ),

@@ -386,6 +386,34 @@ terms, order, filters, and Boolean operators. Extra filters and operators still 
 and consume the one explicit format retry. It is not an LLM repair step. Model invocation remains
 bounded to two calls, and default tests use fakes only.
 
+## M13.12 MVP discovery-floor alignment
+
+Discovery sufficiency and evidence sufficiency remain separate deterministic gates, but their
+implicit cohort floors now come from the same closed verification evidence standard. This removes
+the previous impossible interval in which three Prospective Supervisors satisfied the MVP's
+potential verified cohort but discovery still stopped because its unrelated strict default was
+five.
+
+```mermaid
+flowchart LR
+    Settings[Verification evidence standard] --> Compose[Typed default graph composition]
+    Compose -->|strict| D5{At least 5 quality-qualified Prospective Supervisors?}
+    Compose -->|identity_only_mvp| D3{At least 3 quality-qualified Prospective Supervisors?}
+    D5 -->|yes| Evidence[Extract and verify evidence]
+    D3 -->|yes| Evidence
+    Evidence -->|strict| V5{At least 5 fully Verified Supervisors?}
+    Evidence -->|identity_only_mvp| V3{At least 3 identity-verified Supervisors?}
+    V5 -->|yes| Fit[Research Fit and independent review]
+    V3 -->|yes| Fit
+    Fit --> Review{{Candidate review}}
+```
+
+The implicit floors are five/five for `strict` and three/three for `identity_only_mvp`.
+Explicitly injected `GraphFixtureConfig` values remain authoritative. Person and institution
+plausibility, duplicate and profile-quality checks, You.com and Tavily budgets, evidence
+provenance, availability semantics, lifecycle transitions, and Candidate approval are unchanged.
+Passing discovery authorizes evidence retrieval only; it never promotes a Prospective Supervisor.
+
 ## M4–M5 resilient discovery boundary
 
 ```mermaid

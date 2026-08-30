@@ -3829,3 +3829,90 @@ The bounded repair prompt is archived as
   schema fields rather than relaxing deterministic validation.
 - The live canary validates planning only. Existing deterministic graph tests remain the source of
   truth for downstream routing and approval invariants.
+
+## M13.12 Repair: MVP discovery-floor alignment
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Allow an implicitly configured `identity_only_mvp` research run with exactly three
+quality-qualified Prospective Supervisors to enter evidence verification, matching that standard's
+three-Supervisor verified-cohort floor. Keep the canonical strict path at five and preserve every
+search-quality, evidence, lifecycle, Research Fit, retry, persistence, and Candidate-approval
+boundary.
+
+### Prompt used
+
+The bounded repair prompt is archived as
+[`m13-12-mvp-discovery-floor-alignment.md`](prompts/m13-12-mvp-discovery-floor-alignment.md).
+
+### Files changed
+
+- Added a typed `GraphFixtureConfig.for_verification_standard` composition factory that resolves
+  implicit discovery and verification floors together.
+- Selected five/five for `strict` and three/three for `identity_only_mvp`, while retaining the
+  standalone `DiscoveryPolicy` default of five and honoring every explicit graph configuration.
+- Applied the same composition in direct graph runs, local Streamlit runtime construction, and the
+  synthetic offline demonstration service.
+- Clarified the MVP banner, README, architecture, terminology, and environment example so passing
+  discovery is described as authorization to begin evidence verification rather than promotion.
+- Archived this bounded prompt and added its repository contract.
+
+### Tests added
+
+- Pure configuration coverage for strict five/five, MVP three/three, and unchanged strict policy
+  defaults.
+- Graph coverage proving exactly three MVP Prospective Supervisors reach evidence verification,
+  become Verified only after grounded evidence, and pause at Candidate review without a fallback.
+- Strict regression proving exactly three Prospective Supervisors still exhaust bounded fallback
+  and stop before evidence retrieval.
+- Explicit-override coverage proving a caller-supplied discovery floor remains authoritative.
+- Existing Streamlit demonstration-toggle and MVP presentation tests remain part of the focused
+  regression selection.
+
+### Test results
+
+- Focused discovery, evidence, graph, Streamlit, and contract selection:
+  `209 passed in 1.36s`.
+- Ruff formatting: `258 files already formatted`; Ruff linting: all checks passed.
+- Strict mypy: no issues in `202 source files`.
+- Complete non-live pytest: `1,568 passed, 9 deselected, 68 subtests passed in 21.50s`;
+  total coverage was `91.11%`, above the required 90 percent minimum.
+- The first complete run exposed four historical strict-route tests inheriting the ignored local
+  MVP `.env`. Those scenarios now pin `strict` explicitly, restoring environment-independent
+  expected routes before the final green run.
+- `git diff --check`: passed.
+
+### Assumptions
+
+- The active `identity_only_mvp` setting explicitly authorizes a cohort floor of three but does not
+  authorize weaker identity grounding.
+- A Prospective Supervisor cohort of three is sufficient to attempt verification because three is
+  the maximum verified cohort it can produce; failure of any identity gate still produces a
+  partial record and a recoverable evidence stop.
+- The demonstration-profile toggle is input convenience only. It does not promise deterministic
+  provider output or alter runtime composition.
+- The prior stopped SQLite checkpoint remains immutable audit history; verification is exercised
+  through a fresh research thread after restarting Streamlit.
+
+### Lessons learned
+
+- The persisted run contained three retained Prospective Supervisors after all ten bounded search
+  calls, but its execution log ended at `enough_supervisors_found`; verification had never run.
+- Evidence and discovery floors were individually correct but compositionally inconsistent. A
+  single typed factory prevents the closed evidence standard from selecting contradictory defaults.
+- An earlier successful live run retained more than five Prospective Supervisors, which masked the
+  mismatch. Variable provider output exposed it after the form convenience was introduced, even
+  though the control did not cause it.
+- A discovery floor does not change lifecycle state: evidence verification remains the only path
+  from Prospective Supervisor to Verified Supervisor.
+
+### Remaining debt
+
+- The current MVP floor favors bounded partial success at three rather than spending fallback calls
+  to target five after three quality-qualified profiles are available. A separate target/floor
+  policy would be a future product decision.
+- Live discovery identity quality still rejects most raw results; continue tuning person and
+  institution extraction without weakening the retained-profile contract.
+- Restore `strict` before treating MVP recommendations as fully evidence-backed research results.

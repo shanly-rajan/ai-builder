@@ -11,6 +11,7 @@ from scholarpath.config import (
     Environment,
     LangSmithSettings,
 )
+from scholarpath.domain import VerificationEvidenceStandard
 from scholarpath.graph import (
     CandidateApproveResponse,
     DiscoveryPolicy,
@@ -59,6 +60,7 @@ def _run_with_fake(
             application_settings=ApplicationSettings(
                 environment=Environment.TEST,
                 discovery_failure_mode=DiscoveryFailureMode.OFF,
+                verification_evidence_standard=VerificationEvidenceStandard.STRICT,
             ),
             langsmith_settings=LangSmithSettings(tracing=False),
         ),
