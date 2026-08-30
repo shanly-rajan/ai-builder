@@ -161,6 +161,10 @@ code validates citations and bounds, calculates the total, and ranks recommendat
 An unsupported claim ID is removed only from the reconciled evidence view; the initial
 assessment remains immutable for audit. An overlooked evidence ID must already be a
 directly supported, grounded, non-availability claim for that Verified Supervisor.
+The reviewer receives exact deterministic allowlists for removable initial citations and eligible
+unused Research Fit evidence. A provider response may succeed structurally yet remain unavailable
+for application when its proposed evidence revision violates those lists; ScholarPath preserves
+the initial assessment and reports that reconciliation outcome separately from provider failure.
 Independent review never changes availability, Candidate preferences, lifecycle status,
 or shortlist membership. Its effective score remains a Research Fit decision-support
 signal and never represents admission probability.

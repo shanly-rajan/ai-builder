@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from scholarpath.agents import (
     INDEPENDENT_REVIEW_PROMPT_VERSION,
     INDEPENDENT_REVIEW_SYSTEM_PROMPT_V3,
+    INDEPENDENT_REVIEW_SYSTEM_PROMPT_V4,
     IndependentReviewModelPort,
     IndependentReviewResult,
 )
@@ -22,11 +23,14 @@ def test_review_output_and_fake_satisfy_the_provider_neutral_contract() -> None:
 
     assert callable(model.review)
     assert issubclass(IndependentReviewResult, BaseModel)
-    assert INDEPENDENT_REVIEW_PROMPT_VERSION == "independent-review-v3"
+    assert INDEPENDENT_REVIEW_PROMPT_VERSION == "independent-review-v4"
     assert "critique of at most 100 words" in INDEPENDENT_REVIEW_SYSTEM_PROMPT_V3
     assert "Perform availability and admission-safety checks silently" in (
         INDEPENDENT_REVIEW_SYSTEM_PROMPT_V3
     )
+    assert "removable_supporting_evidence_ids" in INDEPENDENT_REVIEW_SYSTEM_PROMPT_V4
+    assert "eligible_overlooked_evidence_ids" in INDEPENDENT_REVIEW_SYSTEM_PROMPT_V4
+    assert "keep the recommended score at zero" in INDEPENDENT_REVIEW_SYSTEM_PROMPT_V4
     assert "research_fit_review_records" in ScholarPathState.__required_keys__
 
 

@@ -514,6 +514,37 @@ def test_repeated_recoverable_errors_render_once_with_an_occurrence_count(
     assert "recorded 1 time" not in rendered
 
 
+def test_invalid_independent_review_revision_does_not_suggest_repeating_search(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    message = (
+        "Independent Research Fit review completed, but its proposed evidence revision was not "
+        "safely applicable; the original assessment was preserved with reduced confidence."
+    )
+    snapshot = UiRunSnapshot(
+        stage=UiStage.STOPPED,
+        checkpoint_token="ui-independent-review-reference-checkpoint",
+        errors=(
+            RecoverableUiError(
+                code="independent_review_invalid_evidence_reference",
+                message=message,
+                recoverable=True,
+            ),
+        ),
+    )
+    service = FakeScholarPathApplication(start_snapshot=snapshot)
+    _configure_ui_dependencies(monkeypatch, service)
+    app_test = _new_app()
+
+    _submit_candidate_profile(app_test)
+
+    warnings = [item.value for item in app_test.warning]
+    assert not app_test.exception
+    review_warning = next(item for item in warnings if message in item)
+    assert "workflow can continue with the preserved assessment" in review_warning
+    assert "revise the search" not in review_warning
+
+
 def test_verified_supervisor_evidence_and_review_fields_are_rendered(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -80,6 +80,7 @@ from ..domain import (
     CandidatePreferenceRevision,
     CandidateReviewAction,
     CandidateReviewDecision,
+    IndependentReviewFailureKind,
     IndependentReviewStatus,
     ProspectiveSupervisor,
     ResearchFitRubric,
@@ -1352,12 +1353,20 @@ class DeterministicScholarPathNodes:
                 failure_kind = (
                     record.failure_kind.value if record.failure_kind is not None else "unavailable"
                 )
+                message = (
+                    "Independent Research Fit review completed, but its proposed evidence "
+                    "revision was not safely applicable; the original assessment was preserved "
+                    "with reduced confidence."
+                    if record.failure_kind
+                    is IndependentReviewFailureKind.INVALID_EVIDENCE_REFERENCE
+                    else "Independent Research Fit review was unavailable; the original "
+                    "assessment was preserved with reduced confidence."
+                )
                 errors.append(
                     self._error(
                         REVIEW_FIT_ASSESSMENTS,
                         f"independent_review_{failure_kind}",
-                        "Independent Research Fit review was unavailable; the original "
-                        "assessment was preserved with reduced confidence.",
+                        message,
                         recoverable=True,
                     )
                 )

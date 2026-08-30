@@ -8,6 +8,7 @@ from typing import Protocol, Self
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Field,
     StrictInt,
     ValidationError,
     field_validator,
@@ -64,6 +65,29 @@ _REVIEW_ADMISSION_ESTIMATE_PATTERN = re.compile(
 )
 
 
+def eligible_overlooked_evidence_ids(
+    supervisor: VerifiedSupervisor,
+    assessment: ResearchFitAssessment,
+) -> tuple[str, ...]:
+    """Return the ordered evidence IDs a reviewer may safely add to an assessment."""
+    if assessment.supervisor_id != supervisor.supervisor_id:
+        raise ValueError("Review evidence allowlists require matching Supervisor identifiers")
+    validate_research_fit_evidence(supervisor, assessment)
+    cited_ids = set(assessment.supporting_evidence_ids)
+    return tuple(
+        claim.evidence_id
+        for claim in supervisor.evidence
+        if claim.evidence_id not in cited_ids
+        and claim.claim_type in _REVIEWABLE_FIT_EVIDENCE_TYPES
+        and claim.directly_supported
+        and evidence_claim_is_grounded_for_supervisor(
+            claim,
+            supervisor,
+            supervisor.evidence,
+        )
+    )
+
+
 class IndependentReviewInput(BaseModel):
     """Complete, closed-world context supplied to the independent reviewer."""
 
@@ -79,6 +103,15 @@ class IndependentReviewInput(BaseModel):
     verified_supervisor: VerifiedSupervisor
     evidence_claims: tuple[EvidenceClaim, ...]
     initial_assessment: ResearchFitAssessment
+    removable_supporting_evidence_ids: tuple[str, ...] = Field(
+        description=("Exact initial-assessment evidence IDs allowed in unsupported_claim_ids.")
+    )
+    eligible_overlooked_evidence_ids: tuple[str, ...] = Field(
+        description=(
+            "Exact unused, directly supported, subject-grounded Research Fit evidence IDs "
+            "allowed in overlooked_evidence_ids."
+        )
+    )
 
     @model_validator(mode="after")
     def records_must_describe_one_verified_supervisor(self) -> Self:
@@ -88,7 +121,19 @@ class IndependentReviewInput(BaseModel):
             raise ValueError("Review assessment and Verified Supervisor identifiers must match")
         if self.evidence_claims != supervisor.evidence:
             raise ValueError("Review evidence must exactly match the verified evidence collection")
-        validate_research_fit_evidence(supervisor, self.initial_assessment)
+        expected_removable_ids = self.initial_assessment.supporting_evidence_ids
+        if self.removable_supporting_evidence_ids != expected_removable_ids:
+            raise ValueError(
+                "Removable review evidence IDs must match the initial assessment citations"
+            )
+        expected_overlooked_ids = eligible_overlooked_evidence_ids(
+            supervisor,
+            self.initial_assessment,
+        )
+        if self.eligible_overlooked_evidence_ids != expected_overlooked_ids:
+            raise ValueError(
+                "Eligible overlooked evidence IDs must match the deterministic allowlist"
+            )
         return self
 
     @classmethod
@@ -104,6 +149,11 @@ class IndependentReviewInput(BaseModel):
             verified_supervisor=supervisor,
             evidence_claims=supervisor.evidence,
             initial_assessment=assessment,
+            removable_supporting_evidence_ids=assessment.supporting_evidence_ids,
+            eligible_overlooked_evidence_ids=eligible_overlooked_evidence_ids(
+                supervisor,
+                assessment,
+            ),
         )
 
 
@@ -277,27 +327,11 @@ def reconcile_research_fit_assessment(
     initial_id_set = set(initial_ids)
     unsupported_ids = set(result.unsupported_claim_ids)
     overlooked_ids = set(result.overlooked_evidence_ids)
-    referenced_ids = unsupported_ids | overlooked_ids
-    references_unknown_evidence = not referenced_ids.issubset(evidence_by_id)
     unsupported_not_in_assessment = not unsupported_ids.issubset(initial_id_set)
-    overlooked_already_used = bool(overlooked_ids & initial_id_set)
-    unusable_overlooked_evidence = any(
-        claim.claim_type not in _REVIEWABLE_FIT_EVIDENCE_TYPES
-        or not claim.directly_supported
-        or not evidence_claim_is_grounded_for_supervisor(
-            claim,
-            supervisor,
-            supervisor.evidence,
-        )
-        for evidence_id in overlooked_ids
-        if (claim := evidence_by_id.get(evidence_id)) is not None
+    overlooked_not_eligible = not overlooked_ids.issubset(
+        eligible_overlooked_evidence_ids(supervisor, assessment)
     )
-    if (
-        references_unknown_evidence
-        or unsupported_not_in_assessment
-        or overlooked_already_used
-        or unusable_overlooked_evidence
-    ):
+    if unsupported_not_in_assessment or overlooked_not_eligible:
         return _unavailable_review(
             assessment,
             IndependentReviewFailureKind.INVALID_EVIDENCE_REFERENCE,

@@ -21,6 +21,7 @@ from .independent_review import (
     IndependentReviewModelPort,
     IndependentReviewPolicy,
     IndependentReviewResult,
+    eligible_overlooked_evidence_ids,
     reconcile_research_fit_assessment,
 )
 from .nebius_review import NebiusReviewModelAdapter
@@ -37,6 +38,7 @@ from .prompts import (
     INDEPENDENT_REVIEW_SYSTEM_PROMPT_V1,
     INDEPENDENT_REVIEW_SYSTEM_PROMPT_V2,
     INDEPENDENT_REVIEW_SYSTEM_PROMPT_V3,
+    INDEPENDENT_REVIEW_SYSTEM_PROMPT_V4,
     RESEARCH_FIT_PROMPT_VERSION,
     RESEARCH_FIT_SYSTEM_PROMPT_V1,
     RESEARCH_PLANNING_PROMPT_VERSION,
@@ -99,6 +101,7 @@ __all__ = [
     "INDEPENDENT_REVIEW_SYSTEM_PROMPT_V1",
     "INDEPENDENT_REVIEW_SYSTEM_PROMPT_V2",
     "INDEPENDENT_REVIEW_SYSTEM_PROMPT_V3",
+    "INDEPENDENT_REVIEW_SYSTEM_PROMPT_V4",
     "IndependentReviewAgent",
     "IndependentReviewInput",
     "IndependentReviewModelError",
@@ -107,6 +110,7 @@ __all__ = [
     "IndependentReviewModelPort",
     "IndependentReviewPolicy",
     "IndependentReviewResult",
+    "eligible_overlooked_evidence_ids",
     "NebiusReviewModelAdapter",
     "OpenAIPlanningModelAdapter",
     "OpenAIResearchFitAdapter",

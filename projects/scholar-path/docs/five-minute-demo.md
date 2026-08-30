@@ -94,8 +94,8 @@ research run.
 
 | Field | Demonstration value |
 |---|---|
-| Proposed research statement | Applications of machine learning and artificial intelligence in software engineering. |
-| Research topics | Machine Learning; Artificial Intelligence; Software Engineering; Data Science; Computer Science |
+| Proposed research statement | Automated vulnerability detection, threat analysis, and secure code evaluation in distributed cloud environments. |
+| Research topics | Computer Security; Software Security; Vulnerability Analysis; Cloud Security; Static Analysis |
 | Preferred regions | Leave empty |
 | Study mode | No preference |
 | Research orientation | No preference |

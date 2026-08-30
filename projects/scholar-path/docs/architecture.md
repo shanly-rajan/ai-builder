@@ -444,6 +444,39 @@ sourced, partially verified records do not count, and shortlist persistence stil
 explicit Candidate approval. Stopping discovery at two can reduce result diversity; restore
 `strict` for evidence-backed operation.
 
+## M13.14 security demo profile and independent-review evidence allowlists
+
+The active demo profile now describes automated vulnerability detection, threat analysis, secure
+code evaluation, and distributed cloud environments. Its five topics cover computer security,
+software security, vulnerability analysis, cloud security, and static analysis. Methodological
+interests remain blank, and the reviewer must still explicitly start the graph.
+
+The Independent Review Agent now receives two application-computed allowlists in its closed input:
+the initial assessment citations that may be removed and the unused evidence IDs that are direct,
+subject-grounded, and typed as research interest, methodology, publication, or project. Prompt v4
+requires the model to reference only those lists. Pure reconciliation remains the final safety
+boundary and never silently filters or repairs a model-proposed identifier.
+
+```mermaid
+flowchart LR
+    A[Initial Research Fit assessment] --> U[Removable citation IDs]
+    E[Verified evidence] --> F[Pure fit-evidence filter]
+    F --> O[Eligible overlooked IDs]
+    U --> N[Nebius structured review]
+    O --> N
+    N --> R{Deterministic reconciliation}
+    R -->|references allowed| Apply[Accept or apply revision]
+    R -->|reference rejected| Preserve[Preserve score + lower confidence]
+    Preserve --> Explain[Completed review; unsafe evidence revision]
+```
+
+The measured run did not contain a provider failure: all seven Nebius invocations returned valid
+structured output. Four revisions referenced one overlooked evidence ID even though the affected
+zero-score assessments had no eligible overlooked Research Fit evidence; those four revisions were
+correctly classified as `invalid_evidence_reference`. Increasing the 60-second timeout, adding a
+blind retry, changing the model, or relaxing evidence rules would not address that failure mode.
+The original assessment remains available and Candidate approval remains mandatory.
+
 ## M4–M5 resilient discovery boundary
 
 ```mermaid
@@ -1042,7 +1075,7 @@ The Research Fit node records `component=research_fit_evaluation_agent`,
 `ResearchFitRubric.version` as `rubric_version` (the default is
 `research-fit-rubric-v1`). Neither evidence text nor Candidate or Supervisor identity
 is trace metadata. The review node records `component=independent_review_agent` and
-`prompt_version=independent-review-v3`; Candidate and evidence payloads remain trace
+`prompt_version=independent-review-v4`; Candidate and evidence payloads remain trace
 inputs rather than metadata, and the LangSmith client hides all inputs and outputs.
 
 Each discovery provider call creates an empty-input, empty-output child tool span. Only

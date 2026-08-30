@@ -47,7 +47,11 @@ def _run(
     *,
     approved_supervisor_ids: tuple[str, ...] | None = None,
     derive_policy_from_application_settings: bool = False,
-) -> tuple[ScholarPathState | dict[str, object], FakeResearchFitModel]:
+) -> tuple[
+    ScholarPathState | dict[str, object],
+    FakeResearchFitModel,
+    FakeIndependentReviewModel,
+]:
     config = (
         None
         if derive_policy_from_application_settings
@@ -58,6 +62,7 @@ def _run(
         )
     )
     fit_model = FakeResearchFitModel()
+    review_model = FakeIndependentReviewModel()
     responses = (
         (
             CandidateApproveResponse(
@@ -78,7 +83,7 @@ def _run(
         content_extractor=FakeContentExtraction(),
         evidence_model=_identity_only_evidence_model(),
         research_fit_model=fit_model,
-        independent_review_model=FakeIndependentReviewModel(),
+        independent_review_model=review_model,
         candidate_preference_memory=FakeCandidatePreferenceMemory(),
         alternate_evidence_search=FakeSupervisorSearch(),
         application_settings=ApplicationSettings(
@@ -88,11 +93,11 @@ def _run(
         ),
         langsmith_settings=LangSmithSettings(tracing=False),
     )
-    return result, fit_model
+    return result, fit_model, review_model
 
 
 def test_strict_standard_stops_but_mvp_identity_standard_reaches_candidate_review() -> None:
-    strict_result, strict_fit_model = _run(
+    strict_result, strict_fit_model, strict_review_model = _run(
         VerificationEvidenceStandard.STRICT,
     )
     strict_state = cast(ScholarPathState, strict_result)
@@ -100,8 +105,9 @@ def test_strict_standard_stops_but_mvp_identity_standard_reaches_candidate_revie
     assert strict_state["review_status"] is ReviewStatus.EVIDENCE_INCOMPLETE
     assert not strict_state["verified_supervisors"]
     assert strict_fit_model.call_count == 0
+    assert strict_review_model.call_count == 0
 
-    mvp_result, mvp_fit_model = _run(
+    mvp_result, mvp_fit_model, mvp_review_model = _run(
         VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
     )
     mvp_state = cast(ScholarPathState, mvp_result)
@@ -119,15 +125,24 @@ def test_strict_standard_stops_but_mvp_identity_standard_reaches_candidate_revie
     assert all(
         assessment.overall_score == 0 for assessment in mvp_state["research_fit_assessments"]
     )
+    assert all(
+        review_input.removable_supporting_evidence_ids == ()
+        and review_input.eligible_overlooked_evidence_ids == ()
+        for review_input in mvp_review_model.inputs
+    )
+    assert not any(
+        error.code == "independent_review_invalid_evidence_reference"
+        for error in mvp_state["tool_errors"]
+    )
 
 
 def test_mvp_identity_standard_still_requires_explicit_approval_before_persistence() -> None:
-    paused, _ = _run(VerificationEvidenceStandard.IDENTITY_ONLY_MVP)
+    paused, _, _ = _run(VerificationEvidenceStandard.IDENTITY_ONLY_MVP)
     payload = candidate_review_payload_from_graph_output(paused)
     assert payload is not None
     approved_ids = tuple(item.supervisor_id for item in payload.proposed_supervisor_shortlist)
 
-    result, fit_model = _run(
+    result, fit_model, _ = _run(
         VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
         approved_supervisor_ids=approved_ids,
     )
@@ -140,7 +155,7 @@ def test_mvp_identity_standard_still_requires_explicit_approval_before_persisten
 
 
 def test_application_setting_configures_the_default_graph_verification_standard() -> None:
-    result, _ = _run(
+    result, _, _ = _run(
         VerificationEvidenceStandard.IDENTITY_ONLY_MVP,
         derive_policy_from_application_settings=True,
     )

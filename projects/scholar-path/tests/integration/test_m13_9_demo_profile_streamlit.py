@@ -64,11 +64,11 @@ def test_demo_profile_starts_only_after_explicit_form_submission(
     profile = service.start_calls[0].candidate_profile
     assert profile.proposed_research_statement == DEMO_PROFILE_RESEARCH_STATEMENT
     assert profile.research_topics == (
-        "Machine Learning",
-        "Artificial Intelligence",
-        "Software Engineering",
-        "Data Science",
-        "Computer Science",
+        "Computer Security",
+        "Software Security",
+        "Vulnerability Analysis",
+        "Cloud Security",
+        "Static Analysis",
     )
     assert profile.preferred_regions == ()
     assert profile.preferred_study_modes == ()

@@ -103,6 +103,13 @@ closed evidence standard. M13.13 sets the active defaults to five/five for `stri
 policies remain authoritative, and no discovery-quality, evidence, lifecycle, Research Fit, or
 Candidate-approval rule is bypassed.
 
+M13.14 replaces the active demo profile with a software- and cloud-security research example. It
+also gives the independent reviewer deterministic removable-citation and eligible-overlooked-
+evidence allowlists through prompt v4. Nebius responses that violate those lists remain rejected
+by pure reconciliation, but the Candidate-facing message now distinguishes a completed review
+whose evidence revision was unsafe from a provider failure. Provider timeout, retry, model, score,
+evidence, and Candidate-approval policies are unchanged.
+
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
 graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. Unit and

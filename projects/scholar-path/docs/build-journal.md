@@ -3996,3 +3996,100 @@ The bounded repair prompt is archived as
   to conceal weak identity evidence.
 - Restore `strict` before presenting results as fully evidence-backed recommendations, and revisit
   the two-Supervisor compromise after the end-to-end MVP has been evaluated.
+
+## M13.14 Repair: Security demo and Nebius review evidence allowlists
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Replace the active demo research statement and topics with the supplied software- and
+cloud-security example, diagnose the measured Independent Research Fit review outcome, and reduce
+invalid Nebius evidence revisions through explicit deterministic allowlists. Preserve strict
+structured output, pure reconciliation, provider bounds, original assessments, evidence rules,
+and Candidate approval.
+
+### Prompt used
+
+The bounded repair prompt is archived as
+[`m13-14-security-demo-and-nebius-review-allowlists.md`](prompts/m13-14-security-demo-and-nebius-review-allowlists.md).
+
+### Files changed
+
+- Replaced the active demo statement with automated vulnerability detection, threat analysis,
+  secure code evaluation, and distributed cloud environments; replaced its five topics with the
+  supplied security topics while keeping methodological interests blank.
+- Added exact removable-support and eligible-overlooked evidence ID lists to the typed independent-
+  review input. The latter is computed only from unused, directly supported, subject-grounded
+  research-interest, methodology, publication, and project evidence.
+- Added independent-review prompt v4 and passed it through the Nebius strict structured-output
+  adapter. Pure reconciliation still rejects every reference outside the deterministic lists.
+- Changed the invalid-evidence-reference message to state that review completed but its proposed
+  evidence revision was not safely applicable, distinguishing it from provider failure. The UI
+  no longer appends misleading search-retry advice to that completed-review outcome.
+- Updated current README, architecture, terminology, demonstration guidance, observability
+  expectation, optional live assertion, and repository contracts while preserving historical
+  prompt and evaluation artifacts.
+
+### Tests added
+
+- Exact demo statement/topic and blank-methodology contracts plus normalized Streamlit submission.
+- Pure allowlist coverage for valid unused fit evidence and rejection of a tampered identity-
+  evidence allowlist.
+- Provider-prompt coverage proving both deterministic lists and the v4-only allowlist instruction
+  reach the Nebius prompt.
+- Graph coverage distinguishing a completed but unsafe evidence revision from a provider failure.
+- Streamlit coverage proving the completed-review warning retains the assessment without advising
+  a repeated search.
+- Identity-only MVP graph coverage proving evidence-limited assessments expose empty allowlists and
+  do not generate invalid-reference errors with the deterministic fake reviewer.
+- Updated optional live review coverage to validate both output ID sets against their respective
+  allowlists and run deterministic reconciliation.
+
+### Test results
+
+- Focused independent-review, Nebius adapter, graph, demo UI, observability, and contract selection:
+  `87 passed in 2.10s`.
+- Ruff formatting check: `211 files already formatted`; Ruff linting: all checks passed.
+- Strict mypy: no issues in `204 source files`.
+- `git diff --check`: passed.
+- Complete non-live pytest: `1578 passed, 9 deselected, 70 subtests passed in 22.60s` with
+  `91.09%` total coverage. The first run exposed only a stale generated Mermaid prompt-version
+  snapshot; updating it from v3 to v4 restored the graph-document contract.
+
+### Assumptions
+
+- The attached log excerpt and latest matching local checkpoint describe the same seven-review
+  research run; only privacy-safe counts, statuses, and failure categories were inspected.
+- A structurally successful provider response is not automatically an applicable review. Evidence
+  references remain subject to stricter deterministic domain reconciliation.
+- The supplied security profile is a demonstration convenience, not a guarantee that live search
+  and extraction providers will return a sufficient cohort.
+- Existing paused or completed checkpoints remain immutable audit history. The changed demo values
+  and prompt require a fresh browser session or toggle cycle, a restarted Streamlit process, and a
+  new research thread.
+
+### Lessons learned
+
+- All seven Nebius calls succeeded; the matching run contained two accepted reviews, one applied
+  revision, and four revisions rejected as `invalid_evidence_reference`.
+- Every affected initial assessment had score zero, no citations, and no eligible unused Research
+  Fit evidence. Increasing timeout or retries would not correct a semantic evidence-reference
+  violation.
+- The former prompt said only that an ID must exist in the supplied input, while reconciliation
+  additionally required unused, typed, direct, subject-grounded fit evidence. Explicit input
+  allowlists align the model-facing and application contracts without weakening the latter.
+- `Research Fit: not established` remains an upstream evidence condition, not a Nebius outage.
+
+### Remaining debt
+
+- Consider a separate typed `not_applicable` outcome that deterministically skips independent
+  review when an assessment has neither cited nor eligible overlooked Research Fit evidence. That
+  is a product semantic change and is intentionally outside this repair.
+- The closed review payload currently repeats the evidence collection inside both
+  `verified_supervisor` and `evidence_claims`; a future typed provider projection could reduce
+  tokens without reducing audit context.
+- A future privacy-safe diagnostic may distinguish unknown, already-cited, non-fit, indirect, and
+  ungrounded reference subcategories without recording IDs or evidence content.
+- The optional live Nebius test remains explicitly opt-in and was not required for deterministic
+  completion of this milestone.

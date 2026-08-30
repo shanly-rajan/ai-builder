@@ -4,7 +4,10 @@ import os
 
 import pytest
 
-from scholarpath.agents.independent_review import IndependentReviewInput
+from scholarpath.agents.independent_review import (
+    IndependentReviewInput,
+    reconcile_research_fit_assessment,
+)
 from scholarpath.agents.nebius_review import NebiusReviewModelAdapter
 from scholarpath.config import load_nebius_review_settings
 from scholarpath.domain import IndependentReviewDecision
@@ -43,6 +46,15 @@ def test_nebius_structured_independent_review_smoke() -> None:
         IndependentReviewDecision.REVISE,
     }
     assert 0 <= result.recommended_score <= 100
-    valid_evidence_ids = {claim.evidence_id for claim in review_input.evidence_claims}
-    assert set(result.unsupported_claim_ids).issubset(valid_evidence_ids)
-    assert set(result.overlooked_evidence_ids).issubset(valid_evidence_ids)
+    assert set(result.unsupported_claim_ids).issubset(
+        review_input.removable_supporting_evidence_ids
+    )
+    assert set(result.overlooked_evidence_ids).issubset(
+        review_input.eligible_overlooked_evidence_ids
+    )
+    reconciled = reconcile_research_fit_assessment(
+        review_input.verified_supervisor,
+        review_input.initial_assessment,
+        result,
+    )
+    assert reconciled.failure_kind is None

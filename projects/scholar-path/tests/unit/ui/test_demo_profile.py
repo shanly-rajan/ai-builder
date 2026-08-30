@@ -10,6 +10,14 @@ from scholarpath.ui.app import (
 def test_demo_profile_widget_values_match_the_curated_reviewer_example() -> None:
     values = demo_profile_widget_values()
 
+    assert DEMO_PROFILE_RESEARCH_STATEMENT == (
+        "Automated vulnerability detection, threat analysis, and secure code evaluation in "
+        "distributed cloud environments."
+    )
+    assert DEMO_PROFILE_RESEARCH_TOPICS == (
+        "Computer Security, Software Security, Vulnerability Analysis, Cloud Security, "
+        "Static Analysis"
+    )
     assert values == {
         "profile_research_statement": DEMO_PROFILE_RESEARCH_STATEMENT,
         "profile_research_topics": DEMO_PROFILE_RESEARCH_TOPICS,

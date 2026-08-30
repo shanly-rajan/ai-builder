@@ -46,11 +46,11 @@ STUDY_MODE_OPTIONS = ("full-time", "part-time", "online", "hybrid", "on-campus")
 RESEARCH_ORIENTATION_OPTIONS = ("No preference", "applied", "theoretical", "mixed")
 DEMO_PROFILE_TOGGLE_KEY = "use_demo_research_profile"
 DEMO_PROFILE_RESEARCH_STATEMENT = (
-    "Applications of machine learning and artificial intelligence in software engineering."
+    "Automated vulnerability detection, threat analysis, and secure code evaluation in "
+    "distributed cloud environments."
 )
 DEMO_PROFILE_RESEARCH_TOPICS = (
-    "Machine Learning, Artificial Intelligence, Software Engineering, Data Science, "
-    "Computer Science"
+    "Computer Security, Software Security, Vulnerability Analysis, Cloud Security, Static Analysis"
 )
 PAGE_ICON = "🎓"
 HERO_TITLE = "🎓 ScholarPath"
@@ -829,6 +829,12 @@ def _render_errors(snapshot: UiRunSnapshot) -> None:
                 "Supervisor discovery completed its bounded provider attempts without "
                 "retaining a Prospective Supervisor. Revise the search preferences and try "
                 f"again.{occurrence_note}"
+            )
+            continue
+        if error.code == "independent_review_invalid_evidence_reference":
+            st.warning(
+                f"{error.message} The workflow can continue with the preserved assessment."
+                f"{occurrence_note}"
             )
             continue
         if error.recoverable:

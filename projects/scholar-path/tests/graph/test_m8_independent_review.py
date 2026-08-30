@@ -14,7 +14,7 @@ from scholarpath.config import (
     LangSmithSettings,
     NebiusReviewSettings,
 )
-from scholarpath.domain import IndependentReviewStatus
+from scholarpath.domain import EvidenceClaimType, IndependentReviewStatus
 from scholarpath.graph import (
     CandidateApproveResponse,
     GraphFixtureConfig,
@@ -202,6 +202,38 @@ def test_malformed_review_preserves_assessment_and_records_invalid_output() -> N
     assert any(
         error.code == "independent_review_invalid_output" for error in final_state["tool_errors"]
     )
+
+
+def test_invalid_evidence_revision_is_distinct_from_a_nebius_provider_failure() -> None:
+    baseline_model = FakeIndependentReviewModel()
+    baseline = _run(baseline_model)
+    target = baseline["research_fit_assessments"][0]
+    target_input = next(
+        item
+        for item in baseline_model.inputs
+        if item.initial_assessment.supervisor_id == target.supervisor_id
+    )
+    identity_id = next(
+        claim.evidence_id
+        for claim in target_input.evidence_claims
+        if claim.claim_type is EvidenceClaimType.IDENTITY
+    )
+    invalid_revision = make_revised_review(
+        target_input,
+        recommended_score=target.overall_score,
+        overlooked_evidence_ids=(identity_id,),
+    )
+
+    final_state = _run(FakeIndependentReviewModel({target.supervisor_id: (invalid_revision,)}))
+    error = next(
+        item
+        for item in final_state["tool_errors"]
+        if item.code == "independent_review_invalid_evidence_reference"
+    )
+
+    assert "review completed" in error.message
+    assert "evidence revision was not safely applicable" in error.message
+    assert "provider request failed" not in error.message
 
 
 def test_configured_disagreement_threshold_marks_candidate_attention() -> None:

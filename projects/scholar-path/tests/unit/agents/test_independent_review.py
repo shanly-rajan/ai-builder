@@ -14,6 +14,7 @@ from scholarpath.agents.independent_review import (
     IndependentReviewModelInvocationError,
     IndependentReviewPolicy,
     IndependentReviewResult,
+    eligible_overlooked_evidence_ids,
     reconcile_research_fit_assessment,
 )
 from scholarpath.agents.shortlist_synthesis import ShortlistSynthesisAgent
@@ -143,6 +144,10 @@ def test_valid_overlooked_evidence_is_added_without_model_created_evidence() -> 
     supervisor_with_project = supervisor.model_copy(
         update={"evidence": (*supervisor.evidence, overlooked)}
     )
+    assert eligible_overlooked_evidence_ids(
+        supervisor_with_project,
+        assessment,
+    ) == (overlooked.evidence_id,)
 
     reconciled = reconcile_research_fit_assessment(
         supervisor_with_project,
@@ -398,6 +403,31 @@ def test_default_tests_use_the_fake_model_and_map_the_exact_domain_input() -> No
     assert model.inputs[0].verified_supervisor == supervisor
     assert model.inputs[0].evidence_claims == supervisor.evidence
     assert model.inputs[0].initial_assessment == assessment
+    assert model.inputs[0].removable_supporting_evidence_ids == assessment.supporting_evidence_ids
+    assert model.inputs[0].eligible_overlooked_evidence_ids == ()
+
+
+def test_review_input_rejects_a_tampered_overlooked_evidence_allowlist() -> None:
+    supervisor = make_verified_supervisor(1)
+    assessment = make_research_fit_assessment(1)
+    review_input = IndependentReviewInput.from_domain(
+        make_candidate_profile(),
+        supervisor,
+        assessment,
+    )
+    identity_id = next(
+        claim.evidence_id
+        for claim in supervisor.evidence
+        if claim.claim_type is EvidenceClaimType.IDENTITY
+    )
+
+    with pytest.raises(ValidationError, match="deterministic allowlist"):
+        IndependentReviewInput.model_validate(
+            {
+                **review_input.model_dump(mode="python"),
+                "eligible_overlooked_evidence_ids": (identity_id,),
+            }
+        )
 
 
 def test_accept_with_a_different_recommendation_still_preserves_original() -> None:

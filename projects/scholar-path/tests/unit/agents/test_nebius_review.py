@@ -6,6 +6,7 @@ from io import StringIO
 from typing import cast
 
 import pytest
+from langchain_core.prompt_values import ChatPromptValue
 from langchain_core.runnables import RunnableConfig, RunnableLambda
 from pydantic import SecretStr
 
@@ -120,6 +121,25 @@ def test_adapter_uses_nebius_endpoint_and_strict_schema_without_provider_retries
         "include_raw": False,
         "strict": True,
     }
+
+
+def test_adapter_prompt_contains_the_deterministic_evidence_reference_allowlists(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    chat_model, _ = _patch_chat_openai(monkeypatch, _structured_result())
+    review_input = _review_input()
+
+    NebiusReviewModelAdapter(_configuration()).review(review_input)
+
+    prompt_value = cast(ChatPromptValue, chat_model.inputs[0])
+    rendered_prompt = str(prompt_value)
+    system_content = prompt_value.messages[0].content
+    assert isinstance(system_content, str)
+    assert "removable_supporting_evidence_ids" in rendered_prompt
+    assert "eligible_overlooked_evidence_ids" in rendered_prompt
+    assert "deterministic\nallowlists, not suggestions" in system_content
+    assert review_input.removable_supporting_evidence_ids
+    assert review_input.eligible_overlooked_evidence_ids == ()
 
 
 def test_actual_nebius_adapter_logs_only_safe_structured_provider_outcome(
