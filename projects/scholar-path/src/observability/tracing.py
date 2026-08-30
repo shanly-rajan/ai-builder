@@ -6,6 +6,7 @@ from typing import Final, Protocol
 
 from langchain_core.runnables import RunnableConfig
 from langsmith import Client, trace, tracing_context
+from langsmith.utils import LangSmithRetry
 
 from ..agents.prompts import (
     EVIDENCE_VERIFICATION_PROMPT_VERSION,
@@ -17,8 +18,31 @@ from ..config import Environment, LangSmithSettings
 from ..domain import SearchResultRejectionCounts
 from ..tools.supervisor_search import SearchErrorCategory, SearchProvider
 
-GRAPH_VERSION: Final = "m12.4"
+GRAPH_VERSION: Final = "m13"
+LANGSMITH_RETRY_STATUS_CODES: Final = (408, 425, 429, 500, 502, 503, 504)
 type TraceScalar = str | int | float | bool
+
+
+def langsmith_timeout_ms(settings: LangSmithSettings) -> int:
+    """Convert the validated request deadline into the SDK's millisecond unit."""
+    return max(1, round(settings.request_timeout_seconds * 1_000))
+
+
+def langsmith_retry_config(settings: LangSmithSettings) -> LangSmithRetry:
+    """Return one finite retry policy shared by tracing and evaluation clients."""
+    maximum = settings.maximum_retry_count
+    return LangSmithRetry(
+        total=maximum,
+        connect=maximum,
+        read=maximum,
+        status=maximum,
+        other=maximum,
+        redirect=0,
+        allowed_methods=None,
+        status_forcelist=LANGSMITH_RETRY_STATUS_CODES,
+        backoff_factor=0.25,
+        respect_retry_after_header=True,
+    )
 
 
 class DiscoveryTraceCompletion(Protocol):
@@ -281,6 +305,8 @@ class LangSmithObservability:
         client = Client(
             api_url=str(self._settings.endpoint),
             api_key=api_key.get_secret_value(),
+            timeout_ms=langsmith_timeout_ms(self._settings),
+            retry_config=langsmith_retry_config(self._settings),
             hide_inputs=True,
             hide_outputs=True,
             omit_traced_runtime_info=True,

@@ -37,8 +37,8 @@ def test_m12_4_prompt_diagram_readme_architecture_and_journal_are_recorded() -> 
 
 
 def test_m12_4_versions_graph_and_offline_evaluation_baseline() -> None:
-    assert GRAPH_VERSION == "m12.4"
-    assert LOCAL_BASELINE_NAME == "scholarpath-m12-4-fake-baseline-2026-08-30"
+    assert GRAPH_VERSION == "m13"
+    assert LOCAL_BASELINE_NAME == "scholarpath-m13-fake-baseline-2026-08-30"
 
 
 def test_m12_4_uses_exact_first_failed_gate_taxonomy() -> None:

@@ -848,11 +848,11 @@ flowchart LR
     Root --> FitTrace[Research Fit node and rubric metadata]
     Root --> ReviewTrace[independent-review node metadata]
     Root --> Discovery[discovery node + aggregate attempt spans]
-    Tags[environment plus graph-version:m12.4] --> Root
+    Tags[environment plus graph-version:m13] --> Root
 ```
 
-The graph version is `m12.4`. Root tags are
-`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m12.4`. Planning, discovery,
+The graph version is `m13`. Root tags are
+`environment:<SCHOLARPATH_ENVIRONMENT>` and `graph-version:m13`. Planning, discovery,
 evidence, Research Fit, and independent-review nodes add only safe component and version
 metadata. The fixed metadata allowlist is:
 
@@ -1238,9 +1238,9 @@ already-running event-loop runtime.
 
 | Concern | Control |
 |---|---|
-| Packaging | Flattened physical `src/` mapped to the `scholarpath` namespace |
+| Packaging | Flattened physical `src/` mapped to the `scholarpath` namespace; exact-version `requirements.lock` constraints and strict editable installation |
 | Planning | Versioned strict structured output; no search tools; one visible format retry |
-| Discovery | You.com primary, official Tavily fallback, deterministic quality policy and provenance merge |
+| Discovery | You.com primary, official Tavily fallback, deterministic quality policy and provenance merge; four-to-eight queries and at most 20 retained Prospective Supervisors |
 | Extraction | One-URL `ContentExtractionPort`, official Tavily Extract, public-URL checks, dual timeouts and content cap |
 | Evidence model | Injected typed port, versioned prompt, strict native schema, no prose parsing |
 | Grounding | Every direct excerpt occurs in retrieved content and either names the expected Supervisor or carries a validated same-page official-profile identity link; all type-specific checks remain deterministic |
@@ -1250,7 +1250,7 @@ already-running event-loop runtime.
 | Conflicts | Both affiliation claims and cross-referenced evidence IDs are preserved |
 | Retry | One deterministic alternate official-source search and extraction pass |
 | Network isolation | Default tests use fixed pages and fakes; `live` is excluded by default |
-| Observability | `graph-version:m12.4`, prompt and rubric versions, allowlisted aggregate discovery and evaluation metadata, hidden inputs and outputs |
+| Observability | `graph-version:m13`, prompt and rubric versions, allowlisted aggregate discovery and evaluation metadata, hidden inputs and outputs, explicit request deadline, and finite retry policy |
 | Evaluation | Eleven typed synthetic scenarios, fake-default targets, ten deterministic metrics, optional scoped judges, stable dataset IDs, and separate upload/live gates |
 | Human authority | A real interrupt requires typed explicit approval before Shortlisted status or briefing generation |
 | Persistence | In-memory isolation in tests; ignored SQLite path for trusted local restart; opaque thread IDs partition runs |
@@ -1270,8 +1270,8 @@ From `projects/scholar-path`:
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]" --config-settings editable_mode=strict
+python -m pip install "pip==26.1.2" "setuptools==84.0.0"
+python -m pip install --constraint requirements.lock --no-build-isolation -e ".[dev]" --config-settings editable_mode=strict
 cp .env.example .env
 
 # After adding provider credentials to the ignored .env:
@@ -1282,7 +1282,7 @@ streamlit run streamlit_app.py
 
 ruff format --check .
 ruff check .
-mypy src tests
+mypy src tests scripts
 pytest -m "not live"
 ```
 
@@ -1327,7 +1327,16 @@ The Tavily extraction smoke test retrieves one bounded public documentation page
 asserts normalized non-empty content, HTTPS provenance, the content cap, and an aware
 retrieval timestamp. Default test runs skip every live test and make no network call.
 
-## Deferred beyond M12
+## M13 submission-ready reliability boundary
+
+M13 consolidates the release controls without changing ScholarPath's evidence or human-authority
+semantics. [`reliability-review.md`](reliability-review.md) records the final control audit,
+[`m13-release-architecture.mmd`](m13-release-architecture.mmd) shows the component boundary, and
+[`m13-langgraph-node-edge.mmd`](m13-langgraph-node-edge.mmd) records the complete release graph. The
+release remains explicitly scoped to trusted single-user local operation because authenticated
+principal-to-thread authorization is not implemented.
+
+## Deferred beyond M13
 
 - Empirical Research Fit rubric calibration and model-consistency evaluation
 - Multi-source freshness and source-authority weighting beyond one alternate page

@@ -2775,3 +2775,100 @@ The inferred bounded repair prompt is archived as
   changing any identity, institution, host, route, or source-kind gate.
 - Decide whether long-term aggregate monitoring belongs in a separate privacy-reviewed
   observability feature; M12.4 intentionally limits presentation to the active discovery round.
+
+## Milestone M13: Reliability hardening and submission-ready release
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Complete the final architecture and reliability review, prove the bounded human-controlled
+workflow with a fake-provider end-to-end journey, provide a tightly limited optional live
+canary, make installation and CI reproducible, and assemble the documentation needed for a
+submission-ready `v0.1.0` local release.
+
+### Prompt used
+
+The exact milestone prompt is archived as
+[`m13-reliability-hardening-and-release.md`](prompts/m13-reliability-hardening-and-release.md).
+
+### Files changed
+
+- Hardened external-service timeout and retry configuration, trace/evaluation client safety,
+  deterministic cohort limits, recursion budgeting, and production failure-injection guards.
+- Added `requirements.lock` as an exact-version constraints snapshot and aligned GitHub Actions
+  with the pinned local installation and complete deterministic quality gate.
+- Added `tests/integration/test_m13_release_end_to_end.py` for the fake-provider
+  reject/refine/approve journey and `tests/integration/test_m13_live_canary.py` for the explicit,
+  nine-call maximum live vertical canary.
+- Added the saved M13 prompt, architecture and LangGraph Mermaid diagrams, reliability review,
+  release checklist, five-minute demonstration, README release sections, and this journal entry.
+- Advanced release-facing graph/evaluation identifiers and contract expectations to M13 where
+  required by the reliability changes.
+
+### Tests added
+
+- Unit and graph coverage for finite LangSmith settings, deterministic retained-Supervisor
+  limits, stable truncation, full-count discovery routing, recursion budgeting, and production
+  rejection of enabled failure injection.
+- Contract coverage for the M13 release artifacts, canonical terminology, reproducible
+  dependency/CI policy, safe trace metadata, and human approval boundaries.
+- A complete fake-provider integration journey covering You.com failure, Tavily fallback,
+  verification, Research Fit, independent review, Candidate rejection, preference learning,
+  replanning, Candidate approval, shortlist persistence, and final briefing.
+- An optional `pytest.mark.live` one-profile canary requiring two explicit opt-ins, all OpenAI,
+  You.com, Tavily, and Nebius credentials, three public target settings, and no more than nine
+  logical provider calls.
+
+### Test results
+
+- Strict editable installation with pinned build tools and `requirements.lock` constraints:
+  passed with `pip==26.1.2`, `setuptools==84.0.0`, no build isolation, and strict editable mode.
+- Ruff formatting: `216 files already formatted`; Ruff linting: all checks passed.
+- Strict mypy across `src tests scripts`: no issues found in `172 source files`.
+- Focused fake-provider M13 end-to-end test: `1 passed in 0.58s`; its privacy-safe transcript
+  showed failure injection, fallback, verification, Research Fit, review, rejection learning,
+  replanning, approval, and the final briefing.
+- Complete non-live pytest suite: `1,354 passed, 9 deselected in 17.07s`; branch coverage:
+  `90.69%`.
+- Offline M13 LangSmith-compatible evaluation baseline: `11/11` scenarios passed; all
+  applicable deterministic metrics passed and the duplicate Supervisor rate was `0.000`.
+- Dependency consistency, package import, bytecode compilation, and `git diff --check` passed;
+  package import reported version `0.1.0`.
+- Optional nine-call live canary: not run. Default-gate verification produced `1 passed, 1
+  skipped`; the live test remained excluded from the release-blocking suite.
+
+### Assumptions
+
+- `v0.1.0` is a trusted local-use release; a thread ID provides state separation but is not an
+  authorization credential.
+- The committed exact-version constraints snapshot is sufficient for version reproducibility
+  in this milestone, while hash-locked artifacts, an SBOM, and signed provenance remain future
+  supply-chain work.
+- The deterministic fake-provider journey is the release proof. LangSmith uploads, qualitative
+  judges, and the live canary remain explicit opt-in supplements.
+- The live canary uses a configured public official profile and locally constructs one explicit
+  approval only after verification and review; it does not represent a real Candidate decision.
+
+### Lessons learned
+
+- Reliability is a cross-cutting contract: timeouts are meaningful only alongside bounded
+  retries, graph loop ceilings, partial-result preservation, safe terminal states, and tests.
+- A durable human interrupt is not sufficient on its own; persistence nodes must independently
+  validate that approval IDs belong to the active proposal.
+- Exact-version constraints make local and CI resolution comparable, but they should not be
+  described as cryptographic supply-chain verification.
+- A small call-budgeted canary catches provider drift while keeping deterministic fakes and
+  curated evaluations authoritative for release decisions.
+
+### Remaining debt
+
+- Replace trusted local identity with authenticated Candidate identity, thread authorization,
+  consent, deletion, retention, residency, and audit controls before multi-user deployment.
+- Select an encrypted multi-process checkpoint store and add a whole-run latency budget with
+  rate-aware asynchronous provider execution.
+- Add dependency hashes, an SBOM, vulnerability scanning, and signed release provenance.
+- Calibrate discovery, evidence, Research Fit, review, and qualitative-judge thresholds against
+  labelled multilingual examples and Candidate relevance feedback.
+- Record exact final gate results above, complete every required release-checklist item, and
+  create `v0.1.0` only from the reviewed clean release commit.

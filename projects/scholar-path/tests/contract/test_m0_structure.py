@@ -127,11 +127,11 @@ def test_readme_contains_exact_setup_and_quality_commands() -> None:
     required_commands = (
         "python3 -m venv venv",
         "source venv/bin/activate",
-        "python -m pip install --upgrade pip",
-        'python -m pip install -e ".[dev]" --config-settings editable_mode=strict',
+        'python -m pip install --upgrade "pip==26.1.2" "setuptools==84.0.0"',
+        'python -m pip install --constraint requirements.lock --no-build-isolation -e ".[dev]"',
         "ruff format --check .",
         "ruff check .",
-        "mypy src tests",
+        "mypy src tests scripts",
         'pytest -m "not live"',
     )
 

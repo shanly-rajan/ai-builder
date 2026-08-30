@@ -3,7 +3,7 @@
 from typing import cast
 
 import pytest
-from pydantic import SecretStr
+from pydantic import HttpUrl, SecretStr
 
 from scholarpath.agents import PlanningSearchQueryResponse
 from scholarpath.config import (
@@ -159,6 +159,52 @@ def test_realistic_fallback_summaries_reach_downstream_evidence_processing() -> 
     assert len(final_state["prospective_supervisors"]) == 6
     assert "deduplicate_supervisors" in final_state["execution_log"]
     assert "extract_supervisor_evidence" in final_state["execution_log"]
+
+
+def test_unique_results_above_the_global_cap_continue_without_false_duplicate_fallback() -> None:
+    queries = _queries()
+    first_query = queries[0]
+    unique_results = tuple(
+        SearchResult(
+            url=HttpUrl(
+                "https://northbridge.example/people/"
+                f"test-{chr(97 + index // 26)}-name-{chr(97 + index % 26)}"
+            ),
+            title=(
+                f"Professor Test{chr(65 + index // 26)} Name{chr(65 + index % 26)}"
+                " | Department of Systems | Northbridge University"
+            ),
+            description=(
+                f"Professor Test{chr(65 + index // 26)} Name{chr(65 + index % 26)} "
+                "is an academic researcher at Northbridge University."
+            ),
+            originating_query=first_query,
+        )
+        for index in range(21)
+    )
+    outcomes: dict[str, tuple[SearchResult, ...]] = {query: () for query in queries}
+    outcomes[first_query] = unique_results
+    you_search = FakeSupervisorSearch(outcomes)
+    tavily_search = FakeSupervisorSearch()
+
+    final_state = _run(
+        you_search,
+        tavily_search,
+        policy=DiscoveryPolicy(
+            minimum_unique_supervisors=5,
+            maximum_prospective_supervisors=20,
+        ),
+    )
+
+    assert not set(tavily_search.calls).intersection(queries)
+    assert final_state["fallback_search_used"] is False
+    assert len(final_state["prospective_supervisors"]) == 20
+    assert [attempt.plausible_supervisor_count for attempt in final_state["search_attempts"]] == [
+        21,
+        0,
+        0,
+        0,
+    ]
 
 
 def test_successful_you_route_does_not_construct_or_validate_tavily(

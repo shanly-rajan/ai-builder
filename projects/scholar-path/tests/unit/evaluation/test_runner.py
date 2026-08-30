@@ -12,14 +12,20 @@ from unittest.mock import MagicMock
 import pytest
 from langsmith import Client
 from langsmith.evaluation import EvaluationResult
-from langsmith.utils import LangSmithError
+from langsmith.utils import LangSmithError, LangSmithRetry
+from pydantic import HttpUrl, SecretStr
 
-from scholarpath.config import EvaluationSettings, ProviderConfigurationError
+from scholarpath.config import (
+    EvaluationSettings,
+    LangSmithSettings,
+    ProviderConfigurationError,
+)
 from scholarpath.evaluation import (
     DETERMINISTIC_EVALUATORS,
     EVALUATION_SCENARIOS,
     EvaluationTargetKind,
     UploadedExperimentReport,
+    create_langsmith_evaluation_client,
     evaluation_example,
     run_local_baseline,
     run_uploaded_experiment,
@@ -61,6 +67,35 @@ def test_local_baseline_passes_all_curated_scenarios_without_a_client(
     assert all(
         summary.passed_count == summary.applicable_count for summary in report.metric_summaries
     )
+
+
+def test_evaluation_client_uses_explicit_timeout_and_finite_retries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    client = MagicMock(spec=Client)
+
+    def construct_client(**kwargs: object) -> Client:
+        captured.update(kwargs)
+        return cast(Client, client)
+
+    monkeypatch.setattr("scholarpath.evaluation.runner.Client", construct_client)
+    settings = LangSmithSettings(
+        api_key=SecretStr("not-a-real-langsmith-secret"),
+        endpoint=HttpUrl("https://eu.api.smith.langchain.com"),
+        workspace_id="workspace-test-001",
+        request_timeout_seconds=8.25,
+        maximum_retry_count=2,
+    )
+
+    assert create_langsmith_evaluation_client(settings) is client
+    assert captured["timeout_ms"] == 8_250
+    retry_config = captured["retry_config"]
+    assert isinstance(retry_config, LangSmithRetry)
+    assert retry_config.total == 2
+    assert retry_config.redirect == 0
+    assert captured["hide_inputs"] is True
+    assert captured["hide_outputs"] is True
 
 
 def test_local_baseline_can_select_one_target_family() -> None:

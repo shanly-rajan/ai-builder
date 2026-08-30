@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from enum import StrEnum
+from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 
@@ -86,6 +87,7 @@ class DiscoveryPolicy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, validate_default=True)
 
     minimum_unique_supervisors: int = Field(default=5, ge=1)
+    maximum_prospective_supervisors: int = Field(default=20, ge=1, le=100)
     maximum_you_retry_count: int = Field(default=1, ge=0, le=10)
     maximum_tavily_fallback_count: int = Field(default=4, ge=0, le=100)
     timeout_behavior: DiscoveryTimeoutBehavior = DiscoveryTimeoutBehavior.RETRY_THEN_TAVILY
@@ -94,6 +96,15 @@ class DiscoveryPolicy(BaseModel):
     stopping_condition: DiscoveryStoppingCondition = (
         DiscoveryStoppingCondition.MINIMUM_UNIQUE_AND_QUALITY
     )
+
+    @model_validator(mode="after")
+    def maximum_must_cover_minimum(self) -> Self:
+        """Ensure the downstream cohort cap cannot invalidate the discovery minimum."""
+        if self.maximum_prospective_supervisors < self.minimum_unique_supervisors:
+            raise ValueError(
+                "maximum_prospective_supervisors must not be less than minimum_unique_supervisors"
+            )
+        return self
 
 
 def _current_round_attempts(

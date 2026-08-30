@@ -1,0 +1,43 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+flowchart LR
+    Candidate[Candidate] --> UI[Streamlit UI]
+    UI --> AppPort{{ScholarPathApplicationPort}}
+    AppPort --> Runtime[ScholarPathRuntime]
+    Runtime --> Graph[LangGraph orchestration]
+    Graph <--> Checkpoint[(Thread-scoped checkpoint)]
+
+    Graph --> Planning[Research Planning Agent]
+    Planning --> OpenAI[OpenAI structured output]
+
+    Graph --> Discovery[Supervisor Discovery Agent]
+    Discovery --> You[You.com primary search]
+    Discovery --> Policy{Deterministic DiscoveryPolicy}
+    Policy -->|bounded fallback| TavilySearch[Tavily search]
+
+    Graph --> Evidence[Evidence Verification Agent]
+    Evidence --> TavilyExtract[Tavily Extract]
+    Evidence --> OpenAI
+
+    Graph --> Fit[Research Fit Evaluation Agent]
+    Fit --> OpenAI
+    Graph --> Review[Independent Review Agent]
+    Review --> Nebius[Nebius]
+
+    Graph --> Gate{{Candidate review interrupt}}
+    Gate -->|approve exact IDs| Shortlist[(Shortlisted Supervisors)]
+    Gate -->|reject or request more| Graph
+    Gate --> Memory[Preference Learning Agent]
+    Memory --> Mem0[(Candidate-scoped Mem0)]
+
+    Runtime --> Trace[Privacy-safe LangSmith tracing]
+    Eval[Offline regression suite] --> Runtime
+    Eval --> Fakes[Fake ports and models]
+
+    classDef human fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
+    classDef external fill:#e8f1ff,stroke:#245a9b;
+    class Candidate,Gate human;
+    class OpenAI,You,TavilySearch,TavilyExtract,Nebius,Mem0,Trace external;

@@ -2,6 +2,10 @@
 
 **Multi-Agent Doctoral Supervisor Discovery and Research-Fit System**
 
+**Canonical one-liner:** ScholarPath is a human-controlled, multi-agent system that discovers,
+verifies, evaluates, and shortlists research-aligned doctoral Supervisors with source-backed
+evidence.
+
 ScholarPath helps a prospective doctoral Candidate discover, verify, evaluate, and
 shortlist research-aligned Supervisors through a Streamlit web application. It is
 intended to replace hours of fragmented searching across university profiles and
@@ -14,7 +18,14 @@ any Supervisor is shortlisted or any outreach is drafted.
 
 ## Project status
 
-Milestone M11 adds a focused Streamlit application over the durable LangGraph workflow.
+Milestone M13 hardens the complete workflow for a submission-ready `v0.1.0` local release. It
+adds a final 15-control reliability review, finite LangSmith request policy, a deterministic
+maximum retained Supervisor cohort, exact-version dependency constraints, a full fake-provider
+reject/refine/approve journey, an opt-in call-budgeted live canary, and release documentation.
+The release remains deliberately scoped to trusted local use; authenticated Candidate identity,
+thread authorization, and production persistence are roadmap items.
+
+M11 established the focused Streamlit application over the durable LangGraph workflow.
 It captures a Candidate's doctoral research profile, streams allowlisted canonical node
 names as progress, presents Prospective and Verified Supervisors with evidence-backed
 Research Fit details, and resumes the exact checkpointed thread after an explicit
@@ -68,8 +79,46 @@ the current [M10 Candidate-memory graph](docs/m10-candidate-preference-memory-gr
 the [M11 Streamlit application boundary](docs/m11-streamlit-interface.mmd), the
 [M11.2 discovery-completion repair](docs/m11-2-discovery-completion-repair.mmd), the
 [M11.3 academic-profile context repair](docs/m11-3-academic-profile-context-repair.mmd), the
-[M12.4 alternate-source diagnostics boundary](docs/m12-4-alternate-source-diagnostics.mmd), and
-[canonical terminology](docs/terminology.md) for the current boundaries.
+[M12.4 alternate-source diagnostics boundary](docs/m12-4-alternate-source-diagnostics.mmd), the
+M13 [release architecture](docs/m13-release-architecture.mmd),
+[LangGraph node and edge diagram](docs/m13-langgraph-node-edge.mmd),
+[reliability review](docs/reliability-review.md),
+[five-minute demonstration](docs/five-minute-demo.md), [release checklist](docs/release-checklist.md),
+and [canonical terminology](docs/terminology.md) for the current boundaries.
+
+## M13 project overview and release scope
+
+```mermaid
+flowchart LR
+    Profile[Candidate research profile] --> Plan[Source-diverse SearchPlan]
+    Plan --> Discover[You.com discovery]
+    Discover -->|bounded degradation| Fallback[Tavily fallback]
+    Discover --> Verify[Source-backed verification]
+    Fallback --> Verify
+    Verify --> Fit[Evidence-cited Research Fit]
+    Fit --> Review[Independent review]
+    Review --> Gate{{Candidate approval}}
+    Gate -->|reject or request more| Plan
+    Gate -->|approve exact IDs| Shortlist[Shortlisted Supervisors]
+
+    classDef human fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
+    class Gate human;
+```
+
+| Release dimension | `v0.1.0` position |
+|---|---|
+| Primary user | A prospective doctoral Candidate using a trusted local Streamlit application |
+| Outcome | At most five ranked, evidence-backed recommendations for explicit Candidate review |
+| Human authority | No shortlist persistence or outreach drafting before approval |
+| Factual authority | Retrieved source evidence, never model knowledge or Candidate memory |
+| Resilience | Typed failures, partial-result preservation, explicit timeouts, bounded retries and loops, You.com-to-Tavily fallback |
+| Persistence | Thread-isolated LangGraph checkpoints; restart-safe local SQLite; Candidate-scoped Mem0 preferences |
+| Quality | Offline fake tests and deterministic evaluation are mandatory; live traces, judges, and canary are opt-in |
+| Deployment boundary | Trusted local use; authentication, authorization, production storage, and governance controls are deferred |
+
+The complete architecture decision and control record is
+[`docs/reliability-review.md`](docs/reliability-review.md). The release contains no Pinecone,
+Fireworks, LlamaIndex, or outreach implementation.
 
 ## M1 domain contracts
 
@@ -648,8 +697,9 @@ Run these commands from the repository root:
 cd projects/scholar-path
 python3 -m venv venv
 source venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]" --config-settings editable_mode=strict
+python -m pip install --upgrade "pip==26.1.2" "setuptools==84.0.0"
+python -m pip install --constraint requirements.lock --no-build-isolation -e ".[dev]" \
+  --config-settings editable_mode=strict
 cp .env.example .env
 ```
 
@@ -659,6 +709,10 @@ and is ignored by Git. OpenAI, You.com, and Nebius keys are validated only when 
 respective adapters are instantiated. The shared Tavily key is validated only when
 fallback search or evidence extraction is actually reached. Mem0 is imported and its
 key validated only when persistent memory is first loaded; failure remains recoverable.
+
+`requirements.lock` is an exact-version constraints snapshot used by local setup and CI. It
+reproduces the selected dependency versions, but it is not a hash-locked supply-chain
+verification mechanism.
 
 Run commands from `projects/scholar-path`, because the application resolves `.env`
 relative to the current working directory. Keep the local file private:
@@ -719,8 +773,11 @@ LANGSMITH_ENDPOINT=https://api.smith.langchain.com
 LANGSMITH_API_KEY=
 LANGSMITH_PROJECT=scholarpath
 LANGSMITH_WORKSPACE_ID=
+LANGSMITH_REQUEST_TIMEOUT_SECONDS=10
+LANGSMITH_MAXIMUM_RETRY_COUNT=2
 SCHOLARPATH_RUN_LANGSMITH_EVALS=false
 SCHOLARPATH_RUN_LIVE_E2E_EVALS=false
+SCHOLARPATH_RUN_LIVE_CANARY=false
 SCHOLARPATH_EVALUATION_DATASET_NAME=scholarpath-m12-regression-v1
 SCHOLARPATH_EVALUATION_EXPERIMENT_PREFIX=scholarpath-m12
 SCHOLARPATH_EVALUATION_JUDGE_MODEL=gpt-5.4-mini
@@ -733,7 +790,7 @@ To trace a live run, set `LANGSMITH_TRACING=true` and provide
 `LANGSMITH_WORKSPACE_ID` only when the API key is scoped to more than one workspace.
 These values are loaded from `.env` and passed explicitly to the LangSmith client.
 `SCHOLARPATH_ENVIRONMENT` supplies the `environment:*` trace tag; the implementation
-supplies the fixed `graph-version:m12.4` tag. Disabling tracing does not construct a
+supplies the fixed `graph-version:m13` tag. Disabling tracing does not construct a
 LangSmith client, even if another process has globally enabled tracing.
 
 ### Run the M12 evaluation suite
@@ -1085,6 +1142,42 @@ Expected result: `3 passed`. These cases prove exact result accounting, a typed
 wrong-person rejection on the real graph route, and aggregate-only Streamlit rendering. They
 use fakes and fixed data, so no provider key, model, checkpoint file, or network call is used.
 
+### Five-minute M13 release demonstration
+
+The complete script is in
+[`docs/five-minute-demo.md`](docs/five-minute-demo.md). Its deterministic release proof runs
+the real checkpointed graph with fake providers through a You.com failure, Tavily fallback,
+verification, Research Fit evaluation, independent review, Candidate rejection, preference
+learning, refined search, Candidate approval, shortlist persistence, and final briefing:
+
+```bash
+LANGSMITH_TRACING=false pytest -o addopts='' -q -s \
+  tests/integration/test_m13_release_end_to_end.py
+```
+
+The optional live canary is a separate one-profile vertical path. It requires OpenAI,
+You.com, Tavily, and Nebius credentials plus three non-secret public target settings:
+
+```bash
+set -a
+source .env
+set +a
+
+SCHOLARPATH_RUN_LIVE_TESTS=true \
+SCHOLARPATH_RUN_LIVE_CANARY=true \
+SCHOLARPATH_LIVE_CANARY_SUPERVISOR_NAME="Exact public Supervisor name" \
+SCHOLARPATH_LIVE_CANARY_INSTITUTION="Exact public institution" \
+SCHOLARPATH_LIVE_CANARY_PROFILE_URL="https://institution.example/people/exact-profile" \
+LANGSMITH_TRACING=false \
+pytest -o addopts='' -q -rs -m live \
+  tests/integration/test_m13_live_canary.py
+```
+
+The canary enforces at most nine logical provider calls: two planning attempts, one You.com
+search, one Tavily fallback search, one Tavily extraction, one evidence-model call, two
+Research Fit attempts, and one Nebius review. It is skipped unless both opt-ins, all required
+credentials, and all three public target values are present.
+
 ## Quality and test commands
 
 Run the complete local quality gate from `projects/scholar-path`:
@@ -1092,7 +1185,7 @@ Run the complete local quality gate from `projects/scholar-path`:
 ```bash
 ruff format --check .
 ruff check .
-mypy src tests
+mypy src tests scripts
 pytest -m "not live"
 ```
 
@@ -1278,7 +1371,78 @@ execute, coordinate, remember, or observe those responsibilities.
 | **LangSmith** | Optional graph tracing plus the M12 synthetic dataset, deterministic regression evaluators, and separately selected qualitative judges. |
 | **Streamlit** | Current Candidate-facing interface for profile intake, safe progress, evidence review, and thread-correct interrupt resume. |
 
-## Future production evolution
+## Technology decisions
+
+ScholarPath uses LangGraph for durable, interruptible orchestration; Pydantic at every model
+boundary; Python for deterministic routing, validation, arithmetic, deduplication, lifecycle
+transitions, reconciliation, and ranking; SQLite for local checkpoint persistence; and
+Streamlit as a delivery adapter rather than a business-logic host. You.com is primary search,
+Tavily is bounded fallback and known-page extraction, OpenAI provides typed planning,
+evidence extraction, and Research Fit output, Nebius independently reviews fit, and Mem0 stores
+only durable Candidate preferences. The rationale and trade-offs are recorded in
+[`docs/reliability-review.md`](docs/reliability-review.md).
+
+## Dataset and source description
+
+Discovery state retains normalized result metadata and exact originating queries. A search
+snippet may support discovery, but it cannot verify a Supervisor fact. Verification uses
+retrieved official person profiles, institutional pages, and publication or project sources;
+each factual claim retains its source URL, source kind, retrieval time, support flag,
+confidence, and conflicts. Full page content is not copied into trace metadata.
+
+The evaluation dataset contains eleven fictional, deterministic scenarios spanning strong and
+superficial fit, missing availability, conflicting affiliation, duplicates, fallback,
+extraction failure, reviewer disagreement, rejection, approval enforcement, and source-diverse
+planning. It contains no production Candidate data, credentials, checkpoint state, or full
+provider pages. See [`docs/evaluation-plan.md`](docs/evaluation-plan.md).
+
+## Test strategy and LangSmith evaluation
+
+The release pyramid is unit tests for pure rules and adapter contracts, graph tests for routes
+and bounded loops, contract tests for terminology/privacy/release invariants, and integration
+tests for SQLite, Streamlit, and the full fake-provider journey. Default pytest blocks live
+network access and requires at least 90 percent branch coverage. Live tests are separately
+marked and explicitly opted in.
+
+The offline LangSmith-compatible baseline supplements pytest with deterministic evaluators for
+schema validity, terminology, evidence IDs, source URLs, score arithmetic, availability,
+admission-probability prohibition, fallback routing, deduplication, and approval enforcement.
+Qualitative LLM judges and uploaded LangSmith experiments are optional and never replace
+deterministic release gates. Exact definitions and results are in
+[`docs/evaluation-baseline.md`](docs/evaluation-baseline.md).
+
+## Sample output
+
+```text
+ScholarPath Supervisor Shortlist: 5
+
+1. Dr Amara Ndlovu — Southern Cape Institute of Technology — 87/100
+   Evidence confidence: High
+   Availability: not_stated
+   Independent review: accepted
+   Status: Shortlisted Supervisor after explicit Candidate approval
+
+Briefing: 5 Candidate-approved, evidence-backed Supervisor recommendations.
+```
+
+The example is synthetic. A Research Fit Score is an evidence-based alignment signal, not an
+admission probability, and `not_stated` must never be presented as accepting doctoral
+Candidates.
+
+## Known limitations
+
+- `v0.1.0` is a trusted local-use release: authenticated Candidate identity and authorization
+  binding a principal to a thread are not implemented.
+- SQLite is local and single-process oriented; production persistence, encryption, and
+  retention remain open decisions.
+- Provider processing is synchronous, so latency grows with the bounded Supervisor cohort.
+- Source evidence can become stale, and conservative alternate-source selection can reduce
+  recall.
+- Mem0 consent, deletion, residency, and retention governance requires production design.
+- Exact-version constraints are reproducible but not hash-locked supply-chain verification.
+- LLM-judge thresholds are not calibrated against a labelled set of Candidate ratings.
+
+## Future roadmap
 
 M11 keeps Candidate feedback in thread-scoped graph state and also persists the permitted
 durable preference projection through Mem0. The graph state remains authoritative for the
@@ -1290,3 +1454,17 @@ source freshness and authority weighting; evaluation calibration; checkpoint enc
 retention; and multi-process persistence remain deferred. Retry limits, sufficiency
 thresholds, arithmetic, routing, and ranking remain explicit deterministic configuration
 rather than model decisions.
+
+The next priorities are authenticated Candidate-to-thread authorization, encrypted
+multi-process checkpointing, consent and retention controls, asynchronous rate-aware provider
+execution, calibrated multilingual evaluation, source freshness weighting, dependency hashes
+and signed provenance, and—only under a new explicit approval boundary—outreach drafting.
+
+## Release checklist
+
+Review [`docs/release-checklist.md`](docs/release-checklist.md), the
+[`M13 reliability review`](docs/reliability-review.md), both M13 diagrams, the saved milestone
+prompt, and the exact final gate results in [`docs/build-journal.md`](docs/build-journal.md).
+After every required item passes and the release commit is clean, the suggested tag is
+**`v0.1.0`**. The optional live canary improves confidence but does not replace the offline
+quality and evaluation gates.

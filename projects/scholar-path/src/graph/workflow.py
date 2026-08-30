@@ -290,6 +290,13 @@ class GraphFixtureConfig:
             )
         if self.verification_policy.minimum_verified_supervisors < self.shortlist_size:
             raise ValueError("minimum_verified_supervisors must not be less than shortlist_size")
+        if (
+            self.discovery_policy.maximum_prospective_supervisors
+            < self.verification_policy.minimum_verified_supervisors
+        ):
+            raise ValueError(
+                "maximum_prospective_supervisors must not be less than minimum_verified_supervisors"
+            )
         retry_limits = {
             "max_review_retries": self.max_review_retries,
             "max_review_input_retries": self.max_review_input_retries,
@@ -643,6 +650,7 @@ class DeterministicScholarPathNodes:
         additional_results: list[RawSupervisorSearchResult] | None = None,
         *,
         discovery_round: int | None = None,
+        apply_limit: bool = True,
     ) -> tuple[ProspectiveSupervisor, ...]:
         rejected_ids = {supervisor.supervisor_id for supervisor in state["rejected_supervisors"]}
         combined = [*state["raw_search_results"], *(additional_results or [])]
@@ -652,7 +660,10 @@ class DeterministicScholarPathNodes:
             if result.supervisor_id not in rejected_ids
             and (discovery_round is None or result.discovery_round == discovery_round)
         )
-        return deduplicate_prospective_supervisors(available)
+        deduplicated = deduplicate_prospective_supervisors(available)
+        if not apply_limit:
+            return deduplicated
+        return deduplicated[: self.config.discovery_policy.maximum_prospective_supervisors]
 
     def _policy_route(
         self,
@@ -668,6 +679,7 @@ class DeterministicScholarPathNodes:
                 state,
                 additional_results,
                 discovery_round=state["discovery_round"],
+                apply_limit=False,
             )
         )
         fallback_used_current_round = (
@@ -2008,7 +2020,7 @@ def build_scholarpath_graph(
     builder.add_edge(GENERATE_SHORTLIST_BRIEFING, END)
     return builder.compile(
         checkpointer=checkpointer,
-        name="ScholarPath M11 Streamlit application graph",
+        name="ScholarPath M13 release graph",
     )
 
 

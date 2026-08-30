@@ -193,7 +193,7 @@ def test_m12_prompt_plan_diagram_baseline_readme_and_build_journal_are_recorded(
     assert "https://docs.langchain.com/langsmith/evaluation" in plan
     assert "https://docs.langchain.com/langsmith/evaluation-quickstart" in plan
     assert "Deterministic" in plan and "LLM-as-judge" in plan
-    assert "scholarpath-m12-4-fake-baseline-2026-08-30" in baseline
+    assert "scholarpath-m13-fake-baseline-2026-08-30" in baseline
     assert "2026-08-30" in baseline
     assert "Pending" in baseline
     assert "Not run" in baseline
@@ -201,4 +201,4 @@ def test_m12_prompt_plan_diagram_baseline_readme_and_build_journal_are_recorded(
     assert "scripts/create_eval_dataset.py" in readme
     assert "scripts/run_evals.py" in readme
     assert "Milestone M12" in journal
-    assert GRAPH_VERSION == "m12.4"
+    assert GRAPH_VERSION == "m13"

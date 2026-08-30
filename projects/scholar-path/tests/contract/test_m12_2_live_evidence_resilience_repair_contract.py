@@ -36,9 +36,9 @@ def test_m12_2_prompt_diagram_readme_architecture_and_journal_are_recorded() -> 
 
 
 def test_m12_2_versions_the_changed_graph_and_evidence_prompt() -> None:
-    assert GRAPH_VERSION == "m12.4"
+    assert GRAPH_VERSION == "m13"
     assert EVIDENCE_VERIFICATION_PROMPT_VERSION == "evidence-verification-v3"
-    assert LOCAL_BASELINE_NAME == "scholarpath-m12-4-fake-baseline-2026-08-30"
+    assert LOCAL_BASELINE_NAME == "scholarpath-m13-fake-baseline-2026-08-30"
 
 
 def test_m12_2_preserves_the_single_alternate_source_retry() -> None:

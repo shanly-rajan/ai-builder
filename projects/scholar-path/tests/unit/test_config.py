@@ -611,6 +611,14 @@ def test_failure_injection_mode_is_loaded_deterministically(
     assert load_settings().discovery_failure_mode is DiscoveryFailureMode.YOU_TIMEOUT_ONCE
 
 
+def test_failure_injection_is_rejected_in_production() -> None:
+    with pytest.raises(ValidationError, match="failure injection must be off"):
+        ApplicationSettings(
+            environment=Environment.PRODUCTION,
+            discovery_failure_mode=DiscoveryFailureMode.YOU_RETRYABLE_ERROR,
+        )
+
+
 def test_langsmith_defaults_to_disabled_without_credentials(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -623,6 +631,8 @@ def test_langsmith_defaults_to_disabled_without_credentials(
     assert str(settings.endpoint) == "https://api.smith.langchain.com/"
     assert settings.project == "scholarpath"
     assert settings.workspace_id is None
+    assert settings.request_timeout_seconds == 10.0
+    assert settings.maximum_retry_count == 2
 
 
 def test_langsmith_blank_optional_workspace_id_is_treated_as_unset() -> None:
@@ -640,6 +650,8 @@ def test_langsmith_uses_canonical_environment_variables(
     monkeypatch.setenv("LANGSMITH_ENDPOINT", "https://eu.api.smith.langchain.com")
     monkeypatch.setenv("LANGSMITH_PROJECT", "scholarpath-m3-tests")
     monkeypatch.setenv("LANGSMITH_WORKSPACE_ID", "workspace-test-001")
+    monkeypatch.setenv("LANGSMITH_REQUEST_TIMEOUT_SECONDS", "12.5")
+    monkeypatch.setenv("LANGSMITH_MAXIMUM_RETRY_COUNT", "1")
 
     settings = load_langsmith_settings()
 
@@ -648,6 +660,8 @@ def test_langsmith_uses_canonical_environment_variables(
     assert str(settings.endpoint) == "https://eu.api.smith.langchain.com/"
     assert settings.project == "scholarpath-m3-tests"
     assert settings.workspace_id == "workspace-test-001"
+    assert settings.request_timeout_seconds == 12.5
+    assert settings.maximum_retry_count == 1
     assert "not-a-real-langsmith-secret" not in repr(settings)
     assert "workspace-test-001" not in repr(settings)
 
@@ -659,6 +673,15 @@ def test_langsmith_evaluation_credentials_do_not_require_tracing() -> None:
     )
 
     assert settings.require_evaluation_api_key().get_secret_value() == "not-a-real-langsmith-secret"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (("request_timeout_seconds", 0), ("maximum_retry_count", 6)),
+)
+def test_langsmith_reliability_controls_are_bounded(field: str, value: object) -> None:
+    with pytest.raises(ValidationError):
+        LangSmithSettings.model_validate({field: value})
 
 
 def test_langsmith_evaluation_credentials_are_validated_only_when_requested() -> None:

@@ -1,0 +1,39 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+flowchart TD
+    START([START]) --> Load[load_candidate_preferences]
+    Load --> Plan[plan_supervisor_searches]
+    Plan -->|valid SearchPlan| Discover[discover_prospective_supervisors]
+    Plan -->|planning failure| END([END])
+
+    Discover --> Found[enough_supervisors_found]
+    Found -->|one bounded You.com retry| Discover
+    Found -->|fallback required| Fallback[fallback_supervisor_search]
+    Found -->|sufficient cohort| Dedupe[deduplicate_supervisors]
+    Found -->|bounded stop| END
+    Fallback --> Found
+
+    Dedupe --> Extract[extract_supervisor_evidence]
+    Extract --> Sufficient[supervisor_evidence_sufficient]
+    Sufficient -->|partial and retry available| Alternate[retry_alternate_evidence_source]
+    Sufficient -->|verified cohort sufficient| Fit[evaluate_research_fit]
+    Sufficient -->|bounded partial stop| END
+    Alternate --> Extract
+
+    Fit --> Review[review_fit_assessments]
+    Review --> Synthesize[synthesize_supervisor_shortlist]
+    Synthesize --> Gate{{candidate_review_gate}}
+    Gate -->|invalid response and retry available| Gate
+    Gate -->|valid explicit action| Learn[learn_candidate_preferences]
+    Gate -->|input retry exhausted| END
+    Learn -->|approve exact IDs| Save[save_shortlisted_supervisors]
+    Learn -->|reject or request_more within limit| Plan
+    Learn -->|review limit exhausted| END
+    Save --> Brief[generate_shortlist_briefing]
+    Brief --> END
+
+    classDef human fill:#fff4cc,stroke:#9a6b00,stroke-width:2px;
+    class Gate human;

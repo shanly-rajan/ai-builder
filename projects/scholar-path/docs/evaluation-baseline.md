@@ -1,10 +1,10 @@
-# ScholarPath M12 Evaluation Baseline
+# ScholarPath M13 Release Evaluation Baseline
 
 ## Baseline identity
 
 | Field | Value |
 |---|---|
-| Baseline identifier | `scholarpath-m12-4-fake-baseline-2026-08-30` |
+| Baseline identifier | `scholarpath-m13-fake-baseline-2026-08-30` |
 | Date | 2026-08-30 |
 | Dataset | `scholarpath-m12-regression-v1` |
 | Dataset size | 11 curated synthetic scenarios |
@@ -25,7 +25,7 @@ an explicit, credentialed operation through the supported LangSmith `Client.eval
 | Version | Recorded value |
 |---|---|
 | Application | `scholarpath` |
-| Graph version | `m12.4` |
+| Graph version | `m13` |
 | Dataset schema version | `m12-scenarios-v1` |
 | Research Planning prompt version | `research-planning-v2` |
 | Evidence Verification prompt version | `evidence-verification-v3` |
@@ -119,13 +119,13 @@ must record only scenario ID, evaluator key, score, a privacy-safe category, and
 
 | Check | Result |
 |---|---|
-| M12 evaluator, judge, scenario, trace, runner, contract, and live-gate tests | Passed within the complete non-live suite; live execution remained deselected |
+| M12 dataset evaluators plus M13 release, trace, contract, and live-gate tests | Passed within the complete non-live suite; live execution remained deselected |
 | Fake end-to-end graph regressions | Passed in the 11-scenario baseline |
 | Dataset synchronization tests with a mocked client | Passed |
-| Ruff formatting | Passed: 206 Python files formatted |
+| Ruff formatting | Passed: 216 Python files formatted |
 | Ruff linting | Passed |
-| mypy | Passed: 167 source files |
-| Full non-live pytest suite | Passed: 1,312 tests, eight live tests deselected, 54 terminology subtests, 90.46% branch coverage |
+| mypy | Passed: 172 source files |
+| Full non-live pytest suite | Passed: 1,354 tests, nine live tests deselected, 90.69% branch coverage |
 | Local fake evaluation | Passed: `11/11` scenarios |
 
 The root implementation run must record exact commands, counts, coverage, and durations in

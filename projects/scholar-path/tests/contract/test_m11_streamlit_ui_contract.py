@@ -128,5 +128,5 @@ def test_m11_prompt_readme_trace_version_and_no_outreach_boundary() -> None:
     assert prompt.is_file()
     assert "Milestone M11" in prompt.read_text(encoding="utf-8")
     assert "streamlit run streamlit_app.py" in readme
-    assert GRAPH_VERSION == "m12.4"
+    assert GRAPH_VERSION == "m13"
     assert "outreach" not in source

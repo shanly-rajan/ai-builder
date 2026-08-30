@@ -26,7 +26,7 @@ from ..config import (
     OpenAIPlanningSettings,
     ProviderConfigurationError,
 )
-from ..observability import GRAPH_VERSION
+from ..observability import GRAPH_VERSION, langsmith_retry_config, langsmith_timeout_ms
 from .evaluators import DETERMINISTIC_EVALUATORS
 from .judges import (
     EvaluationJudgeConfiguration,
@@ -52,7 +52,7 @@ from .targets import (
 )
 from .tracing import EVALUATION_APPLICATION, sanitize_evaluation_trace_metadata
 
-LOCAL_BASELINE_NAME: Final = "scholarpath-m12-4-fake-baseline-2026-08-30"
+LOCAL_BASELINE_NAME: Final = "scholarpath-m13-fake-baseline-2026-08-30"
 _EVALUATION_EXAMPLE_NAMESPACE: Final = UUID("1c83477e-5985-49fc-bffd-1edb8cfbf5cc")
 _PROMPT_VERSIONS: Final = (
     RESEARCH_PLANNING_PROMPT_VERSION,
@@ -216,7 +216,7 @@ def run_local_baseline(
     scenarios: Sequence[EvaluationScenario] = EVALUATION_SCENARIOS,
     target: EvaluationTargetKind | None = None,
     evaluators: Sequence[EvaluationCallable] = DETERMINISTIC_EVALUATORS,
-    recorded_on: date = date(2026, 8, 29),
+    recorded_on: date = date(2026, 8, 30),
 ) -> LocalEvaluationReport:
     """Execute fake targets and deterministic evaluators with no LangSmith client."""
     if target is EvaluationTargetKind.GRAPH_LIVE:
@@ -299,6 +299,8 @@ def create_langsmith_evaluation_client(settings: LangSmithSettings) -> Client:
         api_url=str(settings.endpoint),
         api_key=api_key,
         workspace_id=settings.workspace_id,
+        timeout_ms=langsmith_timeout_ms(settings),
+        retry_config=langsmith_retry_config(settings),
         hide_inputs=True,
         hide_outputs=True,
         hide_metadata=sanitize_evaluation_trace_metadata,
@@ -318,8 +320,9 @@ def sync_evaluation_dataset(
         client.create_dataset(
             dataset_name,
             description=(
-                "ScholarPath M12 synthetic regression scenarios for planning, verification, "
-                "Research Fit, resilience, review, and Candidate approval enforcement."
+                "ScholarPath M12 synthetic regression scenarios replayed against the M13 "
+                "release graph for planning, verification, Research Fit, resilience, review, "
+                "and Candidate approval enforcement."
             ),
             metadata={
                 "application": EVALUATION_APPLICATION,
@@ -421,7 +424,7 @@ def run_uploaded_experiment(
         evaluators=evaluators,
         metadata=_experiment_metadata(live=live, judges=bool(judge_evaluators)),
         experiment_prefix=f"{evaluation_settings.evaluation_experiment_prefix}-{GRAPH_VERSION}",
-        description="ScholarPath M12 synthetic regression evaluation.",
+        description="ScholarPath M13 release regression over the M12 synthetic dataset.",
         max_concurrency=1 if live else 0,
         blocking=True,
         upload_results=True,

@@ -195,6 +195,22 @@ def test_raw_search_result_revalidates_during_domain_conversion() -> None:
         ),
         (
             lambda: GraphFixtureConfig(
+                discovery_policy=DiscoveryPolicy(
+                    minimum_unique_supervisors=6,
+                    maximum_prospective_supervisors=5,
+                )
+            ),
+            "must not be less than minimum_unique_supervisors",
+        ),
+        (
+            lambda: GraphFixtureConfig(
+                discovery_policy=DiscoveryPolicy(maximum_prospective_supervisors=5),
+                verification_policy=VerificationPolicy(minimum_verified_supervisors=6),
+            ),
+            "must not be less than minimum_verified_supervisors",
+        ),
+        (
+            lambda: GraphFixtureConfig(
                 verification_policy=VerificationPolicy(minimum_verified_supervisors=4)
             ),
             "must not be less than shortlist_size",

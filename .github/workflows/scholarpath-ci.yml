@@ -36,12 +36,16 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: projects/scholar-path/pyproject.toml
+          cache-dependency-path: |
+            projects/scholar-path/pyproject.toml
+            projects/scholar-path/requirements.lock
 
       - name: Install project and development tools
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]" --config-settings editable_mode=strict
+          python -m pip install "pip==26.1.2" "setuptools==84.0.0"
+          python -m pip install --constraint requirements.lock \
+            --no-build-isolation -e ".[dev]" \
+            --config-settings editable_mode=strict
           python -m pip check
 
       - name: Check formatting
@@ -51,7 +55,7 @@ jobs:
         run: ruff check .
 
       - name: Type check
-        run: mypy src tests
+        run: mypy src tests scripts
 
       - name: Run non-live tests
         run: pytest -m "not live"

@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 import pytest
+from langsmith.utils import LangSmithRetry
 from pydantic import HttpUrl, SecretStr
 
 from scholarpath.config import Environment, LangSmithSettings
@@ -345,6 +346,8 @@ def test_enabled_tracing_hides_input_and_output_payloads(
             endpoint=HttpUrl("https://eu.api.smith.langchain.com"),
             project="scholarpath-tests",
             workspace_id="workspace-test-001",
+            request_timeout_seconds=7.5,
+            maximum_retry_count=1,
         ),
         Environment.TEST,
     )
@@ -357,5 +360,11 @@ def test_enabled_tracing_hides_input_and_output_payloads(
     assert client_options["omit_traced_runtime_info"] is True
     assert client_options["api_url"] == "https://eu.api.smith.langchain.com/"
     assert client_options["workspace_id"] == "workspace-test-001"
+    assert client_options["timeout_ms"] == 7_500
+    retry_config = client_options["retry_config"]
+    assert isinstance(retry_config, LangSmithRetry)
+    assert retry_config.total == 1
+    assert retry_config.redirect == 0
+    assert retry_config.allowed_methods is None
     assert context_options["enabled"] is True
     assert context_options["metadata"] == observability.graph_metadata

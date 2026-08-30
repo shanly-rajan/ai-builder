@@ -39,9 +39,9 @@ def test_m12_3_prompt_diagram_readme_architecture_and_journal_are_recorded() -> 
 
 
 def test_m12_3_versions_the_graph_prompt_and_offline_replay() -> None:
-    assert GRAPH_VERSION == "m12.4"
+    assert GRAPH_VERSION == "m13"
     assert EVIDENCE_VERIFICATION_PROMPT_VERSION == "evidence-verification-v3"
-    assert LOCAL_BASELINE_NAME == "scholarpath-m12-4-fake-baseline-2026-08-30"
+    assert LOCAL_BASELINE_NAME == "scholarpath-m13-fake-baseline-2026-08-30"
 
 
 def test_m12_3_keeps_verification_and_retry_thresholds_unchanged() -> None:

@@ -576,6 +576,8 @@ class LangSmithSettings(BaseSettings):
     endpoint: HttpUrl = HttpUrl("https://api.smith.langchain.com")
     project: str = Field(default="scholarpath", min_length=1)
     workspace_id: str | None = Field(default=None, repr=False)
+    request_timeout_seconds: float = Field(default=10.0, gt=0, le=120)
+    maximum_retry_count: int = Field(default=2, ge=0, le=5)
 
     @field_validator("workspace_id", mode="before")
     @classmethod
@@ -650,6 +652,16 @@ class ApplicationSettings(BaseSettings):
     discovery_failure_mode: DiscoveryFailureMode = DiscoveryFailureMode.OFF
     checkpoint_database_path: Path = Path(".scholarpath/checkpoints.sqlite3")
     provider_api_keys: dict[str, SecretStr] = Field(default_factory=dict, repr=False)
+
+    @model_validator(mode="after")
+    def production_must_disable_failure_injection(self) -> Self:
+        """Prevent demonstration failures from being activated in production."""
+        if (
+            self.environment is Environment.PRODUCTION
+            and self.discovery_failure_mode is not DiscoveryFailureMode.OFF
+        ):
+            raise ValueError("Discovery failure injection must be off in production")
+        return self
 
     def for_provider(self, provider: str) -> ProviderConfiguration:
         """Return validated credentials only when a provider is explicitly requested."""
