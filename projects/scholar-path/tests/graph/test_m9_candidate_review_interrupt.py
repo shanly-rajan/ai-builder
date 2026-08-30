@@ -11,6 +11,7 @@ from langgraph.types import Command
 from scholarpath.domain import (
     CandidatePreferenceRevision,
     CandidateReviewAction,
+    SearchResult,
     SupervisorLifecycleStatus,
 )
 from scholarpath.graph import (
@@ -36,6 +37,7 @@ from tests.fakes import (
     FakePlanningModel,
     FakeResearchFitModel,
     FakeSupervisorSearch,
+    make_fake_search_outcomes,
 )
 
 type _CompiledGraph = CompiledStateGraph[
@@ -91,17 +93,21 @@ class _GraphHarness:
         return cast(ScholarPathState, snapshot.values)
 
 
-def _build_harness(config: GraphFixtureConfig | None = None) -> _GraphHarness:
+def _build_harness(
+    config: GraphFixtureConfig | None = None,
+    *,
+    supervisor_search: FakeSupervisorSearch | None = None,
+) -> _GraphHarness:
     """Build a fully offline M9 graph with an explicit in-memory checkpointer."""
     resolved_config = config or GraphFixtureConfig()
     checkpointer = create_test_checkpointer()
     planning_model = FakePlanningModel()
-    supervisor_search = FakeSupervisorSearch()
+    resolved_supervisor_search = supervisor_search or FakeSupervisorSearch()
     graph = build_scholarpath_graph(
         resolved_config,
         checkpointer=checkpointer,
         planning_model=planning_model,
-        supervisor_search=supervisor_search,
+        supervisor_search=resolved_supervisor_search,
         tavily_search=FakeSupervisorSearch(),
         content_extractor=FakeContentExtraction(),
         evidence_model=FakeEvidenceVerificationModel(),
@@ -115,7 +121,7 @@ def _build_harness(config: GraphFixtureConfig | None = None) -> _GraphHarness:
         checkpointer=checkpointer,
         graph_config=resolved_config,
         planning_model=planning_model,
-        supervisor_search=supervisor_search,
+        supervisor_search=resolved_supervisor_search,
     )
 
 
@@ -218,6 +224,63 @@ def test_resume_with_supervisor_specific_rejection_records_reason_and_repauses()
     assert state["candidate_feedback"][-1].supervisor_ids == (rejected_id,)
     assert state["shortlisted_supervisors"] == []
     assert harness.planning_model.call_count == 2
+
+
+def test_rejected_supervisor_identity_alias_is_absent_from_the_next_review() -> None:
+    first_round = make_fake_search_outcomes()
+    scripted_rounds: dict[str, list[tuple[SearchResult, ...] | Exception]] = {}
+    for query, results in first_round.items():
+        second_round = tuple(
+            SearchResult.model_validate(
+                {
+                    **result.model_dump(mode="python"),
+                    "url": (
+                        "https://profiles.scholarpath.example/faculty/amara-ndlovu"
+                        if "Amara Ndlovu" in result.title
+                        else result.url
+                    ),
+                }
+            )
+            for result in results
+        )
+        scripted_rounds[query] = [results, second_round]
+
+    harness = _build_harness(supervisor_search=FakeSupervisorSearch(scripts=scripted_rounds))
+    thread_id = "m9-rejected-identity-alias"
+    first_payload = _payload(harness.start(thread_id))
+    rejected = next(
+        item
+        for item in first_payload.proposed_supervisor_shortlist
+        if "Amara Ndlovu" in item.full_name
+    )
+
+    second_payload = _payload(
+        harness.resume(
+            thread_id,
+            CandidateRejectResponse(
+                action="reject",
+                rejections=(
+                    CandidateRejectionReason(
+                        supervisor_id=rejected.supervisor_id,
+                        reason="The research direction is outside the intended scope.",
+                    ),
+                ),
+            ),
+        )
+    )
+    state = harness.state(thread_id)
+
+    assert all(
+        "Amara Ndlovu" not in item.full_name
+        for item in second_payload.proposed_supervisor_shortlist
+    )
+    assert all(
+        "Amara Ndlovu" not in supervisor.full_name
+        for supervisor in state["prospective_supervisors"]
+    )
+    assert all(
+        "Amara Ndlovu" not in supervisor.full_name for supervisor in state["verified_supervisors"]
+    )
 
 
 def test_resume_with_request_more_updates_preferences_and_replans() -> None:

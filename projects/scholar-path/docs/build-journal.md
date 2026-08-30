@@ -4182,3 +4182,82 @@ The milestone prompt and its bounded interpretation are archived as
   README once historical contract tests are deliberately migrated to the journal.
 - The release checklist remains a decision record rather than a claim that the `v0.1.0` tag has
   already been issued.
+
+## M14.1: Candidate review consistency repair
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Prevent a rejected Supervisor from returning to later approval options under a provider-generated
+identity alias, and make a completed Candidate approval visibly transition to the persisted
+Supervisor shortlist instead of appearing to remain at the Verified Supervisor stage.
+
+### Prompt used
+
+The bounded repair prompt is archived as
+[`m14-1-candidate-review-consistency-repair.md`](prompts/m14-1-candidate-review-consistency-repair.md).
+
+### Files changed
+
+- Added a conservative deterministic identity matcher: exact ID, or title-equivalent complete name
+  plus a matching normalized institution or canonical profile URL. Name alone never excludes a
+  different academic.
+- Applied the rejection boundary during repeated discovery, immediately before deterministic
+  shortlist synthesis, and in the Candidate-facing review projection as defense in depth.
+- Reset review widget values when a new persisted checkpoint is rendered. Session State stores
+  only a SHA-256 checkpoint fingerprint, not the checkpoint token or graph state.
+- Made the completed shortlist the primary post-approval view, without duplicating earlier
+  Prospective and Verified Supervisor cards above it.
+- Preserved sanitized service error messages for stale or unavailable Candidate-review resumes.
+
+### Tests added
+
+- Unit coverage for provider identity aliases, harmless institution formatting differences, and
+  same-name academics who must remain distinct.
+- A two-round LangGraph regression where a rejected Supervisor returns through a different profile
+  URL and is excluded from Prospective, Verified, and proposed results.
+- UI projection defense coverage for stale proposals containing a rejected Supervisor.
+- Streamlit coverage proving the rejected name and stale selection disappear from approval
+  options, the approved shortlist becomes the active stage, and stale-review errors remain safe.
+
+### Test results
+
+- Focused unit, graph, and Streamlit regression selection: `48 passed in 1.71s`.
+- Related graph, application-service, deterministic-demo, and Streamlit suite:
+  `41 passed in 7.93s`.
+- Ruff formatting and linting: passed; strict mypy: no issues in `202 source files`.
+- Complete non-live pytest exercised `1,583` selected tests and reached `91.13%` coverage. The
+  runtime suite produced `1,577 passed`; six pre-existing documentation contracts failed because
+  commits `7cbdbdf` and `1a7936e` deliberately removed `docs/five-minute-demo.md`,
+  `docs/project-submission.md`, and their project-README entry without updating all historical
+  contracts and root links. This bounded runtime repair does not restore intentionally removed
+  documentation.
+- Re-running the complete suite while deselecting exactly those six known stale documentation
+  contracts produced `1,578 passed, 15 deselected in 22.58s` with `91.14%` total coverage.
+
+### Assumptions
+
+- The repeated name observed after rejection represented the same Supervisor returned under a
+  changed provider URL or formatting variant, rather than an unrelated same-name academic.
+- A complete-name match alone is insufficient evidence of identity; institution or canonical URL
+  agreement is also required.
+- The approval backend and checkpoint persistence were healthy; the apparent stage failure was
+  caused by rendering historical sections before the completed shortlist.
+
+### Lessons learned
+
+- Provider-generated identifiers are stable only while the normalized identity tuple is stable;
+  Candidate rejection needs a conservative longitudinal identity boundary.
+- A correct state transition can still look broken when the UI renders historical stages before
+  the active outcome.
+- Review widget values are interface state, but they must be scoped to the current persisted
+  checkpoint just like the underlying review command.
+
+### Remaining debt
+
+- A future explicit Supervisor identity-resolution model could record reviewed aliases, but it
+  must remain deterministic or human-confirmed and avoid name-only merging.
+- The six pre-existing documentation-contract failures should be resolved in a separate
+  documentation milestone by either restoring current artifacts or deliberately retiring their
+  stale tests and root links.

@@ -41,6 +41,7 @@ from ..agents import (
     StructuredSearchPlanResponse,
     SupervisorDiscoveryAgent,
     deduplicate_prospective_supervisors,
+    matches_rejected_supervisor_identity,
 )
 from ..agents.independent_review import (
     IndependentReviewAgent,
@@ -695,13 +696,16 @@ class DeterministicScholarPathNodes:
         discovery_round: int | None = None,
         apply_limit: bool = True,
     ) -> tuple[ProspectiveSupervisor, ...]:
-        rejected_ids = {supervisor.supervisor_id for supervisor in state["rejected_supervisors"]}
         combined = [*state["raw_search_results"], *(additional_results or [])]
         available = (
-            result.to_prospective_supervisor()
+            supervisor
             for result in combined
-            if result.supervisor_id not in rejected_ids
-            and (discovery_round is None or result.discovery_round == discovery_round)
+            if discovery_round is None or result.discovery_round == discovery_round
+            for supervisor in (result.to_prospective_supervisor(),)
+            if not any(
+                matches_rejected_supervisor_identity(supervisor, rejected_supervisor)
+                for rejected_supervisor in state["rejected_supervisors"]
+            )
         )
         deduplicated = deduplicate_prospective_supervisors(available)
         if not apply_limit:
@@ -1381,13 +1385,30 @@ class DeterministicScholarPathNodes:
 
     def synthesize_supervisor_shortlist(self, state: ScholarPathState) -> ScholarPathStateUpdate:
         """Create a deterministic, evidence-explained proposal for Candidate review."""
+        eligible_supervisors = tuple(
+            supervisor
+            for supervisor in state["verified_supervisors"]
+            if not any(
+                matches_rejected_supervisor_identity(supervisor, rejected_supervisor)
+                for rejected_supervisor in state["rejected_supervisors"]
+            )
+        )
+        eligible_ids = {supervisor.supervisor_id for supervisor in eligible_supervisors}
         try:
             proposed = self.shortlist_agent.synthesize(
                 state["candidate_profile"].candidate_id,
-                state["verified_supervisors"],
-                state["research_fit_assessments"],
+                eligible_supervisors,
+                (
+                    assessment
+                    for assessment in state["research_fit_assessments"]
+                    if assessment.supervisor_id in eligible_ids
+                ),
                 _validated_utc_timestamp(self.utc_clock),
-                state["research_fit_review_records"],
+                (
+                    review
+                    for review in state["research_fit_review_records"]
+                    if review.supervisor_id in eligible_ids
+                ),
             )
         except ValueError:
             return {

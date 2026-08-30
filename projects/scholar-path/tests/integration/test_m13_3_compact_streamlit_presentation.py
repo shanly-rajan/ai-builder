@@ -210,12 +210,15 @@ def test_all_supervisor_outcomes_and_completed_progress_start_collapsed(
 
     assert not app_test.exception
     assert len(service.resume_calls) == 1
-    assert "6. Your Supervisor Shortlist" in [item.value for item in app_test.header]
+    assert [item.value for item in app_test.header] == [
+        "2. Supervisor Search Progress",
+        "6. Your Supervisor Shortlist",
+    ]
     final_outcome_expanders = [item for item in app_test.expander if " — " in item.label]
-    assert len(final_outcome_expanders) == 5
+    assert len(final_outcome_expanders) == 1
     assert all(item.proto.expanded is False for item in final_outcome_expanders)
     final_scored_expanders = [item for item in app_test.expander if item.label == scored_label]
-    assert len(final_scored_expanders) == 2
+    assert len(final_scored_expanders) == 1
     assert all(item.proto.expanded is False for item in final_scored_expanders)
 
 

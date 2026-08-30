@@ -8,6 +8,7 @@ from collections.abc import Iterable, Mapping
 from langgraph.types import StateSnapshot
 from pydantic import HttpUrl, ValidationError
 
+from ..agents import matches_rejected_supervisor_identity
 from ..domain import (
     CandidatePreferenceRevision,
     EvidenceClaimType,
@@ -540,6 +541,13 @@ def project_graph_state_to_ui(
             state["proposed_shortlist"].recommendations
             if state["proposed_shortlist"] is not None
             else ()
+        )
+        if not any(
+            matches_rejected_supervisor_identity(
+                recommendation.supervisor,
+                rejected_supervisor,
+            )
+            for rejected_supervisor in state["rejected_supervisors"]
         )
     )
     shortlist_views = tuple(

@@ -11,6 +11,7 @@ from scholarpath.agents import (
     canonical_profile_url,
     deduplicate_prospective_supervisors,
     deterministic_supervisor_id,
+    matches_rejected_supervisor_identity,
 )
 from scholarpath.domain import (
     PlannedSearchQuery,
@@ -20,7 +21,11 @@ from scholarpath.domain import (
     SearchSourceType,
     SupervisorLifecycleStatus,
 )
-from tests.fixtures import make_prospective_supervisors
+from tests.fixtures import (
+    make_prospective_supervisor,
+    make_prospective_supervisors,
+    make_verified_supervisor,
+)
 
 QUERY_ONE = "responsible AI university profiles"
 QUERY_TWO = "enterprise architecture research groups"
@@ -75,6 +80,31 @@ def _result(
             "originating_query": query,
         }
     )
+
+
+def test_rejected_supervisor_identity_survives_provider_identity_aliases() -> None:
+    rejected = make_verified_supervisor(1)
+    alternate_url = make_prospective_supervisor(
+        1,
+        supervisor_id="supervisor-alternate-url",
+        profile_url="https://profiles.scholarpath.example/faculty/amara-ndlovu",
+    )
+    alternate_institution_format = make_prospective_supervisor(
+        1,
+        supervisor_id="supervisor-alternate-institution",
+        full_name="Amara Ndlovu",
+        institution="Southern Cape Institute of Technology.",
+    )
+    unrelated_homonym = make_prospective_supervisor(
+        1,
+        supervisor_id="supervisor-unrelated-homonym",
+        institution="Unrelated Example University",
+        profile_url="https://unrelated.example.edu/people/amara-ndlovu",
+    )
+
+    assert matches_rejected_supervisor_identity(alternate_url, rejected)
+    assert matches_rejected_supervisor_identity(alternate_institution_format, rejected)
+    assert not matches_rejected_supervisor_identity(unrelated_homonym, rejected)
 
 
 def test_valid_academic_profile_becomes_a_prospective_supervisor() -> None:

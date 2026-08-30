@@ -26,6 +26,7 @@ from scholarpath.ui import (
     DiscoveryDiagnosticsView,
     GraphProgressEvent,
     RecoverableUiError,
+    ScholarPathApplicationError,
     ScholarPathApplicationPort,
     UiDiscoveryRoute,
     UiRunSnapshot,
@@ -600,7 +601,8 @@ def test_approval_resumes_the_same_thread_and_renders_only_the_selected_shortlis
     assert resume_call.checkpoint_token == "ui-checkpoint-001"
     assert isinstance(resume_call.response, CandidateApproveResponse)
     assert resume_call.response.supervisor_ids == ("supervisor-002",)
-    assert EXPECTED_STAGE_LABELS[5] in [item.value for item in app_test.header]
+    rendered_headers = [item.value for item in app_test.header]
+    assert rendered_headers == [EXPECTED_STAGE_LABELS[1], EXPECTED_STAGE_LABELS[5]]
     assert [item.value for item in app_test.success] == [
         "These Verified Supervisors were explicitly approved and shortlisted."
     ]
@@ -619,6 +621,7 @@ def test_rejection_requires_a_reason_then_resumes_the_same_thread(
     app_test = _new_app()
     _submit_candidate_profile(app_test)
 
+    app_test.multiselect(key="approve_supervisor_ids").set_value(["supervisor-002"])
     app_test.selectbox(key="reject_supervisor_id").set_value("supervisor-002")
     app_test.button(key="reject_supervisor_submit").click().run()
 
@@ -644,6 +647,9 @@ def test_rejection_requires_a_reason_then_resumes_the_same_thread(
         "The methodological focus does not match the proposed study."
     )
     assert any("Review iteration 2 of 2" in item.value for item in app_test.markdown)
+    approval_options = app_test.multiselect(key="approve_supervisor_ids")
+    assert approval_options.options == ["Dr Amara Ndlovu — Southern Cape Institute of Technology"]
+    assert approval_options.value == []
     assert not app_test.success
 
 
@@ -748,6 +754,26 @@ def test_provider_secrets_are_not_rendered_or_copied_to_session_state(
     assert secret_sentinel not in repr(app_test.main)
     assert secret_sentinel not in repr(app_test.session_state.filtered_state)
     assert app_test.session_state["thread_id"] == THREAD_ID
+    assert service.resume_calls == []
+
+
+def test_stale_review_displays_the_sanitized_service_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    safe_message = "This Candidate review is no longer current. Reload the saved thread."
+    service = FakeScholarPathApplication(
+        resume_error=ScholarPathApplicationError("stale_candidate_review", safe_message)
+    )
+    _configure_ui_dependencies(monkeypatch, service)
+    app_test = _new_app()
+    _submit_candidate_profile(app_test)
+
+    app_test.multiselect(key="approve_supervisor_ids").set_value(["supervisor-001"])
+    app_test.button(key="approve_supervisors_submit").click().run()
+
+    assert not app_test.exception
+    assert [item.value for item in app_test.error] == [safe_message]
+    assert ui_app.RECOVERABLE_SERVICE_MESSAGE not in repr(app_test.main)
     assert service.resume_calls == []
 
 

@@ -17,6 +17,8 @@ from ..domain import (
     SearchResultRejectionCategory,
     SearchResultRejectionCounts,
     SupervisorDiscoveryProvenance,
+    VerifiedSupervisor,
+    supervisor_names_are_title_equivalent,
 )
 
 _TITLE_SPLIT_PATTERN = re.compile(r"\s*(?:\||—|–|\s-\s)\s*")
@@ -331,6 +333,34 @@ def _deduplication_key(supervisor: ProspectiveSupervisor) -> tuple[str, str, str
         _normalized_identity_text(supervisor.institution),
         canonical_profile_url(str(supervisor.profile_url)),
     )
+
+
+def matches_rejected_supervisor_identity(
+    supervisor: ProspectiveSupervisor | VerifiedSupervisor,
+    rejected_supervisor: VerifiedSupervisor,
+) -> bool:
+    """Match a rejected Supervisor conservatively across provider identity aliases.
+
+    Provider URLs and display formatting can change between search rounds, so an exact
+    identifier is not a durable rejection boundary. A non-identical record is treated as
+    the same person only when the complete names are title-equivalent and either the
+    institution or canonical profile URL also agrees. Name-only matching is deliberately
+    avoided because unrelated academics can share a name.
+    """
+    if supervisor.supervisor_id == rejected_supervisor.supervisor_id:
+        return True
+    if not supervisor_names_are_title_equivalent(
+        supervisor.full_name,
+        rejected_supervisor.full_name,
+    ):
+        return False
+    institution_matches = _normalized_identity_text(
+        supervisor.institution
+    ) == _normalized_identity_text(rejected_supervisor.institution)
+    profile_url_matches = canonical_profile_url(
+        str(supervisor.profile_url)
+    ) == canonical_profile_url(str(rejected_supervisor.profile_url))
+    return institution_matches or profile_url_matches
 
 
 def _legacy_discovery_provenance(

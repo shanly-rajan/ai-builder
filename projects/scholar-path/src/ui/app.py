@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable, Iterable
 
 import streamlit as st
@@ -28,7 +29,7 @@ from .models import (
     UiStage,
     VerifiedSupervisorView,
 )
-from .service import ScholarPathApplicationPort
+from .service import ScholarPathApplicationError, ScholarPathApplicationPort
 from .theme import inject_theme_styles, render_appearance_controls
 
 STAGE_LABELS = (
@@ -51,6 +52,19 @@ DEMO_PROFILE_RESEARCH_STATEMENT = (
 )
 DEMO_PROFILE_RESEARCH_TOPICS = (
     "Computer Security, Software Security, Vulnerability Analysis, Cloud Security, Static Analysis"
+)
+REVIEW_WIDGET_CHECKPOINT_KEY = "candidate_review_widget_checkpoint_fingerprint"
+REVIEW_WIDGET_VALUE_KEYS = (
+    "approve_supervisor_ids",
+    "reject_supervisor_id",
+    "reject_supervisor_reason",
+    "request_more_research_topics",
+    "request_more_regions",
+    "request_more_study_modes",
+    "request_more_orientation",
+    "request_more_methods",
+    "request_more_constraints",
+    "request_more_exclusions",
 )
 PAGE_ICON = "🎓"
 HERO_TITLE = "🎓 ScholarPath"
@@ -676,6 +690,8 @@ def _render_approval_form(
             snapshot.checkpoint_token,
             CandidateApproveResponse(action="approve", supervisor_ids=ordered_ids),
         )
+    except ScholarPathApplicationError as error:
+        st.error(error.safe_message)
     except Exception:
         st.error(RECOVERABLE_SERVICE_MESSAGE)
 
@@ -713,6 +729,8 @@ def _render_rejection_form(
             rejections=(CandidateRejectionReason(supervisor_id=supervisor_id, reason=reason),),
         )
         _resume_review(service, thread_id, snapshot.checkpoint_token, response)
+    except ScholarPathApplicationError as error:
+        st.error(error.safe_message)
     except Exception:
         st.error(RECOVERABLE_SERVICE_MESSAGE)
 
@@ -775,8 +793,21 @@ def _render_request_more_form(
         return
     try:
         _resume_review(service, thread_id, snapshot.checkpoint_token, response)
+    except ScholarPathApplicationError as error:
+        st.error(error.safe_message)
     except Exception:
         st.error(RECOVERABLE_SERVICE_MESSAGE)
+
+
+def _synchronize_candidate_review_widgets(snapshot: UiRunSnapshot) -> None:
+    """Clear stale selections before rendering a newly checkpointed review."""
+    checkpoint_fingerprint = hashlib.sha256(snapshot.checkpoint_token.encode("utf-8")).hexdigest()
+    previous_checkpoint = st.session_state.get(REVIEW_WIDGET_CHECKPOINT_KEY)
+    if previous_checkpoint == checkpoint_fingerprint:
+        return
+    for key in REVIEW_WIDGET_VALUE_KEYS:
+        st.session_state.pop(key, None)
+    st.session_state[REVIEW_WIDGET_CHECKPOINT_KEY] = checkpoint_fingerprint
 
 
 def _render_candidate_review(
@@ -784,6 +815,7 @@ def _render_candidate_review(
     thread_id: str,
     snapshot: UiRunSnapshot,
 ) -> None:
+    _synchronize_candidate_review_widgets(snapshot)
     st.header(STAGE_LABELS[4])
     st.write(
         f"Review iteration {snapshot.review_iteration} of "
@@ -855,13 +887,19 @@ def _render_existing_thread(thread_id: str) -> None:
         return
 
     _render_progress(snapshot)
+    if snapshot.stage is UiStage.SUPERVISOR_SHORTLIST:
+        _render_shortlist(snapshot)
+        _render_errors(snapshot)
+        if st.button("Start a new research run", key="start_new_research_run"):
+            st.session_state.pop("thread_id", None)
+            st.rerun()
+        return
+
     _render_prospective_supervisors(snapshot)
     _render_verified_supervisors(snapshot)
     _render_errors(snapshot)
     if snapshot.stage is UiStage.REVIEW_SUPERVISORS:
         _render_candidate_review(service, thread_id, snapshot)
-    elif snapshot.stage is UiStage.SUPERVISOR_SHORTLIST:
-        _render_shortlist(snapshot)
     elif snapshot.stage is UiStage.STOPPED:
         st.header(STAGE_LABELS[4])
         st.warning("The current research run stopped safely. Review the messages above.")

@@ -6,7 +6,13 @@ from typing import cast
 import pytest
 from pydantic import ValidationError
 
-from scholarpath.domain import SearchResultRejectionCounts
+from scholarpath.agents import ShortlistSynthesisAgent
+from scholarpath.domain import (
+    CandidateReviewAction,
+    CandidateReviewDecision,
+    SearchResultRejectionCounts,
+    apply_candidate_review,
+)
 from scholarpath.graph import (
     CANONICAL_NODE_NAMES,
     AlternateSourceAttempt,
@@ -16,6 +22,7 @@ from scholarpath.graph import (
     ScholarPathState,
     SearchAttempt,
     ToolErrorRecord,
+    build_candidate_review_interrupt_payload,
     build_walking_skeleton_fixtures,
     create_initial_state,
 )
@@ -209,6 +216,42 @@ def test_graph_state_projection_exposes_verified_evidence_but_not_raw_graph_data
     assert "raw_search_results" not in rendered
     assert "raw_state_dump" not in rendered
     assert "supporting_excerpt" not in rendered
+
+
+def test_review_projection_excludes_a_previously_rejected_supervisor() -> None:
+    fixtures = build_walking_skeleton_fixtures()
+    state = create_initial_state(fixtures.candidate_profile)
+    proposal = ShortlistSynthesisAgent().synthesize(
+        fixtures.candidate_profile.candidate_id,
+        fixtures.verified_supervisors,
+        fixtures.research_fit_assessments,
+        fixtures.generated_at,
+    )
+    rejected = proposal.recommendations[0].supervisor
+    rejection = CandidateReviewDecision(
+        action=CandidateReviewAction.REJECT,
+        supervisor_ids=(rejected.supervisor_id,),
+        reason="The research direction is outside the intended scope.",
+    )
+    state["proposed_shortlist"] = proposal
+    state["rejected_supervisors"] = [apply_candidate_review(rejected, rejection)]
+    state["review_status"] = ReviewStatus.PROPOSED
+    payload = build_candidate_review_interrupt_payload(
+        proposal,
+        review_iteration=2,
+        maximum_review_iterations=2,
+    )
+
+    snapshot = project_graph_state_to_ui(
+        state,
+        checkpoint_token="checkpoint-rejected-supervisor-filter",
+        review_payload=payload,
+    )
+
+    assert snapshot.stage is UiStage.REVIEW_SUPERVISORS
+    assert rejected.supervisor_id not in {
+        supervisor.supervisor_id for supervisor in snapshot.review_supervisors
+    }
 
 
 def test_graph_error_projection_groups_exact_duplicates_and_preserves_audit_count() -> None:

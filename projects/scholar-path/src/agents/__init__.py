@@ -81,6 +81,7 @@ from .supervisor_discovery import (
     canonical_profile_url,
     deduplicate_prospective_supervisors,
     deterministic_supervisor_id,
+    matches_rejected_supervisor_identity,
 )
 
 __all__ = [
@@ -152,6 +153,7 @@ __all__ = [
     "canonical_profile_url",
     "deduplicate_prospective_supervisors",
     "deterministic_supervisor_id",
+    "matches_rejected_supervisor_identity",
     "deterministic_evidence_id",
     "reconcile_research_fit_assessment",
 ]
