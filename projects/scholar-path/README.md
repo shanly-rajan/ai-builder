@@ -263,8 +263,11 @@ flowchart LR
     Fake --> DTO
     DTO --> Validate{Deterministic validation}
     Validate -->|valid| Plan[Domain SearchPlan]
+    Validate -->|safe quote normalization| Plan
     Validate -->|malformed first response| Port
     Validate -->|malformed twice| Error[tool_errors + END]
+    Adapter -->|transient failure once| Port
+    Adapter -->|non-retryable or twice| Error
 
     classDef external fill:#e8f1ff,stroke:#245a9b;
     class Adapter,Native external;
@@ -277,20 +280,26 @@ research-group pages, recent publications, and explicit research-degree-supervis
 information. Degree-specific source scope must still be preserved. Each query carries its
 purpose and intended source types. Deterministic
 query-shape validation allows at most one `site:` restriction, two explicit uppercase
-Boolean operators, and one quoted phrase per query. An over-constrained model response
-uses the same single bounded format retry as any other malformed structured output.
+Boolean operators, and one quoted phrase per query. Extra quote marks are removed
+deterministically while preserving every term and operator, broadening only the excess phrase
+matches without spending another model call. Extra `site:` filters or Boolean operators remain
+invalid because deleting them could change query meaning; they use the one bounded format retry.
 
 The adapter calls `ChatOpenAI.with_structured_output` with `method="json_schema"` and
 `strict=True`; ScholarPath never parses important output from prose. A provider DTO is
 converted into the stricter domain `SearchPlan`, where ordinary Python and Pydantic
 enforce query count, normalized uniqueness, source coverage, and non-empty fields.
 Candidate target regions are copied from typed input rather than rewritten by the
-model.
+model. Supported native JSON-schema `minItems` and `maxItems` constraints make the 4–8 query,
+concept, and per-query source bounds visible to OpenAI before post-generation validation.
 
-A malformed structured response receives exactly one bounded retry. OpenAI invocation
-failure, or a second malformed response, creates a sanitized planning error and routes
-to END before discovery. The OpenAI client has `max_retries=0`, so there are no hidden
-SDK retries beyond ScholarPath's explicit policy.
+A malformed structured response receives exactly one bounded retry. A transient timeout,
+connection failure, rate limit, or provider 5xx response also receives at most one explicit
+retry. Authentication and other non-retryable invocation failures stop immediately; a second
+transient failure or malformed response creates a sanitized, distinct planning error and routes
+to END before discovery. The OpenAI client has `max_retries=0`, so there are no hidden SDK
+retries beyond ScholarPath's two-attempt policy. Privacy-safe provider events retain only the
+outcome category and retryability flag.
 
 The port is the substitution seam:
 

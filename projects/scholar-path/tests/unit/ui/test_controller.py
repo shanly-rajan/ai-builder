@@ -259,6 +259,48 @@ def test_graph_error_projection_groups_exact_duplicates_and_preserves_audit_coun
     assert len(state["tool_errors"]) == 8
 
 
+def test_planning_output_and_provider_failures_remain_distinct_in_ui_projection() -> None:
+    fixtures = build_walking_skeleton_fixtures()
+    state = create_initial_state(fixtures.candidate_profile)
+    state["review_status"] = ReviewStatus.RETRY_EXHAUSTED
+    state["tool_errors"] = [
+        ToolErrorRecord(
+            node="plan_supervisor_searches",
+            code="planning_output_invalid",
+            message="Research planning could not produce a valid typed SearchPlan.",
+            recoverable=False,
+        ),
+        ToolErrorRecord(
+            node="plan_supervisor_searches",
+            code="planning_model_failed",
+            message=(
+                "The Research Planning provider request failed after its bounded retry policy. "
+                "Check provider access or start a new research run."
+            ),
+            recoverable=False,
+        ),
+    ]
+
+    snapshot = project_graph_state_to_ui(
+        state,
+        checkpoint_token="checkpoint-planning-errors",
+        review_payload=None,
+    )
+
+    assert snapshot.stage is UiStage.STOPPED
+    assert [(error.code, error.message) for error in snapshot.errors] == [
+        (
+            "planning_output_invalid",
+            "Research planning could not produce a valid typed SearchPlan.",
+        ),
+        (
+            "planning_model_failed",
+            "The Research Planning provider request failed after its bounded retry policy. "
+            "Check provider access or start a new research run.",
+        ),
+    ]
+
+
 def test_discovery_diagnostics_expose_counts_but_drop_queries_and_result_content() -> None:
     fixtures = build_walking_skeleton_fixtures()
     state = create_initial_state(fixtures.candidate_profile)

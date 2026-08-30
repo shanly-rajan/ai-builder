@@ -3737,3 +3737,95 @@ The bounded repair prompt is archived as
   version changes.
 - Browser-computed-style accessibility testing remains a useful future complement to deterministic
   contrast and Streamlit AppTest contracts.
+
+## M13.11 Repair: Research Planning resilience
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Restore the live MVP path when OpenAI returns a structurally valid Research Planning response
+whose search-query syntax fails ScholarPath's stricter portability contract. Preserve the existing
+query ceilings, two-attempt limit, typed provider boundary, privacy controls, and every downstream
+discovery, evidence, Research Fit, review, memory, and Candidate-approval gate.
+
+### Prompt used
+
+The bounded repair prompt is archived as
+[`m13-11-research-planning-resilience.md`](prompts/m13-11-research-planning-resilience.md).
+
+### Files changed
+
+- Exposed supported `minItems` and `maxItems` constraints for concepts, search queries, and source
+  types in the native OpenAI structured-output schema.
+- Added semantics-safe deterministic normalization for excess straight or curly quote marks while
+  preserving every query term, order, filter, and Boolean operator.
+- Kept extra `site:` filters and Boolean operators invalid because deleting them could invert or
+  broaden query meaning; those cases continue through one bounded format retry.
+- Classified OpenAI timeout, rate-limit, connection, and server failures as retryable once, while
+  authentication, permission, and unknown invocation failures stop immediately.
+- Kept OpenAI SDK retries disabled and emitted only privacy-safe provider lifecycle categories.
+- Separated sanitized Candidate-facing messages for invalid structured output and provider
+  invocation failure.
+- Updated the README and architecture record without changing the active planning prompt or graph
+  version.
+
+### Tests added
+
+- Native JSON-schema array-bound contracts.
+- Straight- and curly-quote normalization tests proving token order is preserved and no second
+  model call is consumed.
+- Regression tests proving `NOT` chains and multiple `site:` filters remain invalid and consume
+  only the bounded retry.
+- Typed OpenAI classification tests for timeout, rate limit, connection, server, authentication,
+  and permission failures using the provider SDK's exact transport types.
+- Agent and graph tests for successful transient recovery, retry exhaustion, immediate
+  non-retryable failure, and distinct sanitized error codes.
+- UI-projection coverage proving invalid output and provider failure remain separate messages.
+- Repository contract coverage for the prompt, documentation, retry ceiling, native schema, and
+  absence of hidden retries or prose parsing.
+
+### Test results
+
+- Focused planning, graph, UI projection, and contract selection: `59 passed in 0.32s`.
+- Live OpenAI planning canary with the supplied machine-learning/software-engineering profile:
+  valid typed plan, six queries, and complete source-type coverage.
+- Ruff formatting: `255 files already formatted`; Ruff linting: all checks passed.
+- Strict mypy: no issues in `200 source files`.
+- Complete non-live pytest: `1,562 passed, 9 deselected, 67 subtests passed in 21.64s`;
+  total coverage was `91.10%`, above the required 90 percent minimum.
+- The first local live-canary attempt was blocked by the execution sandbox and correctly stopped
+  after two typed transport failures; the permitted network canary then passed.
+- `git diff --check`: passed.
+
+### Assumptions
+
+- The screenshot's `planning_output_invalid` message identifies a failure before discovery and is
+  independent of the identity-only MVP evidence standard.
+- Removing quote marks after the first quoted phrase safely broadens phrase matching while
+  retaining all search terms; deleting `NOT`, `OR`, `AND`, or `site:` clauses is not equivalently
+  safe.
+- One explicit retry is sufficient for both malformed output and transient provider failures; the
+  total planning-model call ceiling remains two.
+- A stopped checkpoint remains an auditable historical run. The Candidate starts a new research
+  run after deploying the repair rather than mutating the old checkpoint.
+
+### Lessons learned
+
+- Local checkpoint inspection showed one invalid-output run followed shortly by a successful run,
+  isolating intermittent model content rather than credentials or provider availability.
+- The first structured-output canary exposed multiple quoted phrases as the exact rejected field;
+  enforcing supported array bounds in the provider schema does not replace local semantic checks.
+- A deterministic normalization is appropriate only when it demonstrably preserves meaning.
+  Query routing and retry behavior stay deterministic even when model output varies.
+- Provider error taxonomy lets the UI distinguish an unusable model response from access or
+  transport failure without showing Candidate content or provider payloads.
+
+### Remaining debt
+
+- Observe the planning-output-invalid rate in privacy-safe LangSmith evaluations after deployment;
+  do not log raw queries merely to improve diagnosis.
+- If provider support expands, consider expressing additional portable query ceilings in native
+  schema fields rather than relaxing deterministic validation.
+- The live canary validates planning only. Existing deterministic graph tests remain the source of
+  truth for downstream routing and approval invariants.

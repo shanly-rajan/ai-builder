@@ -350,9 +350,41 @@ strict=True)`; prose JSON parsing
 is not used. Python and Pydantic enforce four-to-eight distinct queries, required
 source-category coverage, target regions, query uniqueness, and provider-portable query
 shape: at most one `site:` filter, two explicit uppercase Boolean operators, and one
-quoted phrase per query. Malformed output has one explicit retry; provider failures stop
-cleanly. The OpenAI client has
-`max_retries=0`, so the application owns the visible retry policy.
+quoted phrase per query. Supported native JSON-schema array limits expose the query-count,
+concept-count, and per-query source-count bounds to OpenAI. Extra quote marks are removed
+deterministically before domain conversion while retaining every term and operator. Extra
+`site:` filters or Boolean operators remain invalid because deleting them can change semantics.
+Malformed output and transient timeout, rate-limit,
+connection, or provider failures each have one explicit retry; authentication and other
+non-retryable failures stop immediately. The OpenAI client has `max_retries=0`, so the
+application owns the visible two-attempt policy. Invocation failures and invalid structured
+output remain separate sanitized UI and log categories.
+
+## M13.11 Research Planning resilience repair
+
+The M13.11 canary isolated a live plan that satisfied the native object and enum schema but
+contained several queries with multiple quoted phrases. The previous Pydantic validator rejected
+the complete response and asked the model to regenerate, which could repeat the same portable-
+query violation. The repair keeps every portability ceiling but moves only the semantics-safe
+removal of excess quote marks into a pure deterministic transformation.
+
+```mermaid
+flowchart LR
+    I[Identity-free PlanningInput] --> O[OpenAI strict structured output]
+    O --> N[Native minItems and maxItems]
+    N --> Q[Deterministic excess-quote normalization]
+    Q --> V[Uniqueness and source-coverage validation]
+    V --> P[Domain SearchPlan]
+    O -->|malformed or transient failure| R{Attempt below 2?}
+    R -->|yes| O
+    R -->|no| E[Sanitized planning error and END]
+    O -->|authentication or non-retryable failure| E
+```
+
+Normalization retains the first quoted phrase and removes only later quote marks, preserving all
+terms, order, filters, and Boolean operators. Extra filters and operators still fail validation
+and consume the one explicit format retry. It is not an LLM repair step. Model invocation remains
+bounded to two calls, and default tests use fakes only.
 
 ## M4–M5 resilient discovery boundary
 

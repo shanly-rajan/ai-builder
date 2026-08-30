@@ -458,6 +458,12 @@ class DeterministicScholarPathNodes:
                 if error.kind is PlanningFailureKind.MODEL_INVOCATION
                 else "planning_output_invalid"
             )
+            error_message = (
+                "The Research Planning provider request failed after its bounded retry policy. "
+                "Check provider access or start a new research run."
+                if error.kind is PlanningFailureKind.MODEL_INVOCATION
+                else "Research planning could not produce a valid typed SearchPlan."
+            )
             return {
                 "search_plan": None,
                 "review_status": ReviewStatus.RETRY_EXHAUSTED,
@@ -465,7 +471,7 @@ class DeterministicScholarPathNodes:
                     self._error(
                         PLAN_SUPERVISOR_SEARCHES,
                         error_code,
-                        "Research planning could not produce a valid typed SearchPlan.",
+                        error_message,
                     )
                 ],
                 "execution_log": [PLAN_SUPERVISOR_SEARCHES],

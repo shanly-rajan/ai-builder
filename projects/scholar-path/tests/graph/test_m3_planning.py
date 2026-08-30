@@ -98,6 +98,23 @@ def test_model_failure_is_sanitized_in_tool_errors_without_an_unhandled_crash() 
         [error.model_dump(mode="json") for error in tool_errors]
     )
     assert "discover_prospective_supervisors" not in final_state["execution_log"]
+    assert "provider request failed" in tool_errors[0].message
+
+
+def test_retryable_model_failure_uses_one_bounded_retry_before_stopping() -> None:
+    model = FakePlanningModel(
+        (
+            PlanningModelInvocationError("first timeout", retryable=True),
+            PlanningModelInvocationError("second timeout", retryable=True),
+        )
+    )
+
+    final_state = _run_with_fake(model)
+
+    assert model.call_count == 2
+    assert final_state["review_status"] is ReviewStatus.RETRY_EXHAUSTED
+    assert final_state["tool_errors"][0].code == "planning_model_failed"
+    assert "provider request failed" in final_state["tool_errors"][0].message
 
 
 def test_injected_fake_prevents_default_tests_from_constructing_openai(

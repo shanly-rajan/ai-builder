@@ -6,7 +6,7 @@ import re
 from enum import StrEnum
 from typing import Protocol, Self
 
-from pydantic import BaseModel, ConfigDict, ValidationError, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from ..domain import (
     CandidatePreferenceRevision,
@@ -18,6 +18,8 @@ from ..domain import (
 from ..memory.models import CandidateMemoryRecord
 
 MAX_PLANNING_OUTPUT_ATTEMPTS = 2
+MAX_EXPANDED_RESEARCH_CONCEPTS = 16
+MAX_PLANNING_SOURCE_TYPES_PER_QUERY = len(SearchSourceType)
 MAX_SITE_FILTERS_PER_QUERY = 1
 MAX_BOOLEAN_OPERATORS_PER_QUERY = 2
 MAX_QUOTED_PHRASES_PER_QUERY = 1
@@ -29,6 +31,15 @@ _QUOTED_PHRASE_PATTERN = re.compile(r'"[^"\n]+"|“[^”\n]+”')
 
 def _normalized_text(value: str) -> str:
     return " ".join(value.casefold().split())
+
+
+def _normalize_excess_quote_marks(value: str) -> str:
+    """Broaden only excess phrases while preserving every term and operator."""
+    matches = list(_QUOTED_PHRASE_PATTERN.finditer(value))
+    for match in reversed(matches[MAX_QUOTED_PHRASES_PER_QUERY:]):
+        phrase = match.group(0)[1:-1]
+        value = f"{value[: match.start()]}{phrase}{value[match.end() :]}"
+    return " ".join(value.split())
 
 
 class PlanningInput(BaseModel):
@@ -87,7 +98,10 @@ class PlanningSearchQueryResponse(BaseModel):
 
     query: str
     purpose: str
-    target_source_types: list[SearchSourceType]
+    target_source_types: list[SearchSourceType] = Field(
+        min_length=1,
+        max_length=MAX_PLANNING_SOURCE_TYPES_PER_QUERY,
+    )
 
     @field_validator("query", "purpose")
     @classmethod
@@ -99,15 +113,16 @@ class PlanningSearchQueryResponse(BaseModel):
 
     @field_validator("query")
     @classmethod
-    def query_syntax_must_remain_provider_portable(cls, value: str) -> str:
-        """Reject deterministic signs of an over-constrained provider query."""
-        if len(_SITE_FILTER_PATTERN.findall(value)) > MAX_SITE_FILTERS_PER_QUERY:
+    def validate_provider_portable_query_syntax(cls, value: str) -> str:
+        """Normalize safe quote excess and reject syntax with ambiguous semantics."""
+        normalized = _normalize_excess_quote_marks(value)
+        if not normalized:
+            raise ValueError("Search query must contain executable text")
+        if len(_SITE_FILTER_PATTERN.findall(normalized)) > MAX_SITE_FILTERS_PER_QUERY:
             raise ValueError("Search query must contain at most one site: filter")
-        if len(_BOOLEAN_OPERATOR_PATTERN.findall(value)) > MAX_BOOLEAN_OPERATORS_PER_QUERY:
+        if len(_BOOLEAN_OPERATOR_PATTERN.findall(normalized)) > MAX_BOOLEAN_OPERATORS_PER_QUERY:
             raise ValueError("Search query must contain at most two explicit Boolean operators")
-        if len(_QUOTED_PHRASE_PATTERN.findall(value)) > MAX_QUOTED_PHRASES_PER_QUERY:
-            raise ValueError("Search query must contain at most one quoted phrase")
-        return value
+        return normalized
 
     @model_validator(mode="after")
     def source_types_must_be_nonempty_and_unique(self) -> Self:
@@ -129,8 +144,11 @@ class StructuredSearchPlanResponse(BaseModel):
         str_strip_whitespace=True,
     )
 
-    expanded_research_concepts: list[str]
-    search_queries: list[PlanningSearchQueryResponse]
+    expanded_research_concepts: list[str] = Field(
+        min_length=1,
+        max_length=MAX_EXPANDED_RESEARCH_CONCEPTS,
+    )
+    search_queries: list[PlanningSearchQueryResponse] = Field(min_length=4, max_length=8)
     rationale: str
 
     @field_validator("expanded_research_concepts")
@@ -152,11 +170,17 @@ class StructuredSearchPlanResponse(BaseModel):
             raise ValueError("Planning rationale must not be blank")
         return value
 
+    @field_validator("search_queries", mode="before")
+    @classmethod
+    def query_count_must_be_bounded(cls, value: object) -> object:
+        """Preserve the public validation message while emitting native array limits."""
+        if isinstance(value, (list, tuple)) and not 4 <= len(value) <= 8:
+            raise ValueError("A planning response must contain four to eight search queries")
+        return value
+
     @model_validator(mode="after")
     def queries_must_be_distinct_and_cover_required_sources(self) -> Self:
         """Enforce the M3 query count, uniqueness, and source coverage contract."""
-        if not 4 <= len(self.search_queries) <= 8:
-            raise ValueError("A planning response must contain four to eight search queries")
         normalized_queries = [_normalized_text(item.query) for item in self.search_queries]
         if len(normalized_queries) != len(set(normalized_queries)):
             raise ValueError("Search queries must be distinct")
@@ -187,6 +211,10 @@ class PlanningModelError(RuntimeError):
 
 class PlanningModelInvocationError(PlanningModelError):
     """A model request failed before a structured response was available."""
+
+    def __init__(self, message: str, *, retryable: bool = False) -> None:
+        super().__init__(message)
+        self.retryable = retryable
 
 
 class PlanningModelOutputError(PlanningModelError):
@@ -239,6 +267,8 @@ class ResearchPlanningAgent:
                 validated_response = StructuredSearchPlanResponse.model_validate(response)
                 return self._to_search_plan(validated_response, target_regions)
             except PlanningModelInvocationError as error:
+                if error.retryable and attempt < MAX_PLANNING_OUTPUT_ATTEMPTS:
+                    continue
                 raise ResearchPlanningError(
                     PlanningFailureKind.MODEL_INVOCATION, attempt
                 ) from error

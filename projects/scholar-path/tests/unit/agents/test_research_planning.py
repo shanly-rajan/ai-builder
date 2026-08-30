@@ -4,8 +4,11 @@ import pytest
 from pydantic import ValidationError
 
 from scholarpath.agents import (
+    PlanningFailureKind,
+    PlanningModelInvocationError,
     PlanningModelOutputError,
     ResearchPlanningAgent,
+    ResearchPlanningError,
     StructuredSearchPlanResponse,
 )
 from scholarpath.domain import CandidatePreferenceRevision, SearchSourceType
@@ -98,6 +101,39 @@ def test_structured_response_rejects_normalized_duplicate_queries() -> None:
 
 
 @pytest.mark.parametrize(
+    ("query", "expected"),
+    (
+        (
+            'professor "enterprise architecture" "responsible AI"',
+            'professor "enterprise architecture" responsible AI',
+        ),
+        (
+            "professor “enterprise architecture” “responsible AI” “governance”",
+            "professor “enterprise architecture” responsible AI governance",
+        ),
+    ),
+)
+def test_structured_response_normalizes_only_excess_quote_marks(
+    query: str,
+    expected: str,
+) -> None:
+    payload = make_valid_planning_response().model_dump(mode="python")
+    search_queries = payload["search_queries"]
+    assert isinstance(search_queries, list)
+    first_query = search_queries[0]
+    assert isinstance(first_query, dict)
+    first_query["query"] = query
+
+    response = StructuredSearchPlanResponse.model_validate(payload)
+
+    assert response.search_queries[0].query == expected
+    assert (
+        response.search_queries[0].query.replace('"', "").replace("“", "").replace("”", "").split()
+        == query.replace('"', "").replace("“", "").replace("”", "").split()
+    )
+
+
+@pytest.mark.parametrize(
     ("query", "message"),
     (
         (
@@ -109,12 +145,12 @@ def test_structured_response_rejects_normalized_duplicate_queries() -> None:
             "at most two explicit Boolean operators",
         ),
         (
-            'professor "enterprise architecture" "responsible AI"',
-            "at most one quoted phrase",
+            "AI NOT medicine NOT law NOT military",
+            "at most two explicit Boolean operators",
         ),
     ),
 )
-def test_structured_response_rejects_overconstrained_query_syntax(
+def test_ambiguous_overconstrained_syntax_remains_invalid(
     query: str,
     message: str,
 ) -> None:
@@ -175,10 +211,66 @@ def test_malformed_output_is_retried_once_then_a_valid_response_is_accepted() ->
     assert model.inputs[0] == model.inputs[1]
 
 
-def test_overconstrained_query_output_is_retried_once_then_repaired() -> None:
+def test_retryable_invocation_failure_is_retried_once_then_accepted() -> None:
+    model = FakePlanningModel(
+        (
+            PlanningModelInvocationError("synthetic timeout", retryable=True),
+            make_valid_planning_response(),
+        )
+    )
+
+    plan = ResearchPlanningAgent(model).plan(
+        make_candidate_profile(),
+        (),
+        target_regions=(),
+        exclusions=(),
+    )
+
+    assert model.call_count == 2
+    assert len(plan.search_queries) == 4
+
+
+def test_retryable_invocation_failure_stops_after_two_attempts() -> None:
+    model = FakePlanningModel(
+        (
+            PlanningModelInvocationError("first timeout", retryable=True),
+            PlanningModelInvocationError("second timeout", retryable=True),
+        )
+    )
+
+    with pytest.raises(ResearchPlanningError) as captured:
+        ResearchPlanningAgent(model).plan(
+            make_candidate_profile(),
+            (),
+            target_regions=(),
+            exclusions=(),
+        )
+
+    assert captured.value.kind is PlanningFailureKind.MODEL_INVOCATION
+    assert captured.value.attempts == 2
+    assert model.call_count == 2
+
+
+def test_nonretryable_invocation_failure_stops_after_one_attempt() -> None:
+    model = FakePlanningModel((PlanningModelInvocationError("synthetic authentication failure"),))
+
+    with pytest.raises(ResearchPlanningError) as captured:
+        ResearchPlanningAgent(model).plan(
+            make_candidate_profile(),
+            (),
+            target_regions=(),
+            exclusions=(),
+        )
+
+    assert captured.value.kind is PlanningFailureKind.MODEL_INVOCATION
+    assert captured.value.attempts == 1
+    assert model.call_count == 1
+
+
+def test_excess_quote_marks_are_normalized_without_another_model_call() -> None:
     valid_response = make_valid_planning_response()
     overconstrained_query = valid_response.search_queries[0].model_copy(
-        update={"query": "site:.edu OR site:.ac.uk professor architecture"}
+        update={"query": 'professor "enterprise architecture" "responsible AI"'}
     )
     invalid_response = valid_response.model_copy(
         update={
@@ -188,7 +280,7 @@ def test_overconstrained_query_output_is_retried_once_then_repaired() -> None:
             ]
         }
     )
-    model = FakePlanningModel((invalid_response, valid_response))
+    model = FakePlanningModel((invalid_response,))
 
     plan = ResearchPlanningAgent(model).plan(
         make_candidate_profile(),
@@ -197,6 +289,39 @@ def test_overconstrained_query_output_is_retried_once_then_repaired() -> None:
         exclusions=(),
     )
 
-    assert model.call_count == 2
+    assert plan.search_queries[0].query == 'professor "enterprise architecture" responsible AI'
+    assert model.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "overconstrained_query",
+    (
+        "site:.edu OR site:.ac.uk professor architecture",
+        "AI NOT medicine NOT law NOT military",
+    ),
+)
+def test_ambiguous_query_syntax_consumes_only_the_bounded_retry(
+    overconstrained_query: str,
+) -> None:
+    valid_response = make_valid_planning_response()
+    first_response = valid_response.model_copy(
+        update={
+            "search_queries": [
+                valid_response.search_queries[0].model_copy(
+                    update={"query": overconstrained_query}
+                ),
+                *valid_response.search_queries[1:],
+            ]
+        }
+    )
+    model = FakePlanningModel((first_response, valid_response))
+
+    plan = ResearchPlanningAgent(model).plan(
+        make_candidate_profile(),
+        (),
+        target_regions=(),
+        exclusions=(),
+    )
+
     assert plan.search_queries[0].query == valid_response.search_queries[0].query
-    assert model.inputs[0] == model.inputs[1]
+    assert model.call_count == 2
