@@ -251,6 +251,9 @@ def test_threshold_is_strictly_exceeded_before_attention_is_required() -> None:
     "critique",
     (
         "The Supervisor is accepting doctoral Candidates.",
+        "The Supervisor is accepting Master's research students.",
+        "The Supervisor has an opening for an MPhil student.",
+        "The Supervisor is recruiting postgraduate research students.",
         "The Supervisor has room for doctoral Candidates.",
         "The Supervisor can supervise new PhD students.",
         "The Supervisor is able to supervise another doctoral Candidate.",

@@ -769,8 +769,11 @@ class EvidenceVerificationAgent:
         availability = derive_availability_status(evidence, supervisor.supervisor_id)
         if availability is AvailabilityStatus.CONFIRMED_NOT_ACCEPTING:
             concerns.append(
-                "A retrieved source explicitly states that doctoral Candidates are not accepted."
+                "A retrieved source explicitly states that research-degree Candidates are not "
+                "accepted."
             )
         elif availability is AvailabilityStatus.CONFLICTING_EVIDENCE:
-            concerns.append("Retrieved sources conflict about doctoral supervision availability.")
+            concerns.append(
+                "Retrieved sources conflict about research-degree supervision availability."
+            )
         return tuple(dict.fromkeys(concerns))

@@ -304,6 +304,9 @@ def test_availability_prose_cannot_be_hidden_in_a_component_score() -> None:
     "prohibited_rationale",
     [
         "The Supervisor welcomes PhD applications.",
+        "The Supervisor welcomes Master's research applications.",
+        "Master's research applications are open this year.",
+        "The Supervisor is recruiting MPhil students.",
         "The Supervisor welcomes applications.",
         "The Supervisor is open for applications.",
         "The Supervisor appears willing to consider applications.",
@@ -343,11 +346,11 @@ def test_non_availability_application_research_remains_valid_fit_prose() -> None
     assert assessment.overall_score == 78
 
 
-def test_bare_doctoral_candidate_research_prose_is_not_misclassified_as_availability() -> None:
+def test_bare_research_degree_topic_prose_is_not_misclassified_as_availability() -> None:
     allowed = make_strong_fit_result().model_copy(
         update={
             "overall_rationale": (
-                "The cited work studies doctoral Candidate decision support as a research topic."
+                "The cited work studies Master's Candidate decision support as a research topic."
             )
         }
     )

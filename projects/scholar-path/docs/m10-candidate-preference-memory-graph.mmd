@@ -7,7 +7,7 @@ graph TD;
 	__start__([<p>__start__</p>]):::first
 	load_candidate_preferences(load_candidate_preferences)
 	plan_supervisor_searches(plan_supervisor_searches<hr/><small><em>component = research_planning_agent
-prompt_version = research-planning-v2</em></small>)
+prompt_version = research-planning-v3</em></small>)
 	discover_prospective_supervisors(discover_prospective_supervisors<hr/><small><em>component = supervisor_discovery_agent
 provider = you.com
 fallback_search_used = False
@@ -19,7 +19,7 @@ fallback_search_used = True
 discovery_route = fallback</em></small>)
 	deduplicate_supervisors(deduplicate_supervisors)
 	extract_supervisor_evidence(extract_supervisor_evidence<hr/><small><em>component = evidence_verification_agent
-prompt_version = evidence-verification-v3</em></small>)
+prompt_version = evidence-verification-v4</em></small>)
 	supervisor_evidence_sufficient(supervisor_evidence_sufficient)
 	retry_alternate_evidence_source(retry_alternate_evidence_source)
 	evaluate_research_fit(evaluate_research_fit<hr/><small><em>component = research_fit_evaluation_agent

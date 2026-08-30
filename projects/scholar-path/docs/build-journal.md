@@ -3063,3 +3063,98 @@ The agreed bounded repair prompt is archived as
   fixtures; do not use the successful synthetic route as evidence that live recall is adequate.
 - Keep live LangSmith traces and provider canaries separately opt-in; a future synthetic trace
   mode requires an explicit privacy review, distinct project, and synthetic-data tags.
+
+## M13.3 Repair: Academic UI and research-degree scope
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Give ScholarPath a compact academic Streamlit presentation, keep Supervisor outcomes and
+privacy-safe operational diagnostics collapsed until requested, and broaden the active product
+scope from doctorate-only wording to Master's and doctoral research degrees without weakening
+evidence, availability, lifecycle, Research Fit, or Candidate-approval controls.
+
+### Prompt used
+
+The bounded repair prompt is archived as
+[`m13-3-academic-ui-and-research-degree-scope.md`](prompts/m13-3-academic-ui-and-research-degree-scope.md).
+
+### Files changed
+
+- Added the exact `🎓 ScholarPath` hero, Master's/doctoral subtitle, safe static styling,
+  research-degree intake wording, collapsed outcome cards, dynamic progress expansion, and three
+  collapsed diagnostic groups in `src/ui/app.py`.
+- Versioned active research planning to v3 and evidence extraction to v4, introduced a neutral
+  research-degree source type with legacy deserialization, and extended explicit availability
+  wording to Master's, MPhil, postgraduate-research, and research-degree statements while
+  retaining the existing grounding gates.
+- Updated active fakes, fixtures, evaluation scenarios, and direct contracts to emit the neutral
+  source type; source-exact historical evidence and prior versioned prompts remain unchanged.
+- Regenerated the checked-in LangGraph Mermaid snapshot labels for the active planning-v3 and
+  evidence-verification-v4 prompt versions; graph nodes and edges are unchanged.
+- Updated `AGENTS.md`, package metadata, `README.md`, terminology, architecture, and the
+  five-minute demonstration, and saved the exact M13.3 prompt.
+
+### Tests added
+
+- Added focused Streamlit AppTest coverage for the academic-cap hero, exact research-degree copy,
+  collapsed Prospective, Verified, review, and shortlist cards, completed progress, all three
+  diagnostic groups, approval interaction, safe CSS, and secret exclusion.
+- Added repository contracts for the exact active presentation, active prompt versions, neutral
+  source serialization with legacy checkpoint input, unchanged five-Supervisor and retry gates,
+  and absence of inferred degree-eligibility state.
+- Added positive tests for directly grounded Master's, MPhil, postgraduate-research, and generic
+  research-degree availability statements, plus negative tests for teaching, supervision
+  history, and generic postgraduate welcome text.
+
+### Test results
+
+- Focused Streamlit, prompt, domain, lifecycle, planning, Research Fit, review, discovery,
+  observability, and evaluation regression selection: `417 passed in 6.16s`.
+- New M13.3 repository contract and compact-presentation AppTest selection: `8 passed in 1.53s`.
+- Ruff formatting reported `228 files left unchanged`; Ruff linting passed; strict mypy reported
+  no issues in `181 source files`.
+- The first complete non-live run reached `1,411 passed, 9 deselected` and correctly found one
+  stale generated Mermaid prompt-version label. After regenerating only those two labels, the
+  complete suite passed: `1,412 passed, 9 deselected in 19.35s` with `90.80%` branch coverage.
+- The offline LangSmith-compatible baseline passed `11/11` scenarios; every applicable
+  deterministic metric passed and the duplicate Supervisor rate remained `0.000`.
+- Editable installation succeeded offline with build isolation disabled; `pip check`, package
+  import at version `0.1.0`, bytecode compilation, and `git diff --check` passed.
+- The deterministic Streamlit server started successfully on an isolated local port. No browser
+  backend was connected to the workspace, so browser interaction could not run; Streamlit
+  AppTest supplied the automated rendering and interaction verification without live providers.
+
+### Assumptions
+
+- The active interface can support either research-degree scope through the existing typed
+  research statement and preferences; M13.3 deliberately adds no degree-type or eligibility
+  field.
+- Availability evidence retains the exact degree wording in its claim and source. The generic
+  status describes the directly stated evidence and must not be interpreted as programme-specific
+  eligibility for the current Candidate.
+- Historical prompt versions, fixed source excerpts, prior journal entries, and compatibility
+  inputs may retain doctorate-specific language because they are not the active product promise.
+- Collapsing a card or diagnostic panel changes only visual hierarchy; all current information
+  remains available when expanded and viewing it performs no Candidate action.
+
+### Lessons learned
+
+- A shared outcome renderer makes compact behavior consistent across verification, review, and
+  final shortlist stages without duplicating graph state in Streamlit Session State.
+- Degree-neutral serialized categories need an explicit legacy-input path so persisted threads
+  remain readable while all new output uses the active vocabulary.
+- Broader availability wording is safe only when the existing person-subject, action, polarity,
+  source, excerpt, and direct-grounding rules remain mandatory.
+- Operational detail remains useful when it is progressively disclosed instead of dominating the
+  Candidate's current decision.
+
+### Remaining debt
+
+- Add an explicit research-degree type only in a future domain milestone if ScholarPath must
+  filter programme-specific eligibility; do not infer it from a free-text research statement.
+- Validate the responsive visual hierarchy in a connected browser backend and on narrow screens;
+  deterministic Streamlit AppTest remains the current automated rendering boundary.
+- Calibrate live search planning across a labelled mix of Master's and doctoral queries without
+  weakening official-profile or evidence-verification thresholds.

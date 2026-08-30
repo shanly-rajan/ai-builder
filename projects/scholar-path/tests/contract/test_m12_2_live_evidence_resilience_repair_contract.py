@@ -5,6 +5,7 @@ from typing import get_args
 
 from scholarpath.agents import (
     EVIDENCE_VERIFICATION_PROMPT_VERSION,
+    EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V4,
     StructuredEvidenceClaim,
     StructuredEvidenceClaimDraft,
     StructuredEvidenceExtractionResult,
@@ -37,8 +38,10 @@ def test_m12_2_prompt_diagram_readme_architecture_and_journal_are_recorded() -> 
 
 def test_m12_2_versions_the_changed_graph_and_evidence_prompt() -> None:
     assert GRAPH_VERSION == "m13"
-    assert EVIDENCE_VERIFICATION_PROMPT_VERSION == "evidence-verification-v3"
+    assert EVIDENCE_VERIFICATION_PROMPT_VERSION == "evidence-verification-v4"
     assert LOCAL_BASELINE_NAME == "scholarpath-m13-fake-baseline-2026-08-30"
+    assert "Master's, MPhil, doctoral, PhD" in EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V4
+    assert "General taught-programme admissions" in EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V4
 
 
 def test_m12_2_preserves_the_single_alternate_source_retry() -> None:
@@ -56,7 +59,7 @@ def test_m12_2_keeps_native_structured_output_and_per_claim_semantics() -> None:
     claims_annotation = StructuredEvidenceExtractionResult.model_fields["claims"].annotation
     assert get_args(claims_annotation)[0] is StructuredEvidenceClaimDraft
     assert issubclass(StructuredEvidenceClaim, StructuredEvidenceClaimDraft)
-    assert "EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V3" in openai_source
+    assert "EVIDENCE_VERIFICATION_SYSTEM_PROMPT_V4" in openai_source
     assert 'method="json_schema"' in openai_source
     assert "strict=True" in openai_source
     assert "max_retries=0" in openai_source

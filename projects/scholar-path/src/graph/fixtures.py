@@ -64,7 +64,7 @@ _DISCOVERY_QUERIES = (
     "sociotechnical systems digital transformation Europe",
     "responsible AI governance organisational change Africa",
     "enterprise architecture comparative case study Europe",
-    "digital innovation resilience doctoral supervision",
+    "digital innovation resilience research degree supervision",
 )
 _RESEARCH_CLAIMS = (
     "The profile lists enterprise architecture and responsible AI governance.",

@@ -12,7 +12,7 @@ from scholarpath.ui.controller import canonical_node_names_from_stream_part
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 EXPECTED_STAGE_LABELS = (
-    "1. Your Doctoral Research Profile",
+    "1. Your Research Degree Profile",
     "2. Supervisor Search Progress",
     "3. Prospective Supervisors",
     "4. Verified Supervisors",

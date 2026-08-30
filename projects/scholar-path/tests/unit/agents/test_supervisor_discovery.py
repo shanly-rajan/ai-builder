@@ -25,7 +25,7 @@ from tests.fixtures import make_prospective_supervisors
 QUERY_ONE = "responsible AI university profiles"
 QUERY_TWO = "enterprise architecture research groups"
 QUERY_THREE = "digital transformation recent publications"
-QUERY_FOUR = "doctoral supervision information systems"
+QUERY_FOUR = "research degree supervision information systems"
 
 
 def _search_plan() -> SearchPlan:
@@ -48,8 +48,8 @@ def _search_plan() -> SearchPlan:
             ),
             PlannedSearchQuery(
                 query=QUERY_FOUR,
-                purpose="Find explicit doctoral supervision information.",
-                target_source_types=(SearchSourceType.DOCTORAL_SUPERVISION_INFORMATION,),
+                purpose="Find explicit research-degree supervision information.",
+                target_source_types=(SearchSourceType.RESEARCH_DEGREE_SUPERVISION_INFORMATION,),
             ),
         ),
         expanded_research_concepts=("AI assurance", "enterprise design"),

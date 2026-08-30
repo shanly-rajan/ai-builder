@@ -53,14 +53,19 @@ _ADMISSION_LIKELIHOOD_PATTERN = re.compile(
     r"\b\d+(?:\.\d+)?\s*%[^.\n]{0,40}\b(?:accepted|admitted)\b",
     re.IGNORECASE,
 )
+_RESEARCH_DEGREE_LEVEL_PATTERN = (
+    r"(?:doctoral|ph\.?d\.?|master(?:['’]s|s)?|m\.?phil\.?|"
+    r"postgraduate\s+research|research[-\s]+degree)"
+)
 _AVAILABILITY_SCORING_PATTERN = re.compile(
     r"\b(?:availability|accepting|not\s+accepting)\b|"
     r"\bconfirmed[_\s-](?:not[_\s-])?accepting\b|"
     r"\b(?:open|available)\s+(?:to|for)\s+[^.\n]{0,40}"
-    r"\b(?:supervis|doctoral|phd)\w*\b|"
+    rf"(?:\bsupervis\w*\b|\b{_RESEARCH_DEGREE_LEVEL_PATTERN}\b)|"
     r"\b(?:welcome|welcomes|welcoming|seek|seeks|seeking|recruit|recruits|recruiting|"
-    r"take|takes|taking)\b[^.\n]{0,50}\b(?:doctoral|phd)\b|"
-    r"\b(?:doctoral|phd)\s+(?:applications?|enquiries?|openings?|slots?)\b"
+    rf"take|takes|taking)\b[^.\n]{{0,50}}\b{_RESEARCH_DEGREE_LEVEL_PATTERN}\b|"
+    rf"\b{_RESEARCH_DEGREE_LEVEL_PATTERN}\s+(?:(?:degree|research)\s+)?"
+    r"(?:applications?|enquiries?|openings?|slots?)\b"
     r"[^.\n]{0,24}\b(?:open|welcome|closed|paused|being\s+accepted)\b|"
     r"\b(?:capacity|slots?)\s+(?:to|for)\s+[^.\n]{0,30}\bsupervis\w*\b|"
     r"\b(?:the\s+)?supervisor\s+(?:(?:is|appears|seems)\s+)?(?:currently\s+)?"
@@ -79,10 +84,11 @@ def validate_research_fit_scoring_prose(values: Iterable[str]) -> None:
 
 
 _AVAILABILITY_AUDIENCE_PATTERN = (
-    r"(?:(?:new\s+)?(?:doctoral|phd)\s+"
-    r"(?:candidates?|students?|applicants?|applications?|enquiries?)|"
-    r"applications?\s+from\s+(?:new\s+)?(?:doctoral|phd)\s+"
-    r"(?:candidates?|students?|applicants?))"
+    rf"(?:(?:new\s+)?{_RESEARCH_DEGREE_LEVEL_PATTERN}\s+"
+    r"(?:(?:degree|research)\s+)?"
+    r"(?:candidates?|students?|researchers?|applicants?|applications?|enquiries?)|"
+    rf"applications?\s+from\s+(?:new\s+)?{_RESEARCH_DEGREE_LEVEL_PATTERN}\s+"
+    r"(?:(?:degree|research)\s+)?(?:candidates?|students?|researchers?|applicants?))"
 )
 _EXPLICIT_NOT_ACCEPTING_PATTERN = re.compile(
     rf"^(?:"
@@ -350,7 +356,7 @@ class DomainModel(BaseModel):
 
 
 class CandidateProfile(DomainModel):
-    """Structured doctoral interests and constraints supplied by the Candidate."""
+    """Structured research-degree interests and constraints supplied by the Candidate."""
 
     candidate_id: NonEmptyString
     proposed_research_statement: NonEmptyString

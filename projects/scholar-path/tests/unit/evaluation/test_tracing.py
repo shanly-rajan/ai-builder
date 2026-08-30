@@ -198,7 +198,7 @@ def test_failed_target_retains_static_diagnostic_tags_without_dynamic_outcomes(
 
     assert "application:scholarpath" in run.tags
     assert "evaluation-target:search_planning" in run.tags
-    assert "prompt-version:research-planning-v2" in run.tags
+    assert "prompt-version:research-planning-v3" in run.tags
     assert "model-provider:fake" in run.tags
     assert not any(tag.startswith("fallback-used:") for tag in run.tags)
     assert not any(tag.startswith("candidate-review-outcome:") for tag in run.tags)

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "scholarpath"
 version = "0.1.0"
-description = "Evidence-backed doctoral Supervisor discovery and Research Fit system"
+description = "Evidence-backed research-degree Supervisor discovery and Research Fit system"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

@@ -74,6 +74,11 @@ reruns and stage changes. The demonstration composition makes no provider call, 
 provider key, forces tracing off regardless of broader environment settings, and stores its
 threads only in memory.
 
+Confirm the active academic hero is exactly **🎓 ScholarPath** and its subtitle is exactly
+`Evidence-backed Supervisor discovery for Master's and doctoral research.` Stage one must read
+**1. Your Research Degree Profile**, with the exact guidance
+`Describe your Master's or doctoral research direction and practical preferences that should guide Supervisor discovery.`
+
 `deterministic_demo` is rejected when `SCHOLARPATH_ENVIRONMENT=production`. Runtime composition
 is held by Streamlit's cached application service, so a browser refresh or rerun cannot switch
 profiles. Fully stop and restart the Streamlit server to change profiles; restarting discards the
@@ -81,7 +86,9 @@ in-memory demonstration thread.
 
 ## 2:00–3:00 — Enter a synthetic Candidate profile
 
-Use demonstration data, not personal data:
+Use demonstration data, not personal data. This walkthrough frames it as a Master's research
+direction; the same free-text profile supports doctoral research without adding a degree-type
+field or inferring programme eligibility:
 
 | Field | Demonstration value |
 |---|---|
@@ -93,8 +100,9 @@ Use demonstration data, not personal data:
 | Methodological interests | design science; case study evaluation |
 | Exclusions | purely theoretical model pre-training |
 
-Select **Start Supervisor research**. Expand **Canonical LangGraph progress** and point out the
-same real graph stages used by the provider-backed profile:
+Select **Start Supervisor research** and observe **Canonical LangGraph progress** while it is
+active. After the graph pauses, confirm completed progress is collapsed by default, then expand it
+and point out the same real graph stages used by the provider-backed profile:
 
 ```text
 load_candidate_preferences
@@ -111,14 +119,19 @@ candidate_review_gate
 ```
 
 Bounded fallback or alternate-source nodes appear only when the synthetic state reaches their
-existing route conditions; the demonstration profile does not force or bypass them. In the
-privacy-safe diagnostics, show aggregate discovery, retrieval, retained-claim, directly grounded,
-and verification counts. Emphasize that page retrieval success is not verification. Do not copy
-the fixed source content outside the application.
+existing route conditions; the demonstration profile does not force or bypass them. Confirm the
+Prospective Supervisor outcomes start as collapsed cards labelled with name and institution.
+
+Open the collapsed outer panels **Discovery diagnostics**, **Alternate-source diagnostics**, and
+**Evidence-verification diagnostics** one at a time. Show aggregate discovery, retrieval,
+retained-claim, directly grounded, and verification counts, then collapse each panel again.
+Emphasize that page retrieval success is not verification. Do not copy fixed source content
+outside the application.
 
 ## 3:00–4:00 — Inspect evidence, reject, and refine
 
-For one proposed recommendation, point out:
+Confirm every review outcome starts collapsed under a label containing the Supervisor's name,
+institution, and `Research Fit: N/100`. Expand one proposed recommendation and point out:
 
 - Supervisor name and institution;
 - verification status and evidence source links;
@@ -126,6 +139,10 @@ For one proposed recommendation, point out:
 - evidence confidence and concerns;
 - availability status as a separate sourced fact; and
 - independent review status.
+
+For this Master's-scoped example, an explicit doctoral-availability statement remains evidence
+only for its stated doctoral context; it is not proof of Master's availability. Do not infer
+degree eligibility from the profile, Research Fit Score, or `not_stated`.
 
 Open **Reject**, choose one Supervisor, enter:
 
@@ -148,6 +165,8 @@ Select the final Verified Supervisors and choose **Approve selected Supervisors*
 - `save_shortlisted_supervisors` occurs only after the approval;
 - `generate_shortlist_briefing` follows the save;
 - the final page labels the records as Shortlisted Supervisors; and
+- Shortlisted Supervisor cards remain collapsed initially with name, institution, and applicable
+  `Research Fit: N/100` in each label;
 - the briefing says the recommendations were Candidate-approved and evidence-backed; and
 - the persistent warning still identifies every displayed result as synthetic.
 
@@ -220,6 +239,7 @@ It must remain excluded from default pytest and CI.
 | Observation | Response |
 |---|---|
 | Synthetic warning is absent in `deterministic_demo` | Stop immediately; verify the process environment and perform a full Streamlit server restart before demonstrating results. |
+| Supervisor details or diagnostics appear missing | Expand the relevant collapsed outcome card or one of the three exact diagnostic panels; do not change the evidence projection. |
 | Profile change appears ignored | Stop the Streamlit process completely and relaunch it; browser refresh and rerun retain the cached application service. |
 | Demonstration thread disappears after restart | Expected: `deterministic_demo` uses an in-memory checkpointer. Start a new synthetic run. |
 | `deterministic_demo` is rejected in production | Expected safety behavior. Use it only with a non-production environment; never weaken the guard. |

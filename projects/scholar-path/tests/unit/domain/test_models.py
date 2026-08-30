@@ -14,11 +14,13 @@ from scholarpath.domain import (
     EvidenceClaim,
     EvidenceClaimType,
     EvidenceConfidence,
+    PlannedSearchQuery,
     ProspectiveSupervisor,
     ResearchFitAssessment,
     ResearchFitBreakdown,
     ResearchFitEvidenceError,
     SearchPlan,
+    SearchSourceType,
     SupervisorLifecycleStatus,
     SupervisorShortlist,
     VerificationStatus,
@@ -90,6 +92,25 @@ def test_every_m1_model_constructs_and_serializes() -> None:
         payload = model.model_dump(mode="json")
         assert isinstance(payload, dict)
         assert model.model_dump_json().startswith("{")
+
+
+def test_legacy_doctoral_source_type_deserializes_to_neutral_research_degree_type() -> None:
+    query = PlannedSearchQuery.model_validate(
+        {
+            "query": "research degree supervision information systems",
+            "purpose": "Find explicit research-degree supervision information.",
+            "target_source_types": ["doctoral_supervision_information"],
+        }
+    )
+
+    assert query.target_source_types == (SearchSourceType.RESEARCH_DEGREE_SUPERVISION_INFORMATION,)
+    assert (
+        SearchSourceType("doctoral_supervision_information")
+        is SearchSourceType.RESEARCH_DEGREE_SUPERVISION_INFORMATION
+    )
+    assert query.model_dump(mode="json")["target_source_types"] == [
+        "research_degree_supervision_information"
+    ]
 
 
 @pytest.mark.parametrize(

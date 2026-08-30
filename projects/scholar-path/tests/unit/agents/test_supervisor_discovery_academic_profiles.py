@@ -17,7 +17,7 @@ from scholarpath.domain import (
 PROFILE_QUERY = "enterprise architecture academic profiles"
 GROUP_QUERY = "enterprise architecture university research groups"
 PUBLICATION_QUERY = "enterprise architecture recent academic publications"
-SUPERVISION_QUERY = "enterprise architecture doctoral supervision information"
+SUPERVISION_QUERY = "enterprise architecture research degree supervision information"
 
 
 def _search_plan() -> SearchPlan:
@@ -40,8 +40,8 @@ def _search_plan() -> SearchPlan:
             ),
             PlannedSearchQuery(
                 query=SUPERVISION_QUERY,
-                purpose="Find explicit doctoral supervision information.",
-                target_source_types=(SearchSourceType.DOCTORAL_SUPERVISION_INFORMATION,),
+                purpose="Find explicit research-degree supervision information.",
+                target_source_types=(SearchSourceType.RESEARCH_DEGREE_SUPERVISION_INFORMATION,),
             ),
         ),
         expanded_research_concepts=("enterprise architecture", "AI governance"),

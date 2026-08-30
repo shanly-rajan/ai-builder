@@ -1,15 +1,16 @@
 # ScholarPath
 
-**Multi-Agent Doctoral Supervisor Discovery and Research-Fit System**
+**Multi-Agent Research-Degree Supervisor Discovery and Research-Fit System**
 
 **Canonical one-liner:** ScholarPath is a human-controlled, multi-agent system that discovers,
-verifies, evaluates, and shortlists research-aligned doctoral Supervisors with source-backed
-evidence.
+verifies, evaluates, and shortlists research-aligned Supervisors for Master's and doctoral
+research with source-backed evidence.
 
-ScholarPath helps a prospective doctoral Candidate discover, verify, evaluate, and
-shortlist research-aligned Supervisors through a Streamlit web application. It is
-intended to replace hours of fragmented searching across university profiles and
-academic publications with an evidence-backed, human-controlled workflow.
+ScholarPath helps a Candidate pursuing a Master's degree or doctorate discover, verify,
+evaluate, and shortlist research-aligned Supervisors through a Streamlit web application. Its
+active product promise is **Evidence-backed Supervisor discovery for Master's and doctoral
+research.** It is intended to replace hours of fragmented searching across university profiles
+and academic publications with an evidence-backed, human-controlled workflow.
 
 The system plans searches, discovers Prospective Supervisors, verifies supporting
 evidence, evaluates Research Fit, and learns from Candidate feedback. It introduces
@@ -26,7 +27,7 @@ The release remains deliberately scoped to trusted local use; authenticated Cand
 thread authorization, and production persistence are roadmap items.
 
 M11 established the focused Streamlit application over the durable LangGraph workflow.
-It captures a Candidate's doctoral research profile, streams allowlisted canonical node
+It captures a Candidate's research-degree profile, streams allowlisted canonical node
 names as progress, presents Prospective and Verified Supervisors with evidence-backed
 Research Fit details, and resumes the exact checkpointed thread after an explicit
 `approve`, `reject`, or `request_more` action.
@@ -56,6 +57,12 @@ provider-backed profile. The development-only `deterministic_demo` profile runs 
 with fixed synthetic adapters, forced-off tracing, and an in-memory checkpointer, while a
 persistent UI warning prevents synthetic results from being mistaken for live research. It is
 rejected in production and changes no verification or Candidate-approval rule.
+
+The bounded M13.3 repair gives the active interface an academic `🎓 ScholarPath` hero and broadens
+its presentation scope to Master's and doctoral research degrees. Completed progress, outcome
+cards, and the three privacy-safe diagnostic groups now start collapsed so the current Candidate
+decision remains prominent. Expanding them reveals the same evidence and aggregates as before;
+verification, availability, Research Fit, lifecycle, and explicit approval rules are unchanged.
 
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
@@ -119,7 +126,7 @@ flowchart LR
 
 | Release dimension | `v0.1.0` position |
 |---|---|
-| Primary user | A prospective doctoral Candidate using a trusted local Streamlit application |
+| Primary user | A Candidate pursuing a research degree, such as a Master's degree or doctorate, using a trusted local Streamlit application |
 | Outcome | At most five ranked, evidence-backed recommendations for explicit Candidate review |
 | Human authority | No shortlist persistence or outreach drafting before approval |
 | Factual authority | Retrieved source evidence, never model knowledge or Candidate memory |
@@ -230,9 +237,9 @@ flowchart LR
     class Adapter,Native external;
 ```
 
-The versioned `research-planning-v2` system prompt requires four to eight distinct
+The versioned `research-planning-v3` system prompt requires four to eight distinct
 queries whose combined targets cover official university profiles, department or
-research-group pages, recent publications, and explicit doctoral-supervision
+research-group pages, recent publications, and explicit research-degree-supervision
 information. Each query carries its purpose and intended source types. Deterministic
 query-shape validation allows at most one `site:` restriction, two explicit uppercase
 Boolean operators, and one quoted phrase per query. An over-constrained model response
@@ -291,7 +298,7 @@ limit to the official POST endpoint, applies an explicit HTTP timeout, and norma
 web/news results into typed `SearchResult` records. Provider snippets are whitespace
 normalized, deduplicated, and bounded to five excerpts of at most 1,000 characters each;
 full-page content is never retained during discovery. The adapter does not identify
-people, evaluate Research Fit, or infer doctoral availability.
+people, evaluate Research Fit, or infer Master's or doctoral research-degree availability.
 
 `SupervisorDiscoveryAgent` uses conservative deterministic extraction because M4 does
 not introduce another model integration. A result must contain a plausible person name
@@ -686,13 +693,23 @@ flowchart LR
     UI -. Session State .-> Session[Interface controls + thread ID only]
 ```
 
-The single application walks through six visible stages: **Your Doctoral Research
-Profile**, **Supervisor Search Progress**, **Prospective Supervisors**, **Verified
-Supervisors**, **Review Supervisors**, and **Your Supervisor Shortlist**. The form captures
-the research statement, topics, regions, study mode, research orientation, methods, and
-exclusions. Results expose verification status, Research Fit Score and explanation,
-evidence confidence and source links, availability, concerns, and independent-review
-status.
+The application opens with the hero **🎓 ScholarPath** and subtitle
+`Evidence-backed Supervisor discovery for Master's and doctoral research.` It then walks through
+six visible stages, beginning with **1. Your Research Degree Profile**. The form guidance is
+`Describe your Master's or doctoral research direction and practical preferences that should guide Supervisor discovery.`
+The remaining stages are **Supervisor Search Progress**, **Prospective Supervisors**, **Verified
+Supervisors**, **Review Supervisors**, and **Your Supervisor Shortlist**. The form captures the
+research statement, topics, regions, study mode, research orientation, methods, and exclusions.
+Results expose verification status, Research Fit Score and explanation, evidence confidence and
+source links, availability, concerns, and independent-review status.
+
+Prospective, Verified, review, and Shortlisted Supervisor outcome cards are collapsed by default
+under labels containing the Supervisor's name and institution. Verified variants also include
+`Research Fit: N/100` when a score exists. Completed canonical progress is collapsed, while active
+progress stays open. The aggregate panels are likewise collapsed under the exact labels
+**Discovery diagnostics**, **Alternate-source diagnostics**, and **Evidence-verification
+diagnostics**. Expanding any card or panel reveals its complete existing safe presentation; the
+change is information hierarchy, not data removal or a new privacy policy.
 
 `ScholarPathApplicationPort` keeps graph construction, checkpoint access, resume commands,
 and business rules outside the Streamlit module. Streaming uses LangGraph update events,
@@ -1010,8 +1027,9 @@ set +a
 streamlit run streamlit_app.py
 ```
 
-Open `http://localhost:8501` if Streamlit does not open it automatically. Complete **Your
-Doctoral Research Profile**, choose **Start Supervisor Research**, watch the canonical
+Open `http://localhost:8501` if Streamlit does not open it automatically. Confirm the
+**🎓 ScholarPath** hero and Master's/doctoral subtitle, complete **Your Research Degree Profile**,
+choose **Start Supervisor Research**, watch the canonical
 node names under **Supervisor Search Progress**, and use the review controls only after
 the graph pauses. The application persists local threads at
 `SCHOLARPATH_CHECKPOINT_DATABASE_PATH`; keep that ignored database private.
@@ -1390,13 +1408,13 @@ ScholarPath succeeds when one research run:
 
 | Term | Definition |
 |---|---|
-| **Candidate** | The person pursuing a doctorate and using ScholarPath. |
-| **Supervisor** | An academic or researcher who may supervise the Candidate's doctoral research. |
+| **Candidate** | A person pursuing a research degree, such as a Master's degree or doctorate. |
+| **Supervisor** | An academic or researcher who may supervise the Candidate's research-degree work. |
 | **Prospective Supervisor** | A discovered Supervisor who has not yet completed verification and Candidate review. |
 | **Verified Supervisor** | A Supervisor whose relevant information has been checked against supporting sources. |
 | **Shortlisted Supervisor** | A Verified Supervisor approved by the Candidate. |
 | **Rejected Supervisor** | A Supervisor excluded by the Candidate. |
-| **Research Fit Score** | The assessed alignment between the Candidate's doctoral interests and a Supervisor's verified research profile. |
+| **Research Fit Score** | The assessed alignment between the Candidate's research-degree interests and a Supervisor's verified research profile. |
 
 ### Example Research Fit assessment
 
@@ -1516,8 +1534,8 @@ Briefing: 5 Candidate-approved, evidence-backed Supervisor recommendations.
 ```
 
 The example is synthetic. A Research Fit Score is an evidence-based alignment signal, not an
-admission probability, and `not_stated` must never be presented as accepting doctoral
-Candidates.
+admission probability, and `not_stated` must never be presented as accepting Master's or
+doctoral research-degree Candidates.
 
 ## Known limitations
 
@@ -1528,6 +1546,9 @@ Candidates.
 - Provider processing is synchronous, so latency grows with the bounded Supervisor cohort.
 - Source evidence can become stale, and conservative alternate-source selection can reduce
   recall.
+- The active profile language supports Master's and doctoral research, but there is no degree-type
+  field and no inferred programme eligibility. A doctoral-only availability statement must not
+  be presented as evidence that the Supervisor accepts Master's Candidates, or vice versa.
 - Mem0 consent, deletion, residency, and retention governance requires production design.
 - Exact-version constraints are reproducible but not hash-locked supply-chain verification.
 - LLM-judge thresholds are not calibrated against a labelled set of Candidate ratings.

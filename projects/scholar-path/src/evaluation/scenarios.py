@@ -99,7 +99,7 @@ def build_evaluation_scenarios() -> tuple[EvaluationScenario, ...]:
             title="Supervisor availability is not stated",
             description=(
                 "Complete identity, affiliation, and research evidence must verify without "
-                "inventing doctoral supervision availability."
+                "inventing research-degree supervision availability."
             ),
             target=EvaluationTargetKind.EVIDENCE_VERIFICATION,
             tags=(*common_tags, "evidence:availability"),
@@ -244,7 +244,7 @@ def build_evaluation_scenarios() -> tuple[EvaluationScenario, ...]:
             title="Search planning source coverage",
             description=(
                 "A source-complete plan must cover official profiles, departments, recent "
-                "publications, and explicit doctoral supervision information."
+                "publications, and explicit research-degree supervision information."
             ),
             target=EvaluationTargetKind.SEARCH_PLANNING,
             tags=(*common_tags, "planning:source-coverage"),

@@ -73,14 +73,14 @@ def make_evaluation_planning_response() -> StructuredSearchPlanResponse:
                 target_source_types=[SearchSourceType.RECENT_PUBLICATION],
             ),
             PlanningSearchQueryResponse(
-                query="doctoral supervision enterprise systems responsible AI",
-                purpose="Find explicit institutional doctoral supervision information.",
-                target_source_types=[SearchSourceType.DOCTORAL_SUPERVISION_INFORMATION],
+                query="research degree supervision enterprise systems responsible AI",
+                purpose="Find explicit institutional research-degree supervision information.",
+                target_source_types=[SearchSourceType.RESEARCH_DEGREE_SUPERVISION_INFORMATION],
             ),
         ],
         rationale=(
             "Cover institutional identity, research alignment, recent work, and explicit "
-            "doctoral supervision information without executing a search."
+            "research-degree supervision information without executing a search."
         ),
     )
 

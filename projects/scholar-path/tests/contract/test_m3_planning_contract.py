@@ -8,6 +8,7 @@ from scholarpath.agents import (
     RESEARCH_PLANNING_PROMPT_VERSION,
     RESEARCH_PLANNING_SYSTEM_PROMPT_V1,
     RESEARCH_PLANNING_SYSTEM_PROMPT_V2,
+    RESEARCH_PLANNING_SYSTEM_PROMPT_V3,
     PlanningModelPort,
     StructuredSearchPlanResponse,
 )
@@ -22,10 +23,15 @@ def test_planning_output_and_fake_satisfy_the_provider_neutral_contract() -> Non
 
     assert issubclass(StructuredSearchPlanResponse, BaseModel)
     assert callable(model.generate)
-    assert RESEARCH_PLANNING_PROMPT_VERSION == "research-planning-v2"
+    assert RESEARCH_PLANNING_PROMPT_VERSION == "research-planning-v3"
     assert RESEARCH_PLANNING_SYSTEM_PROMPT_V1 != RESEARCH_PLANNING_SYSTEM_PROMPT_V2
+    assert RESEARCH_PLANNING_SYSTEM_PROMPT_V2 != RESEARCH_PLANNING_SYSTEM_PROMPT_V3
     assert "provider-portable" in RESEARCH_PLANNING_SYSTEM_PROMPT_V2
     assert "at most one site:" in RESEARCH_PLANNING_SYSTEM_PROMPT_V2
+    assert "Master's or doctoral research-degree interests" in (RESEARCH_PLANNING_SYSTEM_PROMPT_V3)
+    assert "explicit research-degree supervision information" in (
+        RESEARCH_PLANNING_SYSTEM_PROMPT_V3
+    )
 
 
 def test_openai_adapter_uses_structured_output_without_search_tools_or_prose_parsing() -> None:
@@ -34,7 +40,7 @@ def test_openai_adapter_uses_structured_output_without_search_tools_or_prose_par
     assert ".with_structured_output(" in source
     assert 'method="json_schema"' in source
     assert "strict=True" in source
-    assert "RESEARCH_PLANNING_SYSTEM_PROMPT_V2" in source
+    assert "RESEARCH_PLANNING_SYSTEM_PROMPT_V3" in source
     assert "max_retries=0" in source
     assert "bind_tools" not in source
     assert "json.loads" not in source

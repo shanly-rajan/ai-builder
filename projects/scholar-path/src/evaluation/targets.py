@@ -175,7 +175,7 @@ def _candidate_profile(scenario: EvaluationScenario) -> CandidateProfile:
     return CandidateProfile(
         candidate_id=f"evaluation-{scenario.scenario_id}",
         proposed_research_statement=(
-            "A synthetic doctoral research statement combining the supplied research themes, "
+            "A synthetic research-degree statement combining the supplied research themes, "
             "orientation, methods, and practical constraints."
         ),
         research_topics=preferences.research_topics,

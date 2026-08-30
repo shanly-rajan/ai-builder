@@ -39,7 +39,7 @@ CANDIDATE_ID = "candidate-ui-001"
 RESEARCH_STATEMENT = "How can enterprise architecture support responsible digital transformation?"
 RESEARCH_TOPICS = "enterprise architecture, responsible AI"
 EXPECTED_STAGE_LABELS = (
-    "1. Your Doctoral Research Profile",
+    "1. Your Research Degree Profile",
     "2. Supervisor Search Progress",
     "3. Prospective Supervisors",
     "4. Verified Supervisors",
@@ -134,7 +134,7 @@ def test_candidate_profile_form_renders_every_requested_control(
     app_test = _new_app()
 
     assert not app_test.exception
-    assert app_test.title[0].value == "ScholarPath"
+    assert app_test.title[0].value == "🎓 ScholarPath"
     assert [item.value for item in app_test.header] == [EXPECTED_STAGE_LABELS[0]]
     assert app_test.text_area(key="profile_research_statement").label == (
         "Proposed research statement *"
@@ -523,13 +523,19 @@ def test_verified_supervisor_evidence_and_review_fields_are_rendered(
     _submit_candidate_profile(app_test)
 
     rendered_markdown = "\n".join(item.value for item in app_test.markdown)
-    rendered_subheaders = [item.value for item in app_test.subheader]
+    rendered_expanders = [item.label for item in app_test.expander]
     rendered_metrics = [(item.label, item.value) for item in app_test.metric]
 
     assert not app_test.exception
     assert EXPECTED_STAGE_LABELS[3] in [item.value for item in app_test.header]
-    assert "Dr Amara Ndlovu" in rendered_subheaders
-    assert "Professor Elias Hart" in rendered_subheaders
+    assert any(
+        label.startswith("Dr Amara Ndlovu — Southern Cape Institute of Technology")
+        for label in rendered_expanders
+    )
+    assert any(
+        label.startswith("Professor Elias Hart — Northbridge University")
+        for label in rendered_expanders
+    )
     assert "Institution: Southern Cape Institute of Technology" in rendered_markdown
     assert "Verification status: Verified" in rendered_markdown
     assert ("Research Fit Score", "87/100") in rendered_metrics
@@ -567,7 +573,10 @@ def test_approval_resumes_the_same_thread_and_renders_only_the_selected_shortlis
     assert [item.value for item in app_test.success] == [
         "These Verified Supervisors were explicitly approved and shortlisted."
     ]
-    assert app_test.subheader[-1].value == "Professor Elias Hart"
+    assert any(
+        item.label == "Professor Elias Hart — Northbridge University · Research Fit: 82/100"
+        for item in app_test.expander
+    )
     assert app_test.session_state["thread_id"] == THREAD_ID
 
 

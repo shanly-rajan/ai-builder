@@ -15,7 +15,7 @@ from tests.fixtures import make_candidate_profile
 
 def test_candidate_profile_and_remembered_preferences_map_to_planning_input() -> None:
     profile = make_candidate_profile(
-        proposed_research_statement="A distinctive synthetic doctoral research statement.",
+        proposed_research_statement="A distinctive synthetic research-degree statement.",
         research_topics=("topic alpha", "topic beta"),
         preferred_study_modes=("hybrid",),
         preferred_research_orientation="applied",

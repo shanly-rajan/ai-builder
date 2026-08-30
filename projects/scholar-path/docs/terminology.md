@@ -7,18 +7,30 @@ workflow-state ambiguity and keep human approval boundaries explicit.
 
 | Term | Meaning |
 |---|---|
-| **Candidate** | The person pursuing a doctorate and using ScholarPath. |
+| **Candidate** | A person pursuing a research degree, such as a Master's degree or doctorate. |
 | **Supervisor** | The academic or researcher being researched. |
 | **Prospective Supervisor** | A discovered Supervisor whose relevant information has not yet been fully verified. |
 | **Verified Supervisor** | A Prospective Supervisor whose relevant information has been checked against supporting sources. |
 | **Shortlisted Supervisor** | A Verified Supervisor explicitly approved by the Candidate. |
 | **Rejected Supervisor** | A Supervisor excluded by the Candidate. |
-| **Research Fit Score** | The assessed alignment between the Candidate's doctoral interests and a Supervisor's verified research profile. |
+| **Research Fit Score** | The assessed alignment between the Candidate's research-degree interests and a Supervisor's verified research profile. |
 | **Proposed Supervisor recommendation** | A ranked, evidence-backed Verified Supervisor presented for Candidate review; it is not yet a Shortlisted Supervisor. |
 
 The word **Candidate** always refers to the ScholarPath user. A Supervisor must always
 be described with the appropriate Supervisor lifecycle term. Ambiguous compound labels
 are prohibited by the engineering contract.
+
+## Research-degree product scope
+
+The active ScholarPath interface supports evidence-backed Supervisor discovery for Master's and
+doctoral research. `1. Your Research Degree Profile` accepts the same typed research statement,
+topics, regions, study modes, orientation, methods, and exclusions for either scope; M13.3 adds no
+degree-type field and infers no programme eligibility.
+
+This broader presentation does not broaden evidence. A source-backed fact retains its exact
+meaning and degree context. In particular, an explicit doctoral-availability statement does not
+establish Master's availability, and the absence of a relevant statement remains `not_stated`.
+The Candidate must confirm degree- and programme-specific eligibility with the institution.
 
 ## Supervisor lifecycle
 
@@ -82,14 +94,16 @@ content.
 
 | Status | Meaning |
 |---|---|
-| `confirmed_accepting` | A retrieved source explicitly names the Supervisor and states that they are accepting doctoral Candidates. |
-| `confirmed_not_accepting` | A retrieved source explicitly names the Supervisor and states that they are not accepting doctoral Candidates. |
+| `confirmed_accepting` | A retrieved source explicitly names the Supervisor and states that they are accepting Master's or doctoral research-degree Candidates in the source's stated degree context. |
+| `confirmed_not_accepting` | A retrieved source explicitly names the Supervisor and states that they are not accepting Master's or doctoral research-degree Candidates in the source's stated degree context. |
 | `not_stated` | No directly supported availability statement was found. |
 | `conflicting_evidence` | Current sources disagree about availability. |
 
 An individual availability claim can assert only `confirmed_accepting` or
 `confirmed_not_accepting`. `conflicting_evidence` is derived only when directly
-supported claims establish both outcomes; `not_stated` requires neither.
+supported claims establish both outcomes; `not_stated` requires neither. These values preserve
+the degree context of the supporting source and must not be generalized from doctorate to
+Master's study, or from Master's study to a doctorate.
 
 ScholarPath never calculates an admission probability and never treats a Research Fit
 Score as proof of availability or admission likelihood.

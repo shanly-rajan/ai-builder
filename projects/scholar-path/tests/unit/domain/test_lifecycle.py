@@ -127,6 +127,66 @@ def test_availability_is_derived_without_blocking_verification(
     assert verify_supervisor(prospective, evidence).availability_status is expected_status
 
 
+@pytest.mark.parametrize(
+    ("supporting_excerpt", "availability_status"),
+    (
+        (
+            "Professor Elias Hart is currently accepting new Master's research students.",
+            AvailabilityStatus.CONFIRMED_ACCEPTING,
+        ),
+        (
+            "Professor Elias Hart is accepting MPhil students.",
+            AvailabilityStatus.CONFIRMED_ACCEPTING,
+        ),
+        (
+            "Professor Elias Hart is accepting postgraduate research students.",
+            AvailabilityStatus.CONFIRMED_ACCEPTING,
+        ),
+        (
+            "Professor Elias Hart is not accepting new research-degree Candidates.",
+            AvailabilityStatus.CONFIRMED_NOT_ACCEPTING,
+        ),
+    ),
+)
+def test_explicit_masters_and_other_research_degree_availability_is_grounded(
+    supporting_excerpt: str,
+    availability_status: AvailabilityStatus,
+) -> None:
+    prospective = make_prospective_supervisor(2)
+    evidence = make_evidence_claims(2)
+    availability = evidence[-1].model_copy(
+        update={
+            "supporting_excerpt": supporting_excerpt,
+            "availability_status": availability_status,
+        }
+    )
+
+    assert evidence_claim_is_grounded_for_supervisor(availability, prospective) is True
+    assert (
+        derive_availability_status((*evidence[:-1], availability), prospective.supervisor_id)
+        is availability_status
+    )
+
+
+@pytest.mark.parametrize(
+    "supporting_excerpt",
+    (
+        "Professor Elias Hart teaches students in the Master's programme.",
+        "Professor Elias Hart welcomes students to taught postgraduate modules.",
+        "Professor Elias Hart has supervised Master's students previously.",
+    ),
+)
+def test_masters_teaching_or_supervision_history_is_not_current_availability(
+    supporting_excerpt: str,
+) -> None:
+    prospective = make_prospective_supervisor(2)
+    availability = make_evidence_claims(2)[-1].model_copy(
+        update={"supporting_excerpt": supporting_excerpt}
+    )
+
+    assert evidence_claim_is_grounded_for_supervisor(availability, prospective) is False
+
+
 def test_verification_concerns_are_explicitly_classified() -> None:
     verified = verify_supervisor(
         make_prospective_supervisor(1),

@@ -61,7 +61,7 @@ _DISCOVERY_QUERIES = (
     "sociotechnical systems digital transformation Europe",
     "responsible AI governance organisational change Africa",
     "enterprise architecture comparative case study Europe",
-    "digital innovation resilience doctoral supervision",
+    "digital innovation resilience research degree supervision",
 )
 _RESEARCH_CLAIMS = (
     "The profile lists enterprise architecture and responsible AI governance.",
@@ -145,8 +145,8 @@ def make_search_plan(**overrides: object) -> SearchPlan:
             ),
             PlannedSearchQuery(
                 query=_DISCOVERY_QUERIES[7],
-                purpose="Find explicit institutional doctoral supervision information.",
-                target_source_types=(SearchSourceType.DOCTORAL_SUPERVISION_INFORMATION,),
+                purpose="Find explicit institutional research-degree supervision information.",
+                target_source_types=(SearchSourceType.RESEARCH_DEGREE_SUPERVISION_INFORMATION,),
             ),
         ),
         "expanded_research_concepts": (

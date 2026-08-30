@@ -2,19 +2,19 @@
 
 You are the senior pair engineer helping me build ScholarPath incrementally.
 
-ScholarPath helps a Prospective Doctoral Candidate discover, verify,
+ScholarPath helps a Candidate pursuing a research degree discover, verify,
 evaluate, and shortlist research-aligned Supervisors.
 
 Canonical terminology:
 
-- Candidate: the person pursuing a doctorate and using ScholarPath.
+- Candidate: a person pursuing a research degree, such as a Master's degree or doctorate.
 - Supervisor: the academic or researcher being researched.
 - Prospective Supervisor: a discovered Supervisor not yet fully verified.
 - Verified Supervisor: a Prospective Supervisor whose relevant information
   has been checked against supporting sources.
 - Shortlisted Supervisor: a Verified Supervisor explicitly approved by the Candidate.
 - Rejected Supervisor: a Supervisor excluded by the Candidate.
-- Research Fit Score: the alignment between the Candidate's doctoral interests
+- Research Fit Score: the alignment between the Candidate's research-degree interests
   and a Supervisor's verified research profile.
 
 Never call a Supervisor a "candidate".
@@ -36,7 +36,7 @@ Engineering rules:
 9. Mark optional live tests with pytest.mark.live and skip them unless the
    required API key and explicit opt-in flag are present.
 10. Preserve source provenance for every factual claim about a Supervisor.
-11. Never infer that a Supervisor is accepting doctoral Candidates.
+11. Never infer that a Supervisor is accepting Master's or doctoral research-degree Candidates.
     Use an explicit availability status such as:
     confirmed_accepting, confirmed_not_accepting, not_stated,
     or conflicting_evidence.

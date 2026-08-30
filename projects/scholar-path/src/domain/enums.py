@@ -1,5 +1,7 @@
 """Canonical enumerations used by ScholarPath domain contracts."""
 
+from __future__ import annotations
+
 from enum import StrEnum
 
 
@@ -48,7 +50,14 @@ class SearchSourceType(StrEnum):
     OFFICIAL_UNIVERSITY_PROFILE = "official_university_profile"
     DEPARTMENT_OR_RESEARCH_GROUP = "department_or_research_group"
     RECENT_PUBLICATION = "recent_publication"
-    DOCTORAL_SUPERVISION_INFORMATION = "doctoral_supervision_information"
+    RESEARCH_DEGREE_SUPERVISION_INFORMATION = "research_degree_supervision_information"
+
+    @classmethod
+    def _missing_(cls, value: object) -> SearchSourceType | None:
+        """Load the legacy serialized supervision category as its neutral replacement."""
+        if value == "doctoral_supervision_information":
+            return cls.RESEARCH_DEGREE_SUPERVISION_INFORMATION
+        return None
 
 
 class SearchResultRejectionCategory(StrEnum):

@@ -45,7 +45,8 @@ _REVIEWABLE_FIT_EVIDENCE_TYPES = frozenset(
     }
 )
 _REVIEW_AVAILABILITY_AUDIENCE_PATTERN = re.compile(
-    r"\b(?:doctoral|phd|candidates?|students?|researchers?)\b",
+    r"\b(?:doctoral|ph\.?d\.?|master(?:['’]s|s)?|m\.?phil\.?|"
+    r"postgraduate\s+research|research[-\s]+degree|candidates?|students?|researchers?)\b",
     re.IGNORECASE,
 )
 _REVIEW_AVAILABILITY_ACTION_PATTERN = re.compile(

@@ -28,7 +28,7 @@ from .models import (
 from .service import ScholarPathApplicationPort
 
 STAGE_LABELS = (
-    "1. Your Doctoral Research Profile",
+    "1. Your Research Degree Profile",
     "2. Supervisor Search Progress",
     "3. Prospective Supervisors",
     "4. Verified Supervisors",
@@ -40,6 +40,51 @@ RECOVERABLE_SERVICE_MESSAGE = (
 )
 STUDY_MODE_OPTIONS = ("full-time", "part-time", "online", "hybrid", "on-campus")
 RESEARCH_ORIENTATION_OPTIONS = ("No preference", "applied", "theoretical", "mixed")
+PAGE_ICON = "🎓"
+HERO_TITLE = "🎓 ScholarPath"
+HERO_SUBTITLE = "Evidence-backed Supervisor discovery for Master's and doctoral research."
+APP_STYLES = """
+<style>
+[data-testid="stAppViewContainer"] {
+    background-image: radial-gradient(
+        circle at 92% 2%,
+        rgba(70, 130, 255, 0.10),
+        transparent 28rem
+    );
+}
+.st-key-scholarpath_hero {
+    background: linear-gradient(
+        135deg,
+        rgba(45, 110, 240, 0.18),
+        rgba(34, 197, 160, 0.08)
+    );
+    border: 1px solid rgba(91, 153, 255, 0.32);
+    border-radius: 1.15rem;
+    box-shadow: 0 0.75rem 2.25rem rgba(8, 15, 31, 0.12);
+    margin-bottom: 0.75rem;
+    padding: 1.15rem 1.35rem 0.9rem;
+}
+.st-key-scholarpath_hero h1 {
+    letter-spacing: -0.035em;
+    margin-bottom: 0.15rem;
+}
+.st-key-scholarpath_hero p {
+    font-size: 1.05rem;
+    margin-bottom: 0.25rem;
+    opacity: 0.84;
+}
+[data-testid="stExpander"],
+[data-testid="stForm"] {
+    border-color: rgba(91, 153, 255, 0.24);
+    border-radius: 0.85rem;
+}
+[data-testid="stMetric"] {
+    background: rgba(91, 153, 255, 0.07);
+    border-radius: 0.7rem;
+    padding: 0.55rem 0.7rem;
+}
+</style>
+"""
 DETERMINISTIC_DEMO_BANNER = (
     "Synthetic offline demonstration mode is active. Displayed results and workflow outcomes "
     "are invented test data, not real Supervisor information or recommendations. External "
@@ -67,6 +112,14 @@ def _render_stage_navigation() -> None:
     st.caption("  →  ".join(STAGE_LABELS))
 
 
+def _render_hero() -> None:
+    """Render a static, styled research-degree introduction without dynamic HTML."""
+    st.markdown(APP_STYLES, unsafe_allow_html=True)
+    with st.container(key="scholarpath_hero"):
+        st.title(HERO_TITLE)
+        st.write(HERO_SUBTITLE)
+
+
 def _render_runtime_profile_banner() -> None:
     """Keep synthetic demonstration output visibly distinct from live-provider output."""
     if dependencies.is_deterministic_demo(application_settings()):
@@ -76,8 +129,8 @@ def _render_runtime_profile_banner() -> None:
 def _render_profile_form() -> None:
     st.header(STAGE_LABELS[0])
     st.write(
-        "Describe the doctoral research direction and practical preferences that should guide "
-        "Supervisor discovery."
+        "Describe your Master's or doctoral research direction and practical preferences that "
+        "should guide Supervisor discovery."
     )
     with st.form("candidate_profile_form", border=True):
         research_statement = st.text_area(
@@ -176,7 +229,7 @@ def _render_progress(snapshot: UiRunSnapshot) -> None:
     }
     with st.status(
         "Canonical LangGraph progress",
-        expanded=True,
+        expanded=not is_complete,
         state="complete" if is_complete else "running",
     ):
         if not snapshot.progress_events:
@@ -189,12 +242,12 @@ def _render_progress(snapshot: UiRunSnapshot) -> None:
 
 def _render_discovery_diagnostics(diagnostics: DiscoveryDiagnosticsView) -> None:
     """Render only aggregate provider-routing facts approved for Candidate display."""
-    st.subheader("Privacy-safe discovery diagnostics")
-    st.caption(
+    panel = st.expander("Discovery diagnostics", expanded=False)
+    panel.caption(
         "Counts and routing outcomes only. Search queries, returned content, and Candidate "
         "research content are not displayed."
     )
-    raw_column, plausible_column, retained_column = st.columns(3)
+    raw_column, plausible_column, retained_column = panel.columns(3)
     raw_column.metric("Raw provider results", diagnostics.raw_result_count)
     plausible_column.metric(
         "Plausible profiles before deduplication",
@@ -204,43 +257,43 @@ def _render_discovery_diagnostics(diagnostics: DiscoveryDiagnosticsView) -> None
         "Retained Prospective Supervisors",
         diagnostics.retained_prospective_supervisor_count,
     )
-    st.write(f"Fallback search used: {'Yes' if diagnostics.fallback_search_used else 'No'}")
-    st.write(f"Discovery route: {_humanize(diagnostics.route.value)}")
-    st.markdown("#### Why raw results were excluded")
+    panel.write(f"Fallback search used: {'Yes' if diagnostics.fallback_search_used else 'No'}")
+    panel.write(f"Discovery route: {_humanize(diagnostics.route.value)}")
+    panel.markdown("#### Why raw results were excluded")
     if diagnostics.rejection_counts is None:
-        st.info(
+        panel.info(
             "Rejection breakdown unavailable. One or more successful attempts may be from "
             "an earlier persisted run without recorded category counts, or providers may "
             "have failed before result filtering. ScholarPath does not infer zeros."
         )
     else:
         rejection_counts = diagnostics.rejection_counts
-        st.caption(
+        panel.caption(
             f"Deterministic exclusion categories account for {rejection_counts.total} "
             "raw provider results."
         )
-        st.write(f"Person not established: {rejection_counts.person_not_established}")
-        st.write(
+        panel.write(f"Person not established: {rejection_counts.person_not_established}")
+        panel.write(
             f"Academic context not established: {rejection_counts.academic_context_not_established}"
         )
-        st.write(f"Identity conflict: {rejection_counts.identity_conflict}")
-        st.write(f"Institution not established: {rejection_counts.institution_not_established}")
-        st.write(f"Incomplete institution: {rejection_counts.incomplete_institution}")
-    with st.expander("Provider attempts", expanded=False):
-        for sequence, attempt in enumerate(diagnostics.attempts, start=1):
-            error_category = (
-                _humanize(attempt.error_category.value)
-                if attempt.error_category is not None
-                else "None"
-            )
-            st.write(
-                f"Attempt record {sequence}: {attempt.provider.value}; query attempt number "
-                f"{attempt.attempt_number}; {attempt.raw_result_count} raw results; "
-                f"{attempt.plausible_supervisor_count} plausible Supervisor profiles; "
-                "rejection categories recorded: "
-                f"{'Yes' if attempt.rejection_counts is not None else 'No'}; "
-                f"error category: {error_category}; route: {_humanize(attempt.route.value)}."
-            )
+        panel.write(f"Identity conflict: {rejection_counts.identity_conflict}")
+        panel.write(f"Institution not established: {rejection_counts.institution_not_established}")
+        panel.write(f"Incomplete institution: {rejection_counts.incomplete_institution}")
+    panel.markdown("#### Provider attempts")
+    for sequence, attempt in enumerate(diagnostics.attempts, start=1):
+        error_category = (
+            _humanize(attempt.error_category.value)
+            if attempt.error_category is not None
+            else "None"
+        )
+        panel.write(
+            f"Attempt record {sequence}: {attempt.provider.value}; query attempt number "
+            f"{attempt.attempt_number}; {attempt.raw_result_count} raw results; "
+            f"{attempt.plausible_supervisor_count} plausible Supervisor profiles; "
+            "rejection categories recorded: "
+            f"{'Yes' if attempt.rejection_counts is not None else 'No'}; "
+            f"error category: {error_category}; route: {_humanize(attempt.route.value)}."
+        )
 
 
 def _render_prospective_supervisors(snapshot: UiRunSnapshot) -> None:
@@ -261,8 +314,8 @@ def _render_prospective_supervisors(snapshot: UiRunSnapshot) -> None:
             st.info("No Prospective Supervisors have been retained yet.")
         return
     for supervisor in snapshot.prospective_supervisors:
-        with st.container(border=True):
-            st.subheader(supervisor.full_name)
+        label = f"{supervisor.full_name} — {supervisor.institution}"
+        with st.expander(label, expanded=False):
             st.write(f"Institution: {supervisor.institution}")
             st.write(f"Department: {supervisor.department}")
             st.write(f"Lifecycle status: {_humanize(supervisor.status.value)}")
@@ -274,8 +327,10 @@ def _render_verified_supervisor(
     *,
     show_evidence: bool,
 ) -> None:
-    with st.container(border=True):
-        st.subheader(supervisor.full_name)
+    label = f"{supervisor.full_name} — {supervisor.institution}"
+    if supervisor.research_fit_score is not None:
+        label = f"{label} · Research Fit: {supervisor.research_fit_score}/100"
+    with st.expander(label, expanded=False):
         st.write(f"Institution: {supervisor.institution}")
         st.write(f"Department: {supervisor.department}")
         st.write(f"Verification status: {_humanize(supervisor.verification_status.value)}")
@@ -308,12 +363,13 @@ def _render_alternate_source_diagnostics(
     diagnostics: AlternateSourceDiagnosticsView,
 ) -> None:
     """Render aggregate official-profile selection facts without source content."""
-    st.subheader("Privacy-safe alternate-source diagnostics")
-    st.caption(
-        "Aggregate counts only. Search queries, result text, URLs, Supervisor identities, "
-        "Candidate research content, and credentials are not displayed."
+    panel = st.expander("Alternate-source diagnostics", expanded=False)
+    panel.caption(
+        "Privacy-safe alternate-source diagnostics use aggregate counts only. Search queries, "
+        "result text, URLs, Supervisor identities, Candidate research content, and credentials "
+        "are not displayed."
     )
-    attempted_column, result_column, eligible_column, selected_column = st.columns(4)
+    attempted_column, result_column, eligible_column, selected_column = panel.columns(4)
     attempted_column.metric(
         "Prospective Supervisors searched",
         diagnostics.attempted_supervisor_count,
@@ -321,37 +377,39 @@ def _render_alternate_source_diagnostics(
     result_column.metric("Alternate search results", diagnostics.result_count)
     eligible_column.metric("Eligible official profiles", diagnostics.eligible_result_count)
     selected_column.metric("Selected official sources", diagnostics.selected_source_count)
-    st.write(f"Searches with no results: {diagnostics.no_results_count}")
-    st.write(f"Searches with every result rejected: {diagnostics.rejected_all_count}")
-    st.write(f"Provider errors: {diagnostics.provider_error_count}")
-    st.write(f"Unconfigured searches: {diagnostics.not_configured_count}")
-    st.markdown("#### Why alternate results were excluded")
+    panel.write(f"Searches with no results: {diagnostics.no_results_count}")
+    panel.write(f"Searches with every result rejected: {diagnostics.rejected_all_count}")
+    panel.write(f"Provider errors: {diagnostics.provider_error_count}")
+    panel.write(f"Unconfigured searches: {diagnostics.not_configured_count}")
+    panel.markdown("#### Why alternate results were excluded")
     counts = diagnostics.rejection_counts
-    st.caption(f"First-failed selector gates account for {counts.total} alternate search results.")
-    st.write(f"Originating-query mismatch: {counts.query_mismatch}")
-    st.write(f"Same as the discovered profile URL: {counts.same_url}")
-    st.write(f"HTTPS or hostname invalid: {counts.https_or_host_invalid}")
-    st.write(f"Exact person text missing: {counts.exact_person_text_missing}")
-    st.write(f"Exact institution text missing: {counts.exact_institution_text_missing}")
-    st.write(f"Singular person-profile route missing: {counts.singular_route_mismatch}")
-    st.write(f"Academic institution host mismatch: {counts.academic_host_mismatch}")
-    st.write(f"Official source kind unsupported: {counts.source_kind_unsupported}")
+    panel.caption(
+        f"First-failed selector gates account for {counts.total} alternate search results."
+    )
+    panel.write(f"Originating-query mismatch: {counts.query_mismatch}")
+    panel.write(f"Same as the discovered profile URL: {counts.same_url}")
+    panel.write(f"HTTPS or hostname invalid: {counts.https_or_host_invalid}")
+    panel.write(f"Exact person text missing: {counts.exact_person_text_missing}")
+    panel.write(f"Exact institution text missing: {counts.exact_institution_text_missing}")
+    panel.write(f"Singular person-profile route missing: {counts.singular_route_mismatch}")
+    panel.write(f"Academic institution host mismatch: {counts.academic_host_mismatch}")
+    panel.write(f"Official source kind unsupported: {counts.source_kind_unsupported}")
 
 
 def _render_evidence_verification_diagnostics(
     diagnostics: EvidenceVerificationDiagnosticsView,
 ) -> None:
     """Render current-round evidence aggregates without source or Candidate content."""
-    st.subheader("Privacy-safe evidence-verification diagnostics")
-    st.caption(
-        "Current-round aggregate counts only. Retrieval success is not verification; "
-        "verification additionally requires directly grounded claims to pass every required "
-        "evidence gate. Names, URLs, excerpts, search queries, Candidate content, and "
-        "credentials are not displayed."
+    panel = st.expander("Evidence-verification diagnostics", expanded=False)
+    panel.caption(
+        "Privacy-safe evidence-verification diagnostics show current-round aggregate counts "
+        "only. Retrieval success is not verification; verification additionally requires "
+        "directly grounded claims to pass every required evidence gate. Names, URLs, excerpts, "
+        "search queries, Candidate content, and credentials are not displayed."
     )
 
-    st.markdown("#### Primary-source page retrieval")
-    primary_attempts, primary_successes, primary_failures = st.columns(3)
+    panel.markdown("#### Primary-source page retrieval")
+    primary_attempts, primary_successes, primary_failures = panel.columns(3)
     primary_attempts.metric(
         "Primary retrieval attempts",
         diagnostics.primary_retrieval_attempt_count,
@@ -365,8 +423,8 @@ def _render_evidence_verification_diagnostics(
         diagnostics.primary_retrieval_failure_count,
     )
 
-    st.markdown("#### Alternate-source page retrieval")
-    alternate_attempts, alternate_successes, alternate_failures = st.columns(3)
+    panel.markdown("#### Alternate-source page retrieval")
+    alternate_attempts, alternate_successes, alternate_failures = panel.columns(3)
     alternate_attempts.metric(
         "Alternate retrieval attempts",
         diagnostics.alternate_retrieval_attempt_count,
@@ -381,15 +439,15 @@ def _render_evidence_verification_diagnostics(
     )
 
     failure_counts = diagnostics.extraction_failure_counts
-    st.markdown("#### Typed extraction failures")
-    st.caption(
+    panel.markdown("#### Typed extraction failures")
+    panel.caption(
         f"Typed categories account for {failure_counts.total} failed page retrieval attempts."
     )
     for category, count in failure_counts.model_dump(mode="python").items():
-        st.write(f"{_humanize(category)}: {count}")
+        panel.write(f"{_humanize(category)}: {count}")
 
-    st.markdown("#### Verification outcomes")
-    records, completed, partial = st.columns(3)
+    panel.markdown("#### Verification outcomes")
+    records, completed, partial = panel.columns(3)
     records.metric("Verification records", diagnostics.verification_record_count)
     completed.metric(
         "Completed verification records",
@@ -399,32 +457,32 @@ def _render_evidence_verification_diagnostics(
         "Partially verified records",
         diagnostics.partial_verification_record_count,
     )
-    st.caption(
+    panel.caption(
         "Completed records are Verified Supervisors, including completed records with concerns."
     )
 
     retained_counts = diagnostics.retained_claim_counts
     grounded_counts = diagnostics.directly_grounded_claim_counts
-    st.markdown("#### Retained and directly grounded claims")
-    st.caption(
+    panel.markdown("#### Retained and directly grounded claims")
+    panel.caption(
         "Retained claims are shown separately from the stricter directly grounded claims used "
         "by verification."
     )
     for claim_type, retained_count in retained_counts.model_dump(mode="python").items():
-        st.write(
+        panel.write(
             f"{_humanize(claim_type)}: {retained_count} retained; "
             f"{getattr(grounded_counts, claim_type)} directly grounded."
         )
 
     missing = diagnostics.missing_required_evidence_counts
-    st.markdown("#### Missing required evidence gates")
-    st.caption(
+    panel.markdown("#### Missing required evidence gates")
+    panel.caption(
         "Counts are missing-gate occurrences across partial verification records; one record "
         "may be missing more than one required gate."
     )
-    st.write(f"Identity: {missing.identity}")
-    st.write(f"Current affiliation: {missing.current_affiliation}")
-    st.write(f"Research interest or publication: {missing.research_interest_or_publication}")
+    panel.write(f"Identity: {missing.identity}")
+    panel.write(f"Current affiliation: {missing.current_affiliation}")
+    panel.write(f"Research interest or publication: {missing.research_interest_or_publication}")
 
 
 def _render_verified_supervisors(snapshot: UiRunSnapshot) -> None:
@@ -691,12 +749,8 @@ def _render_existing_thread(thread_id: str) -> None:
 
 def main() -> None:
     """Render the single ScholarPath application without constructing graph business logic."""
-    st.set_page_config(page_title="ScholarPath", page_icon="🎓", layout="wide")
-    st.title("ScholarPath")
-    st.write(
-        "Discover, verify, evaluate, and review research-aligned Supervisors with "
-        "evidence-backed Research Fit assessments."
-    )
+    st.set_page_config(page_title="ScholarPath", page_icon=PAGE_ICON, layout="wide")
+    _render_hero()
     _render_runtime_profile_banner()
     _render_stage_navigation()
     thread_id = st.session_state.get("thread_id")
