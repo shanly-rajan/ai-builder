@@ -1,0 +1,21 @@
+flowchart LR
+    P0[Known primary profile sources] --> A[Existing current-round<br/>page retrieval attempts]
+    A0[Selected alternate official sources] --> A
+    A --> S[Primary / alternate attempts]
+    S --> R[Retrieved pages<br/>success / failure]
+    R --> C[Claims retained<br/>by EvidenceClaimType]
+    C --> G[Directly supported and grounded<br/>by EvidenceClaimType]
+    G --> O{Existing verification record}
+    O -->|verified or verified_with_concerns| V[Completed verification]
+    O -->|partially_verified| P[Partial verification]
+
+    R -->|failed| F[Failure counts by existing<br/>ContentExtractionErrorCategory]
+    P --> M[Missing-gate counts<br/>identity / current_affiliation /<br/>research_interest_or_publication]
+
+    X[Names and identifiers, Candidate content,<br/>queries, URLs, snippets, excerpts, claim text,<br/>page content, raw errors, secrets] -. omitted .-> D[Privacy-safe aggregate UI view]
+    V --> D
+    P --> D
+    F --> D
+
+    U[Model-accepted draft counts and<br/>first-failed grounding reasons<br/>unavailable and deferred] -. not emitted .-> D
+    Q[M12.4 alternate-source selector diagnostics<br/>remains a separate panel]

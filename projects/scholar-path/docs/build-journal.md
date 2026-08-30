@@ -2872,3 +2872,94 @@ The exact milestone prompt is archived as
   labelled multilingual examples and Candidate relevance feedback.
 - Record exact final gate results above, complete every required release-checklist item, and
   create `v0.1.0` only from the reviewed clean release commit.
+
+## M13.1 Repair: Privacy-safe evidence-verification diagnostics
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Make the existing evidence-verification stage explainable after source selection by presenting
+privacy-safe, current-round aggregates for page retrieval, retained claims, directly grounded
+claims, verification outcomes, and missing mandatory evidence. Keep the repair observational:
+no provider, graph, evidence, retry, minimum, availability, Research Fit, or Candidate-approval
+behavior changes.
+
+### Prompt used
+
+The agreed bounded repair prompt is archived as
+[`m13-1-evidence-verification-diagnostics.md`](prompts/m13-1-evidence-verification-diagnostics.md).
+
+### Files changed
+
+- Added strict aggregate presentation models and a pure graph-state projection in
+  `src/ui/models.py`, `src/ui/controller.py`, and `src/ui/__init__.py`.
+- Added the privacy-safe Streamlit diagnostic funnel in `src/ui/app.py`.
+- Added focused unit, AppTest, and repository contract coverage under `tests/`.
+- Added the archived prompt and Mermaid boundary, then updated `README.md`,
+  `docs/architecture.md`, and this journal with the observational contract and demonstration.
+- No graph state, graph node, provider adapter, evidence model, checkpoint serializer, routing
+  policy, or domain lifecycle file changed.
+
+### Tests added
+
+- Current-round projection tests distinguish primary and alternate retrieval attempts, success,
+  typed failures, completed and partial verification, retained and directly grounded evidence,
+  and the three mandatory missing-evidence gates.
+- Schema tests cover the complete existing extraction-error and evidence-claim taxonomies,
+  reject impossible totals and unsupported fields, require evidence-compatible completed
+  outcomes, and prove replaying the same state produces the same aggregate.
+- AppTest coverage renders every safe category while proving names, URLs, excerpts, queries,
+  Candidate content, credentials, and checkpoint content are absent; an early snapshot renders
+  no invented zero-value panel.
+- Contract tests preserve the five-Verified-Supervisor minimum, one alternate-source retry,
+  existing evidence routes, graph-state schema, separate M12.4 selector panel, and privacy-only
+  diagnostic fields.
+
+### Test results
+
+- Focused M13.1, UI-controller, M6, and M12.4 regression selection: `57 passed`.
+- Adversarial review found no privacy leak and prompted stronger completed-outcome invariants
+  plus explicit `verified` and `verified_with_concerns` classification.
+- Ruff formatting reported `220 files already formatted`; linting passed; strict mypy reported
+  no issues in `175 source files`.
+- The first complete non-live run reached `1,374 passed, 9 deselected` with `90.76%` branch
+  coverage, but correctly retained one audit-contract failure until this required journal link
+  was added.
+- The post-journal complete non-live suite passed: `1,374 passed, 9 deselected in 17.70s` with
+  `90.76%` branch coverage.
+- The offline LangSmith-compatible baseline passed `11/11` scenarios; every applicable
+  deterministic metric passed and the duplicate Supervisor rate remained `0.000`.
+- Strict editable installation succeeded offline; `pip check`, package import at version
+  `0.1.0`, bytecode compilation, and `git diff --check` passed.
+
+### Assumptions
+
+- `verification_records` is the current authoritative verification snapshot; extraction attempts
+  are append-only and therefore must be filtered by `discovery_round` before presentation.
+- `EvidenceExtractionAttempt.successful` means the requested page was retrieved, not that its
+  claims passed structured extraction, grounding, or verification.
+- Domain-validated partial records expose only the established safe missing keys: `identity`,
+  `current_affiliation`, and `research_interest_or_publication`.
+- An absent attempt and record set means diagnostics are unavailable, not that every count is
+  known to be zero.
+
+### Lessons learned
+
+- Source selection, page retrieval, claim retention, deterministic grounding, and lifecycle
+  verification are separate operational boundaries and must not share one success label.
+- Privacy-safe aggregates can still enforce strong cross-field invariants and reject impossible
+  completed outcomes.
+- Reusing the domain grounding function prevents the UI from developing a second evidence
+  policy while preserving the narrower presentation schema.
+- The measured live bottleneck is now explicit: successful retrieval can coexist with zero
+  directly grounded research evidence and therefore zero Verified Supervisors.
+
+### Remaining debt
+
+- Existing state does not retain model-draft admission counts or typed first-failed grounding
+  reasons; add either only through a separately reviewed, privacy-safe diagnostic milestone.
+- Use the new counts to design and test a separately bounded official-person-profile context
+  repair without weakening identity, affiliation, research, or provenance requirements.
+- Validate the panel against a fresh live thread and a labelled multilingual profile corpus
+  without copying source or Candidate content into logs, traces, fixtures, or documentation.

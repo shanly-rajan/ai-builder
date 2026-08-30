@@ -10,13 +10,16 @@ from pydantic import HttpUrl, ValidationError
 
 from ..domain import (
     CandidatePreferenceRevision,
+    EvidenceClaimType,
     EvidenceConfidence,
     ProposedSupervisorRecommendation,
     ReconciledResearchFitAssessment,
     ResearchFitAssessment,
     SearchResultRejectionCounts,
     SupervisorLifecycleStatus,
+    VerificationStatus,
     VerifiedSupervisor,
+    evidence_claim_is_grounded_for_supervisor,
 )
 from ..graph import (
     CANONICAL_NODE_NAMES,
@@ -28,14 +31,18 @@ from ..graph import (
     ScholarPathState,
     ToolErrorRecord,
 )
-from ..tools import SearchProvider
+from ..tools import ContentExtractionErrorCategory, SearchProvider
 from .models import (
     AlternateSourceDiagnosticsView,
     CandidateResearchProfileSubmission,
     DiscoveryAttemptView,
     DiscoveryDiagnosticsView,
+    EvidenceClaimTypeCountsView,
+    EvidenceExtractionFailureCountsView,
     EvidenceSourceView,
+    EvidenceVerificationDiagnosticsView,
     GraphProgressEvent,
+    MissingRequiredEvidenceCountsView,
     ProspectiveSupervisorView,
     RecoverableUiError,
     UiDiscoveryRoute,
@@ -359,6 +366,89 @@ def _alternate_source_diagnostics(
     )
 
 
+def _evidence_verification_diagnostics(
+    state: ScholarPathState,
+) -> EvidenceVerificationDiagnosticsView | None:
+    """Aggregate current-round verification facts without identities or source content."""
+    current_attempts = tuple(
+        attempt
+        for attempt in state.get("evidence_extraction_attempts", [])
+        if attempt.discovery_round == state["discovery_round"]
+    )
+    records = tuple(state.get("verification_records", []))
+    if not current_attempts and not records:
+        return None
+
+    primary_attempts = tuple(
+        attempt for attempt in current_attempts if not attempt.alternate_source
+    )
+    alternate_attempts = tuple(attempt for attempt in current_attempts if attempt.alternate_source)
+    failure_values = {
+        category.value: sum(attempt.error_category is category for attempt in current_attempts)
+        for category in ContentExtractionErrorCategory
+    }
+    retained_values = {
+        claim_type.value: sum(
+            claim.claim_type is claim_type for record in records for claim in record.evidence
+        )
+        for claim_type in EvidenceClaimType
+    }
+    grounded_values = {
+        claim_type.value: sum(
+            claim.claim_type is claim_type
+            and evidence_claim_is_grounded_for_supervisor(
+                claim,
+                record.prospective_supervisor,
+                record.evidence,
+            )
+            for record in records
+            for claim in record.evidence
+        )
+        for claim_type in EvidenceClaimType
+    }
+    missing_values = {
+        missing_category: sum(
+            missing_category in record.missing_required_evidence for record in records
+        )
+        for missing_category in (
+            EvidenceClaimType.IDENTITY.value,
+            EvidenceClaimType.CURRENT_AFFILIATION.value,
+            "research_interest_or_publication",
+        )
+    }
+    return EvidenceVerificationDiagnosticsView(
+        primary_retrieval_attempt_count=len(primary_attempts),
+        primary_retrieval_success_count=sum(attempt.successful for attempt in primary_attempts),
+        primary_retrieval_failure_count=sum(not attempt.successful for attempt in primary_attempts),
+        alternate_retrieval_attempt_count=len(alternate_attempts),
+        alternate_retrieval_success_count=sum(attempt.successful for attempt in alternate_attempts),
+        alternate_retrieval_failure_count=sum(
+            not attempt.successful for attempt in alternate_attempts
+        ),
+        extraction_failure_counts=EvidenceExtractionFailureCountsView.model_validate(
+            failure_values
+        ),
+        verification_record_count=len(records),
+        completed_verification_record_count=sum(
+            record.verification_status
+            in {
+                VerificationStatus.VERIFIED,
+                VerificationStatus.VERIFIED_WITH_CONCERNS,
+            }
+            for record in records
+        ),
+        partial_verification_record_count=sum(
+            record.verification_status is VerificationStatus.PARTIALLY_VERIFIED
+            for record in records
+        ),
+        retained_claim_counts=EvidenceClaimTypeCountsView.model_validate(retained_values),
+        directly_grounded_claim_counts=EvidenceClaimTypeCountsView.model_validate(grounded_values),
+        missing_required_evidence_counts=MissingRequiredEvidenceCountsView.model_validate(
+            missing_values
+        ),
+    )
+
+
 def project_graph_state_to_ui(
     state: ScholarPathState,
     *,
@@ -443,6 +533,7 @@ def project_graph_state_to_ui(
         progress_events=progress_events_from_execution_log(state["execution_log"]),
         discovery_diagnostics=_discovery_diagnostics(state),
         alternate_source_diagnostics=_alternate_source_diagnostics(state),
+        evidence_verification_diagnostics=_evidence_verification_diagnostics(state),
         prospective_supervisors=prospective_views,
         verified_supervisors=verified_views,
         review_supervisors=review_views if review_payload is not None else (),

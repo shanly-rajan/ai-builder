@@ -1060,6 +1060,27 @@ This layer observes the selector; it does not change providers, query budgets, r
 source selection, evidence extraction, evidence sufficiency, availability, Research Fit,
 independent review, or Candidate approval.
 
+## M13.1 privacy-safe evidence-verification diagnostics boundary
+
+[`m13-1-evidence-verification-diagnostics.mmd`](m13-1-evidence-verification-diagnostics.mmd)
+continues the operational funnel after the M12.4 selector without adding graph state. The pure
+UI projection filters existing `EvidenceExtractionAttempt` records to the active discovery
+round, separates primary and alternate retrieval, and accounts for each attempt as retrieved or
+failed. A retrieved page is transport/content-extraction success only; it is never labelled as
+verification success. Failures are aggregated solely through the existing typed extraction
+error taxonomy.
+
+The same projection reads the current `SupervisorVerificationRecord` snapshot to count completed
+and partial outcomes, retained and directly grounded evidence by `EvidenceClaimType`, and the
+three existing mandatory missing-evidence gates. Direct grounding is evaluated with the domain's
+authoritative grounding function, so the UI does not introduce a second evidence policy.
+
+The view omits identities, Candidate content, queries, URLs, source references, claim text,
+supporting excerpts, page content, raw provider data, exception text, credentials, and checkpoint
+coordinates. Model-draft admission counts and first-failed grounding reasons are unavailable in
+the existing state and remain deferred rather than inferred. Verification requirements,
+minimums, retries, routing, providers, and human approval are unchanged.
+
 ## Configuration and deferred provider activation
 
 ```mermaid

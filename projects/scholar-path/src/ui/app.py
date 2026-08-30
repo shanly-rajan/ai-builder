@@ -18,6 +18,7 @@ from .controller import build_candidate_submission, build_request_more_response
 from .models import (
     AlternateSourceDiagnosticsView,
     DiscoveryDiagnosticsView,
+    EvidenceVerificationDiagnosticsView,
     GraphProgressEvent,
     UiRunSnapshot,
     UiStage,
@@ -319,10 +320,101 @@ def _render_alternate_source_diagnostics(
     st.write(f"Official source kind unsupported: {counts.source_kind_unsupported}")
 
 
+def _render_evidence_verification_diagnostics(
+    diagnostics: EvidenceVerificationDiagnosticsView,
+) -> None:
+    """Render current-round evidence aggregates without source or Candidate content."""
+    st.subheader("Privacy-safe evidence-verification diagnostics")
+    st.caption(
+        "Current-round aggregate counts only. Retrieval success is not verification; "
+        "verification additionally requires directly grounded claims to pass every required "
+        "evidence gate. Names, URLs, excerpts, search queries, Candidate content, and "
+        "credentials are not displayed."
+    )
+
+    st.markdown("#### Primary-source page retrieval")
+    primary_attempts, primary_successes, primary_failures = st.columns(3)
+    primary_attempts.metric(
+        "Primary retrieval attempts",
+        diagnostics.primary_retrieval_attempt_count,
+    )
+    primary_successes.metric(
+        "Primary pages retrieved (retrieval success, not verification)",
+        diagnostics.primary_retrieval_success_count,
+    )
+    primary_failures.metric(
+        "Primary retrieval failures",
+        diagnostics.primary_retrieval_failure_count,
+    )
+
+    st.markdown("#### Alternate-source page retrieval")
+    alternate_attempts, alternate_successes, alternate_failures = st.columns(3)
+    alternate_attempts.metric(
+        "Alternate retrieval attempts",
+        diagnostics.alternate_retrieval_attempt_count,
+    )
+    alternate_successes.metric(
+        "Alternate pages retrieved (retrieval success, not verification)",
+        diagnostics.alternate_retrieval_success_count,
+    )
+    alternate_failures.metric(
+        "Alternate retrieval failures",
+        diagnostics.alternate_retrieval_failure_count,
+    )
+
+    failure_counts = diagnostics.extraction_failure_counts
+    st.markdown("#### Typed extraction failures")
+    st.caption(
+        f"Typed categories account for {failure_counts.total} failed page retrieval attempts."
+    )
+    for category, count in failure_counts.model_dump(mode="python").items():
+        st.write(f"{_humanize(category)}: {count}")
+
+    st.markdown("#### Verification outcomes")
+    records, completed, partial = st.columns(3)
+    records.metric("Verification records", diagnostics.verification_record_count)
+    completed.metric(
+        "Completed verification records",
+        diagnostics.completed_verification_record_count,
+    )
+    partial.metric(
+        "Partially verified records",
+        diagnostics.partial_verification_record_count,
+    )
+    st.caption(
+        "Completed records are Verified Supervisors, including completed records with concerns."
+    )
+
+    retained_counts = diagnostics.retained_claim_counts
+    grounded_counts = diagnostics.directly_grounded_claim_counts
+    st.markdown("#### Retained and directly grounded claims")
+    st.caption(
+        "Retained claims are shown separately from the stricter directly grounded claims used "
+        "by verification."
+    )
+    for claim_type, retained_count in retained_counts.model_dump(mode="python").items():
+        st.write(
+            f"{_humanize(claim_type)}: {retained_count} retained; "
+            f"{getattr(grounded_counts, claim_type)} directly grounded."
+        )
+
+    missing = diagnostics.missing_required_evidence_counts
+    st.markdown("#### Missing required evidence gates")
+    st.caption(
+        "Counts are missing-gate occurrences across partial verification records; one record "
+        "may be missing more than one required gate."
+    )
+    st.write(f"Identity: {missing.identity}")
+    st.write(f"Current affiliation: {missing.current_affiliation}")
+    st.write(f"Research interest or publication: {missing.research_interest_or_publication}")
+
+
 def _render_verified_supervisors(snapshot: UiRunSnapshot) -> None:
     st.header(STAGE_LABELS[3])
     if snapshot.alternate_source_diagnostics is not None:
         _render_alternate_source_diagnostics(snapshot.alternate_source_diagnostics)
+    if snapshot.evidence_verification_diagnostics is not None:
+        _render_evidence_verification_diagnostics(snapshot.evidence_verification_diagnostics)
     if not snapshot.verified_supervisors:
         st.info("No Verified Supervisors are available yet.")
         return

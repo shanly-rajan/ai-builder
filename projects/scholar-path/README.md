@@ -46,6 +46,11 @@ changing verification. It records typed, replay-safe selection outcomes and firs
 counts, then exposes only current-round aggregates in Streamlit. Search queries, returned text,
 URLs, Supervisor identities, Candidate research content, and secrets remain outside the view.
 
+The bounded M13.1 repair continues that diagnostic funnel after source selection. It separates
+page retrieval from verification, reports retained versus directly grounded claims by typed
+evidence category, and shows which mandatory evidence gates remain missing. It is a read-only
+UI projection over existing checkpoint state and changes no evidence or routing rule.
+
 Baseline LangSmith tracing is optional. When enabled, it traces the graph, planning,
 evidence, Research Fit, and independent-review nodes with fixed environment and
 graph-version tags, allowlisted metadata, and hidden trace inputs and outputs. Unit and
@@ -80,7 +85,8 @@ the [M11 Streamlit application boundary](docs/m11-streamlit-interface.mmd), the
 [M11.2 discovery-completion repair](docs/m11-2-discovery-completion-repair.mmd), the
 [M11.3 academic-profile context repair](docs/m11-3-academic-profile-context-repair.mmd), the
 [M12.4 alternate-source diagnostics boundary](docs/m12-4-alternate-source-diagnostics.mmd), the
-M13 [release architecture](docs/m13-release-architecture.mmd),
+[M13.1 evidence-verification diagnostics boundary](docs/m13-1-evidence-verification-diagnostics.mmd),
+and the M13 [release architecture](docs/m13-release-architecture.mmd),
 [LangGraph node and edge diagram](docs/m13-langgraph-node-edge.mmd),
 [reliability review](docs/reliability-review.md),
 [five-minute demonstration](docs/five-minute-demo.md), [release checklist](docs/release-checklist.md),
@@ -939,6 +945,28 @@ The one alternate-source pass, verification threshold, evidence rules, availabil
 Research Fit behavior, and Candidate approval gate remain unchanged. See
 [`docs/m12-4-alternate-source-diagnostics.mmd`](docs/m12-4-alternate-source-diagnostics.mmd).
 
+### M13.1 privacy-safe evidence-verification diagnostics repair
+
+The Streamlit interface now explains the current-round evidence stage without copying complete
+graph state into Session State. Existing `EvidenceExtractionAttempt` records are counted as
+primary or alternate page retrieval attempts, then split into retrieved and failed outcomes.
+Typed failures retain only the existing `ContentExtractionErrorCategory`; successful retrieval
+is explicitly labelled as retrieval, not verification.
+
+Current `SupervisorVerificationRecord` values provide completed and partial outcome counts,
+retained and directly grounded claim totals for every `EvidenceClaimType`, and missing-gate
+counts for identity, current affiliation, and research-interest-or-publication evidence. The
+projection contains no Supervisor identity, Candidate content, query, URL, source reference,
+claim text, excerpt, page content, raw provider payload, exception text, credential, thread ID,
+or checkpoint token.
+
+Model-draft admission counts and first-failed grounding reasons are not present in existing
+checkpoint state, so this repair does not infer or display them. Alternate-source selection
+remains in the separate M12.4 panel. Verification requirements, the five-Supervisor minimum,
+the one alternate-source retry, providers, routing, availability, Research Fit, and Candidate
+approval remain unchanged. See
+[`docs/m13-1-evidence-verification-diagnostics.mmd`](docs/m13-1-evidence-verification-diagnostics.mmd).
+
 ### Run the Streamlit application locally
 
 Complete the setup above, add the required provider credentials to the ignored `.env`,
@@ -1141,6 +1169,22 @@ pytest -o addopts='' -q \
 Expected result: `3 passed`. These cases prove exact result accounting, a typed
 wrong-person rejection on the real graph route, and aggregate-only Streamlit rendering. They
 use fakes and fixed data, so no provider key, model, checkpoint file, or network call is used.
+
+### 60-second M13.1 evidence-verification diagnostics demonstration
+
+Run the focused offline projection, interface, and unchanged-policy regressions:
+
+```bash
+pytest -o addopts='' -q \
+  tests/unit/ui/test_evidence_verification_diagnostics.py::test_projection_aggregates_only_current_round_and_omits_sensitive_content \
+  tests/integration/test_m13_1_evidence_diagnostics_streamlit.py::test_current_round_evidence_diagnostics_render_complete_aggregate_taxonomy \
+  tests/contract/test_m13_1_evidence_verification_diagnostics_contract.py::test_m13_1_keeps_verification_thresholds_and_routes_unchanged
+```
+
+Expected result: `3 passed`. The output proves that page retrieval, typed extraction failures,
+retained claims, directly grounded claims, verification outcomes, and missing evidence gates are
+accounted for separately. Fakes and fixed data keep names, URLs, excerpts, Candidate content,
+credentials, provider calls, model calls, and network access outside the demonstration.
 
 ### Five-minute M13 release demonstration
 

@@ -17,6 +17,7 @@ from pydantic import (
 from ..domain import (
     AvailabilityStatus,
     CandidateProfile,
+    EvidenceClaimType,
     EvidenceConfidence,
     SearchResultRejectionCounts,
     SourceKind,
@@ -24,7 +25,7 @@ from ..domain import (
     VerificationStatus,
 )
 from ..graph.verification import AlternateSourceRejectionCounts
-from ..tools import SearchErrorCategory, SearchProvider
+from ..tools import ContentExtractionErrorCategory, SearchErrorCategory, SearchProvider
 
 NonEmptyUiText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
@@ -196,6 +197,147 @@ class AlternateSourceDiagnosticsView(BaseModel):
         return self
 
 
+class EvidenceExtractionFailureCountsView(BaseModel):
+    """Typed current-round retrieval failures without source or provider content."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, validate_default=True)
+
+    timeout: Annotated[int, Field(strict=True, ge=0)] = 0
+    transport: Annotated[int, Field(strict=True, ge=0)] = 0
+    authentication: Annotated[int, Field(strict=True, ge=0)] = 0
+    rate_limit: Annotated[int, Field(strict=True, ge=0)] = 0
+    quota: Annotated[int, Field(strict=True, ge=0)] = 0
+    invalid_request: Annotated[int, Field(strict=True, ge=0)] = 0
+    provider: Annotated[int, Field(strict=True, ge=0)] = 0
+    response_contract: Annotated[int, Field(strict=True, ge=0)] = 0
+    extraction_failed: Annotated[int, Field(strict=True, ge=0)] = 0
+
+    @property
+    def total(self) -> int:
+        """Return failures across the complete typed extraction taxonomy."""
+        return sum(getattr(self, category.value) for category in ContentExtractionErrorCategory)
+
+
+class EvidenceClaimTypeCountsView(BaseModel):
+    """Evidence counts across every claim type, with all claim content omitted."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, validate_default=True)
+
+    identity: Annotated[int, Field(strict=True, ge=0)] = 0
+    current_affiliation: Annotated[int, Field(strict=True, ge=0)] = 0
+    research_interest: Annotated[int, Field(strict=True, ge=0)] = 0
+    methodology: Annotated[int, Field(strict=True, ge=0)] = 0
+    publication: Annotated[int, Field(strict=True, ge=0)] = 0
+    project: Annotated[int, Field(strict=True, ge=0)] = 0
+    availability: Annotated[int, Field(strict=True, ge=0)] = 0
+
+    @property
+    def total(self) -> int:
+        """Return retained or grounded claims across every typed category."""
+        return sum(getattr(self, claim_type.value) for claim_type in EvidenceClaimType)
+
+
+class MissingRequiredEvidenceCountsView(BaseModel):
+    """Counts of partial records missing one of the three verification gates."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, validate_default=True)
+
+    identity: Annotated[int, Field(strict=True, ge=0)] = 0
+    current_affiliation: Annotated[int, Field(strict=True, ge=0)] = 0
+    research_interest_or_publication: Annotated[int, Field(strict=True, ge=0)] = 0
+
+    @property
+    def total(self) -> int:
+        """Return missing gate occurrences across all partial records."""
+        return self.identity + self.current_affiliation + self.research_interest_or_publication
+
+
+class EvidenceVerificationDiagnosticsView(BaseModel):
+    """Current-round evidence diagnostics containing aggregate categories only."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, validate_default=True)
+
+    primary_retrieval_attempt_count: Annotated[int, Field(strict=True, ge=0)]
+    primary_retrieval_success_count: Annotated[int, Field(strict=True, ge=0)]
+    primary_retrieval_failure_count: Annotated[int, Field(strict=True, ge=0)]
+    alternate_retrieval_attempt_count: Annotated[int, Field(strict=True, ge=0)]
+    alternate_retrieval_success_count: Annotated[int, Field(strict=True, ge=0)]
+    alternate_retrieval_failure_count: Annotated[int, Field(strict=True, ge=0)]
+    extraction_failure_counts: EvidenceExtractionFailureCountsView
+    verification_record_count: Annotated[int, Field(strict=True, ge=0)]
+    completed_verification_record_count: Annotated[int, Field(strict=True, ge=0)]
+    partial_verification_record_count: Annotated[int, Field(strict=True, ge=0)]
+    retained_claim_counts: EvidenceClaimTypeCountsView
+    directly_grounded_claim_counts: EvidenceClaimTypeCountsView
+    missing_required_evidence_counts: MissingRequiredEvidenceCountsView
+
+    @model_validator(mode="after")
+    def aggregate_counts_must_be_consistent(self) -> EvidenceVerificationDiagnosticsView:
+        """Reject impossible diagnostics while leaving verification rules authoritative."""
+        if self.primary_retrieval_attempt_count != (
+            self.primary_retrieval_success_count + self.primary_retrieval_failure_count
+        ):
+            raise ValueError("Primary retrieval outcomes must equal the attempt count")
+        if self.alternate_retrieval_attempt_count != (
+            self.alternate_retrieval_success_count + self.alternate_retrieval_failure_count
+        ):
+            raise ValueError("Alternate retrieval outcomes must equal the attempt count")
+        retrieval_failure_count = (
+            self.primary_retrieval_failure_count + self.alternate_retrieval_failure_count
+        )
+        if self.extraction_failure_counts.total != retrieval_failure_count:
+            raise ValueError("Typed extraction failures must equal retrieval failures")
+        if self.verification_record_count != (
+            self.completed_verification_record_count + self.partial_verification_record_count
+        ):
+            raise ValueError("Verification outcomes must equal the record count")
+        if (
+            self.primary_retrieval_attempt_count
+            + self.alternate_retrieval_attempt_count
+            + self.verification_record_count
+            == 0
+        ):
+            raise ValueError("Evidence diagnostics require a retrieval attempt or record")
+        if self.verification_record_count == 0 and self.retained_claim_counts.total != 0:
+            raise ValueError("Retained claims require a verification record")
+        for claim_type in EvidenceClaimType:
+            if getattr(self.directly_grounded_claim_counts, claim_type.value) > getattr(
+                self.retained_claim_counts,
+                claim_type.value,
+            ):
+                raise ValueError("Directly grounded claims cannot exceed retained claims")
+        missing_counts = self.missing_required_evidence_counts
+        if any(
+            count > self.partial_verification_record_count
+            for count in (
+                missing_counts.identity,
+                missing_counts.current_affiliation,
+                missing_counts.research_interest_or_publication,
+            )
+        ):
+            raise ValueError("A missing gate cannot exceed the partial record count")
+        if missing_counts.total < self.partial_verification_record_count:
+            raise ValueError("Every partial record must identify at least one missing gate")
+        grounded_counts = self.directly_grounded_claim_counts
+        records_requiring_identity = self.verification_record_count - missing_counts.identity
+        records_requiring_affiliation = (
+            self.verification_record_count - missing_counts.current_affiliation
+        )
+        records_requiring_research = (
+            self.verification_record_count - missing_counts.research_interest_or_publication
+        )
+        if grounded_counts.identity < records_requiring_identity:
+            raise ValueError("Grounded identity evidence cannot support the record outcomes")
+        if grounded_counts.current_affiliation < records_requiring_affiliation:
+            raise ValueError("Grounded affiliation evidence cannot support the record outcomes")
+        if (
+            grounded_counts.research_interest + grounded_counts.publication
+            < records_requiring_research
+        ):
+            raise ValueError("Grounded research evidence cannot support the record outcomes")
+        return self
+
+
 class EvidenceSourceView(BaseModel):
     """Concise evidence provenance suitable for Candidate display."""
 
@@ -265,6 +407,7 @@ class UiRunSnapshot(BaseModel):
     progress_events: tuple[GraphProgressEvent, ...] = ()
     discovery_diagnostics: DiscoveryDiagnosticsView | None = None
     alternate_source_diagnostics: AlternateSourceDiagnosticsView | None = None
+    evidence_verification_diagnostics: EvidenceVerificationDiagnosticsView | None = None
     prospective_supervisors: tuple[ProspectiveSupervisorView, ...] = ()
     verified_supervisors: tuple[VerifiedSupervisorView, ...] = ()
     review_supervisors: tuple[VerifiedSupervisorView, ...] = ()
