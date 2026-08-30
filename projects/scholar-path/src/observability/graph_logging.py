@@ -11,6 +11,7 @@ import json
 import logging
 import math
 from collections.abc import Callable, Mapping
+from contextlib import suppress
 from enum import StrEnum
 from functools import wraps
 from io import TextIOBase
@@ -228,25 +229,31 @@ def _enum_value(value: object) -> object:
 
 
 def _summarize_state_field(field_name: str, value: object) -> JsonValue:
+    summary: JsonValue
     if field_name in _COUNT_FIELDS:
-        return {"count": _collection_count(value)}
-    if field_name in _PRESENCE_FIELDS:
-        return {"present": value is not None and value != ""}
-    if field_name in _BOOLEAN_FIELDS:
-        return {"value": value if isinstance(value, bool) else None}
-    if field_name in _COUNTER_FIELDS:
-        return {"value": _safe_nonnegative_integer(value)}
-    if field_name == "retry_counts":
+        summary = {"count": _collection_count(value)}
+    elif field_name in _PRESENCE_FIELDS:
+        summary = {"present": value is not None and value != ""}
+    elif field_name in _BOOLEAN_FIELDS:
+        summary = {"value": value if isinstance(value, bool) else None}
+    elif field_name in _COUNTER_FIELDS:
+        summary = {"value": _safe_nonnegative_integer(value)}
+    elif field_name == "retry_counts":
         retry_counts = value if isinstance(value, Mapping) else {}
-        return {
+        summary = {
             "values": {
                 key: _safe_nonnegative_integer(retry_counts.get(key)) for key in _SAFE_RETRY_KEYS
             }
         }
-    if field_name == "review_status":
+    elif field_name == "review_status":
         status = _enum_value(value)
-        return {"value": status if status in _SAFE_REVIEW_STATUSES else "unknown"}
-    return {"present": value is not None}
+        if isinstance(status, str) and status in _SAFE_REVIEW_STATUSES:
+            summary = {"value": status}
+        else:
+            summary = {"value": "unknown"}
+    else:
+        summary = {"present": value is not None}
+    return summary
 
 
 def _summarize_mapping(values: Mapping[str, object]) -> dict[str, JsonValue]:
@@ -306,12 +313,10 @@ def _emit(
     event: str,
     payload: Mapping[str, JsonValue],
 ) -> None:
-    try:
+    # Logging is observational. A broken local handler must never mutate a
+    # workflow outcome, consume a retry, or create a new graph route.
+    with suppress(Exception):
         logger.log(level, _json_line(event, level, payload))
-    except Exception:
-        # Logging is observational. A broken local handler must never mutate a
-        # workflow outcome, consume a retry, or create a new graph route.
-        return
 
 
 def _is_valid_json_value(value: object) -> bool:
@@ -390,17 +395,28 @@ def _safe_provider_metadata(
             if isinstance(value, bool):
                 safe[key] = value
         elif key == "failure_category" and outcome in {"failed", "retrying"}:
-            if value in _SAFE_FAILURE_CATEGORIES:
-                safe[key] = value
-        elif outcome == "succeeded" and (
-            (key == "decision" and value in _SAFE_REVIEW_DECISIONS)
-            or (key == "confidence" and value in _SAFE_CONFIDENCE_VALUES)
-        ):
-            safe[key] = value
+            failure_category = _allowlisted_string(value, _SAFE_FAILURE_CATEGORIES)
+            if failure_category is not None:
+                safe[key] = failure_category
+        elif key == "decision" and outcome == "succeeded":
+            decision = _allowlisted_string(value, _SAFE_REVIEW_DECISIONS)
+            if decision is not None:
+                safe[key] = decision
+        elif key == "confidence" and outcome == "succeeded":
+            confidence = _allowlisted_string(value, _SAFE_CONFIDENCE_VALUES)
+            if confidence is not None:
+                safe[key] = confidence
     return safe
 
 
-def emit_provider_event(
+def _allowlisted_string(value: object, allowed_values: frozenset[str]) -> str | None:
+    if isinstance(value, str) and value in allowed_values:
+        return value
+    return None
+
+
+# The keyword-only envelope keeps each auditable provider dimension explicit.
+def emit_provider_event(  # pylint: disable=too-many-arguments
     logger: logging.Logger,
     *,
     provider: str,

@@ -3325,3 +3325,71 @@ The bounded observability prompt is archived as
   Candidate IDs, thread IDs, and checkpoint IDs remain deliberately excluded.
 - Detailed content debugging still requires a controlled local reproduction or protected
   LangSmith project, not broader application logs.
+
+## M13.6 Repair: Editor diagnostics
+
+**Date:** 2026-08-30
+
+### Milestone objective
+
+Remove the editor's red diagnostics from `graph_logging.py` by reproducing and repairing three
+Pyright/Pylance type-narrowing errors and five Pylint maintainability findings without changing
+the JSON event schema, privacy boundary, graph routing, public API, or runtime behavior.
+
+### Prompt used
+
+The bounded repair prompt is archived as
+[`m13-6-editor-diagnostics-repair.md`](prompts/m13-6-editor-diagnostics-repair.md).
+
+### Files changed
+
+- Added explicit `str` guards before allowlist membership and assignment for review status,
+  provider failure category, independent-review decision, and evidence confidence in
+  `src/observability/graph_logging.py`.
+- Replaced the multi-return state projector with one typed return, extracted allowlisted-string
+  handling, and expressed intentional best-effort logging with `contextlib.suppress`.
+- Retained the public keyword-only provider event envelope and documented its single narrow Pylint
+  argument-count suppression instead of changing callers or bundling event dimensions together.
+- Added a focused enum-versus-arbitrary-object summary regression.
+- Saved the exact repair prompt and recorded the diagnosis and verification here.
+
+### Tests added
+
+- Added a unit regression proving a typed `ReviewStatus` projects to its safe string value while an
+  arbitrary object remains the closed `unknown` value.
+- Re-ran the existing provider metadata tests, which cover typed Nebius decision and confidence
+  values plus rejection of arbitrary metadata.
+
+### Test results
+
+- Pyright/Pylance-compatible check: `0 errors, 0 warnings, 0 informations` for
+  `src/observability/graph_logging.py`.
+- Pylint: `10.00/10` with no reported finding for `src/observability/graph_logging.py`.
+- Focused logging, graph, and Nebius adapter selection: `36 passed in 0.27s`.
+- Ruff formatting reported `236 files left unchanged`; Ruff linting passed. Strict mypy reported
+  no issues in `186 source files`.
+- Complete non-live pytest passed: `1,464 passed, 9 deselected in 19.92s`; branch coverage remained
+  `90.99%` against the required `90%` minimum.
+
+### Assumptions
+
+- The editor uses Pylance or another Pyright-compatible analyzer and respects the nearest
+  `pyproject.toml`, which targets the supported Python 3.12 language level.
+- Membership in a closed string allowlist is a runtime validation step, but Pyright intentionally
+  requires an explicit `isinstance(value, str)` guard to narrow `object` before assignment to the
+  recursive JSON type.
+
+### Lessons learned
+
+- Passing mypy and Ruff does not guarantee Pylance is clean because the analyzers use different
+  narrowing rules for `object` and container-membership checks.
+- Explicit boundary narrowing makes the safety rule clearer to both readers and independent type
+  analyzers without relying on a cast.
+- A lint threshold should not force a less explicit public audit-event API; a local, documented
+  suppression is safer than replacing meaningful keyword dimensions with an opaque container.
+
+### Remaining debt
+
+- Pyright and Pylint are currently editor-compatible verification commands rather than CI
+  dependencies; add them to the reproducible development toolchain only through a dedicated
+  tooling decision.

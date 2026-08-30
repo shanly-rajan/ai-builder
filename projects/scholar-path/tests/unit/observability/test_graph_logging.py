@@ -10,6 +10,7 @@ from langgraph.errors import GraphInterrupt
 from langgraph.types import Interrupt
 
 from scholarpath.config import LogLevel
+from scholarpath.graph import ReviewStatus
 from scholarpath.graph.state import ScholarPathState
 from scholarpath.observability import (
     LOG_SCHEMA_VERSION,
@@ -162,6 +163,15 @@ def test_update_summary_omits_unknown_values_and_invalid_control_values() -> Non
         "unknown_field_count": 1,
     }
     assert private_value not in json.dumps(summary)
+
+
+def test_review_status_summary_narrows_strenum_and_rejects_arbitrary_objects() -> None:
+    assert summarize_state({"review_status": ReviewStatus.COMPLETED})["fields"] == {
+        "review_status": {"value": "completed"}
+    }
+    assert summarize_state({"review_status": object()})["fields"] == {
+        "review_status": {"value": "unknown"}
+    }
 
 
 def test_configure_application_logging_is_idempotent_and_uses_log_level(
