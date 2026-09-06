@@ -84,7 +84,11 @@ from .fakes import (
     make_evaluation_search_outcomes,
     make_weak_research_fit_response,
 )
-from .measurements import GraphPortInvocationCounts, TargetMeasurements
+from .measurements import (
+    GraphInvocationObservation,
+    GraphPortInvocationCounts,
+    TargetMeasurements,
+)
 from .models import (
     CandidatePreferenceProjection,
     CandidateReviewOutcome,
@@ -666,6 +670,7 @@ def fake_end_to_end_target(
     *,
     observability: LangSmithObservability | None = None,
     port_usage_observer: Callable[[GraphPortInvocationCounts], None] | None = None,
+    invocation_usage_observer: Callable[[GraphInvocationObservation], None] | None = None,
 ) -> dict[str, object]:
     """Run one complete fake-only LangGraph scenario through the Candidate gate."""
     scenario = _scenario_from_inputs(inputs)
@@ -795,6 +800,35 @@ def fake_end_to_end_target(
     research_fit_model = ScriptedResearchFitModel()
     independent_review_model = ScriptedIndependentReviewModel(review_outcomes)
     preference_memory = InMemoryCandidatePreferenceMemory()
+
+    def port_counts() -> GraphPortInvocationCounts:
+        return GraphPortInvocationCounts(
+            planning=len(planning_model.inputs),
+            primary_search=len(you_search.calls),
+            fallback_search=len(tavily_search.calls),
+            alternate_evidence_search=len(alternate_search.calls),
+            content_extraction=len(content_extractor.calls),
+            evidence_model=len(evidence_model.inputs),
+            research_fit=len(research_fit_model.inputs),
+            independent_review=len(independent_review_model.inputs),
+            memory_load=len(preference_memory.load_calls),
+            memory_store=len(preference_memory.store_calls),
+        )
+
+    invocation_index = 0
+
+    def observe_invocation(at_candidate_review: bool) -> None:
+        nonlocal invocation_index
+        if invocation_usage_observer is not None:
+            invocation_usage_observer(
+                GraphInvocationObservation(
+                    invocation_index=invocation_index,
+                    at_candidate_review=at_candidate_review,
+                    cumulative_counts=port_counts(),
+                )
+            )
+        invocation_index += 1
+
     output = run_scholarpath_graph(
         graph_config,
         thread_id=f"m12-{scenario.scenario_id}",
@@ -816,6 +850,9 @@ def fake_end_to_end_target(
         langsmith_settings=LangSmithSettings(tracing=False),
         observability=observability,
         utc_clock=FixedEvaluationClock(),
+        on_invocation_complete=(
+            observe_invocation if invocation_usage_observer is not None else None
+        ),
     )
     state = _graph_state(output)
     _tag_target_run(
@@ -827,25 +864,14 @@ def fake_end_to_end_target(
         fallback_search_used=state["fallback_search_used"],
         candidate_review_outcome=_candidate_review_outcome(output),
     )
-    port_counts = GraphPortInvocationCounts(
-        planning=len(planning_model.inputs),
-        primary_search=len(you_search.calls),
-        fallback_search=len(tavily_search.calls),
-        alternate_evidence_search=len(alternate_search.calls),
-        content_extraction=len(content_extractor.calls),
-        evidence_model=len(evidence_model.inputs),
-        research_fit=len(research_fit_model.inputs),
-        independent_review=len(independent_review_model.inputs),
-        memory_load=len(preference_memory.load_calls),
-        memory_store=len(preference_memory.store_calls),
-    )
+    final_port_counts = port_counts()
     if port_usage_observer is not None:
-        port_usage_observer(port_counts)
+        port_usage_observer(final_port_counts)
     return _project_graph_output(
         scenario,
         output,
         target_kind=EvaluationTargetKind.GRAPH_FAKE,
-        measurements=TargetMeasurements(port_invocations=port_counts.total),
+        measurements=TargetMeasurements(port_invocations=final_port_counts.total),
     )
 
 

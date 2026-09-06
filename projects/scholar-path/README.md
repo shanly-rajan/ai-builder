@@ -2172,3 +2172,9 @@ ten-port counts: **38 calls** for the initial pause, **76** after request-more.
 Its exit **1** correctly preserves the exceeded **40-call whole-case budget**.
 No budget, routing, fixture, or expected label was changed; this is attribution,
 not a measured runtime optimization or an uploaded experiment.
+
+Step 3ai adds [separate first-review and interaction measurements](docs/week4-interaction-measurements.md).
+`scripts/inspect_interaction_budget.py` captures counters at actual initial/resume
+boundaries in each frozen fake graph case. It keeps the original whole-case limit
+and historical reports intact. The newly separated numeric limits are **not yet
+configured**; tracking both scopes does not approve a larger budget.

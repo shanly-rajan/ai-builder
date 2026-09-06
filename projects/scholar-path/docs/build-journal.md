@@ -7187,3 +7187,108 @@ an explicit documented decision; safe evidence reuse needs identity, source,
 freshness, and version boundaries. Preference-sensitive fit and independent review
 must not reuse stale answers after preferences change. This diagnostic does not
 claim runtime optimization, live cost savings, or another agent-quality improvement.
+
+## Week 4 step 3ai: separate first-review and interaction measurements
+
+**Date:** 2026-09-06
+
+### Milestone objective
+
+Commit step 3ah, then implement the user's choice to track first-result effort and
+full Candidate interaction effort separately. Observe actual invocation boundaries
+without changing the existing whole-case budget or graph behavior.
+
+### Prompt used
+
+[`docs/prompts/week4-3ai-interaction-measurements.md`](prompts/week4-3ai-interaction-measurements.md)
+
+The user answered **“Track both separately (recommended)”** to the scope question.
+That approves separate measurement, not a higher numerical allowance.
+
+### Checkpoint committed before proceeding
+
+- `45c0ecd`: `feat: diagnose request-more graph call budget` (step 3ah).
+- Pre-commit checks: Ruff formatting **371 files**, lint passed, mypy **264 source
+  files**; full non-live suite **3,016 passed, 9 deselected, 110 subtests in 54.81s**,
+  **92.63% coverage**, exit **0**.
+- Staged the thirteen scoped files only after validation. `git diff --cached
+  --check` passed; no unrelated files, secrets, or runtime artifacts were staged.
+- The commit is local on `main`, not pushed. The worktree was clean before step 3ai.
+
+### Files changed
+
+- `src/graph/workflow.py`: optional synchronous invocation-complete hook that emits
+  only a review-paused boolean after actual initial/resume invocations. No policy,
+  route, provider, approval gate, retry, or checkpoint behavior is changed.
+- `src/evaluation/measurements.py`: strict immutable count-only snapshot schema.
+- `src/evaluation/targets.py`: optional per-invocation counter observer; default
+  output schema and total are preserved.
+- `src/evaluation/interaction_budget.py`, `scripts/inspect_interaction_budget.py`:
+  offline frozen-case report with first-review and whole-interaction boundaries,
+  validated per-invocation deltas, and explicit unconfigured supplemental limits.
+- New invocation-observer and interaction-report tests, saved observations,
+  [measurement guide](week4-interaction-measurements.md), README, metrics/triage
+  guidance, prompt, and this journal.
+
+### Tests added
+
+Actual first invocation and resume boundaries, unused resumes, failed invocations,
+strict snapshot schema, counter monotonicity and sums, observer-on/off output parity,
+approval and rejection boundaries, no memory writes for viewing, isolation between
+runs, frozen expected outcomes, absent first results, privacy, disabled tracing,
+unset limits, and preserved legacy failure reporting.
+
+### Test results
+
+- Existing step 3ah diagnostic/observer tests after adding the hook: **77 passed
+  in 6.71s**. Targeted Ruff and mypy checks passed.
+- New invocation-observer tests: **48 passed in 1.99s**. New interaction-report
+  tests: **46 passed in 2.56s**. Added one saved-report/fresh-execution assertion.
+- `scripts/inspect_interaction_budget.py`, text and JSON: **12/12 existing
+  expected behaviors pass**; request-more has measured invocation counts **38, 38**
+  and total **76**; approval **38, 1** and total **39**; reject-then-approve
+  **38, 1, 1** and total **40**. **Exit 1 is intentional** for the unchanged legacy
+  whole-case overrun. The [saved report](evaluation/week4-interaction-measurements-2026-09-06.json)
+  preserves the actual observations and explicitly unset supplemental limits.
+- `scripts/run_reviewed_evals.py --check`: **30/30 correctness**, all eleven metric
+  outcomes unchanged, **exit 0**. Local run:
+  `scholarpath-week4-reviewed-local-20260906T175744Z-efe6f3eb`. Graph-family maximum
+  remains **76/40 exceeded**. No new uploaded experiment or optimization is claimed.
+- Strict editable installation refreshed offline, without dependency downloads.
+- Ruff format: **378 files already formatted**. Ruff lint passed. Mypy:
+  **no issues in 269 source files**.
+- Read-only audit found a missing-middle-boundary loophole. Added the invariant
+  that these valid-action frozen cases have exactly one initial boundary plus one
+  per accepted action, with regression coverage. Completed status also cannot
+  masquerade as a review pause.
+- Final `SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false venv/bin/pytest -q
+  --tb=line --show-capture=no`: **3,111 passed, 9 deselected, 111 subtests in
+  58.57s**, **92.71% coverage**, exit **0**. This is 95 additional passing cases
+  compared with the committed 3,016-case checkpoint.
+- Post-documentation contract check: **184 passed, 111 subtests in 1.83s**.
+- `git diff --check` passed. Frozen scenarios, labels, fakes, evaluator definitions,
+  manifests, the historical step 3ah report, and configured budgets have no diff.
+- No live calls, uploads, pushes, or automatic commit of this increment. All new
+  work remains unstaged for review.
+
+### Assumptions
+
+“First result” is the first Candidate-review pause, not merely a terminal graph
+return or a saved shortlist. “Full interaction” is the entire frozen scripted case,
+including all executed resumes; it may still end paused. Fake port counts are not
+HTTP requests, tokens, latency measurements, or billed cost. Supplemental numeric
+targets stay unset until separately agreed.
+
+### Lessons learned
+
+Independent-case differences can explain likely work, but cannot prove where a
+single run spent it. Snapshots at actual invocation boundaries establish that
+distinction without exposing payloads or changing the workflow. An unset target
+must not become a pass, and an interrupted case must not be labeled completed.
+
+### Remaining debt
+
+The original 76/40 overrun remains. New workload-specific numerical limits require
+agreement; no caching, live calibration, quality improvement, or budget waiver is
+claimed. Further Week 4 measured improvements and the submission recording remain
+separate follow-ups. Step 3ai is left uncommitted for review.

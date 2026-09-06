@@ -35,6 +35,12 @@ measures 38 calls for an initial-review case and 76 for its two-pass counterpart
 The unchanged 40-call whole-case bar fails for the latter. These fake application
 calls cannot be divided by rounds and reported as satisfying the original budget.
 
+**Separate observations (step 3ai):** the Candidate approved tracking first-result
+and interaction effort separately. [Invocation-boundary measurements](week4-interaction-measurements.md)
+now distinguish the first review pause, each executed resume, and the complete
+scripted case. New numeric limits remain unset; the original budget and evaluator
+definitions remain unchanged.
+
 ## What changed
 
 - `expected_behavior` now consumes the previously unused `expected_supervisor_ids` labels.

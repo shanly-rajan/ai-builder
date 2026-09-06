@@ -1,6 +1,6 @@
 """ScholarPath graph with resilient, policy-routed Supervisor discovery."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any, Final, Literal, Protocol, cast
@@ -2352,8 +2352,15 @@ def run_scholarpath_graph(
     langsmith_settings: LangSmithSettings | None = None,
     observability: LangSmithObservability | None = None,
     utc_clock: UtcClockPort | None = None,
+    on_invocation_complete: Callable[[bool], None] | None = None,
 ) -> ScholarPathState | dict[str, object]:
-    """Execute or resume one isolated thread, stopping if no review response remains."""
+    """Execute or resume one isolated thread, stopping if no review response remains.
+
+    An optional synchronous observer receives only whether each completed invocation
+    paused for Candidate review. It receives no state or identity data and does not
+    control routing. Observer errors propagate so diagnostics cannot report missing
+    observations as successful measurements.
+    """
     resolved_application_settings = application_settings or load_settings()
     resolved_config = config or GraphFixtureConfig.for_verification_standard(
         resolved_application_settings.verification_evidence_standard
@@ -2387,6 +2394,11 @@ def run_scholarpath_graph(
     initial_state = create_initial_state(resolved_config.fixtures.candidate_profile)
     with runtime.observability.activate():
         output: object = runtime.graph.invoke(initial_state, config=runnable_config)
+        if on_invocation_complete is not None:
+            on_invocation_complete(
+                isinstance(output, Mapping)
+                and candidate_review_payload_from_graph_output(output) is not None
+            )
         for response in candidate_review_responses:
             if not isinstance(output, Mapping):
                 break
@@ -2405,6 +2417,11 @@ def run_scholarpath_graph(
                 else dict(response)
             )
             output = runtime.graph.invoke(Command(resume=resume_value), config=runnable_config)
+            if on_invocation_complete is not None:
+                on_invocation_complete(
+                    isinstance(output, Mapping)
+                    and candidate_review_payload_from_graph_output(output) is not None
+                )
     return cast(ScholarPathState | dict[str, object], output)
 
 

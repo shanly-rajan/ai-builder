@@ -62,6 +62,16 @@ class GraphPortInvocationCounts(BaseModel):
         )
 
 
+class GraphInvocationObservation(BaseModel):
+    """Count-only snapshot after an actual initial invocation or Candidate resume."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    invocation_index: int = Field(ge=0)
+    at_candidate_review: bool
+    cumulative_counts: GraphPortInvocationCounts
+
+
 class RuntimeMeasurement(BaseModel):
     """Separate target execution from evaluation overhead; missing is not zero."""
 

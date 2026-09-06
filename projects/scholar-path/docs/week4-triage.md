@@ -681,6 +681,20 @@ intended multi-round performance requirement before a versioned budget change or
 safe evidence reuse. No production policy, dataset label, live provider call,
 LangSmith experiment, or automatic commit was added in this diagnostic increment.
 
+### Step 3ai: actual first-review and interaction boundaries
+
+Step 3ah is committed as `45c0ecd`. The user approved tracking both first-result
+and full interaction effort. [Separate invocation measurements](week4-interaction-measurements.md)
+capture counters after each real initial/resume invocation of the frozen fake
+graph cases. This replaces inference between independent cases with observations
+within each run. A first-review pause is not a saved shortlist; a scripted case
+can end paused without completion.
+
+The existing whole-case budget remains 40. New numerical allowances are explicitly
+unset, not automatically passed or raised. This instrumentation does not count as
+a measured agent-quality improvement. Next agree numerical targets for a bounded
+workload; no live calls, caching, or automatic commit are included.
+
 ## Step 3o: two excerpt false rejections repaired offline
 
 The [fixed reproduction](week4-live-canary.md#step-3o-excerpt-boundary-repair-offline)
