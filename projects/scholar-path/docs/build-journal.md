@@ -7081,3 +7081,109 @@ multi-round budget scope before changing behavior or its threshold. Complex role
 sentences and internal abbreviations can still be conservatively ungrounded. No
 after-experiment has been uploaded; live relevance, provider cost, remaining
 measured Week 4 improvements, and the submission recording are separate follow-ups.
+
+## Week 4 step 3ah: request-more call-budget diagnostics
+
+**Date:** 2026-09-06
+
+### Milestone objective
+
+Commit the completed work, then explain the 76/40 fake-call finding without
+changing the frozen budget, approved expectations, or production graph behavior.
+The 40-call bar applies to a complete graph case, including Candidate-driven resumes.
+
+### Prompt used
+
+[`docs/prompts/week4-3ah-request-more-budget-diagnostics.md`](prompts/week4-3ah-request-more-budget-diagnostics.md)
+
+### Checkpoints committed before proceeding
+
+- `70c855c`: reviewed LangSmith baseline (step 3af).
+- `4672168`: heading-bound research grounding repair (step 3ag).
+- Shared files were separated in the index without rewriting working files.
+  The first checkpoint's staged source/test snapshot passed **157 targeted tests
+  in 15.39s**; two assertion-rewrite warnings arose from the isolated import bootstrap.
+  The complete pre-commit working tree passed **2,939 tests, 9 deselected,
+  109 subtests in 49.03s**, with **92.53% coverage**; Ruff and mypy passed.
+- No files outside ScholarPath, secrets, environments, or private captures were
+  staged. Both commits are local on `main`; nothing was pushed. The worktree was
+  clean before starting this increment.
+
+### Files changed
+
+- `src/evaluation/measurements.py`: strict immutable ten-port counter schema and
+  deterministic total; missing counters are not silently treated as zero.
+- `src/evaluation/targets.py`: optional count-only observer on the fake graph target;
+  existing returned output, adapter calls, and cumulative total stay unchanged.
+- `src/evaluation/request_more_budget.py` and `scripts/inspect_request_more_budget.py`:
+  bounded two-case offline diagnostic with explicit whole-case budget semantics.
+- `tests/unit/evaluation/test_graph_port_usage.py` and
+  `tests/unit/evaluation/test_request_more_budget.py`: counter, parity, privacy,
+  expected-outcome, and CLI regression coverage.
+- README, triage/metrics guidance, prompt, this journal, and the separate budget
+  diagnostic guide/report document measured results and remaining decisions.
+
+### Tests added
+
+Strict counter validation, sum consistency, observer-on/off parity, all twelve
+reviewed fake graph routes, timeout/extraction failure counting, one explicit
+feedback memory write, no write on viewing, disabled tracing, fixed dataset/labels,
+count-only output, budget-failure exit status, sanitized CLI errors, and saved-report
+parity against a fresh execution of the frozen cases.
+
+### Test results
+
+- Refreshed the existing strict editable installation with
+  `venv/bin/python -m pip install --no-index --no-deps --no-build-isolation -e .
+  --config-settings editable_mode=strict`: passed without dependency downloads.
+- `scripts/inspect_request_more_budget.py --format json`: measured **38 calls**
+  for the initial-review case and **76** for request-more; **exit 1 as designed**
+  because the unchanged 40-call whole-case budget is exceeded. Both frozen expected
+  behaviors pass, both cases pause for Candidate review, and request-more writes
+  preferences once. See the [saved diagnostic](evaluation/week4-request-more-budget-2026-09-06.json)
+  and [interpretation guide](week4-request-more-budget.md).
+- Focused port-observer tests: **26 passed in 1.65s**. Focused diagnostic tests
+  before the saved-report assertion: **50 passed in 4.88s**.
+- `scripts/run_reviewed_evals.py --check`: **30/30 correctness, exit 0**;
+  experiment `scholarpath-week4-reviewed-local-20260906T173217Z-d5757417`.
+  All eleven metric outcomes match the preceding after-report. The **76/40**
+  runtime proxy failure remains explicit and separate from correctness.
+- `venv/bin/ruff format --check .`: **371 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 264 source files**.
+- First complete non-live run: **3,015 passed, 9 deselected, 110 subtests in
+  54.90s**, **92.63% coverage**, exit **0**.
+- Final `SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false venv/bin/pytest -q
+  --tb=line --show-capture=no`, including the saved-report assertion: **3,016 passed,
+  9 deselected, 110 subtests in 54.30s**, **92.63% coverage**, exit **0**. This adds
+  77 passing test cases compared with the preceding 2,939-case checkpoint.
+- Independent read-only review found no material privacy, attribution, behavior,
+  frozen-expectation, or budget-scope issues.
+- Post-documentation `venv/bin/pytest -o addopts='' -q tests/contract`:
+  **184 passed, 110 subtests in 1.98s**.
+- `git diff --check`: passed. No production graph/agent, frozen fixture, manifest,
+  label, evaluator, historical artifact, or configured budget changes.
+- No live provider calls or LangSmith uploads. This new increment is uncommitted
+  and unstaged; the two preceding commits were not pushed.
+
+### Assumptions
+
+The next step is investigation and attribution, not automatic permission to change
+the budget or undertake a caching refactor. The comparison uses two independent
+synthetic cases. Fake planner responses repeat by design; that does not establish
+that a live planner would issue identical searches after a region revision.
+
+### Lessons learned
+
+The original eleven-case calibration observed a maximum of 39 calls and used a
+40-call whole-case bar. The reviewed thirty-case cohort includes a longer
+Candidate-driven journey. Per-round division would change the budget's semantics
+and hide its failure. A cost proxy needs a clearly stated workload boundary.
+
+### Remaining debt
+
+The 76/40 finding remains a reported failure. Changing the workload budget requires
+an explicit documented decision; safe evidence reuse needs identity, source,
+freshness, and version boundaries. Preference-sensitive fit and independent review
+must not reuse stale answers after preferences change. This diagnostic does not
+claim runtime optimization, live cost savings, or another agent-quality improvement.

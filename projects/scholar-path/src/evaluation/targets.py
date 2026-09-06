@@ -84,7 +84,7 @@ from .fakes import (
     make_evaluation_search_outcomes,
     make_weak_research_fit_response,
 )
-from .measurements import TargetMeasurements
+from .measurements import GraphPortInvocationCounts, TargetMeasurements
 from .models import (
     CandidatePreferenceProjection,
     CandidateReviewOutcome,
@@ -662,7 +662,10 @@ def _project_graph_output(
 
 
 def fake_end_to_end_target(
-    inputs: dict[str, object], *, observability: LangSmithObservability | None = None
+    inputs: dict[str, object],
+    *,
+    observability: LangSmithObservability | None = None,
+    port_usage_observer: Callable[[GraphPortInvocationCounts], None] | None = None,
 ) -> dict[str, object]:
     """Run one complete fake-only LangGraph scenario through the Candidate gate."""
     scenario = _scenario_from_inputs(inputs)
@@ -824,26 +827,25 @@ def fake_end_to_end_target(
         fallback_search_used=state["fallback_search_used"],
         candidate_review_outcome=_candidate_review_outcome(output),
     )
+    port_counts = GraphPortInvocationCounts(
+        planning=len(planning_model.inputs),
+        primary_search=len(you_search.calls),
+        fallback_search=len(tavily_search.calls),
+        alternate_evidence_search=len(alternate_search.calls),
+        content_extraction=len(content_extractor.calls),
+        evidence_model=len(evidence_model.inputs),
+        research_fit=len(research_fit_model.inputs),
+        independent_review=len(independent_review_model.inputs),
+        memory_load=len(preference_memory.load_calls),
+        memory_store=len(preference_memory.store_calls),
+    )
+    if port_usage_observer is not None:
+        port_usage_observer(port_counts)
     return _project_graph_output(
         scenario,
         output,
         target_kind=EvaluationTargetKind.GRAPH_FAKE,
-        measurements=TargetMeasurements(
-            port_invocations=sum(
-                (
-                    len(planning_model.inputs),
-                    len(you_search.calls),
-                    len(tavily_search.calls),
-                    len(alternate_search.calls),
-                    len(content_extractor.calls),
-                    len(evidence_model.inputs),
-                    len(research_fit_model.inputs),
-                    len(independent_review_model.inputs),
-                    len(preference_memory.load_calls),
-                    len(preference_memory.store_calls),
-                )
-            )
-        ),
+        measurements=TargetMeasurements(port_invocations=port_counts.total),
     )
 
 

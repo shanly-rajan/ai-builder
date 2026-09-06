@@ -29,6 +29,12 @@ runtime decisions fail the command. The report preserves the configured budget v
 Do not increase a budget silently to obtain a pass: record any revised budget and rationale
 before baseline/comparison runs on the frozen dataset.
 
+**Scope clarification (step 3ah):** a graph case includes all scripted Candidate
+resumes, not just its first research pass. The [request-more attribution](week4-request-more-budget.md)
+measures 38 calls for an initial-review case and 76 for its two-pass counterpart.
+The unchanged 40-call whole-case bar fails for the latter. These fake application
+calls cannot be divided by rounds and reported as satisfying the original budget.
+
 ## What changed
 
 - `expected_behavior` now consumes the previously unused `expected_supervisor_ids` labels.

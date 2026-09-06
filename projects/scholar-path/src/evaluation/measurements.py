@@ -23,6 +23,45 @@ class TargetMeasurements(BaseModel):
     port_invocations: int | None = Field(default=None, ge=0)
 
 
+class GraphPortInvocationCounts(BaseModel):
+    """Complete fake-case counters, including retries and Candidate-driven resumes.
+
+    Only actual adapter counts are accepted: absent telemetry is not zero, and no
+    payloads, names, URLs, or model text belong in this diagnostic projection.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    planning: int = Field(ge=0)
+    primary_search: int = Field(ge=0)
+    fallback_search: int = Field(ge=0)
+    alternate_evidence_search: int = Field(ge=0)
+    content_extraction: int = Field(ge=0)
+    evidence_model: int = Field(ge=0)
+    research_fit: int = Field(ge=0)
+    independent_review: int = Field(ge=0)
+    memory_load: int = Field(ge=0)
+    memory_store: int = Field(ge=0)
+
+    @property
+    def total(self) -> int:
+        """Sum the same ten application-port counters used by the baseline."""
+        return sum(
+            (
+                self.planning,
+                self.primary_search,
+                self.fallback_search,
+                self.alternate_evidence_search,
+                self.content_extraction,
+                self.evidence_model,
+                self.research_fit,
+                self.independent_review,
+                self.memory_load,
+                self.memory_store,
+            )
+        )
+
+
 class RuntimeMeasurement(BaseModel):
     """Separate target execution from evaluation overhead; missing is not zero."""
 

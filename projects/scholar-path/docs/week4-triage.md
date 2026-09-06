@@ -667,6 +667,20 @@ improvement/reporting cycle. The **76/40** fake-call budget finding is unchanged
 next inspect its multi-round scope before altering behavior or thresholds. No
 live provider calls, after-experiment upload, environment edits, staging, or commit.
 
+### Step 3ah: request-more budget scope and attribution
+
+Steps 3af and 3ag were committed separately as `70c855c` and `4672168` before this
+increment. [Count-only diagnostics](week4-request-more-budget.md) now compare the
+frozen initial-review and request-more cases: **38 versus 76 fake calls**, one
+versus two planning passes, and zero versus one explicit preference-memory write.
+The 40-call bar covers the entire case, not a single pass. The finding is not an
+unbounded loop and remains **76/40 exceeded**; correctness stays **30/30**.
+
+This is attribution, not an agent-quality or runtime improvement. Next agree the
+intended multi-round performance requirement before a versioned budget change or
+safe evidence reuse. No production policy, dataset label, live provider call,
+LangSmith experiment, or automatic commit was added in this diagnostic increment.
+
 ## Step 3o: two excerpt false rejections repaired offline
 
 The [fixed reproduction](week4-live-canary.md#step-3o-excerpt-boundary-repair-offline)

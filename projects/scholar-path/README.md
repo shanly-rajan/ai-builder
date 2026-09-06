@@ -2141,8 +2141,9 @@ venv/bin/python scripts/run_reviewed_evals.py
 SCHOLARPATH_LOG_LEVEL=WARNING venv/bin/python scripts/run_reviewed_evals.py --check
 ```
 
-The check is fake-only, forces tracing off, and exits 1 for the known correctness
-failure. It does not upload to LangSmith or replace the original eleven-case baseline.
+The check is fake-only and forces tracing off. At the original baseline it exited 1
+for the known correctness failure; the current result is documented below. It does
+not upload to LangSmith or replace the original eleven-case baseline.
 
 Step 3af adds the [reviewed LangSmith baseline](docs/week4-reviewed-langsmith-baseline.md):
 the same frozen thirty cases, deterministic feedback, and count-only graph traces.
@@ -2164,3 +2165,10 @@ frozen thirty-case cohort now passes **30/30 correctness checks locally**; the
 separate **76/40** fake-call budget overrun remains unresolved. Historical local
 and uploaded baselines stay at 29/30. Run `scripts/run_reviewed_evals.py --check`
 for the current offline result; no after-experiment was uploaded in this repair.
+
+Step 3ah adds [request-more call-budget diagnostics](docs/week4-request-more-budget.md).
+`scripts/inspect_request_more_budget.py` runs two frozen cases offline and reports
+ten-port counts: **38 calls** for the initial pause, **76** after request-more.
+Its exit **1** correctly preserves the exceeded **40-call whole-case budget**.
+No budget, routing, fixture, or expected label was changed; this is attribution,
+not a measured runtime optimization or an uploaded experiment.

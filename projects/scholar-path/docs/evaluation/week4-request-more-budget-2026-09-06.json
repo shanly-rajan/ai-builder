@@ -1,0 +1,72 @@
+{
+  "dataset_name": "scholarpath-week4-30case-reviewed-v1",
+  "reviewed_version": "week4-30case-reviewed-v1",
+  "content_digest": "732ad206d79f30e2f9a3c0efd89c07daf4680216754fa21ce8e4d8f7bda911d5",
+  "source_draft_digest": "f705973c08abec07d88977873900a40af9e5835d3f02a6b010d751c5f820594e",
+  "recorded_on": "2026-09-06",
+  "execution_mode": "fake_only",
+  "comparison_scope": "two_independent_frozen_cases",
+  "budget_scope": "complete_graph_case",
+  "graph_port_invocation_budget": 40,
+  "case_count": 2,
+  "cases": [
+    {
+      "scenario_id": "approval-required-before-persistence",
+      "port_invocations": {
+        "planning": 1,
+        "primary_search": 4,
+        "fallback_search": 0,
+        "alternate_evidence_search": 0,
+        "content_extraction": 8,
+        "evidence_model": 8,
+        "research_fit": 8,
+        "independent_review": 8,
+        "memory_load": 1,
+        "memory_store": 0
+      },
+      "total_port_invocations": 38,
+      "planning_passes": 1,
+      "review_status": "proposed",
+      "candidate_actions": [],
+      "interrupted": true,
+      "expected_behavior_passed": true,
+      "whole_case_budget_passed": true
+    },
+    {
+      "scenario_id": "draft-graph-request-more",
+      "port_invocations": {
+        "planning": 2,
+        "primary_search": 8,
+        "fallback_search": 0,
+        "alternate_evidence_search": 0,
+        "content_extraction": 16,
+        "evidence_model": 16,
+        "research_fit": 16,
+        "independent_review": 16,
+        "memory_load": 1,
+        "memory_store": 1
+      },
+      "total_port_invocations": 76,
+      "planning_passes": 2,
+      "review_status": "proposed",
+      "candidate_actions": ["request_more"],
+      "interrupted": true,
+      "expected_behavior_passed": true,
+      "whole_case_budget_passed": false
+    }
+  ],
+  "additional_port_invocations": {
+    "planning": 1,
+    "primary_search": 4,
+    "fallback_search": 0,
+    "alternate_evidence_search": 0,
+    "content_extraction": 8,
+    "evidence_model": 8,
+    "research_fit": 8,
+    "independent_review": 8,
+    "memory_load": 0,
+    "memory_store": 1
+  },
+  "additional_total_port_invocations": 38,
+  "whole_case_budget_passed": false
+}
