@@ -1850,3 +1850,15 @@ prompt, and the exact final gate results in [`docs/build-journal.md`](docs/build
 After every required item passes and the release commit is clean, the suggested tag is
 **`v0.1.0`**. The optional live canary improves confidence but does not replace the offline
 quality and evaluation gates.
+
+## Mentor feedback for future improvement
+
+Total score: 7.7/10
+
+Finding research supervisors through verified evidence is a useful
+approach to a difficult problem. The scope is comprehensive, and
+keeping the student in control of the final shortlist is a good
+choice.
+
+Focus next on the remaining window-related test failures and make the
+summary of failed evaluation cases easier to follow.
