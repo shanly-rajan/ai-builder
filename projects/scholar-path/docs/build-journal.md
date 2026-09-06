@@ -7585,3 +7585,84 @@ prepare the Week 4 report/recording. Live relevance and monetary cost remain
 unmeasured. This step does not optimize the original 76/40 workload or establish
 a full live end-to-end success. No live application providers, environment edits,
 Git push, or commit of the new after-experiment records occurred.
+
+## Week 4 step 3am: measured-improvement evidence ledger
+
+### Milestone objective
+
+Commit the completed after-experiment records, then consolidate defensible prior
+repair comparisons into a small evidence ledger for the Week 4 report. Preserve
+the distinction between focused regressions and the frozen reviewed benchmark.
+
+### Prompt used
+
+[Commit and consolidate improvement evidence](prompts/week4-3am-measured-improvement-ledger.md).
+User: “lets commit and move onto next step”.
+
+### Files changed
+
+- Added `docs/week4-improvement-ledger.md` with four repair records, fixed cohort
+  denominators, before/after observations, intended effects, exact levers, source
+  links, cost/latency limitations and current offline demonstration commands.
+- Updated README, scorecard and current triage pointer; added this prompt/journal
+  entry and documentation contracts. No production source, fixtures, labels,
+  policy, dependency or historical JSON changes.
+
+### Tests added
+
+- Eight ledger contracts cover four rate calculations, three historical red/green
+  journal records, and reviewed-artifact consistency with explicit limitations.
+- Added two link-check cases and updated the current handoff assertions.
+
+### Test results
+
+- Pre-commit formatting: **391 files already formatted**; lint passed; mypy:
+  **no issues in 276 source files**. After-experiment, scorecard and engineering
+  contracts: **22 passed, 114 subtests in 0.16s**. `git diff --check` passed.
+- Committed step 3al as **`dfd31a7`**, `docs: record comparable LangSmith
+  after-experiment` (10 files). Worktree then clean; no push.
+- Independent public-only checks at that checkpoint: formatting selector
+  **5 passed, 118 deselected in 0.13s**; subject-binding pair **30 passed in 0.25s**;
+  named-specialisation domain module **56 passed in 0.10s**, all exit 0.
+- Read-only Git comparisons confirm selected 3g/3k tests and shared factories
+  unchanged since `af115b6`, and selected 3t tests/helpers/factories unchanged since
+  `2fbfbeb`. These are batched commits, not isolated pre-repair snapshots.
+- Final `venv/bin/ruff format --check .`: **394 files already formatted**;
+  `venv/bin/ruff check .`: passed; `venv/bin/mypy src tests scripts`: **no issues
+  in 277 source files**. `git diff --check` passed.
+- `SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false venv/bin/pytest
+  -o addopts='' -q --tb=line --show-capture=no
+  tests/contract/test_week4_improvement_ledger.py
+  tests/contract/test_week4_submission_readiness.py
+  tests/contract/test_week4_langsmith_after.py
+  tests/contract/test_engineering_contract.py`: **32 passed, 115 subtests in 0.18s**.
+- Complete `SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false venv/bin/pytest
+  -q --tb=no --show-capture=no`: **3,195 passed, 9 deselected, 115 subtests in
+  61.33s**, **92.79% coverage**, exit **0**. Default tests made no live calls.
+- Independent read-only final audit found no discrepancies in arithmetic,
+  implementation locations, provenance, timing figures or bounded interpretation.
+  Production source, scripts, fixtures and historical evaluation artifacts have
+  no diff. Eight new-step files remain unstaged and uncommitted.
+
+### Assumptions
+
+Recorded red results are historical journal observations, not rerun historical
+implementations. Focused cohorts can support the engineering account but cannot
+be relabeled as additional gains on the later frozen benchmark. Existing uploaded
+reports suffice for the 3ag comparison; no new live experiment is needed here.
+
+### Lessons learned
+
+Use a fixed denominator, include negative controls where present, and distinguish
+recorded evidence from fresh observations. Expanded green suites are not directly
+comparable rates. First-three hypotheses are reconstructed from recorded intent;
+do not invent prior numerical predictions, billed costs or isolated commit points.
+
+### Remaining debt
+
+Next assemble the focused Week 4 report and recording, disclosing the gap between
+three supporting focused comparisons and the one frozen-benchmark improvement.
+The original 76/40 finding and live-quality/cost limitations remain. The mentor's
+unidentified window-related failure still needs its failing command/runner log.
+No private replay reads, credentials, live calls, uploads, environment edits,
+product changes or push in this step. New step 3am work remains uncommitted.

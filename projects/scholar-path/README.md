@@ -27,6 +27,7 @@ shortlist write.
 | Start here | Purpose |
 |---|---|
 | [Week 4 submission evidence scorecard](docs/week4-submission-readiness.md) | Current requirement status, comparable 29/30 → 30/30 result, and remaining submission gaps |
+| [Measured-improvement ledger](docs/week4-improvement-ledger.md) | Three earlier focused regression comparisons plus the separate frozen-benchmark repair, with denominators and limitations |
 | [Architecture](docs/architecture.md) | Complete agent, graph, state, provider, evidence, memory, and UI boundaries |
 | [Reliability review](docs/reliability-review.md) | Timeouts, retries, partial-result preservation, privacy, approval, and release controls |
 | [Evaluation plan](docs/evaluation-plan.md) | Curated scenarios, deterministic evaluators, and optional judges |
@@ -40,7 +41,7 @@ shortlist write.
 | Complete deterministic suite | Checkpoint `15cf752`: 3,168 non-live tests passed; nine live tests deselected; 92.79% coverage |
 | Reviewed Week 4 evaluation | 30/30 reviewed synthetic cases pass locally and in the [LangSmith after-experiment](docs/week4-reviewed-langsmith-after.md); the recorded before experiment remains 29/30. The original 11-case cohort is retained separately. |
 | Measured improvement | +1/30 cases (+3.33 percentage points); the 76/40 whole-case call overrun remains. The 40/80 supplemental policy is not an optimization. |
-| Week 4 submission | Incomplete: remaining measured-improvement evidence, focused report and recording are pending. Comparable before/after LangSmith trace evidence is now available. |
+| Week 4 submission | Incomplete: focused report and recording pending; four repair records are consolidated, but only one is a frozen-benchmark improvement. Comparable before/after LangSmith trace evidence is available. |
 | Failure recovery | Typed You.com failure, bounded Tavily fallback, partial-result preservation, and finite loops are exercised end to end |
 | Human authority | Candidate approval is mechanically required before shortlist persistence; outreach remains unimplemented |
 | Product target | Five evidence-backed recommendations in under 15 minutes, with at least four rated relevant by the Candidate |
@@ -1934,7 +1935,9 @@ The [current Week 4 evidence scorecard](docs/week4-submission-readiness.md) reco
 what is demonstrated and what remains. Thirty expected behaviors are now approved,
 the LangSmith before baseline exists, and one comparable repair improved
 29/30 to 30/30 both locally and in the [uploaded after-experiment](docs/week4-reviewed-langsmith-after.md).
-Remaining measured-improvement evidence and report/recording are still pending.
+The [improvement ledger](docs/week4-improvement-ledger.md) consolidates three earlier
+focused comparisons separately; it does not claim three more gains on that frozen
+benchmark. The focused Week 4 report and recording remain pending.
 The [triage history](docs/week4-triage.md) below
 preserves earlier checkpoints; they are not the current submission status.
 

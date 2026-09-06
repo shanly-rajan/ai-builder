@@ -20,6 +20,8 @@ SCORECARD = DOCS / "week4-submission-readiness.md"
         "README.md",
         "docs/week4-submission-readiness.md",
         "docs/week4-reviewed-langsmith-after.md",
+        "docs/week4-improvement-ledger.md",
+        "docs/prompts/week4-3am-measured-improvement-ledger.md",
         "docs/week4-triage.md",
         "docs/prompts/week4-3ak-submission-evidence-check.md",
     ),
@@ -96,7 +98,7 @@ def test_scorecard_distinguishes_uploaded_before_from_completed_after() -> None:
     assert "Submission incomplete" in scorecard
     assert "after upload and readback now complete" in scorecard
     assert "week4-reviewed-langsmith-after.md" in scorecard
-    assert "remaining 2–3 targeted improvements is incomplete" in scorecard
+    assert "remaining 2–3 improvements on the frozen benchmark is incomplete" in scorecard
     assert "no Windows runner evidence" in scorecard
     assert "short Loom" in scorecard
     assert "No new live check is needed" in scorecard
@@ -107,6 +109,8 @@ def test_readme_and_triage_point_to_current_status_without_rewriting_history() -
     triage = (DOCS / "week4-triage.md").read_text()
     assert "docs/week4-submission-readiness.md" in readme
     assert "[submission evidence scorecard](week4-submission-readiness.md)" in triage
-    assert "Current checkpoint: step 3al" in triage
-    assert "Incomplete: remaining measured-improvement evidence" in readme
+    assert "Current checkpoint: step 3am" in triage
+    assert "Incomplete: focused report and recording pending" in readme
+    assert "week4-improvement-ledger.md" in readme
+    assert "week4-improvement-ledger.md" in triage
     assert "historical records" in SCORECARD.read_text()

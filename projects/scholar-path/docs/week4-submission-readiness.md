@@ -1,6 +1,6 @@
 # Week 4 submission evidence scorecard
 
-Updated **2026-09-06**, step 3al after checkpoint **`1c9ad44`**. **Submission incomplete.**
+Updated **2026-09-06**, step 3am after checkpoint **`dfd31a7`**. **Submission incomplete.**
 This is the current evidence index; older step reports remain historical records.
 The supplied Week 4 handout's **own Week 3 agent / LangSmith track** applies to
 ScholarPath. Customer-support and social-post examples are not extra product requirements.
@@ -10,8 +10,10 @@ ScholarPath. Customer-support and social-post examples are not extra product req
 - The reviewed dataset and comparable LangSmith **before and after** experiments exist.
 - One same-dataset repair improved correctness from **29/30 to 30/30**, now also
   confirmed in the [uploaded after-experiment](week4-reviewed-langsmith-after.md).
-- Remaining measured-improvement evidence and the Week 4 report/recording are
-  still outstanding.
+- The [improvement ledger](week4-improvement-ledger.md) consolidates three earlier
+  focused comparisons separately from that golden-benchmark repair. Evidence for
+  3–4 separate improvements on the frozen benchmark remains incomplete.
+- The focused Week 4 report/recording is the next delivery.
 - The approved 40/80 policy did not save calls. The original **76/40** failure remains.
 - Real provider calls have occurred, but live relevance, token usage, monetary cost,
   and successful repeatable live end-to-end completion are not established.
@@ -37,7 +39,7 @@ on the same frozen version, with the after upload and readback now complete.
 | LangSmith dataset and before experiment | [Authenticated dataset, experiment, and case links](week4-reviewed-langsmith-baseline.md); 30 saved roots, 330 feedback records, 12 matching graph children. Read-only preflight reconfirmed the baseline in step 3al. | Historical experiment remains unchanged; no public sharing. |
 | Trace inputs/outputs, children, versions, errors and timing | Privacy-safe case/node summaries and case IDs are recorded. Synthetic fixture recipes supply detailed reproduction locally. | Fake targets have no actual LLM token usage to display. Full live trace/usage evidence is not established by synthetic spans. |
 | Baseline and failure clusters | [Before report](evaluation/week4-reviewed-baseline-2026-09-06.json): one correctness failure and a separate runtime overrun. See clusters below. | Do not invent a third cluster just to fill a top-three template; clearly separate historical live observations. |
-| 3–4 targeted improvements with measured deltas | [Heading-grounding repair](week4-heading-grounding-repair.md) has one comparable 30-case before/after result. | Evidence for the remaining 2–3 targeted improvements is incomplete. Diagnostics and a larger allowance are not additional quality gains. |
+| 3–4 targeted improvements with measured deltas | [Four repair records](week4-improvement-ledger.md): three earlier focused regression comparisons and one comparable frozen 30-case before/after result. | Evidence for the remaining 2–3 improvements on the frozen benchmark is incomplete. Earlier journal-recorded red results are not separate LangSmith comparisons. Diagnostics and a larger allowance are not additional quality gains. |
 | Comparable LangSmith after experiment | [Uploaded after report and links](week4-reviewed-langsmith-after.md): 30/30, complete readback, 30 roots, 330 metric records, 12 graph children; same dataset snapshot. | Complete for this fake-provider cohort. Does not establish live quality or three separate improvements. |
 | Mentor: easier failed-case summaries | [Step 1](week4-triage.md#first-delivery-quick-verification) adds case IDs, failed checks, grouped counts and safe guidance. | Implemented and tested; not a measured agent-quality improvement. |
 | Mentor: window-related failures | Not reproduced on the inspected macOS environment; no Windows runner evidence. | Obtain the exact failing test/runner log before claiming resolution or making a speculative platform fix. |
@@ -90,31 +92,30 @@ passed once with one call. These are different observations, not a same-input
 before/after gain or proof of complete live success. No new live check is needed
 merely to assemble this scorecard.
 
-Earlier formatting, subject-binding, excerpt-boundary and role-grounding repairs
-have focused regression evidence in the [canary history](week4-live-canary.md).
-They are useful supporting material, but preceded the frozen 30-case baseline.
-Do not retroactively label them as three additional improvements on that baseline.
-For each additional improvement, record the lever, hypothesis, exact before/after
-implementation, unchanged test inputs/labels, and quality plus effort delta.
-Zero or negative deltas are valid findings; a passing test count alone is not a delta.
+The [improvement ledger](week4-improvement-ledger.md) now records formatting **0/5 →
+5/5**, subject binding **17/30 → 30/30**, and specialisation **42/56 → 56/56**,
+with source links, current rechecks and explicit historical limitations. These
+repairs preceded the frozen baseline; do not label them three additional gains on
+it or sum their cohorts. Historical red results are journal observations, not
+isolated committed pre-repair snapshots. Their live quality/cost delta was not
+measured. The ledger completes evidence consolidation, not the full rubric.
 
 ## Minimum remaining execution order
 
 The after-trace gap is closed by step 3al; no further upload is needed to prove
 this repair's 29/30 → 30/30 result.
 
-1. **Complete the improvement ledger.** First reuse the recorded focused before/after
-   reproductions to identify defensible comparisons; distinguish their cohorts from
-   the 30-case baseline. If comparable evidence is absent, leave the requirement
-   incomplete and scope only the smallest reproducible repair. Do not manufacture
-   failures, weaken labels, or introduce caching/refactors simply to reach a count.
-2. **Assemble the report and recording.** Show the dataset, linked before/after cases,
+1. **Assemble the report and recording.** The improvement ledger is complete as an
+   evidence inventory. Show the dataset, linked before/after cases, cohort limits,
    measured deltas, unresolved 76/40 finding, live limitations, and next hypotheses.
    Obtain a screenshot/export or suitable access for reviewers without making
    private traces public automatically. Record and attach the short Loom.
-3. **Resolve the mentor's unidentified failure when evidence arrives.** Request the
+2. **Resolve the mentor's unidentified failure when evidence arrives.** Request the
    failing command and runner/test log. Current passing macOS tests do not prove a
    Windows-specific issue fixed.
+
+Do not manufacture failures, weaken labels, or introduce caching/refactors simply
+to reach an improvement count. Disclose the remaining comparability gap in the report.
 
 If another week is available, prioritize reproducible live affiliation grounding
 and Candidate-rated usefulness before expanding the feature set. A production
@@ -142,5 +143,6 @@ SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false venv/bin/python scripts/ch
 Expect the documentation contracts to pass; correctness prints 30/30 and exits 0;
 the policy command retains 76/40 and exits 1. These commands do not upload or call
 live providers. The initial scorecard step was documentation-only; step 3al updated
-it after one authorized LangSmith after-upload. Neither changes graph execution,
-verification gates, fixtures, labels or policies.
+it after one authorized LangSmith after-upload. Step 3am only consolidates public
+historical evidence and reruns offline checks. These steps do not change graph
+execution, verification gates, fixtures, labels or policies.
