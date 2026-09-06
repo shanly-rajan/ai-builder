@@ -59,6 +59,11 @@ from .targets import (
     research_fit_target,
     search_planning_target,
 )
+from .trace_case import (
+    SYNTHETIC_TRACE_DATASET,
+    synthetic_trace_scenario,
+    traced_fallback_target,
+)
 from .tracing import EVALUATION_APPLICATION, sanitize_evaluation_trace_metadata
 
 # Historical release identity retained for documentation/contracts, never reused by new runs.
@@ -158,6 +163,16 @@ class DatasetSyncResult(BaseModel):
     example_count: Annotated[int, Field(ge=0)]
 
 
+class UploadedRunReference(BaseModel):
+    """Opaque run coordinates for authenticated inspection; no evaluated content."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    run_id: UUID
+    trace_id: UUID
+    start_time: datetime
+
+
 class UploadedExperimentReport(BaseModel):
     """Privacy-safe completion status for one uploaded LangSmith experiment."""
 
@@ -170,6 +185,7 @@ class UploadedExperimentReport(BaseModel):
     runtime_budget: RuntimeBudget = Field(default_factory=RuntimeBudget)
     runtime_cases: tuple[RuntimeCase, ...] = ()
     runtime_summaries: tuple[RuntimeSummary, ...] = ()
+    run_references: tuple[UploadedRunReference, ...] = ()
 
     @property
     def passed(self) -> bool:
@@ -421,8 +437,8 @@ def sync_evaluation_dataset(
         client.create_dataset(
             dataset_name,
             description=(
-                "ScholarPath Week 4 provisional eleven-case synthetic cohort with explicit "
-                "expected outcomes for planning, verification, Research Fit, resilience, "
+                f"ScholarPath Week 4 provisional {len(scenarios)}-case synthetic cohort with "
+                "explicit expected outcomes for planning, verification, Research Fit, resilience, "
                 "review, and Candidate approval. Not the reviewed 30-case golden dataset."
             ),
             metadata={
@@ -488,6 +504,7 @@ def run_uploaded_experiment(
     judge_evaluators: Sequence[JudgeEvaluator] = (),
     live: bool = False,
     runtime_budget: RuntimeBudget | None = None,
+    synthetic_trace: bool = False,
 ) -> UploadedExperimentReport:
     """Run one uploaded experiment after all environment and CLI gates are satisfied."""
     if not evaluation_settings.run_langsmith_evals:
@@ -500,10 +517,19 @@ def run_uploaded_experiment(
             "Live end-to-end evaluation is disabled. Set "
             "SCHOLARPATH_RUN_LIVE_E2E_EVALS=true to opt in."
         )
+    if synthetic_trace and (
+        live
+        or judge_evaluators
+        or target not in {None, EvaluationTargetKind.GRAPH_FAKE}
+        or dataset_name != SYNTHETIC_TRACE_DATASET
+    ):
+        raise ValueError(
+            "Synthetic tracing requires the dedicated one-case dataset, fake graph, and no judges."
+        )
     selected_target = EvaluationTargetKind.GRAPH_LIVE if live else target
+    scenarios = (synthetic_trace_scenario(),) if synthetic_trace else EVALUATION_SCENARIOS
     selected_ids = {
-        scenario.scenario_id
-        for scenario in _selected_scenarios(EVALUATION_SCENARIOS, selected_target)
+        scenario.scenario_id for scenario in _selected_scenarios(scenarios, selected_target)
     }
     examples = tuple(
         example
@@ -512,8 +538,16 @@ def run_uploaded_experiment(
     )
     if not examples:
         raise ValueError("No evaluation examples matched the selected target")
+    if synthetic_trace and (
+        len(examples) != 1
+        or examples[0].inputs != evaluation_dataset_inputs(scenarios[0])
+        or examples[0].outputs != evaluation_dataset_reference_outputs(scenarios[0])
+    ):
+        raise ValueError("Synthetic tracing requires exactly one unchanged curated example.")
 
     def target_function(inputs: dict[str, object]) -> dict[str, object]:
+        if synthetic_trace:
+            return traced_fallback_target(inputs)
         return dispatch_evaluation_target(inputs, live=live)
 
     evaluators: list[Callable[..., EvaluationResult]] = [
@@ -579,7 +613,27 @@ def run_uploaded_experiment(
         runtime_budget=budget,
         runtime_cases=runtime_cases,
         runtime_summaries=summarize_runtime(runtime_cases, budget),
+        run_references=_uploaded_run_references(rows),
     )
+
+
+def _uploaded_run_references(rows: Sequence[object]) -> tuple[UploadedRunReference, ...]:
+    references: list[UploadedRunReference] = []
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        run = row.get("run")
+        run_id, trace_id = getattr(run, "id", None), getattr(run, "trace_id", None)
+        start_time = getattr(run, "start_time", None)
+        if (
+            isinstance(run_id, UUID)
+            and isinstance(trace_id, UUID)
+            and isinstance(start_time, datetime)
+        ):
+            references.append(
+                UploadedRunReference(run_id=run_id, trace_id=trace_id, start_time=start_time)
+            )
+    return tuple(references)
 
 
 def _uploaded_runtime_cases(

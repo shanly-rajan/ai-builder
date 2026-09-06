@@ -1030,6 +1030,12 @@ invocations. Fresh runs have a current UTC date and unique name. The eleven-case
 is now `scholarpath-week4-regression-v1`; it is not yet the reviewed 30–50-case golden dataset.
 
 See [Week 4 metric definitions, budgets, and observed results](docs/week4-metrics.md).
+
+For the bounded trace-wiring check, see
+[one inspectable synthetic fallback trace](docs/week4-synthetic-trace.md).
+`venv/bin/python scripts/trace_eval_case.py` is offline by default. Its separately
+gated `--upload` sends only one curated fake-provider case to a dedicated LangSmith
+dataset; production inputs remain hidden by the existing tracing configuration.
 The [historical baseline](docs/evaluation-baseline.md) remains unchanged as evidence of the
 older release; its results are not directly comparable with these stronger outcome labels.
 

@@ -4607,3 +4607,73 @@ archives “Lets proceed to next step” and its bounded interpretation against 
   from observed failures before claiming measured improvements or Week 4 completion.
 - Live latency, token/cost collection, reviewed live references, report, and recording remain
   pending. No unresolved window/platform failure was reproduced locally.
+
+## Week 4 step 3a — one inspectable synthetic fallback trace (2026-09-06)
+
+### Objective and prompt
+
+Verify one privacy-safe LangSmith evaluation trace using the approved synthetic
+timeout/fallback case. [Prompt used](prompts/week4-3-single-synthetic-trace.md).
+Keep all application providers fake and honor the user's instruction not to commit.
+
+### Files changed
+
+- `src/graph/workflow.py`: optional observability injection for runtime/run helpers;
+  existing defaults and graph routing remain unchanged.
+- `src/evaluation/targets.py`: pass optional observability into the fake graph target.
+- `src/evaluation/synthetic_tracing.py`: dedicated count/status-only payload and
+  error filtering; inherit the evaluation parent/client rather than creating a
+  separate application project.
+- `src/evaluation/trace_case.py`, `src/evaluation/runner.py`: exactly one unchanged
+  curated fake scenario, separate dataset, no judges/live providers; opaque run
+  coordinates support authenticated readback.
+- `scripts/trace_eval_case.py`: offline preflight by default, separately opted-in
+  one-case upload, bounded client cleanup, sanitized failures.
+- Focused unit and graph tests, README, this journal, saved prompt, and
+  [trace runbook](week4-synthetic-trace.md).
+
+### Tests added and results
+
+- Graph dependency injection and unchanged defaults: 3 tests passed.
+- Curated-case guards, one-case selection, CLI opt-ins, and cleanup/privacy:
+  24 tests passed.
+- Client payload/error redaction: 31 tests passed. Real-SDK nested graph trace
+  parenting and unchanged tracing-off defaults: 2 tests passed. Total: 60 new tests.
+- Offline editable installation succeeded without downloading dependencies.
+- Single-case offline preflight: 1/1 passed; no upload.
+- `venv/bin/ruff format --check .`: 285 files already formatted.
+- `venv/bin/ruff check .`: all checks passed.
+- `venv/bin/mypy src tests scripts`: no issues in 218 source files.
+- `venv/bin/pytest -m 'not live'`: **1,820 passed, 9 deselected in 24.82s**,
+  **91.74% coverage**. Default tests blocked external sockets.
+- Explicitly authorized `scripts/trace_eval_case.py --upload` with the evaluation
+  opt-in: **1/1 passed**, experiment `scholarpath-week4-m13-01c56dc8`.
+- Authenticated read-only SDK inspection of that experiment's trace confirmed
+  **24 linked spans**, two simulated You.com timeout attempts, three fake Tavily
+  attempts, six verification/assessment/review records, five proposed Supervisors,
+  and zero shortlisted Supervisors while paused for Candidate approval.
+- Root and node input/output summaries were present after actual upload. Opaque
+  trace coordinates and authenticated links are in the [runbook](week4-synthetic-trace.md).
+  No public trace share was created. Only LangSmith was live; no `.env` edits.
+
+### Assumptions and lessons learned
+
+- This verifies graph wiring and observability, not the quality of live research.
+- A parent evaluation trace does not automatically override the fake graph's
+  deliberate tracing-off scope. Parent/client inheritance must be explicit.
+- Count-only inputs/outputs can make transitions inspectable without exposing
+  research statements, identities, queries, source content, or credentials.
+- Error strings need filtering too; masking only inputs and outputs is incomplete.
+
+### Remaining debt
+
+- The one-case synthetic trace step is complete. No broader experiment was uploaded.
+- Live-provider behavior, measured quality/cost, the remaining reviewed golden
+  dataset, comparable improvements, and the submission recording remain separate work.
+- No production privacy changes or live application-provider calls.
+- Initially handed off uncommitted. On 2026-09-06 the user explicitly requested
+  committing the completed work; the authorization is saved with the milestone
+  prompt. Commit scope is this synthetic trace step only, with no push or new live run.
+- Precommit recheck: formatting, Ruff, and mypy passed; the complete non-live suite
+  returned **1,820 passed, 9 deselected, 77 subtests passed in 24.51s**, with
+  **91.74% coverage**. Scope review found no secrets or runtime artifacts in the 15 files.

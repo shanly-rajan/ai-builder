@@ -137,3 +137,18 @@ historical baseline remains intact. No application graph/UI behavior changed.
 trace, then version and human-review the 30-case golden dataset. Actual trace links, stable
 baseline/comparison measurements, 3–4 agent-quality improvements, and submission recording
 remain outstanding. Current synthetic labels are not claimed to be human-reviewed ground truth.
+
+## Step 3a completion: synthetic trace visibility
+
+The [one-case trace check](week4-synthetic-trace.md) is now complete: experiment
+`scholarpath-week4-m13-01c56dc8` passed **1/1** on 2026-09-06. Authenticated readback
+confirmed 24 linked spans, inspectable safe node summaries, simulated timeout/fallback,
+and a Candidate-review pause with no persisted shortlist. No live application provider
+was used. Changes were initially left uncommitted; the Candidate subsequently
+authorized committing this completed step on 2026-09-06.
+
+The Candidate approved the five starting scenario outcomes for review. That is not
+equivalent to a reviewed 30–50-case golden dataset or human validation of real Supervisor
+facts. Next, a separately authorized, tightly bounded live provider journey can validate
+service behavior while golden-dataset curation continues. Live expectations, latency,
+tokens/cost, measured before/after improvements, and the recording remain outstanding.

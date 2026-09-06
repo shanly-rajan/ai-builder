@@ -2230,6 +2230,7 @@ def build_scholarpath_runtime(
     nebius_review_settings: NebiusReviewSettings | None = None,
     mem0_memory_settings: Mem0MemorySettings | None = None,
     langsmith_settings: LangSmithSettings | None = None,
+    observability: LangSmithObservability | None = None,
     utc_clock: UtcClockPort | None = None,
 ) -> ScholarPathRuntime:
     """Resolve production adapters once and compile a reusable graph runtime."""
@@ -2238,10 +2239,11 @@ def build_scholarpath_runtime(
         resolved_application_settings.verification_evidence_standard
     )
     configure_application_logging(resolved_application_settings.log_level)
-    resolved_langsmith_settings = langsmith_settings or load_langsmith_settings()
-    observability = LangSmithObservability(
-        resolved_langsmith_settings, resolved_application_settings.environment
-    )
+    if observability is None:
+        resolved_langsmith_settings = langsmith_settings or load_langsmith_settings()
+        observability = LangSmithObservability(
+            resolved_langsmith_settings, resolved_application_settings.environment
+        )
     resolved_planning_model = planning_model
     if resolved_planning_model is None:
         resolved_openai_settings = openai_settings or load_openai_planning_settings()
@@ -2348,6 +2350,7 @@ def run_scholarpath_graph(
     nebius_review_settings: NebiusReviewSettings | None = None,
     mem0_memory_settings: Mem0MemorySettings | None = None,
     langsmith_settings: LangSmithSettings | None = None,
+    observability: LangSmithObservability | None = None,
     utc_clock: UtcClockPort | None = None,
 ) -> ScholarPathState | dict[str, object]:
     """Execute or resume one isolated thread, stopping if no review response remains."""
@@ -2377,6 +2380,7 @@ def run_scholarpath_graph(
         nebius_review_settings=nebius_review_settings,
         mem0_memory_settings=mem0_memory_settings,
         langsmith_settings=langsmith_settings,
+        observability=observability,
         utc_clock=utc_clock,
     )
     runnable_config = runtime.runnable_config(thread_id)

@@ -53,7 +53,7 @@ from ..graph import (
     create_test_checkpointer,
     run_scholarpath_graph,
 )
-from ..observability import GRAPH_VERSION
+from ..observability import GRAPH_VERSION, LangSmithObservability
 from ..tools import (
     ContentExtractionError,
     ContentExtractionErrorCategory,
@@ -642,7 +642,9 @@ def _project_graph_output(
     return result.model_dump(mode="json")
 
 
-def fake_end_to_end_target(inputs: dict[str, object]) -> dict[str, object]:
+def fake_end_to_end_target(
+    inputs: dict[str, object], *, observability: LangSmithObservability | None = None
+) -> dict[str, object]:
     """Run one complete fake-only LangGraph scenario through the Candidate gate."""
     scenario = _scenario_from_inputs(inputs)
     _require_target(scenario, EvaluationTargetKind.GRAPH_FAKE)
@@ -751,6 +753,7 @@ def fake_end_to_end_target(inputs: dict[str, object]) -> dict[str, object]:
             discovery_failure_mode=DiscoveryFailureMode.OFF,
         ),
         langsmith_settings=LangSmithSettings(tracing=False),
+        observability=observability,
         utc_clock=FixedEvaluationClock(),
     )
     state = _graph_state(output)
