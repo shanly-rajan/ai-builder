@@ -7394,3 +7394,93 @@ is unmeasured. The next bounded task is the Week 4 submission evidence check:
 separate genuine measured improvements from instrumentation/policy work and
 identify remaining comparison, report, and recording gaps. No further policy
 instrumentation, live calls, uploads, caching, or automatic commit is included.
+
+## Week 4 step 3ak: checkpoint and submission evidence scorecard
+
+### Milestone objective
+
+Commit the completed 40/80 evaluation policy, then return to the Week 4 handout
+and mentor feedback. Identify demonstrated results and the minimum remaining
+submission work without adding features or disguising instrumentation as improvement.
+
+### Prompt used
+
+[Commit and submission evidence check](prompts/week4-3ak-submission-evidence-check.md).
+The user requested: “lets commit and then move to next steps”. The next task was
+already recorded at the end of step 3aj as a submission evidence check.
+
+### Changes and files
+
+- Created checkpoint **`15cf752`**, `feat: add approved 40/80 interaction evaluation policy`,
+  with the 13 scoped files from step 3aj. The worktree was clean immediately afterward.
+- Added [current evidence scorecard](week4-submission-readiness.md): requirement
+  cross-check, measurement one-liner, saved before/after metrics, actual failure
+  clusters, improvement boundaries and minimum execution order.
+- Updated `README.md` reviewer entry point and stale current-status claims. The
+  prior 1,579-test/11-case summary now distinguishes the 3aj checkpoint's 3,168
+  passing tests from the reviewed 30-case result and historical eleven-case cohort.
+- Added a current-status pointer to `docs/week4-triage.md`; retained older entries
+  and all historical JSON reports unchanged.
+- Added the prompt archive, this journal entry, and
+  `tests/contract/test_week4_submission_readiness.py`.
+- No changes to application code, provider configuration, dataset, evaluator
+  definitions, graph behavior, verification policy or source fixtures.
+
+### Tests added
+
+Eight documentation contracts cover local Markdown links, same-digest before/after
+claims, case-level effort, original 76/40 failure preservation, exact saved p95
+values, paused/completed distinction, actual uploaded-baseline counts, explicit
+remaining gaps, and current README/triage pointers. They inspect local artifacts
+and do not call LangSmith or a model.
+
+### Commands executed and results
+
+- Pre-commit: `git diff --check`, Ruff format/lint, mypy, and the two interaction
+  policy test modules passed (**57 tests in 1.24s**). Commit completed successfully.
+- Read the complete project contract and supplied Week 4 handout; inspected mentor
+  Focus next, saved reports, approval ledger and live-canary observations.
+- Focused documentation contracts: **8 passed in 0.14s**.
+- Offline `scripts/run_reviewed_evals.py --check`: **30/30**, exit **0**, run
+  `scholarpath-week4-reviewed-local-20260906T183821Z-22773891`; unchanged legacy
+  graph maximum **76/40**. This run did not replace a historical artifact.
+- Offline `scripts/check_interaction_policy.py`: **12** first-review passes,
+  **3** completed interactions within budget, **9** paused within budget so far;
+  exit **1** intentionally retains the legacy failure.
+- Initial contract/full-suite runs began before this prompt's journal link was
+  appended and reported one missing-audit-link subtest failure. The journal entry
+  supplies that link; no application repair was necessary.
+- Final documentation contracts: **192 passed, 113 subtests in 2.32s**.
+- Final formatting: **388 files already formatted**; Ruff lint passed; mypy found
+  no issues in **275 source files**. `git diff --check` passed. Application source,
+  scripts, and historical `docs/evaluation/` artifacts have no diff.
+- Independent read-only review confirmed the numerical claims, real artifact
+  links, and explicit incomplete-submission boundaries without material issues.
+- Final `SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false venv/bin/pytest -q
+  --tb=no --show-capture=no`: **3,176 passed, 9 deselected, 113 subtests in 61.49s**,
+  **92.79% coverage**, exit **0**. Eight new documentation tests were added to the
+  3,168-test checkpoint. No remaining audit-link failure.
+
+### Assumptions and evidence boundaries
+
+The own-agent evaluation track applies. Paid live calls and LLM judges are not
+automatically needed to meet its effort-metric category. Actual live usage,
+relevance and completion claims would require separate evidence. The current
+scorecard trusts saved authenticated readback; it is not a fresh remote inspection.
+The frozen cohort has two observed correctness/runtime clusters, not three.
+Only one repair currently has a comparable measured gain on this 30-case cohort.
+
+### Lessons learned
+
+A large passing test suite and many implementation steps do not establish three
+or four measured agent improvements. Dataset review, instrumentation, actual
+behavior changes and policy decisions need separate evidence. A short current
+scorecard also prevents an append-only history from presenting stale gaps as current.
+
+### Remaining debt and next action
+
+The next bounded action is one explicitly approved fake-provider LangSmith after
+experiment using the existing reviewed uploader, followed by the remaining
+improvement ledger and Week 4 report/recording. The mentor's window-related issue
+still needs a concrete failing log. No new live calls, uploads, public sharing,
+push, or commit of this new documentation step occurred.

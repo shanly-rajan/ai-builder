@@ -26,6 +26,7 @@ shortlist write.
 
 | Start here | Purpose |
 |---|---|
+| [Week 4 submission evidence scorecard](docs/week4-submission-readiness.md) | Current requirement status, comparable 29/30 → 30/30 result, and remaining submission gaps |
 | [Architecture](docs/architecture.md) | Complete agent, graph, state, provider, evidence, memory, and UI boundaries |
 | [Reliability review](docs/reliability-review.md) | Timeouts, retries, partial-result preservation, privacy, approval, and release controls |
 | [Evaluation plan](docs/evaluation-plan.md) | Curated scenarios, deterministic evaluators, and optional judges |
@@ -36,8 +37,10 @@ shortlist write.
 
 | Measure | Current position |
 |---|---|
-| Complete deterministic suite | 1,579 non-live tests passed; nine live tests deselected; 91.09% coverage |
-| Curated offline evaluation | 11/11 synthetic scenarios passed every applicable deterministic evaluator |
+| Complete deterministic suite | Checkpoint `15cf752`: 3,168 non-live tests passed; nine live tests deselected; 92.79% coverage |
+| Reviewed Week 4 evaluation | 30/30 reviewed synthetic cases pass locally after one grounding repair; the recorded LangSmith before experiment remains 29/30. The original 11-case cohort is retained separately. |
+| Measured improvement | +1/30 cases (+3.33 percentage points); the 76/40 whole-case call overrun remains. The 40/80 supplemental policy is not an optimization. |
+| Week 4 submission | Incomplete: after-experiment trace comparison, remaining measured-improvement evidence, focused report and recording are pending. |
 | Failure recovery | Typed You.com failure, bounded Tavily fallback, partial-result preservation, and finite loops are exercised end to end |
 | Human authority | Candidate approval is mechanically required before shortlist persistence; outreach remains unimplemented |
 | Product target | Five evidence-backed recommendations in under 15 minutes, with at least four rated relevant by the Candidate |
@@ -1927,11 +1930,12 @@ summary of failed evaluation cases easier to follow.
 | Resolve the remaining window-related test failures | Not reproduced: the inspected revision passed **1,587 tests**, with **9 live tests deselected** and **91.14% coverage**, on macOS with Python 3.14.6. No Windows runner was used; the mentor's wording does not establish which window or platform failed. |
 | Make failed evaluation cases easier to follow | Implemented in Week 4 step 1: the offline and uploaded evaluation CLI shows case IDs, failed checks, scores, grouped counts, and safe investigation guidance. Failed cases do not prevent evaluation of remaining cases; missing results remain visible. |
 
-The [Week 4 triage and delivery order](docs/week4-triage.md) records the remaining
-dataset, measurement, trace, and submission gaps. The existing eleven-case offline
-baseline does **not** establish completion of all Week 4 requirements. Human label
-review, comparable baseline trace evidence, and a measured before/after comparison
-remain pending.
+The [current Week 4 evidence scorecard](docs/week4-submission-readiness.md) records
+what is demonstrated and what remains. Thirty expected behaviors are now approved,
+the LangSmith before baseline exists, and one local comparable repair improved
+29/30 to 30/30. The after upload, remaining measured-improvement evidence and
+report/recording are still pending. The [triage history](docs/week4-triage.md) below
+preserves earlier checkpoints; they are not the current submission status.
 
 Week 4 step 2 is also implemented: [declared outcomes and runtime metrics](docs/week4-metrics.md)
 now have tested checks, explicit budgets, and an accurately named eleven-case offline replay.
