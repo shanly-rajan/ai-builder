@@ -22,6 +22,10 @@ from ..agents import (
     StructuredEvidenceClaim,
     StructuredEvidenceExtractionResult,
 )
+from ..agents.independent_review import (
+    IndependentReviewModelInvocationError,
+    IndependentReviewModelOutputError,
+)
 from ..config import (
     ApplicationSettings,
     DiscoveryFailureMode,
@@ -44,13 +48,17 @@ from ..domain import (
     VerifiedSupervisor,
 )
 from ..graph import (
+    CandidateApproveResponse,
     CandidateRejectionReason,
     CandidateRejectResponse,
+    CandidateRequestMoreResponse,
+    CandidateReviewResponse,
     GraphFixtureConfig,
     ScholarPathState,
     build_walking_skeleton_fixtures,
     candidate_review_payload_from_graph_output,
     create_test_checkpointer,
+    default_review_decision,
     run_scholarpath_graph,
 )
 from ..observability import GRAPH_VERSION, LangSmithObservability
@@ -392,12 +400,23 @@ def make_evidence_verification_target(
         supervisor = fixtures.raw_search_results[index - 1].to_prospective_supervisor()
         content_outcomes, evidence_outcomes = make_evaluation_evidence_outcomes(fixtures)
         source_urls = [str(supervisor.profile_url)]
-        if _config_str(scenario, "evidence_case", "not_stated") == "affiliation_conflict":
+        evidence_case = _config_str(scenario, "evidence_case", "not_stated")
+        if evidence_case == "affiliation_conflict":
             conflict_content, conflict_response = _conflicting_affiliation_source(supervisor)
             conflict_url = str(conflict_content.source_url)
             content_outcomes[conflict_url] = conflict_content
             evidence_outcomes[conflict_url] = conflict_response
             source_urls.append(conflict_url)
+        elif evidence_case != "not_stated":
+            from .draft_evidence import apply_draft_evidence_case
+
+            source_url = source_urls[0]
+            content_outcomes[source_url], evidence_outcomes[source_url] = apply_draft_evidence_case(
+                supervisor,
+                content_outcomes[source_url],
+                evidence_outcomes[source_url],
+                evidence_case,
+            )
         resolved_model = model or ScriptedEvidenceModel(evidence_outcomes)
         calls_before = _recorded_model_call_count(resolved_model)
         agent = EvidenceVerificationAgent(resolved_model)
@@ -665,7 +684,7 @@ def fake_end_to_end_target(
     tavily_search = ScriptedSupervisorSearch(make_evaluation_search_outcomes(fixtures))
     alternate_search = ScriptedSupervisorSearch({})
     review_outcomes: dict[str, Sequence[IndependentReviewResult | Exception]] = {}
-    review_responses: tuple[CandidateRejectResponse, ...] = ()
+    review_responses: tuple[CandidateReviewResponse, ...] = ()
 
     if graph_case == "duplicate_provenance":
         duplicate_outcomes = _duplicate_search_outcomes()
@@ -721,6 +740,45 @@ def fake_end_to_end_target(
                 ),
             ),
         )
+    elif graph_case in {"approve_one", "approve_subset"}:
+        # These synthetic actions name an explicit subset of the fixture proposal;
+        # the normal graph review gate still validates every ID on resume.
+        approved_count = 1 if graph_case == "approve_one" else 2
+        review_responses = (
+            CandidateApproveResponse(
+                action="approve",
+                supervisor_ids=default_review_decision().supervisor_ids[:approved_count],
+            ),
+        )
+    elif graph_case == "request_more":
+        review_responses = (
+            CandidateRequestMoreResponse(
+                action="request_more",
+                revised_preferences=CandidatePreferenceRevision(preferred_regions=("Germany",)),
+            ),
+        )
+    elif graph_case == "reject_then_approve":
+        proposal_ids = default_review_decision().supervisor_ids
+        review_responses = (
+            CandidateRejectResponse(
+                action="reject",
+                rejections=(
+                    CandidateRejectionReason(
+                        supervisor_id=proposal_ids[0],
+                        reason="The Candidate prefers a different research direction.",
+                    ),
+                ),
+            ),
+            CandidateApproveResponse(action="approve", supervisor_ids=proposal_ids[1:3]),
+        )
+    elif graph_case in {"review_timeout", "review_malformed"}:
+        reviewed_id = fixtures.raw_search_results[0].supervisor_id
+        review_error = (
+            IndependentReviewModelInvocationError("Synthetic independent-review timeout.")
+            if graph_case == "review_timeout"
+            else IndependentReviewModelOutputError("Synthetic malformed independent review.")
+        )
+        review_outcomes[reviewed_id] = (review_error,)
     elif graph_case != "approval_pause":
         raise ValueError(f"Unknown fake graph evaluation case: {graph_case}")
 

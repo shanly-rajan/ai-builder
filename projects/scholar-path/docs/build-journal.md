@@ -6466,3 +6466,123 @@ or push. Ignored `.env`, artifacts, and local checkpoints remain excluded.
   101 subtests passed in 26.72s**, **92.08% coverage**.
 - `git diff --check` passed. No live calls were made during this checkpoint.
 - Checkpoint message: `test: add post-fit and isolated Nebius review diagnostics`.
+
+## Week 4 step 3z: thirty-case synthetic evaluation review draft
+
+**Date:** 2026-09-06
+
+### Milestone objective
+
+Resume original triage priority 3 with a separately versioned, executable thirty-case
+draft and human-review handoff. Preserve historical eleven-case catalog/baselines;
+no live calls, uploads, production policy changes, private captures, or automatic commit.
+
+### Prompt used
+
+[`docs/prompts/week4-3z-thirty-case-evaluation-draft.md`](prompts/week4-3z-thirty-case-evaluation-draft.md)
+
+### Files changed
+
+- `src/evaluation/draft_models.py`: typed category, provenance, pending-review,
+  uniqueness, offline-target, cohort-mix, and draft content-digest contracts.
+- `src/evaluation/draft_scenarios.py`: eleven unchanged cases plus nineteen new
+  declared labels; 15 happy / 9 edge / 4 known-failure / 2 adversarial.
+- `src/evaluation/draft_evidence.py`: thirteen distinct fixed page/claim variations.
+- `src/evaluation/targets.py`: additive evidence handlers and six fake graph cases
+  covering approval subsets, revised regions, reject/approve, and reviewer failures.
+- `src/evaluation/draft_review.py`, `scripts/review_eval_draft.py`: offline preview,
+  JSON inspection, correctness and runtime reporting; no write/upload/live/judge mode.
+- Three new unit-test modules for evidence variations, graph targets, and manifest/CLI.
+- `docs/week4-evaluation-draft.md`, this journal, prompt archive, triage, and README.
+
+### Tests added
+
+- Original eleven-case serialized SHA-256 preservation, distinct executable recipes,
+  exact thirty-case mix, schema round trips, content digest, and provenance validation.
+- All detailed labels remain pending; five prior outcome acknowledgments stay a subset.
+- Real verifier calls on thirteen synthetic variations, all eight fixture Supervisors,
+  source preservation, rejection of real/mismatched URLs, and missing/unsupported facts.
+- Actual fake graph approval subsets, two-round revised planning, rejection exclusion,
+  and nonfatal reviewer failures with unchanged scores and reduced confidence.
+- CLI cannot upload/go live/use judges; preview does not execute targets; live/tracing
+  environment flags cannot activate network clients in draft checks.
+- Incorrect labels fail. The heading-grounding false negative and exceeded fake-call
+  budget remain visible rather than relabeled or hidden.
+
+### Commands executed and results
+
+- Local strict editable installation refreshed with no index/dependencies/build isolation;
+  no dependency additions or downloads.
+- Initial targeted suite: **176 passed in 3.01s**. Independent read-only audit also
+  ran the same suite: **176 passed in 3.03s**, with no privacy/provenance blocker.
+- `SCHOLARPATH_LOG_LEVEL=WARNING venv/bin/python scripts/review_eval_draft.py --check`:
+  **29/30 correctness cases passed**, exit **1**. Only
+  `draft-evidence-heading-bound-research / expected_behavior` fails.
+- All ten other deterministic metric families pass their applicable cases. No
+  real provider, LangSmith upload, or LLM judge invoked.
+- Fake two-round request-more uses **76 application-port invocations** versus the
+  unchanged provisional **40-call** graph budget. Runtime results are separate from
+  correctness; no performance or cost pass is claimed.
+- First complete run: 2,717 tests passed, one audit-artifact subtest failed because
+  this journal entry had not yet been added (101 other subtests passed). Added the
+  required prompt link; final quality-gate results are recorded below after rerun.
+- Final formatting: **343 files already formatted**; Ruff lint passed; mypy passed
+  with **no issues in 249 source files**.
+- Final `venv/bin/pytest -q --tb=short`: **2,718 passed, 9 deselected,
+  102 subtests passed in 31.08s**, **92.31% coverage**, exit **0**.
+  This includes **177 new tests** across the three new modules.
+- Removed the shared runtime formatter's unrelated enforcement-switch hint from
+  the draft CLI and tested its absence; this final full-suite result includes that
+  presentation correction. No runtime-enforcement switch was added.
+- Final draft check still reports **29/30**, exit **1**, retaining the same heading
+  failure and reporting the 76/40 fake-port budget overrun separately. Final
+  `git diff --check` passed. The review inventory matches its generated draft digest.
+
+### Assumptions and lessons learned
+
+- Fictional fixture names and `.example` content only, not private live responses.
+- Happy/edge/failure/adversarial describes the input, not the observed pass/fail result.
+- The valid heading case retains a research expectation that current subject binding
+  fails. Independent publication evidence can hide this from overall verification;
+  component-level labels expose it. No production repair belongs in this draft step.
+- Two initial labels were corrected from existing policy: negative availability
+  surfaces a concern; absence of grounded identity leaves all strict gates missing.
+- Unit tests additionally check Germany preference propagation and an undated
+  publication's absent year; the current row metric does not independently score
+  every prose promise. Fake scores do not establish semantic relevance or live quality.
+- All thirty detailed labels await human review. A content hash is not approval or
+  a frozen baseline. The five starting outcomes are concepts acknowledged earlier,
+  not a blanket review. The existing eleven-case CLI/upload defaults stay unchanged.
+
+### Remaining debt
+
+- Human review and corrections, reviewer/date, dataset freeze/upload, baseline IDs,
+  same-dataset comparisons, and the Week 4 report/recording remain subsequent gates.
+- Heading-bound research false negative and multi-round runtime-budget interpretation
+  need explicit review before a fully passing evaluation/performance claim.
+- Affiliation repeatability, historical live post-fit failure, actual token/cost
+  measurement, UI/persistence completion, and human-rated quality remain unproven.
+- No live call, production-policy relaxation, baseline overwrite, commit, or push.
+
+### Follow-up checkpoint authorization and next review boundary
+
+The user requested **"lets commit and move to next"**. The
+[archived step 3z prompt](prompts/week4-3z-thirty-case-evaluation-draft.md) records
+this explicit checkpoint authorization, superseding the earlier no-automatic-commit
+boundary for this completed step only. No push, upload, live call, or label approval
+is authorized or performed.
+
+- Pre-commit formatting: **343 files already formatted**; Ruff lint passed; mypy
+  passed with **no issues in 249 source files**.
+- Pre-commit `venv/bin/pytest -q --tb=short`: **2,718 passed, 9 deselected,
+  102 subtests passed in 30.90s**, **92.31% coverage**, exit **0**.
+- Scope: fourteen ScholarPath evaluation/test/documentation files; no production
+  policy change, dependency update, credentials, or private captures.
+- The 29/30 draft correctness result and 76/40 fake-call budget overrun remain
+  documented limitations, not silently converted into passes.
+- Checkpoint message: `test: add thirty-case evaluation review draft`.
+- After committing, start human review in conversation with five explicit proposed
+  outcomes: heading-bound research, negative availability, missing identity,
+  unsupported availability, and reject-then-approve. All labels remain pending
+  until the user makes an explicit review decision. No further implementation,
+  dataset freeze, or baseline upload begins at this boundary.

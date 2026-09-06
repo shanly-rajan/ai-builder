@@ -2110,3 +2110,21 @@ affiliation repeatability and human-rated quality remain open. No other provider
 tracing, or persistence was used. Next, prepare a review-ready 30-case Week 4
 dataset rather than rerunning the live pipeline. See the
 [isolated live result and limits](docs/week4-live-canary.md#step-3y-isolated-live-nebius-review-passed).
+
+Step 3z supplies a **separate 30-case synthetic evaluation draft**: the original
+eleven cases are unchanged, with nineteen executable variations and a
+15 happy / 9 edge / 4 known-failure / 2 adversarial mix. All detailed labels remain
+pending human review. Its offline correctness check reports **29/30**, exposing a
+heading-bound research false negative without weakening the expected outcome.
+The two-round request-more case also exceeds the old provisional fake-call budget
+(76 vs 40); no performance pass is claimed. No upload, live call, or baseline
+overwrite occurred. Start with the [case inventory and human-review guide](docs/week4-evaluation-draft.md):
+
+```bash
+venv/bin/python scripts/review_eval_draft.py
+SCHOLARPATH_LOG_LEVEL=WARNING venv/bin/python scripts/review_eval_draft.py --check
+```
+
+The second command intentionally exits 1 while the observed evaluation failure
+remains. Passing pytest verifies the harness and regression capture, not a fully
+passing or human-approved golden dataset. Human review is the next gate.

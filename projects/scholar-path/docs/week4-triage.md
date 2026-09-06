@@ -571,6 +571,26 @@ separate subsequent gates. No further live canary is needed for this next step.
 
 See the [observed result](week4-live-canary.md#step-3y-isolated-live-nebius-review-passed).
 
+## Step 3z: separately versioned thirty-case review draft
+
+Original priority 3 now has a [review-ready case inventory](week4-evaluation-draft.md)
+and offline CLI. The original eleven scenarios remain byte-for-byte unchanged;
+nineteen new synthetic variations exercise real verification and graph policies.
+The mix is 15 happy / 9 edge / 4 known-failure / 2 adversarial. All detailed labels
+are pending human review; five earlier acknowledged concepts are not full approval.
+
+Offline correctness result: **29/30**. The heading-bound research case exposes an
+existing `profile_subject_mismatch` false negative even though separate publication
+evidence still permits verification. Keep its expectation; do not tune fixtures or
+production policy to manufacture a green baseline. The new request-more case has
+76 fake-port invocations against the old provisional 40-call bar, reported separately.
+No live result, performance pass, frozen dataset, upload, or baseline overwrite is claimed.
+
+**Next gate:** review the thirty proposed labels, especially the observed failure,
+and record explicit reviewer/date/decisions before freezing/uploading a dataset.
+Subsequent baseline and comparison work must retain failures and use the same
+reviewed version. No automatic fix, live rerun, upload, commit, or push in this step.
+
 ## Step 3o: two excerpt false rejections repaired offline
 
 The [fixed reproduction](week4-live-canary.md#step-3o-excerpt-boundary-repair-offline)
