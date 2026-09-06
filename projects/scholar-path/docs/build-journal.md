@@ -6586,3 +6586,298 @@ is authorized or performed.
   unsupported availability, and reject-then-approve. All labels remain pending
   until the user makes an explicit review decision. No further implementation,
   dataset freeze, or baseline upload begins at this boundary.
+
+## Week 4 step 3aa: first human expected-behavior approval
+
+**Date:** 2026-09-06
+
+### Milestone objective
+
+Record the user's explicit acceptance of case 1's heading-bound research behavior
+and source-provenance requirement, without changing production verification or
+claiming broader review approval.
+
+### Prompt used
+
+[`docs/prompts/week4-3aa-heading-label-approval.md`](prompts/week4-3aa-heading-label-approval.md)
+
+### Files changed
+
+- `docs/week4-label-review.md`: decision 001, exact user quote, date, reviewer role,
+  scenario ID, version/digest, approved scope, and unapproved boundaries.
+- `docs/week4-evaluation-draft.md`, `README.md`, and `docs/week4-triage.md`: link to
+  current human review progress, distinguishing it from the pre-review snapshot.
+- The archived prompt and this build journal.
+
+### Tests added
+
+None: documentation-only decision recording. Reuse the existing contract and draft
+tests to check prompt/journal links and preservation of the original manifest.
+
+### Commands executed and results
+
+- Read-only inspection found a clean worktree at checkpoint `e0a1cdd`.
+- Read the engineering contract and existing review/draft contracts before editing.
+- Independent read-only scope audit confirmed approval is limited to case 1's
+  intended behavior and provenance; no schema change or rehash is necessary.
+- `venv/bin/ruff format --check .`: **345 files already formatted**.
+- `venv/bin/ruff check .`: passed; `venv/bin/mypy src tests scripts`: **no issues
+  in 249 source files**.
+- `venv/bin/pytest -q --tb=short`: **2,718 passed, 9 deselected, 103 subtests
+  passed in 30.55s**, **92.31% coverage**, exit **0**.
+- `git diff --check`: passed. The existing tests confirm the original draft
+  digest, inventory, and known evaluation failure remain unchanged.
+
+### Assumptions and lessons learned
+
+- Reviewer identity is recorded as the project owner via the explicit user response,
+  not an invented external reviewer. Date is 2026-09-06 from the current UTC clock.
+- The conversational case 1 maps to inventory row 18:
+  `draft-evidence-heading-bound-research`.
+- Approval of the intended outcome does not repair code or make the failing
+  evaluation pass. The known 29/30 result and fake-call overrun remain open.
+- The immutable draft/CLI still show their original pending metadata; the new
+  ledger records the current scoped decision separately. No broad label-field,
+  live-fact, shortlist, release, or entire-dataset approval is inferred.
+
+### Remaining debt
+
+The other 29 cases await human review. Later reviewed-manifest reconciliation,
+freeze/upload, comparison work, and the actual grounding repair remain separate
+steps. No source/test changes, live calls, commits, or pushes in this step.
+
+## Week 4 step 3ab: negative-availability expected behavior approved
+
+**Date:** 2026-09-06
+
+### Milestone objective
+
+Record the explicit case 2 approval without changing implementation or extending
+it to other review outcomes. Preserve the uncommitted case 1 documentation.
+
+### Prompt used
+
+[`docs/prompts/week4-3ab-negative-availability-approval.md`](prompts/week4-3ab-negative-availability-approval.md)
+
+### Files changed
+
+The human-review ledger (decision 002), prompt archive, this journal, README,
+draft guide, and triage review-progress summaries. No source or tests changed.
+
+### Tests added
+
+None; documentation-only review recording. Reuse the existing contract and
+draft-preservation tests, with offline quality checks before handoff.
+
+### Commands executed and results
+
+- Inspected the engineering contract, existing pending changes, review ledger,
+  and the exact typed case 2 expectation through the offline preview CLI.
+- Current UTC date confirmed as 2026-09-06. Independent scope audit confirmed
+  the approval does not generalize degree scope or authorize shortlist/release actions.
+- `venv/bin/ruff format --check .`: **346 files already formatted**.
+- `venv/bin/ruff check .`: passed; `venv/bin/mypy src tests scripts`: **no issues
+  in 249 source files**.
+- `venv/bin/pytest -q --tb=short`: **2,718 passed, 9 deselected, 104 subtests
+  passed in 31.41s**, **92.31% coverage**, exit **0**.
+- `git diff --check`: passed. No live calls, source changes, or commits.
+
+### Assumptions and lessons learned
+
+The exact response "yes approved" refers to the immediately preceding case 2
+proposal. It approves keeping verified facts, recording explicit doctoral
+non-acceptance, and showing a visible concern. It does not approve all technical
+fields, infer permanent or broader-degree unavailability, or approve a shortlist.
+The unchanged draft/CLI remain the pre-review snapshot; the ledger records the
+two scoped decisions and 28 pending cases. Earlier entries remain historical.
+
+### Remaining debt
+
+Review the other 28 cases before reconciling a reviewed manifest and freezing or
+uploading it. The heading-grounding bug and recorded evaluation/runtime failures
+remain open. No live calls, source changes, commits, or pushes.
+
+## Week 4 step 3ac: missing-identity expected behavior approved
+
+**Date:** 2026-09-06
+
+### Milestone objective
+
+Record the explicit case 3 approval, preserving earlier decisions and all pending
+work. This resolves one more human-review decision without changing production code.
+
+### Prompt used
+
+[`docs/prompts/week4-3ac-missing-identity-approval.md`](prompts/week4-3ac-missing-identity-approval.md)
+
+### Files changed
+
+The human-review ledger (decision 003), archived prompt, this build journal, README,
+draft guide, and triage progress summaries. No source or test files changed.
+
+### Tests added
+
+None; documentation-only review recording. Reuse existing contract and immutable
+draft-preservation tests.
+
+### Commands executed and results
+
+- Inspected the engineering contract, existing pending changes, ledger, and typed
+  case 3 expectation using the offline preview CLI.
+- Confirmed the current UTC date as 2026-09-06.
+- Independent read-only audit confirmed the approval scope and that missing
+  grounded identity does not mean the person's name is absent everywhere.
+- `venv/bin/ruff format --check .`: **347 files already formatted**.
+- `venv/bin/ruff check .`: passed; `venv/bin/mypy src tests scripts`: **no issues
+  in 249 source files**.
+- `venv/bin/pytest -q --tb=short`: **2,718 passed, 9 deselected, 105 subtests
+  passed in 30.80s**, **92.31% coverage**, exit **0**.
+- `git diff --check`: passed. No live calls, source changes, or commits.
+
+### Assumptions and lessons learned
+
+The exact response "yes approved" answers the immediately preceding case 3
+proposal. It approves retaining sources and a partial record without promotion
+until identity is grounded, not every typed field or any other case. Source
+information is not direct support for a person without grounded identity linkage.
+The original manifest remains a pre-review snapshot; the ledger records three
+scoped approvals and 27 pending cases. Earlier entries remain historical.
+
+### Remaining debt
+
+Review the other 27 cases before reconciling a reviewed manifest. The existing
+heading-grounding bug, recorded 29/30 result, and 76/40 fake-call overrun remain
+open. No live calls, implementation changes, dataset freeze/upload, or commits.
+
+## Week 4 step 3ad: unsupported-availability expected behavior approved
+
+**Date:** 2026-09-06
+
+### Milestone objective
+
+Record the explicit case 4 approval while preserving earlier decisions and pending
+work. Advance human review only, without implementing or freezing anything.
+
+### Prompt used
+
+[`docs/prompts/week4-3ad-unsupported-availability-approval.md`](prompts/week4-3ad-unsupported-availability-approval.md)
+
+### Files changed
+
+The human-review ledger (decision 004), archived prompt, this journal, README,
+draft guide, and triage progress summaries. No source or test files changed.
+
+### Tests added
+
+None; documentation-only decision recording. Reuse existing contract and
+draft-preservation tests.
+
+### Commands executed and results
+
+- Inspected the engineering contract, pending changes, ledger, and exact typed
+  case 4 expectation using the offline preview CLI.
+- Confirmed the current UTC date as 2026-09-06.
+- Independent read-only audit confirmed that the typed case preserves `not_stated`
+  and allows otherwise complete verification; approval remains scoped to case 4.
+- `venv/bin/ruff format --check .`: **348 files already formatted**.
+- `venv/bin/ruff check .`: passed; `venv/bin/mypy src tests scripts`: **no issues
+  in 249 source files**.
+- `venv/bin/pytest -q --tb=short`: **2,718 passed, 9 deselected, 106 subtests
+  passed in 30.75s**, **92.31% coverage**, exit **0**.
+- `git diff --check`: passed. No live calls, source changes, or commits.
+
+### Assumptions and lessons learned
+
+The exact response "approve" answers the immediately preceding case 4 proposal.
+Missing availability is not evidence of non-acceptance and must not prevent
+otherwise complete verification. Model confidence cannot substitute for source
+support. The ledger records four scoped approvals and 26 pending cases; the
+immutable manifest remains the original pre-review snapshot. Earlier entries
+remain historical, and no other outcome or implementation change is approved.
+
+### Remaining debt
+
+Review the other 26 cases before reconciling a reviewed manifest. The existing
+heading-grounding bug, recorded 29/30 correctness result, and separate 76/40
+fake-call overrun remain open. No live calls, code changes, freeze/upload, or commits.
+
+## Week 4 step 3ae: batch approval, local freeze, and measured baseline
+
+**Date:** 2026-09-06
+
+### Milestone objective
+
+Record case 5 and explicit approval of all remaining expected behaviors, then
+complete the next bounded step: local reviewed-manifest reconciliation/freeze and
+a fake-provider baseline. This advances Week 4 priorities 3–4 without live calls,
+uploads, production repairs, or invented individual reviews.
+
+### Prompt used
+
+[`docs/prompts/week4-3ae-batch-approval-local-baseline.md`](prompts/week4-3ae-batch-approval-local-baseline.md)
+
+### Files changed
+
+- `src/evaluation/reviewed_manifest.py`: typed provenance wrapper, five individual
+  decisions plus one 25-case batch decision, fixed original-draft digest, exact
+  approval coverage, serialization, and content digest.
+- `src/evaluation/reviewed_baseline.py` and `scripts/run_reviewed_evals.py`: separate
+  reviewed identity, forced-off tracing, offline measurements and preview/check CLI.
+- `tests/unit/evaluation/test_reviewed_manifest.py` and `test_reviewed_baseline.py`:
+  additive manifest, runner, CLI, safety, and saved-artifact regression checks.
+- `docs/evaluation/week4-30case-reviewed-v1.json` and
+  `docs/evaluation/week4-reviewed-baseline-2026-09-06.json`: actual manifest export
+  and observed report, saved using `apply_patch` without overwriting prior artifacts.
+- README, label-review ledger, draft guide, triage, new `docs/week4-reviewed-baseline.md`,
+  archived prompt, and this journal: approval provenance, exact commands, metrics,
+  known failure clusters, reproducibility boundaries, and remaining work.
+
+### Tests added
+
+37 manifest tests and 18 baseline tests cover unchanged draft/eleven-case inputs,
+five individual plus 25 batch approvals, exact source hash and provenance, rejected
+tampering and incomplete coverage, JSON round trips, distinct baseline identity,
+per-case observations, offline enforcement with live flags enabled, preview without
+execution, nonzero failure exit, separate runtime reporting, and matching saved artifacts.
+
+### Commands executed and results
+
+- Read-only inspection confirmed the previous approval documentation was uncommitted
+  and no production code was changed. Source checkpoint: `e0a1cdd`.
+- An independent scope audit confirmed the next local freeze/baseline step and that
+  batch approval must not be represented as 25 individual technical inspections.
+- Offline strict editable installation succeeded using `--no-index --no-deps
+  --no-build-isolation`; no dependency download or secret access was needed.
+- `scripts/run_reviewed_evals.py --format json`: exit 0, 30 cases, six review decisions,
+  reviewed digest `732ad206d79f30e2f9a3c0efd89c07daf4680216754fa21ce8e4d8f7bda911d5`.
+- `scripts/run_reviewed_evals.py --check --format json` with logging WARNING and
+  tracing false: **29/30 passed, exit 1**. Local baseline
+  `scholarpath-week4-reviewed-local-20260906T153428Z-e585120b`. One heading-grounding
+  correctness failure; request-more retains 76 fake calls versus the provisional 40.
+- Initial runner-test collection failed before the new module's editable install
+  was refreshed; installation resolved module discovery.
+- Initial Ruff checks found one 101-character print line; wrapped it without changing
+  behavior, then reran formatting/lint successfully.
+- `venv/bin/ruff format --check .`: **355 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 254 source files**.
+- `venv/bin/pytest -q --tb=short`: **2,773 passed, 9 deselected, 107 subtests
+  passed in 33.20s**, **92.38% coverage**, exit **0**.
+- `git diff --check`: passed. No staged files, commits, or pushes.
+
+### Assumptions and lessons learned
+
+The user's explicit batch approval covers the existing remaining expected behaviors,
+not a claim of individually inspecting every field or approving a production release.
+The frozen wrapper preserves the pending draft as historical source and pins all
+unchanged scenario recipes/expectations. Approval provenance and measured outcomes
+must remain separate. Real failure capture is compatible with passing regression
+tests of the harness. Fake latency/call counts do not establish live cost or quality.
+
+### Remaining debt
+
+No commit or push. The original eleven-case defaults, historical baselines, production
+policies, and fixtures remain unchanged. An authorized LangSmith upload/experiment of
+the reviewed version, actual trace linkage, measured repairs/comparisons, live quality
+evidence where appropriate, and Week 4 report/recording remain. Do not hide the known
+29/30 result or silently waive the separate 76/40 runtime budget finding.

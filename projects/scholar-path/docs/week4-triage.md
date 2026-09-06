@@ -591,6 +591,53 @@ and record explicit reviewer/date/decisions before freezing/uploading a dataset.
 Subsequent baseline and comparison work must retain failures and use the same
 reviewed version. No automatic fix, live rerun, upload, commit, or push in this step.
 
+### Step 3aa: first expected behavior approved
+
+The project owner explicitly approved heading-bound research acceptance with the
+source URL and exact supporting text retained. The [review ledger](week4-label-review.md)
+records the response against the current draft version/digest. This approves one
+intended behavior only; the other 29 cases await review. The original snapshot
+remains unchanged, and the actual heading-grounding bug remains open. Continue
+with the remaining review cases before creating a reviewed/frozen dataset.
+
+### Step 3ab: negative-availability behavior approved
+
+The project owner approved retaining verified facts while recording explicit
+doctoral non-acceptance as `confirmed_not_accepting` and `verified_with_concerns`,
+with a visible, degree-scoped warning. Decision 002 is in the
+[review ledger](week4-label-review.md). Two intended behaviors are approved;
+28 cases still await review. No implementation change, automatic Supervisor
+rejection/shortlisting, manifest rewrite, freeze, or upload is implied.
+
+### Step 3ac: missing-identity behavior approved
+
+The project owner approved retaining a partially verified record and its sources
+without promotion when identity cannot be grounded. Institution and research
+information do not establish attribution to a person on their own. Decision 003
+is in the [review ledger](week4-label-review.md). Three intended behaviors are
+approved; 27 cases remain pending. The draft manifest and implementation remain
+unchanged, and the known correctness/runtime findings stay open.
+
+### Step 3ad: unsupported-availability behavior approved
+
+The project owner approved rejecting an unsupported accepting assertion and
+keeping availability `not_stated`, not `confirmed_not_accepting`. Otherwise complete
+verification may succeed; all other required gates remain. Decision 004 is in the
+[review ledger](week4-label-review.md). Four intended behaviors are approved;
+26 cases remain pending. No implementation or immutable-manifest changes, live
+calls, dataset freeze/upload, or commits occur in this step.
+
+### Step 3ae: remaining approvals and local reviewed baseline
+
+The project owner explicitly approved case 5 and the remaining batches. The
+[ledger](week4-label-review.md) records five individual expected-behavior approvals
+and one batch approval covering the other 25, with no invented per-field reviews.
+The [local reviewed manifest and baseline](week4-reviewed-baseline.md) preserve the
+original thirty-case draft/digest and eleven-case defaults. Expected behaviors are
+approved; passing results are still measured separately. No production fixes, live
+provider calls, LangSmith uploads, or commits occur here. Priority 4's uploaded
+experiment/trace linkage and later measured improvements remain separate work.
+
 ## Step 3o: two excerpt false rejections repaired offline
 
 The [fixed reproduction](week4-live-canary.md#step-3o-excerpt-boundary-repair-offline)

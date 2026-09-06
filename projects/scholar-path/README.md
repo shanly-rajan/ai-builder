@@ -2128,3 +2128,18 @@ SCHOLARPATH_LOG_LEVEL=WARNING venv/bin/python scripts/review_eval_draft.py --che
 The second command intentionally exits 1 while the observed evaluation failure
 remains. Passing pytest verifies the harness and regression capture, not a fully
 passing or human-approved golden dataset. Human review is the next gate.
+
+Review progress: the project owner has approved **all 30 expected behaviors**:
+five individually and 25 through explicit batch approval, not invented individual
+technical-field reviews. See the [scoped human decisions](docs/week4-label-review.md).
+Step 3ae adds a [separate local reviewed manifest and baseline](docs/week4-reviewed-baseline.md).
+The original draft CLI remains the unchanged pre-review snapshot. The heading-grounding
+failure and provisional fake-call overrun remain visible; approval does not turn them green.
+
+```bash
+venv/bin/python scripts/run_reviewed_evals.py
+SCHOLARPATH_LOG_LEVEL=WARNING venv/bin/python scripts/run_reviewed_evals.py --check
+```
+
+The check is fake-only, forces tracing off, and exits 1 for the known correctness
+failure. It does not upload to LangSmith or replace the original eleven-case baseline.

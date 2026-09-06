@@ -1,0 +1,3862 @@
+{
+  "dataset_name": "scholarpath-week4-30case-reviewed-v1",
+  "reviewed_version": "week4-30case-reviewed-v1",
+  "status": "frozen_local",
+  "approval_scope": "expected_behaviors",
+  "source_draft_digest": "f705973c08abec07d88977873900a40af9e5835d3f02a6b010d751c5f820594e",
+  "source_draft": {
+    "dataset_name": "scholarpath-week4-30case-draft-v1",
+    "draft_version": "week4-30case-draft-v1",
+    "status": "pending_human_review",
+    "cases": [
+      {
+        "scenario": {
+          "scenario_id": "strong-research-alignment",
+          "title": "Strong research alignment",
+          "description": "A directly supported applied enterprise-architecture profile should receive a strong, evidence-cited Research Fit assessment.",
+          "target": "research_fit",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-scenarios-v1",
+            "quality:strong-fit"
+          ],
+          "splits": [
+            "research-fit",
+            "llm-judge"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise architecture",
+              "responsible AI governance",
+              "digital transformation",
+              "organisational resilience"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "applied",
+            "methodological_interests": [
+              "design science",
+              "comparative case study",
+              "mixed methods"
+            ],
+            "exclusions": [
+              "fully residential programmes"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "fit_case": "strong",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "not_stated",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": 80,
+            "maximum_research_fit_score": 100,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "retained_v1",
+        "source_reference": "src/evaluation/scenarios.py",
+        "source_version": "week4-scenarios-v1",
+        "label_rationale": "A directly supported applied enterprise-architecture profile should receive a strong, evidence-cited Research Fit assessment.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": true,
+        "starting_outcome_reference": "docs/prompts/week4-3-single-synthetic-trace.md"
+      },
+      {
+        "scenario": {
+          "scenario_id": "superficial-keyword-poor-fit",
+          "title": "Superficial keyword overlap with poor actual fit",
+          "description": "Shared generic enterprise wording must not override incompatible topics, methods, orientation, and explicit exclusions.",
+          "target": "research_fit",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-scenarios-v1",
+            "quality:weak-fit"
+          ],
+          "splits": [
+            "research-fit",
+            "llm-judge"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise ethnography",
+              "workplace culture"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "highly theoretical",
+            "methodological_interests": [
+              "long-form ethnography"
+            ],
+            "exclusions": [
+              "AI governance",
+              "design science"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "fit_case": "superficial",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "not_stated",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": 25,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "edge",
+        "origin": "retained_v1",
+        "source_reference": "src/evaluation/scenarios.py",
+        "source_version": "week4-scenarios-v1",
+        "label_rationale": "Shared generic enterprise wording must not override incompatible topics, methods, orientation, and explicit exclusions.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": true,
+        "starting_outcome_reference": "docs/prompts/week4-3-single-synthetic-trace.md"
+      },
+      {
+        "scenario": {
+          "scenario_id": "availability-not-stated",
+          "title": "Supervisor availability is not stated",
+          "description": "Complete identity, affiliation, and research evidence must verify without inventing research-degree supervision availability.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-scenarios-v1",
+            "evidence:availability"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "not_stated",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "not_stated",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "retained_v1",
+        "source_reference": "src/evaluation/scenarios.py",
+        "source_version": "week4-scenarios-v1",
+        "label_rationale": "Complete identity, affiliation, and research evidence must verify without inventing research-degree supervision availability.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "conflicting-institutional-affiliation",
+          "title": "Conflicting institutional affiliation",
+          "description": "Two official sources assert different current affiliations and both must remain visible as a verification concern.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-scenarios-v1",
+            "evidence:conflict"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "affiliation_conflict",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": null,
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified_with_concerns",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 4,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": true
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "edge",
+        "origin": "retained_v1",
+        "source_reference": "src/evaluation/scenarios.py",
+        "source_version": "week4-scenarios-v1",
+        "label_rationale": "Two official sources assert different current affiliations and both must remain visible as a verification concern.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "duplicate-supervisor-multiple-queries",
+          "title": "Duplicate Supervisor discovered through multiple queries",
+          "description": "One academic profile appears in two query result sets and must be retained once with both provenance records.",
+          "target": "graph_fake",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-scenarios-v1",
+            "routing:deduplication"
+          ],
+          "splits": [
+            "graph-fake"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise architecture",
+              "responsible AI governance",
+              "digital transformation",
+              "organisational resilience"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "applied",
+            "methodological_interests": [
+              "design science",
+              "comparative case study",
+              "mixed methods"
+            ],
+            "exclusions": [
+              "fully residential programmes"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "graph_case": "duplicate_provenance"
+          },
+          "expected": {
+            "expected_availability_status": null,
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": "awaiting_review",
+            "expected_interrupted": true,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26",
+              "supervisor-ce4f7a0ec41a0510",
+              "supervisor-9f01c29475c41ce3"
+            ],
+            "expected_proposed_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-e985a89b4d9b89f6"
+            ],
+            "expected_shortlisted_supervisor_ids": [],
+            "expected_rejected_supervisor_ids": [],
+            "expected_review_status": "proposed",
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c30d3af037865126",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c4807d89dafbf6fd",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0e3ddca8eeff364e",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-e985a89b4d9b89f6",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0712a310a34c4a26",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-ce4f7a0ec41a0510",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-9f01c29475c41ce3",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 1
+          }
+        },
+        "scenario_type": "edge",
+        "origin": "retained_v1",
+        "source_reference": "src/evaluation/scenarios.py",
+        "source_version": "week4-scenarios-v1",
+        "label_rationale": "One academic profile appears in two query result sets and must be retained once with both provenance records.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "you-timeout-tavily-fallback",
+          "title": "You.com timeout requiring Tavily fallback",
+          "description": "A primary timeout and its single retry should route to Tavily and preserve the bounded attempt history.",
+          "target": "graph_fake",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-scenarios-v1",
+            "routing:fallback"
+          ],
+          "splits": [
+            "graph-fake"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise architecture",
+              "responsible AI governance",
+              "digital transformation",
+              "organisational resilience"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "applied",
+            "methodological_interests": [
+              "design science",
+              "comparative case study",
+              "mixed methods"
+            ],
+            "exclusions": [
+              "fully residential programmes"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "graph_case": "you_timeout_tavily"
+          },
+          "expected": {
+            "expected_availability_status": null,
+            "expected_fallback_search_used": true,
+            "expected_review_outcome": "awaiting_review",
+            "expected_interrupted": true,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26"
+            ],
+            "expected_proposed_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-e985a89b4d9b89f6"
+            ],
+            "expected_shortlisted_supervisor_ids": [],
+            "expected_rejected_supervisor_ids": [],
+            "expected_review_status": "proposed",
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c30d3af037865126",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c4807d89dafbf6fd",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0e3ddca8eeff364e",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-e985a89b4d9b89f6",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0712a310a34c4a26",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 2,
+            "minimum_tavily_attempts": 1,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "known_failure",
+        "origin": "retained_v1",
+        "source_reference": "src/evaluation/scenarios.py",
+        "source_version": "week4-scenarios-v1",
+        "label_rationale": "A primary timeout and its single retry should route to Tavily and preserve the bounded attempt history.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": true,
+        "starting_outcome_reference": "docs/prompts/week4-3-single-synthetic-trace.md"
+      },
+      {
+        "scenario": {
+          "scenario_id": "evidence-extraction-failure",
+          "title": "Evidence extraction failure",
+          "description": "One failed profile extraction must remain partially verified without fabricated evidence while the useful partial cohort continues.",
+          "target": "graph_fake",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-scenarios-v1",
+            "evidence:extraction-failure"
+          ],
+          "splits": [
+            "graph-fake"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise architecture",
+              "responsible AI governance",
+              "digital transformation",
+              "organisational resilience"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "applied",
+            "methodological_interests": [
+              "design science",
+              "comparative case study",
+              "mixed methods"
+            ],
+            "exclusions": [
+              "fully residential programmes"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "graph_case": "extraction_failure",
+            "failed_supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": null,
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": "awaiting_review",
+            "expected_interrupted": true,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26",
+              "supervisor-ce4f7a0ec41a0510",
+              "supervisor-9f01c29475c41ce3"
+            ],
+            "expected_proposed_supervisor_ids": [
+              "supervisor-c30d3af037865126",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26"
+            ],
+            "expected_shortlisted_supervisor_ids": [],
+            "expected_rejected_supervisor_ids": [],
+            "expected_review_status": "proposed",
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "partially_verified",
+                "verified_supervisor_present": false,
+                "minimum_retained_evidence": 0,
+                "maximum_retained_evidence": 0,
+                "required_claim_types": [],
+                "expected_missing_required_evidence": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest_or_publication"
+                ],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c30d3af037865126",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c4807d89dafbf6fd",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0e3ddca8eeff364e",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-e985a89b4d9b89f6",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0712a310a34c4a26",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-ce4f7a0ec41a0510",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-9f01c29475c41ce3",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "known_failure",
+        "origin": "retained_v1",
+        "source_reference": "src/evaluation/scenarios.py",
+        "source_version": "week4-scenarios-v1",
+        "label_rationale": "One failed profile extraction must remain partially verified without fabricated evidence while the useful partial cohort continues.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": true,
+        "starting_outcome_reference": "docs/prompts/week4-3-single-synthetic-trace.md"
+      },
+      {
+        "scenario": {
+          "scenario_id": "independent-reviewer-disagreement",
+          "title": "Independent reviewer disagreement",
+          "description": "A large valid review revision must lower confidence, flag Candidate attention, and update ordering deterministically.",
+          "target": "graph_fake",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-scenarios-v1",
+            "review:disagreement"
+          ],
+          "splits": [
+            "graph-fake",
+            "llm-judge"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise architecture",
+              "responsible AI governance",
+              "digital transformation",
+              "organisational resilience"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "applied",
+            "methodological_interests": [
+              "design science",
+              "comparative case study",
+              "mixed methods"
+            ],
+            "exclusions": [
+              "fully residential programmes"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "graph_case": "reviewer_disagreement",
+            "reviewed_supervisor_index": 1,
+            "reviewed_score": 60
+          },
+          "expected": {
+            "expected_availability_status": null,
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": "awaiting_review",
+            "expected_interrupted": true,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26",
+              "supervisor-ce4f7a0ec41a0510",
+              "supervisor-9f01c29475c41ce3"
+            ],
+            "expected_proposed_supervisor_ids": [
+              "supervisor-c30d3af037865126",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26"
+            ],
+            "expected_shortlisted_supervisor_ids": [],
+            "expected_rejected_supervisor_ids": [],
+            "expected_review_status": "proposed",
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c30d3af037865126",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c4807d89dafbf6fd",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0e3ddca8eeff364e",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-e985a89b4d9b89f6",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0712a310a34c4a26",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-ce4f7a0ec41a0510",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-9f01c29475c41ce3",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "review_status": "revised",
+                "effective_score": 60,
+                "effective_confidence": "medium",
+                "requires_candidate_attention": true
+              }
+            ],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "edge",
+        "origin": "retained_v1",
+        "source_reference": "src/evaluation/scenarios.py",
+        "source_version": "week4-scenarios-v1",
+        "label_rationale": "A large valid review revision must lower confidence, flag Candidate attention, and update ordering deterministically.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "candidate-rejects-highly-theoretical",
+          "title": "Candidate rejects highly theoretical research",
+          "description": "An explicit Supervisor-specific rejection must be recorded and route to a bounded refined proposal without persisting a shortlist.",
+          "target": "graph_fake",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-scenarios-v1",
+            "candidate-review:reject"
+          ],
+          "splits": [
+            "graph-fake"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise architecture",
+              "responsible AI governance",
+              "digital transformation",
+              "organisational resilience"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "applied",
+            "methodological_interests": [
+              "design science",
+              "comparative case study",
+              "mixed methods"
+            ],
+            "exclusions": [
+              "fully residential programmes"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "graph_case": "reject_theoretical",
+            "rejected_supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": null,
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": "reject",
+            "expected_interrupted": true,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26",
+              "supervisor-ce4f7a0ec41a0510",
+              "supervisor-9f01c29475c41ce3"
+            ],
+            "expected_proposed_supervisor_ids": [
+              "supervisor-c30d3af037865126",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26"
+            ],
+            "expected_shortlisted_supervisor_ids": [],
+            "expected_rejected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_review_status": "proposed",
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c30d3af037865126",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c4807d89dafbf6fd",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0e3ddca8eeff364e",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-e985a89b4d9b89f6",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0712a310a34c4a26",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-ce4f7a0ec41a0510",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-9f01c29475c41ce3",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "edge",
+        "origin": "retained_v1",
+        "source_reference": "src/evaluation/scenarios.py",
+        "source_version": "week4-scenarios-v1",
+        "label_rationale": "An explicit Supervisor-specific rejection must be recorded and route to a bounded refined proposal without persisting a shortlist.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": true,
+        "starting_outcome_reference": "docs/prompts/week4-3-single-synthetic-trace.md"
+      },
+      {
+        "scenario": {
+          "scenario_id": "approval-required-before-persistence",
+          "title": "Candidate approval required before shortlist persistence",
+          "description": "The graph must pause with a proposed set and persist no Shortlisted Supervisor until an explicit approval response is received.",
+          "target": "graph_fake",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-scenarios-v1",
+            "candidate-review:approval-gate"
+          ],
+          "splits": [
+            "graph-fake",
+            "graph-live"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise architecture",
+              "responsible AI governance",
+              "digital transformation",
+              "organisational resilience"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "applied",
+            "methodological_interests": [
+              "design science",
+              "comparative case study",
+              "mixed methods"
+            ],
+            "exclusions": [
+              "fully residential programmes"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "graph_case": "approval_pause"
+          },
+          "expected": {
+            "expected_availability_status": null,
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": "awaiting_review",
+            "expected_interrupted": true,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26",
+              "supervisor-ce4f7a0ec41a0510",
+              "supervisor-9f01c29475c41ce3"
+            ],
+            "expected_proposed_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-e985a89b4d9b89f6"
+            ],
+            "expected_shortlisted_supervisor_ids": [],
+            "expected_rejected_supervisor_ids": [],
+            "expected_review_status": "proposed",
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c30d3af037865126",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c4807d89dafbf6fd",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0e3ddca8eeff364e",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-e985a89b4d9b89f6",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0712a310a34c4a26",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-ce4f7a0ec41a0510",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-9f01c29475c41ce3",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "retained_v1",
+        "source_reference": "src/evaluation/scenarios.py",
+        "source_version": "week4-scenarios-v1",
+        "label_rationale": "The graph must pause with a proposed set and persist no Shortlisted Supervisor until an explicit approval response is received.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "planning-source-coverage",
+          "title": "Search planning source coverage",
+          "description": "A source-complete plan must cover official profiles, departments, recent publications, and explicit research-degree supervision information.",
+          "target": "search_planning",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-scenarios-v1",
+            "planning:source-coverage"
+          ],
+          "splits": [
+            "planning"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise architecture",
+              "responsible AI governance",
+              "digital transformation",
+              "organisational resilience"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "applied",
+            "methodological_interests": [
+              "design science",
+              "comparative case study",
+              "mixed methods"
+            ],
+            "exclusions": [
+              "fully residential programmes"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "planning_case": "source_coverage"
+          },
+          "expected": {
+            "expected_availability_status": null,
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": null,
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [
+              "official_university_profile",
+              "department_or_research_group",
+              "recent_publication",
+              "research_degree_supervision_information"
+            ],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "retained_v1",
+        "source_reference": "src/evaluation/scenarios.py",
+        "source_version": "week4-scenarios-v1",
+        "label_rationale": "A source-complete plan must cover official profiles, departments, recent publications, and explicit research-degree supervision information.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-evidence-confirmed-accepting",
+          "title": "Explicitly accepting research-degree supervision",
+          "description": "A directly stated availability sentence permits confirmed_accepting without any admission likelihood or broader degree-scope inference.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "confirmed_accepting",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "confirmed_accepting",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/draft_evidence.py",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "A directly stated availability sentence permits confirmed_accepting without any admission likelihood or broader degree-scope inference.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-evidence-confirmed-not-accepting",
+          "title": "Explicitly not accepting research-degree supervision",
+          "description": "Negative availability remains confirmed_not_accepting; it does not prevent identity, affiliation, and research verification, but is surfaced as a concern.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "confirmed_not_accepting",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "confirmed_not_accepting",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified_with_concerns",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/draft_evidence.py",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "Negative availability remains confirmed_not_accepting; it does not prevent identity, affiliation, and research verification, but is surfaced as a concern.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-evidence-markdown-identity",
+          "title": "Markdown-formatted profile identity",
+          "description": "Markdown presentation around an exact profile name must preserve its directly supported identity and all required verification gates.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "markdown_identity",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "not_stated",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/draft_evidence.py",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "Markdown presentation around an exact profile name must preserve its directly supported identity and all required verification gates.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-evidence-honorific-identity",
+          "title": "Identity with a different supported honorific form",
+          "description": "Canonical name matching may normalize an academic title without changing the person.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "honorific_identity",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "not_stated",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/draft_evidence.py",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "Canonical name matching may normalize an academic title without changing the person.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-evidence-line-wrapped-affiliation",
+          "title": "Line-wrapped current affiliation",
+          "description": "Whitespace presentation must not discard an explicit name, institution, and department.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "line_wrapped_affiliation",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "not_stated",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/draft_evidence.py",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "Whitespace presentation must not discard an explicit name, institution, and department.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-evidence-publication-only",
+          "title": "Publication evidence supplies the research gate",
+          "description": "A directly supported publication satisfies the research gate even without a separate research-interest claim; no research interests are invented.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "publication_only",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "not_stated",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "publication"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/draft_evidence.py",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "A directly supported publication satisfies the research gate even without a separate research-interest claim; no research interests are invented.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-evidence-heading-bound-research",
+          "title": "Research statement bound to the profile heading",
+          "description": "A nearby profile heading may bind a self-description to its subject when existing bounded grounding checks pass; a name need not be repeated in every sentence.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "heading_bound_research",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "not_stated",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/draft_evidence.py",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "A nearby profile heading may bind a self-description to its subject when existing bounded grounding checks pass; a name need not be repeated in every sentence.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-evidence-missing-identity",
+          "title": "Required identity evidence missing",
+          "description": "Other evidence cannot replace the mandatory identity claim. Without a grounded identity, affiliation and research claims are not directly supported either; retain a partial record with all three gates missing.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "missing_identity",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "not_stated",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "partially_verified",
+                "verified_supervisor_present": false,
+                "minimum_retained_evidence": 0,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [],
+                "expected_missing_required_evidence": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest_or_publication"
+                ],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "edge",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/draft_evidence.py",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "Other evidence cannot replace the mandatory identity claim. Without a grounded identity, affiliation and research claims are not directly supported either; retain a partial record with all three gates missing.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-evidence-missing-affiliation",
+          "title": "Required current affiliation missing",
+          "description": "An identified researcher with research evidence but no current affiliation remains partially verified under the strict standard.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "missing_affiliation",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "not_stated",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "partially_verified",
+                "verified_supervisor_present": false,
+                "minimum_retained_evidence": 2,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [
+                  "current_affiliation"
+                ],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "edge",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/draft_evidence.py",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "An identified researcher with research evidence but no current affiliation remains partially verified under the strict standard.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-evidence-missing-research",
+          "title": "Required research evidence missing",
+          "description": "Identity and affiliation alone must not satisfy strict research verification.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "missing_research",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "not_stated",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "partially_verified",
+                "verified_supervisor_present": false,
+                "minimum_retained_evidence": 2,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation"
+                ],
+                "expected_missing_required_evidence": [
+                  "research_interest_or_publication"
+                ],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "edge",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/draft_evidence.py",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "Identity and affiliation alone must not satisfy strict research verification.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-evidence-publication-year-not-stated",
+          "title": "Publication evidence without a stated year",
+          "description": "A grounded undated publication can establish research activity but must not acquire an invented date or a claim of recency.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "publication_year_not_stated",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "not_stated",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "edge",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/draft_evidence.py",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "A grounded undated publication can establish research activity but must not acquire an invented date or a claim of recency.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-evidence-availability-without-statement",
+          "title": "Model attempts an unsupported availability assertion",
+          "description": "An accepting claim lacking a direct source statement must leave availability not_stated, regardless of the model's asserted confidence.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "availability_without_statement",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "not_stated",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "adversarial",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/draft_evidence.py",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "An accepting claim lacking a direct source statement must leave availability not_stated, regardless of the model's asserted confidence.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-evidence-off-page-excerpt",
+          "title": "Model cites research excerpts absent from the page",
+          "description": "Invented research quotations must not become directly supported evidence or satisfy the mandatory research gate.",
+          "target": "evidence_verification",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "evidence-verification"
+          ],
+          "candidate_preferences": null,
+          "inputs": {},
+          "config": {
+            "evidence_case": "off_page_excerpt",
+            "supervisor_index": 1
+          },
+          "expected": {
+            "expected_availability_status": "not_stated",
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": null,
+            "expected_interrupted": null,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_proposed_supervisor_ids": null,
+            "expected_shortlisted_supervisor_ids": null,
+            "expected_rejected_supervisor_ids": null,
+            "expected_review_status": null,
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "partially_verified",
+                "verified_supervisor_present": false,
+                "minimum_retained_evidence": 2,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation"
+                ],
+                "expected_missing_required_evidence": [
+                  "research_interest_or_publication"
+                ],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "adversarial",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/draft_evidence.py",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "Invented research quotations must not become directly supported evidence or satisfy the mandatory research gate.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-graph-approve-one",
+          "title": "Candidate approves only one Supervisor",
+          "description": "Persist exactly the one explicitly selected Supervisor and complete the briefing.",
+          "target": "graph_fake",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "graph-fake"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise architecture",
+              "responsible AI governance",
+              "digital transformation",
+              "organisational resilience"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "applied",
+            "methodological_interests": [
+              "design science",
+              "comparative case study",
+              "mixed methods"
+            ],
+            "exclusions": [
+              "fully residential programmes"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "graph_case": "approve_one"
+          },
+          "expected": {
+            "expected_availability_status": null,
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": "approve",
+            "expected_interrupted": false,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26",
+              "supervisor-ce4f7a0ec41a0510",
+              "supervisor-9f01c29475c41ce3"
+            ],
+            "expected_proposed_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-e985a89b4d9b89f6"
+            ],
+            "expected_shortlisted_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_rejected_supervisor_ids": [],
+            "expected_review_status": "completed",
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c30d3af037865126",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c4807d89dafbf6fd",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0e3ddca8eeff364e",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-e985a89b4d9b89f6",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0712a310a34c4a26",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-ce4f7a0ec41a0510",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-9f01c29475c41ce3",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/targets.py:fake_end_to_end_target",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "Persist exactly the one explicitly selected Supervisor and complete the briefing.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-graph-approve-subset",
+          "title": "Candidate approves a two-Supervisor subset",
+          "description": "Persist the two selected Supervisors, not the entire proposed set.",
+          "target": "graph_fake",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "graph-fake"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise architecture",
+              "responsible AI governance",
+              "digital transformation",
+              "organisational resilience"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "applied",
+            "methodological_interests": [
+              "design science",
+              "comparative case study",
+              "mixed methods"
+            ],
+            "exclusions": [
+              "fully residential programmes"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "graph_case": "approve_subset"
+          },
+          "expected": {
+            "expected_availability_status": null,
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": "approve",
+            "expected_interrupted": false,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26",
+              "supervisor-ce4f7a0ec41a0510",
+              "supervisor-9f01c29475c41ce3"
+            ],
+            "expected_proposed_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-e985a89b4d9b89f6"
+            ],
+            "expected_shortlisted_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126"
+            ],
+            "expected_rejected_supervisor_ids": [],
+            "expected_review_status": "completed",
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c30d3af037865126",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c4807d89dafbf6fd",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0e3ddca8eeff364e",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-e985a89b4d9b89f6",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0712a310a34c4a26",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-ce4f7a0ec41a0510",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-9f01c29475c41ce3",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/targets.py:fake_end_to_end_target",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "Persist the two selected Supervisors, not the entire proposed set.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-graph-request-more",
+          "title": "Candidate revises regions and requests more research",
+          "description": "Apply the Germany region revision to the next planning input, then pause for review without saving a shortlist.",
+          "target": "graph_fake",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "graph-fake"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise architecture",
+              "responsible AI governance",
+              "digital transformation",
+              "organisational resilience"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "applied",
+            "methodological_interests": [
+              "design science",
+              "comparative case study",
+              "mixed methods"
+            ],
+            "exclusions": [
+              "fully residential programmes"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "graph_case": "request_more"
+          },
+          "expected": {
+            "expected_availability_status": null,
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": "request_more",
+            "expected_interrupted": true,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26",
+              "supervisor-ce4f7a0ec41a0510",
+              "supervisor-9f01c29475c41ce3"
+            ],
+            "expected_proposed_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-e985a89b4d9b89f6"
+            ],
+            "expected_shortlisted_supervisor_ids": [],
+            "expected_rejected_supervisor_ids": [],
+            "expected_review_status": "proposed",
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c30d3af037865126",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c4807d89dafbf6fd",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0e3ddca8eeff364e",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-e985a89b4d9b89f6",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0712a310a34c4a26",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-ce4f7a0ec41a0510",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-9f01c29475c41ce3",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/targets.py:fake_end_to_end_target",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "Apply the Germany region revision to the next planning input, then pause for review without saving a shortlist.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-graph-reject-then-approve",
+          "title": "Candidate rejects one Supervisor before approving two others",
+          "description": "Retain the rejection, exclude that Supervisor from the new proposal, and save only the two explicitly approved Supervisors.",
+          "target": "graph_fake",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "graph-fake"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise architecture",
+              "responsible AI governance",
+              "digital transformation",
+              "organisational resilience"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "applied",
+            "methodological_interests": [
+              "design science",
+              "comparative case study",
+              "mixed methods"
+            ],
+            "exclusions": [
+              "fully residential programmes"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "graph_case": "reject_then_approve"
+          },
+          "expected": {
+            "expected_availability_status": null,
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": "approve",
+            "expected_interrupted": false,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26",
+              "supervisor-ce4f7a0ec41a0510",
+              "supervisor-9f01c29475c41ce3"
+            ],
+            "expected_proposed_supervisor_ids": [
+              "supervisor-c30d3af037865126",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26"
+            ],
+            "expected_shortlisted_supervisor_ids": [
+              "supervisor-c30d3af037865126",
+              "supervisor-0e3ddca8eeff364e"
+            ],
+            "expected_rejected_supervisor_ids": [
+              "supervisor-1bc4418affee0253"
+            ],
+            "expected_review_status": "completed",
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c30d3af037865126",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c4807d89dafbf6fd",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0e3ddca8eeff364e",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-e985a89b4d9b89f6",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0712a310a34c4a26",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-ce4f7a0ec41a0510",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-9f01c29475c41ce3",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "happy",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/targets.py:fake_end_to_end_target",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "Retain the rejection, exclude that Supervisor from the new proposal, and save only the two explicitly approved Supervisors.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-graph-review-timeout",
+          "title": "Independent reviewer request fails",
+          "description": "A scripted Nebius invocation failure preserves the original score, lowers confidence, flags review unavailable, and still reaches Candidate review.",
+          "target": "graph_fake",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "graph-fake"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise architecture",
+              "responsible AI governance",
+              "digital transformation",
+              "organisational resilience"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "applied",
+            "methodological_interests": [
+              "design science",
+              "comparative case study",
+              "mixed methods"
+            ],
+            "exclusions": [
+              "fully residential programmes"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "graph_case": "review_timeout"
+          },
+          "expected": {
+            "expected_availability_status": null,
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": "awaiting_review",
+            "expected_interrupted": true,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26",
+              "supervisor-ce4f7a0ec41a0510",
+              "supervisor-9f01c29475c41ce3"
+            ],
+            "expected_proposed_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-e985a89b4d9b89f6"
+            ],
+            "expected_shortlisted_supervisor_ids": [],
+            "expected_rejected_supervisor_ids": [],
+            "expected_review_status": "proposed",
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c30d3af037865126",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c4807d89dafbf6fd",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0e3ddca8eeff364e",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-e985a89b4d9b89f6",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0712a310a34c4a26",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-ce4f7a0ec41a0510",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-9f01c29475c41ce3",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "review_status": "unavailable",
+                "effective_score": 87,
+                "effective_confidence": "medium",
+                "requires_candidate_attention": true
+              }
+            ],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "known_failure",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/targets.py:fake_end_to_end_target",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "A scripted Nebius invocation failure preserves the original score, lowers confidence, flags review unavailable, and still reaches Candidate review.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      },
+      {
+        "scenario": {
+          "scenario_id": "draft-graph-review-malformed",
+          "title": "Independent reviewer returns malformed structured output",
+          "description": "A scripted structured-output failure preserves the original score with reduced confidence and review unavailable; the graph must not crash.",
+          "target": "graph_fake",
+          "tags": [
+            "application:scholarpath",
+            "scenario-version:week4-30case-draft-v1"
+          ],
+          "splits": [
+            "graph-fake"
+          ],
+          "candidate_preferences": {
+            "research_topics": [
+              "enterprise architecture",
+              "responsible AI governance",
+              "digital transformation",
+              "organisational resilience"
+            ],
+            "preferred_regions": [
+              "South Africa",
+              "United Kingdom",
+              "Netherlands"
+            ],
+            "preferred_study_modes": [
+              "hybrid",
+              "part-time"
+            ],
+            "preferred_research_orientation": "applied",
+            "methodological_interests": [
+              "design science",
+              "comparative case study",
+              "mixed methods"
+            ],
+            "exclusions": [
+              "fully residential programmes"
+            ]
+          },
+          "inputs": {},
+          "config": {
+            "graph_case": "review_malformed"
+          },
+          "expected": {
+            "expected_availability_status": null,
+            "expected_fallback_search_used": null,
+            "expected_review_outcome": "awaiting_review",
+            "expected_interrupted": true,
+            "expected_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-e985a89b4d9b89f6",
+              "supervisor-0712a310a34c4a26",
+              "supervisor-ce4f7a0ec41a0510",
+              "supervisor-9f01c29475c41ce3"
+            ],
+            "expected_proposed_supervisor_ids": [
+              "supervisor-1bc4418affee0253",
+              "supervisor-c30d3af037865126",
+              "supervisor-0e3ddca8eeff364e",
+              "supervisor-c4807d89dafbf6fd",
+              "supervisor-e985a89b4d9b89f6"
+            ],
+            "expected_shortlisted_supervisor_ids": [],
+            "expected_rejected_supervisor_ids": [],
+            "expected_review_status": "proposed",
+            "expected_verification_records": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c30d3af037865126",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-c4807d89dafbf6fd",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0e3ddca8eeff364e",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-e985a89b4d9b89f6",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-0712a310a34c4a26",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-ce4f7a0ec41a0510",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              },
+              {
+                "supervisor_id": "supervisor-9f01c29475c41ce3",
+                "verification_status": "verified",
+                "verified_supervisor_present": true,
+                "minimum_retained_evidence": 3,
+                "maximum_retained_evidence": null,
+                "required_claim_types": [
+                  "identity",
+                  "current_affiliation",
+                  "research_interest"
+                ],
+                "expected_missing_required_evidence": [],
+                "affiliation_conflict_surfaced": false
+              }
+            ],
+            "expected_independent_reviews": [
+              {
+                "supervisor_id": "supervisor-1bc4418affee0253",
+                "review_status": "unavailable",
+                "effective_score": 87,
+                "effective_confidence": "medium",
+                "requires_candidate_attention": true
+              }
+            ],
+            "required_planning_source_types": [],
+            "minimum_research_fit_score": null,
+            "maximum_research_fit_score": null,
+            "maximum_duplicate_supervisor_rate": 0,
+            "minimum_you_attempts": 0,
+            "minimum_tavily_attempts": 0,
+            "minimum_multi_query_provenance_count": 0
+          }
+        },
+        "scenario_type": "known_failure",
+        "origin": "new_synthetic_fixture",
+        "source_reference": "src/evaluation/targets.py:fake_end_to_end_target",
+        "source_version": "week4-30case-draft-v1",
+        "label_rationale": "A scripted structured-output failure preserves the original score with reduced confidence and review unavailable; the graph must not crash.",
+        "label_author": "engineering_draft",
+        "human_review_status": "pending",
+        "reviewer": null,
+        "reviewed_at": null,
+        "starting_outcome_previously_acknowledged": false,
+        "starting_outcome_reference": null
+      }
+    ]
+  },
+  "reviewer_role": "project_owner",
+  "reviewed_on": "2026-09-06",
+  "decisions": [
+    {
+      "decision_id": "001",
+      "review_method": "individual",
+      "scenario_ids": [
+        "draft-evidence-heading-bound-research"
+      ],
+      "exact_user_response": "yes ScholarPath should accept the claim and It should retain the source URL and exact supporting text.",
+      "ledger_reference": "docs/week4-label-review.md",
+      "approval_scope": "expected_behaviors",
+      "reviewer_role": "project_owner",
+      "reviewed_on": "2026-09-06"
+    },
+    {
+      "decision_id": "002",
+      "review_method": "individual",
+      "scenario_ids": [
+        "draft-evidence-confirmed-not-accepting"
+      ],
+      "exact_user_response": "yes approved",
+      "ledger_reference": "docs/week4-label-review.md",
+      "approval_scope": "expected_behaviors",
+      "reviewer_role": "project_owner",
+      "reviewed_on": "2026-09-06"
+    },
+    {
+      "decision_id": "003",
+      "review_method": "individual",
+      "scenario_ids": [
+        "draft-evidence-missing-identity"
+      ],
+      "exact_user_response": "yes approved",
+      "ledger_reference": "docs/week4-label-review.md",
+      "approval_scope": "expected_behaviors",
+      "reviewer_role": "project_owner",
+      "reviewed_on": "2026-09-06"
+    },
+    {
+      "decision_id": "004",
+      "review_method": "individual",
+      "scenario_ids": [
+        "draft-evidence-availability-without-statement"
+      ],
+      "exact_user_response": "approve",
+      "ledger_reference": "docs/week4-label-review.md",
+      "approval_scope": "expected_behaviors",
+      "reviewer_role": "project_owner",
+      "reviewed_on": "2026-09-06"
+    },
+    {
+      "decision_id": "005",
+      "review_method": "individual",
+      "scenario_ids": [
+        "draft-graph-reject-then-approve"
+      ],
+      "exact_user_response": "approve case 5 and lets also approve the remaineder of the batches and move to next step",
+      "ledger_reference": "docs/week4-label-review.md",
+      "approval_scope": "expected_behaviors",
+      "reviewer_role": "project_owner",
+      "reviewed_on": "2026-09-06"
+    },
+    {
+      "decision_id": "006",
+      "review_method": "batch",
+      "scenario_ids": [
+        "strong-research-alignment",
+        "superficial-keyword-poor-fit",
+        "availability-not-stated",
+        "conflicting-institutional-affiliation",
+        "duplicate-supervisor-multiple-queries",
+        "you-timeout-tavily-fallback",
+        "evidence-extraction-failure",
+        "independent-reviewer-disagreement",
+        "candidate-rejects-highly-theoretical",
+        "approval-required-before-persistence",
+        "planning-source-coverage",
+        "draft-evidence-confirmed-accepting",
+        "draft-evidence-markdown-identity",
+        "draft-evidence-honorific-identity",
+        "draft-evidence-line-wrapped-affiliation",
+        "draft-evidence-publication-only",
+        "draft-evidence-missing-affiliation",
+        "draft-evidence-missing-research",
+        "draft-evidence-publication-year-not-stated",
+        "draft-evidence-off-page-excerpt",
+        "draft-graph-approve-one",
+        "draft-graph-approve-subset",
+        "draft-graph-request-more",
+        "draft-graph-review-timeout",
+        "draft-graph-review-malformed"
+      ],
+      "exact_user_response": "approve case 5 and lets also approve the remaineder of the batches and move to next step",
+      "ledger_reference": "docs/week4-label-review.md",
+      "approval_scope": "expected_behaviors",
+      "reviewer_role": "project_owner",
+      "reviewed_on": "2026-09-06"
+    }
+  ],
+  "content_digest": "732ad206d79f30e2f9a3c0efd89c07daf4680216754fa21ce8e4d8f7bda911d5"
+}
