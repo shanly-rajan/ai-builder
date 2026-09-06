@@ -2143,3 +2143,17 @@ SCHOLARPATH_LOG_LEVEL=WARNING venv/bin/python scripts/run_reviewed_evals.py --ch
 
 The check is fake-only, forces tracing off, and exits 1 for the known correctness
 failure. It does not upload to LangSmith or replace the original eleven-case baseline.
+
+Step 3af adds the [reviewed LangSmith baseline](docs/week4-reviewed-langsmith-baseline.md):
+the same frozen thirty cases, deterministic feedback, and count-only graph traces.
+The separate `scripts/upload_reviewed_evals.py` command previews without network
+access; `--upload` also requires `SCHOLARPATH_RUN_LANGSMITH_EVALS=true`.
+`--inspect EXPERIMENT_NAME` reads an existing experiment without running targets
+again. OpenAI, Nebius, search, extraction, and memory remain fake throughout this
+baseline; uploaded results are not a claim of live relevance or release readiness.
+
+The recorded experiment has **29/30 passing cases**, **30 saved runs**, **330 feedback
+records**, and **12 graph cases with traces**. The known heading-grounding failure
+and separate **76/40** fake-port budget overrun remain visible. See the linked guide
+for actual trace links and the explicitly labeled recovery of duplicate-rate
+interpretation from persisted graph checks. No second experiment was needed.

@@ -6881,3 +6881,96 @@ policies, and fixtures remain unchanged. An authorized LangSmith upload/experime
 the reviewed version, actual trace linkage, measured repairs/comparisons, live quality
 evidence where appropriate, and Week 4 report/recording remain. Do not hide the known
 29/30 result or silently waive the separate 76/40 runtime budget finding.
+
+## Week 4 step 3af: reviewed LangSmith baseline
+
+**Date:** 2026-09-06
+
+### Milestone objective
+
+Connect the frozen thirty-case reviewed cohort to one opt-in, fake-provider-only
+LangSmith experiment, preserving expected outcomes and capturing actual links.
+
+### Prompt used
+
+[`docs/prompts/week4-3af-reviewed-langsmith-baseline.md`](prompts/week4-3af-reviewed-langsmith-baseline.md)
+
+### Files changed
+
+- `src/evaluation/reviewed_upload.py` and `scripts/upload_reviewed_evals.py`: separate
+  reviewed upload path, immutable snapshot readback, deterministic evaluation,
+  safe reports, and two explicit opt-in gates.
+- `src/evaluation/reviewed_tracing.py`: reviewed-only trace projection and SDK
+  experiment-metadata filtering; original tracing defaults remain unchanged.
+- Two matching unit-test modules; new uploaded-baseline guide, README/triage links,
+  archived prompt, actual observed report when available, and this journal.
+
+### Tests added
+
+137 tests cover exact thirty-case inputs and stable IDs, drift rejection without
+overwrites, timestamp preservation, offline defaults, live-target refusal, all
+eleven deterministic evaluators, known failure/runtime reporting, bounded readback,
+SDK evaluator errors, count-only trace projections, redaction, actual SDK request
+bodies, and Git/runtime metadata suppression.
+They also cover read-only recovery without target/evaluator execution or writes,
+feedback batching below the pagination boundary, explicit semantic provenance,
+and the graph-check implication used when the service omits feedback metadata.
+
+### Commands executed and results
+
+- Inspected committed checkpoint `4a414b6`, approved manifest, SDK 0.11.2, and
+  existing evaluation/observability boundaries without printing secrets.
+- Read-only LangSmith preflight succeeded at the configured endpoint. The new
+  reviewed dataset did not exist; no model/search/memory calls were made.
+- Offline strict editable installation succeeded without dependency downloads.
+- Initial full validation caught the not-yet-added prompt/journal link and tests
+  still using an earlier SDK-shaped double. These were corrected before upload.
+- The pre-upload full suite passed: **2,891 passed, 9 deselected, 108 subtests**
+  in **39.64s**, **92.50% coverage**. All 118 then-current new tests passed.
+- One upload created `scholarpath-week4-reviewed-upload-m13-5c37c1c1`, the exact
+  thirty-case dataset, thirty successful target roots, and 330 feedback records.
+  Its CLI exited 2 during subsequent readback; targets did not fail.
+- Read-only investigation found duplicates in paginated feedback retrieval. Small
+  eight-root batches avoid pagination without dropping genuine duplicates.
+- The service omitted feedback `extra`, initially making twelve zero duplicate
+  rates look like failed Boolean checks in the recovered report. Corrected the
+  interpretation using the frozen threshold and the persisted successful graph
+  expected-behavior check, which includes the duplicate/provenance gate. This
+  explicit inference is labeled `graph_expected_behavior`; a zero rate alone
+  cannot pass, and false/missing graph checks leave the interpretation unavailable.
+- Added `--inspect` to reconstruct an existing experiment without uploads,
+  target/evaluator execution, or persistence writes. No experiment was rerun,
+  no existing feedback/dataset was overwritten, and no paid provider was called.
+- Added safe `evaluator_info` semantics for future uploads; no new upload was
+  performed to retest this channel. Offline SDK/contract tests cover its mapping.
+- Final `--inspect ... --format json`: **29/30, exit 1**, readback complete;
+  thirty root links, 330 feedback records, twelve graph cases with visible children,
+  and the unchanged **76/40** request-more fake-port overrun. Recorded the actual
+  report in `docs/evaluation/week4-reviewed-langsmith-baseline-2026-09-06.json`.
+  Twelve rate interpretations are explicitly labeled as recovered from the graph
+  expected-behavior gate, not misrepresented as persisted feedback metadata.
+- `venv/bin/ruff format --check .`: **362 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 259 source files**.
+- `venv/bin/pytest -q --tb=short --show-capture=no`: **2,910 passed, 9 deselected,
+  108 subtests passed in 48.14s**, **92.53% coverage**, exit **0**.
+- After saving final documentation: contract checks **184 passed, 108 subtests in
+  2.22s**. Validated the saved report schema, unchanged manifest digest, thirty
+  case IDs, 330 metrics, authenticated run links, and explicit recovery provenance.
+  An initial targeted command named a nonexistent standalone terminology test;
+  reran the actual contract directory (which includes terminology) successfully.
+- `git diff --check`: passed. No staged changes, commits, or pushes.
+
+### Assumptions and lessons learned
+
+The established next step authorizes one LangSmith dataset/experiment upload, not
+paid provider calls, LLM judges, production repairs, a commit, or a push. SDK
+experiment metadata requires its own privacy boundary: trace masking alone does
+not strip automatically added Git author fields. Null metric scores are only
+non-applicable when explicitly labeled; SDK evaluator errors remain failures.
+
+### Remaining debt
+
+The heading-bound research false negative and provisional 76/40 request-more
+invocation overrun are intentionally preserved. Measured repairs, live quality
+evidence, and the Week 4 submission recording remain later work.

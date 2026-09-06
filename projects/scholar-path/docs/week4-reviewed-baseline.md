@@ -3,6 +3,10 @@
 **30 expected behaviors approved; 29/30 measured cases pass.** Human approval
 sets the expected outcomes; it does not turn implementation failures into passes.
 
+This page preserves the original **local** observation. The subsequent
+[LangSmith upload and readback](week4-reviewed-langsmith-baseline.md) uses the same
+reviewed manifest and records actual authenticated experiment/trace links.
+
 ## Local freeze and provenance
 
 | Item | Recorded value |

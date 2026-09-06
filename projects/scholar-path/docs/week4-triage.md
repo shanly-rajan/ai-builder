@@ -638,6 +638,21 @@ approved; passing results are still measured separately. No production fixes, li
 provider calls, LangSmith uploads, or commits occur here. Priority 4's uploaded
 experiment/trace linkage and later measured improvements remain separate work.
 
+### Step 3af: reviewed LangSmith upload and readback
+
+The [reviewed upload path](week4-reviewed-langsmith-baseline.md) preserves all thirty
+approved expectations and the original eleven-case defaults. It validates an exact
+server snapshot, executes only fake targets, and records deterministic feedback and
+count-only traces. Inspection can recover persisted results without executing an
+experiment again. Known heading-grounding and request-more budget findings must
+remain visible. The next repair is the measured heading-bound research false
+negative, not another broad tuning pass or a change to approved labels.
+
+Actual recorded result: **29/30**, with thirty runs, 330 metric records, and twelve
+graph cases with traces. One upload only; the readback issues were repaired and the
+same experiment recovered read-only. The full non-live suite passes **2,910 tests**
+at **92.53% coverage**. No production repair, provider calls, commit, or push.
+
 ## Step 3o: two excerpt false rejections repaired offline
 
 The [fixed reproduction](week4-live-canary.md#step-3o-excerpt-boundary-repair-offline)
