@@ -203,6 +203,7 @@ def _assert_failed(result: EvaluationResult) -> None:
 def test_deterministic_evaluator_registry_is_complete_and_stable() -> None:
     assert tuple(evaluator.__name__ for evaluator in DETERMINISTIC_EVALUATORS) == (
         "schema_validity",
+        "expected_behavior",
         "canonical_terminology",
         "evidence_id_validity",
         "source_url_presence",

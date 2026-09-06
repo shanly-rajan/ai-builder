@@ -996,8 +996,8 @@ LANGSMITH_MAXIMUM_RETRY_COUNT=2
 SCHOLARPATH_RUN_LANGSMITH_EVALS=false
 SCHOLARPATH_RUN_LIVE_E2E_EVALS=false
 SCHOLARPATH_RUN_LIVE_CANARY=false
-SCHOLARPATH_EVALUATION_DATASET_NAME=scholarpath-m12-regression-v1
-SCHOLARPATH_EVALUATION_EXPERIMENT_PREFIX=scholarpath-m12
+SCHOLARPATH_EVALUATION_DATASET_NAME=scholarpath-week4-regression-v1
+SCHOLARPATH_EVALUATION_EXPERIMENT_PREFIX=scholarpath-week4
 SCHOLARPATH_EVALUATION_JUDGE_MODEL=gpt-5.4-mini
 SCHOLARPATH_EVALUATION_JUDGE_TIMEOUT_SECONDS=60
 ```
@@ -1014,7 +1014,7 @@ LangSmith client, even if another process has globally enabled tracing.
 ### Run the M12 evaluation suite
 
 The default evaluation is deterministic, fake-backed, and offline. It constructs no
-LangSmith client and makes no model, search, memory, or network call:
+LangSmith client and makes no live model, search, memory, or network call:
 
 ```bash
 venv/bin/python scripts/create_eval_dataset.py
@@ -1024,8 +1024,33 @@ venv/bin/python scripts/run_evals.py --target graph_fake
 
 The first command previews all eleven synthetic scenarios. The second runs the complete
 local baseline; the third limits execution to the fake end-to-end graph scenarios. The
-expected baseline is `11/11` scenarios passed. Metric definitions and observed values are
-recorded in [`docs/evaluation-baseline.md`](docs/evaluation-baseline.md).
+expected result is `11/11` scenarios passed. Week 4 step 2 adds explicit expected-outcome
+checks, per-case target/evaluator timing, target-family median/p95, and counted fake-port
+invocations. Fresh runs have a current UTC date and unique name. The eleven-case cohort
+is now `scholarpath-week4-regression-v1`; it is not yet the reviewed 30–50-case golden dataset.
+
+See [Week 4 metric definitions, budgets, and observed results](docs/week4-metrics.md).
+The [historical baseline](docs/evaluation-baseline.md) remains unchanged as evidence of the
+older release; its results are not directly comparable with these stronger outcome labels.
+
+To enforce the provisional offline runtime budgets as well as correctness:
+
+```bash
+SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false \
+venv/bin/python scripts/run_evals.py --target all --enforce-runtime-budgets
+```
+
+Defaults: target-family p95 at most **5 seconds**, at most **2 application port invocations**
+per component case and **40** per graph case. Adjust with `--max-target-p95-seconds`,
+`--max-component-port-invocations`, and `--max-graph-port-invocations`. Without
+`--enforce-runtime-budgets`, these timing/usage budgets are diagnostic; correctness checks
+still determine failure. Missing measurements cannot pass an enforced budget. Fake counts
+include models, tools, and memory; they are not billed requests. Tokens and cost remain
+unmeasured, and fake latency does not prove the live 15-minute objective.
+
+If your `.env` still names `scholarpath-m12-regression-v1`, update only the two non-secret
+evaluation name/prefix settings shown above before uploading. The old dataset is protected
+against overwrite by the new labels. No existing uploaded experiment is changed by local runs.
 
 Writing the dataset or an experiment to LangSmith requires both an explicit command option
 and the environment gate. Load the ignored `.env` first so the configured regional endpoint
@@ -1052,6 +1077,10 @@ SCHOLARPATH_RUN_LANGSMITH_EVALS=true \
 SCHOLARPATH_RUN_LIVE_E2E_EVALS=true \
 venv/bin/python scripts/run_evals.py --upload --live --target graph_live
 ```
+
+The current frozen references contain synthetic Supervisor IDs. The live path is an
+experimental diagnostic, not a comparable Week 4 quality benchmark: meaningful live outcome
+scoring needs separately reviewed live references. Fake-cohort runtime budgets cannot gate it.
 
 Uploaded target traces carry application, environment, graph version, prompt version, model
 provider, fallback use, and Candidate review outcome tags. Candidate identity, full research
@@ -1874,3 +1903,7 @@ The [Week 4 triage and delivery order](docs/week4-triage.md) records the remaini
 dataset, measurement, trace, and submission gaps. The existing eleven-case offline
 baseline does **not** establish completion of all Week 4 requirements. Human label
 review, actual LangSmith evidence, and a measured before/after comparison remain pending.
+
+Week 4 step 2 is also implemented: [declared outcomes and runtime metrics](docs/week4-metrics.md)
+now have tested checks, explicit budgets, and an accurately named eleven-case offline replay.
+The next bounded item is trace verification followed by the reviewed golden dataset.

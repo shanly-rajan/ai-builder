@@ -76,6 +76,7 @@ from .fakes import (
     make_evaluation_search_outcomes,
     make_weak_research_fit_response,
 )
+from .measurements import TargetMeasurements
 from .models import (
     CandidatePreferenceProjection,
     CandidateReviewOutcome,
@@ -118,6 +119,20 @@ def _model_provider_label(model: object) -> str:
     if "nebius" in qualified_name:
         return "nebius"
     return "fake"
+
+
+def _recorded_model_call_count(model: object) -> int | None:
+    """Read an instrumented adapter's recorded calls without inferring missing usage."""
+    inputs = getattr(model, "inputs", None)
+    return len(inputs) if isinstance(inputs, list) else None
+
+
+def _model_measurements(model: object, calls_before: int | None) -> TargetMeasurements:
+    """Count only this target invocation, including any recorded bounded retries."""
+    calls_after = _recorded_model_call_count(model)
+    if calls_before is None or calls_after is None or calls_after < calls_before:
+        return TargetMeasurements()
+    return TargetMeasurements(port_invocations=calls_after - calls_before)
 
 
 def _tag_target_run(
@@ -223,6 +238,7 @@ def _evidence_projection(claim: EvidenceClaim) -> EvidenceReferenceProjection:
         directly_supported=claim.directly_supported,
         confidence=claim.confidence,
         availability_status=claim.availability_status,
+        conflicting_evidence_ids=claim.conflicting_evidence_ids,
     )
 
 
@@ -272,6 +288,7 @@ def make_search_planning_target(
         )
         profile = _candidate_profile(scenario)
         preference = _preference_revision(scenario)
+        calls_before = _recorded_model_call_count(resolved_model)
         plan = ResearchPlanningAgent(resolved_model).plan(
             profile,
             (preference,),
@@ -282,6 +299,7 @@ def make_search_planning_target(
             target=EvaluationTargetKind.SEARCH_PLANNING,
             scenario_id=scenario.scenario_id,
             search_plan=plan,
+            measurements=_model_measurements(resolved_model, calls_before),
         )
         _tag_target_run(
             scenario,
@@ -381,6 +399,7 @@ def make_evidence_verification_target(
             evidence_outcomes[conflict_url] = conflict_response
             source_urls.append(conflict_url)
         resolved_model = model or ScriptedEvidenceModel(evidence_outcomes)
+        calls_before = _recorded_model_call_count(resolved_model)
         agent = EvidenceVerificationAgent(resolved_model)
         evidence: list[EvidenceClaim] = []
         for source_url in source_urls:
@@ -397,6 +416,7 @@ def make_evidence_verification_target(
             target=EvaluationTargetKind.EVIDENCE_VERIFICATION,
             scenario_id=scenario.scenario_id,
             verification_records=(_verification_projection(record),),
+            measurements=_model_measurements(resolved_model, calls_before),
         )
         _tag_target_run(
             scenario,
@@ -440,6 +460,7 @@ def make_research_fit_target(
                 else None
             )
             resolved_model = ScriptedResearchFitModel(outcomes)
+        calls_before = _recorded_model_call_count(resolved_model)
         assessment = ResearchFitEvaluationAgent(resolved_model).evaluate(
             _candidate_profile(scenario),
             supervisor,
@@ -451,6 +472,7 @@ def make_research_fit_target(
             scenario_id=scenario.scenario_id,
             candidate_preferences=_preferences(scenario),
             assessments=(_fit_projection(assessment, supervisor),),
+            measurements=_model_measurements(resolved_model, calls_before),
         )
         _tag_target_run(
             scenario,
@@ -508,6 +530,7 @@ def _project_graph_output(
     output: ScholarPathState | dict[str, object],
     *,
     target_kind: GraphTargetKind,
+    measurements: TargetMeasurements | None = None,
 ) -> dict[str, object]:
     state = _graph_state(output)
     interrupted = candidate_review_payload_from_graph_output(output) is not None
@@ -547,6 +570,7 @@ def _project_graph_output(
     result = GraphTargetOutput(
         target=target_kind,
         scenario_id=scenario.scenario_id,
+        measurements=measurements or TargetMeasurements(),
         candidate_preferences=_preferences(scenario),
         review_status=state["review_status"],
         interrupted=interrupted,
@@ -702,19 +726,25 @@ def fake_end_to_end_target(inputs: dict[str, object]) -> dict[str, object]:
         fixtures=fixtures,
         independent_review_policy=IndependentReviewPolicy(disagreement_threshold=5),
     )
+    planning_model = StaticPlanningModel()
+    content_extractor = ScriptedContentExtraction(content_outcomes)
+    evidence_model = ScriptedEvidenceModel(evidence_outcomes)
+    research_fit_model = ScriptedResearchFitModel()
+    independent_review_model = ScriptedIndependentReviewModel(review_outcomes)
+    preference_memory = InMemoryCandidatePreferenceMemory()
     output = run_scholarpath_graph(
         graph_config,
         thread_id=f"m12-{scenario.scenario_id}",
         candidate_review_responses=review_responses,
         checkpointer=create_test_checkpointer(),
-        planning_model=StaticPlanningModel(),
+        planning_model=planning_model,
         supervisor_search=you_search,
         tavily_search=tavily_search,
-        content_extractor=ScriptedContentExtraction(content_outcomes),
-        evidence_model=ScriptedEvidenceModel(evidence_outcomes),
-        research_fit_model=ScriptedResearchFitModel(),
-        independent_review_model=ScriptedIndependentReviewModel(review_outcomes),
-        candidate_preference_memory=InMemoryCandidatePreferenceMemory(),
+        content_extractor=content_extractor,
+        evidence_model=evidence_model,
+        research_fit_model=research_fit_model,
+        independent_review_model=independent_review_model,
+        candidate_preference_memory=preference_memory,
         alternate_evidence_search=alternate_search,
         application_settings=ApplicationSettings(
             environment=Environment.TEST,
@@ -737,6 +767,22 @@ def fake_end_to_end_target(inputs: dict[str, object]) -> dict[str, object]:
         scenario,
         output,
         target_kind=EvaluationTargetKind.GRAPH_FAKE,
+        measurements=TargetMeasurements(
+            port_invocations=sum(
+                (
+                    len(planning_model.inputs),
+                    len(you_search.calls),
+                    len(tavily_search.calls),
+                    len(alternate_search.calls),
+                    len(content_extractor.calls),
+                    len(evidence_model.inputs),
+                    len(research_fit_model.inputs),
+                    len(independent_review_model.inputs),
+                    len(preference_memory.load_calls),
+                    len(preference_memory.store_calls),
+                )
+            )
+        ),
     )
 
 

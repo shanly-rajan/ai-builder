@@ -720,7 +720,7 @@ def test_evaluation_settings_default_to_fully_offline(
     assert settings == EvaluationSettings()
     assert settings.run_langsmith_evals is False
     assert settings.run_live_e2e_evals is False
-    assert settings.evaluation_dataset_name == "scholarpath-m12-regression-v1"
+    assert settings.evaluation_dataset_name == "scholarpath-week4-regression-v1"
 
 
 def test_enabled_langsmith_tracing_defers_missing_key_validation(

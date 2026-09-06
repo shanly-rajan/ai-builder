@@ -22,8 +22,11 @@ from .models import (
     EvidenceReferenceProjection,
     EvidenceVerificationTargetOutput,
     GraphTargetOutput,
+    IndependentReviewExpectation,
     ResearchFitAssessmentProjection,
     ResearchFitTargetOutput,
+    SearchPlanningTargetOutput,
+    VerificationExpectation,
     VerificationRecordProjection,
     parse_evaluation_target_output,
 )
@@ -547,8 +550,227 @@ def human_approval_enforcement(
     )
 
 
+def _verification_matches(
+    record: VerificationRecordProjection, expected: VerificationExpectation
+) -> bool:
+    """Compare labeled evidence outcomes without interpreting generated prose."""
+    if (
+        record.verification_status is not expected.verification_status
+        or record.verified_supervisor_present is not expected.verified_supervisor_present
+        or len(record.evidence) < expected.minimum_retained_evidence
+        or (
+            expected.maximum_retained_evidence is not None
+            and len(record.evidence) > expected.maximum_retained_evidence
+        )
+        or not set(expected.required_claim_types).issubset(
+            claim.claim_type for claim in record.evidence if claim.directly_supported
+        )
+        or (
+            expected.expected_missing_required_evidence is not None
+            and set(record.missing_required_evidence)
+            != set(expected.expected_missing_required_evidence)
+        )
+    ):
+        return False
+    if expected.affiliation_conflict_surfaced:
+        affiliation_claims = {
+            claim.evidence_id: claim
+            for claim in record.evidence
+            if claim.claim_type is EvidenceClaimType.CURRENT_AFFILIATION
+            and claim.directly_supported
+        }
+        return bool(record.verification_concerns) and any(
+            other_id in affiliation_claims
+            and claim.evidence_id in affiliation_claims[other_id].conflicting_evidence_ids
+            and claim.source_url != affiliation_claims[other_id].source_url
+            for claim in affiliation_claims.values()
+            for other_id in claim.conflicting_evidence_ids
+        )
+    return True
+
+
+def _independent_review_matches(
+    output: GraphTargetOutput, expected: IndependentReviewExpectation
+) -> bool:
+    matching = [
+        review
+        for review in output.independent_reviews
+        if review.supervisor_id == expected.supervisor_id
+    ]
+    if len(matching) != 1:
+        return False
+    review = matching[0]
+    return (
+        review.review_status is expected.review_status
+        and review.effective_score == expected.effective_score
+        and review.effective_confidence is expected.effective_confidence
+        and review.requires_candidate_attention is expected.requires_candidate_attention
+        and any(
+            item.assessment.supervisor_id == expected.supervisor_id for item in output.assessments
+        )
+        and all(
+            item.effective_score == review.effective_score
+            and item.evidence_confidence is review.effective_confidence
+            for item in output.shortlist_recommendations
+            if item.supervisor_id == expected.supervisor_id
+        )
+    )
+
+
+def _graph_behavior_matches(output: GraphTargetOutput, expected: EvaluationExpectation) -> bool:
+    """Require real progress before accepting a labeled successful graph outcome."""
+    if not output.execution_log:
+        return False
+    if (
+        expected.expected_review_status is not None
+        and output.review_status is not expected.expected_review_status
+    ):
+        return False
+    if expected.expected_interrupted or expected.expected_proposed_supervisor_ids:
+        verified_ids = {
+            record.supervisor_id
+            for record in output.verification_records
+            if record.verified_supervisor_present
+        }
+        assessed_ids = {item.assessment.supervisor_id for item in output.assessments}
+        if (
+            not output.prospective_supervisor_ids
+            or not output.proposed_supervisor_ids
+            or not output.shortlist_recommendations
+            or not set(output.proposed_supervisor_ids).issubset(verified_ids & assessed_ids)
+        ):
+            return False
+    for observed, labeled in (
+        (output.proposed_supervisor_ids, expected.expected_proposed_supervisor_ids),
+        (output.shortlisted_supervisor_ids, expected.expected_shortlisted_supervisor_ids),
+        (output.rejected_supervisor_ids, expected.expected_rejected_supervisor_ids),
+    ):
+        if labeled is not None and observed != labeled:
+            return False
+    if set(output.rejected_supervisor_ids) & (
+        set(output.proposed_supervisor_ids) | set(output.shortlisted_supervisor_ids)
+    ):
+        return False
+    reference: dict[str, object] = {"expected": expected.model_dump(mode="json")}
+    if human_approval_enforcement(output.model_dump(mode="json"), reference).score is not True:
+        return False
+    if (
+        expected.expected_fallback_search_used is not None
+        and correct_fallback_route(output.model_dump(mode="json"), reference).score is not True
+    ):
+        return False
+    for provider, minimum in (
+        (SearchProvider.YOU, expected.minimum_you_attempts),
+        (SearchProvider.TAVILY, expected.minimum_tavily_attempts),
+    ):
+        if sum(attempt.provider_used is provider for attempt in output.search_attempts) < minimum:
+            return False
+    duplicate_result = duplicate_supervisor_rate(output.model_dump(mode="json"), reference)
+    if not duplicate_result.metadata or not duplicate_result.metadata.get("threshold_passed"):
+        return False
+    return all(
+        _independent_review_matches(output, item) for item in expected.expected_independent_reviews
+    )
+
+
+def expected_behavior(
+    outputs: dict[str, object],
+    reference_outputs: dict[str, object] | None = None,
+) -> EvaluationResult:
+    """Check declared outcome labels; missing or malformed references never pass."""
+    output = _parsed_output(outputs)
+    if output is None:
+        return _invalid_output_result("expected_behavior")
+    try:
+        if not reference_outputs or "expected" not in reference_outputs:
+            raise ValueError("Explicit reference outcomes are required")
+        expected = EvaluationExpectation.model_validate(reference_outputs["expected"])
+        if expected == EvaluationExpectation():
+            raise ValueError("At least one declared outcome label is required")
+    except (ValidationError, TypeError, ValueError):
+        return _boolean_result(
+            "expected_behavior", False, "Declared outcome labels are missing or invalid."
+        )
+
+    valid = True
+    if expected.expected_supervisor_ids is not None:
+        if isinstance(output, GraphTargetOutput):
+            observed_ids = output.prospective_supervisor_ids
+        elif isinstance(output, EvidenceVerificationTargetOutput):
+            observed_ids = tuple(record.supervisor_id for record in output.verification_records)
+        else:
+            observed_ids = tuple(
+                item.assessment.supervisor_id for item in _assessment_projections(output)
+            )
+        valid = len(observed_ids) == len(expected.expected_supervisor_ids) and set(
+            observed_ids
+        ) == set(expected.expected_supervisor_ids)
+    if expected.expected_verification_records:
+        records = _verification_records(output)
+        by_id = {record.supervisor_id: record for record in records}
+        valid = valid and len(records) == len(expected.expected_verification_records)
+        valid = valid and all(
+            label.supervisor_id in by_id
+            and _verification_matches(by_id[label.supervisor_id], label)
+            for label in expected.expected_verification_records
+        )
+    if expected.required_planning_source_types:
+        if isinstance(output, SearchPlanningTargetOutput):
+            valid = valid and set(expected.required_planning_source_types).issubset(
+                source
+                for query in output.search_plan.search_queries
+                for source in query.target_source_types
+            )
+        else:
+            valid = False
+    if expected.expected_supervisor_ids is not None and isinstance(
+        output, SearchPlanningTargetOutput
+    ):
+        valid = False
+    if (
+        expected.minimum_research_fit_score is not None
+        or expected.maximum_research_fit_score is not None
+    ):
+        valid = (
+            valid
+            and bool(_assessment_projections(output))
+            and score_range_and_component_totals(outputs, reference_outputs).score is True
+        )
+    if expected.expected_availability_status is not None:
+        valid = (
+            valid
+            and bool(_verification_records(output) or _assessment_projections(output))
+            and no_unsupported_availability_claim(outputs, reference_outputs).score is True
+        )
+
+    graph_labels = (
+        expected.expected_review_status is not None
+        or expected.expected_review_outcome is not None
+        or expected.expected_interrupted is not None
+        or expected.expected_fallback_search_used is not None
+        or expected.expected_proposed_supervisor_ids is not None
+        or expected.expected_shortlisted_supervisor_ids is not None
+        or expected.expected_rejected_supervisor_ids is not None
+        or bool(expected.expected_independent_reviews)
+        or expected.minimum_you_attempts > 0
+        or expected.minimum_tavily_attempts > 0
+        or expected.minimum_multi_query_provenance_count > 0
+    )
+    if isinstance(output, GraphTargetOutput):
+        valid = valid and _graph_behavior_matches(output, expected)
+    elif graph_labels:
+        valid = False
+    return _boolean_result(
+        "expected_behavior",
+        valid,
+        "The output did not satisfy the declared Supervisor, evidence, planning, "
+        "or graph outcome labels.",
+    )
+
+
 DETERMINISTIC_EVALUATORS = (
     schema_validity,
+    expected_behavior,
     canonical_terminology,
     evidence_id_validity,
     source_url_presence,

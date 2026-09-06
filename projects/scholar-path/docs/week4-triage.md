@@ -2,7 +2,7 @@
 
 Date: 2026-09-06. Scope: evaluate and improve the existing ScholarPath agent using the
 supplied **Week 4 Project Handout (Aug 2026)** and the mentor's **Focus next** feedback.
-The current delivery implements only the first bounded item below. This document is a
+Steps 1 and 2 are now implemented as separate bounded deliveries. This document is a
 gap analysis, not a claim that the Week 4 submission is complete.
 
 The handout is evaluation guidance for the selected own-agent track. Its other tracks,
@@ -39,8 +39,8 @@ Later items remain pending; each should be delivered as a separate small change.
 
 | Order | Deliverable | Requirement or mentor alignment | Bounded implementation / verification |
 |---|---|---|---|
-| **1 — current delivery** | Readable failure summaries for offline and uploaded evaluations | Mentor: easier failed-case summary. Week 4 phase 3: connect failed cases to metrics and cluster failures. | Extend the existing result records and CLI with case identifiers, failed checks, sanitized failure explanations, and grouped counts; retain remaining cases after a target error. Verify with fixed passing, failing, and error examples. |
-| **2** | Check expected behavior and measure runtime | Week 4 phase 1: outcome-based metrics, numeric pass bars, and at least one quality plus one cost/latency metric. | Add an expected-behavior evaluator using existing reference labels; record per-case elapsed time and aggregate latency. Keep unmeasured live tokens/cost explicitly unavailable. Verify wrong, empty, and correct outputs against reference behavior. |
+| **1 — complete** | Readable failure summaries for offline and uploaded evaluations | Mentor: easier failed-case summary. Week 4 phase 3: connect failed cases to metrics and cluster failures. | Extend the existing result records and CLI with case identifiers, failed checks, sanitized failure explanations, and grouped counts; retain remaining cases after a target error. Verify with fixed passing, failing, and error examples. |
+| **2 — complete** | Check expected behavior and measure runtime | Week 4 phase 1: outcome-based metrics, numeric pass bars, and at least one quality plus one cost/latency metric. | Explicit outcome labels, per-case target/evaluator time, family median/p95, measured fake port invocations, and optional runtime-budget enforcement. See [metrics and observations](week4-metrics.md). Live tokens/cost remain unmeasured. |
 | **3** | Verify one trace, then version and review a 30-case golden dataset | Week 4 phases 1–2: working trace instrumentation and 30–50 labeled happy, edge, known-failure, and adversarial cases. | First verify a synthetic case's bounded inputs/outputs and child runs are visible in LangSmith. Then reuse realistic fixtures and reported failure patterns for distinct cases with scenario type and label provenance. A practical mix is 15 happy, 9 edge, 4 known failures, and 2 adversarial. Human review must confirm expected behavior before calling the labels reviewed ground truth. |
 | **4** | Run the frozen baseline and identify its dominant failure clusters | Week 4 phases 2–3: comparable measurements and failures linked to trace evidence. | Reuse dataset upload and experiment commands. Preserve dataset version, experiment name, case IDs, actual trace links, and metric results; rank failures by frequency and measured cost. |
 | **5** | Address the dominant failures with 3–4 measured changes | Week 4 phases 3–4: failure frequencies/costs, targeted improvements, and measured delta. | Choose fixes from the baseline clusters, freeze the dataset, and rerun the same metrics after each small improvement. Record gains, regressions, and no-change results honestly. Avoid a model upgrade or architecture rewrite unless a measured failure requires it. |
@@ -50,7 +50,7 @@ The first repair improves evaluation visibility. It is not automatically one of 
 three to four required agent-quality improvements: those must target observed failures
 and have measured effects on the chosen metrics.
 
-## Requirement cross-check
+## Initial requirement cross-check (before steps 1–2)
 
 | Week 4 requirement | Existing evidence | Remaining gap |
 |---|---|---|
@@ -120,3 +120,20 @@ Aug 30 baseline identity.
   recording are pending submission evidence, not facts inferred from passing tests.
 - No major refactor, additional model provider, vector database, or unrelated product
   feature is needed for this evaluation work.
+
+## Step 2 completion and remaining gaps
+
+The [metric framework](week4-metrics.md) now defines five headline metrics with numeric bars.
+`expected_supervisor_ids` is no longer unused: declared IDs, evidence status, conflicts,
+partial-result retention, source coverage, revised review scores, and Candidate-review outcomes
+are checked by `expected_behavior`. Unknown measurements remain unknown rather than zero.
+
+The eleven cases pass the stronger checks on a newly named provisional dataset,
+`scholarpath-week4-regression-v1`. Fresh offline runs receive an actual UTC date and unique
+suffix. The historical M12 dataset is protected against overwrite by new labels, and the
+historical baseline remains intact. No application graph/UI behavior changed.
+
+**Next: step 3**, not another runtime feature. Verify one privacy-safe synthetic LangSmith
+trace, then version and human-review the 30-case golden dataset. Actual trace links, stable
+baseline/comparison measurements, 3–4 agent-quality improvements, and submission recording
+remain outstanding. Current synthetic labels are not claimed to be human-reviewed ground truth.

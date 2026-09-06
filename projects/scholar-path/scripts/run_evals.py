@@ -16,11 +16,14 @@ from scholarpath.config import (
 )
 from scholarpath.evaluation import (
     EvaluationTargetKind,
+    RuntimeBudget,
     build_openai_judge_evaluators,
     create_langsmith_evaluation_client,
     format_failure_summary,
+    format_runtime_summary,
     run_local_baseline,
     run_uploaded_experiment,
+    runtime_budgets_passed,
     sync_evaluation_dataset,
 )
 from scholarpath.evaluation.targets import (
@@ -49,7 +52,7 @@ def _target(value: str) -> EvaluationTargetKind | None:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Run ScholarPath M12 synthetic regression evaluations."
+        description="Run ScholarPath Week 4 synthetic outcome and runtime evaluations."
     )
     parser.add_argument(
         "--target",
@@ -63,6 +66,14 @@ def _parser() -> argparse.ArgumentParser:
         ),
         default="all",
     )
+    parser.add_argument(
+        "--enforce-runtime-budgets",
+        action="store_true",
+        help="Fail on exceeded or unmeasured fake-cohort budgets; disabled by default.",
+    )
+    parser.add_argument("--max-target-p95-seconds", type=float, default=5.0)
+    parser.add_argument("--max-component-port-invocations", type=int, default=2)
+    parser.add_argument("--max-graph-port-invocations", type=int, default=40)
     parser.add_argument(
         "--upload",
         action="store_true",
@@ -102,8 +113,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 2
 
+    if live and args.enforce_runtime_budgets:
+        print("Fake-cohort runtime budgets cannot gate a live experiment.", file=sys.stderr)
+        return 2
+    try:
+        budget = RuntimeBudget(
+            fake_target_p95_seconds=args.max_target_p95_seconds,
+            component_port_invocations=args.max_component_port_invocations,
+            graph_port_invocations=args.max_graph_port_invocations,
+        )
+    except ValueError:
+        print("Runtime budgets must be positive, finite numbers.", file=sys.stderr)
+        return 2
+
     if not args.upload:
-        report = run_local_baseline(target=selected_target)
+        report = run_local_baseline(target=selected_target, runtime_budget=budget)
         print(f"Baseline: {report.baseline_name}")
         print(f"Dataset: {report.dataset_name}")
         print(f"Scenarios: {report.passed_scenario_count}/{report.scenario_count} passed")
@@ -114,7 +138,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"passed; mean={observed}"
             )
         print(format_failure_summary(report))
-        return 0 if report.passed else 1
+        print(format_runtime_summary(report.runtime_summaries))
+        runtime_ok = not args.enforce_runtime_budgets or (
+            runtime_budgets_passed(report.runtime_summaries) is True
+        )
+        return 0 if report.passed and runtime_ok else 1
 
     evaluation_settings = load_evaluation_settings()
     if not evaluation_settings.run_langsmith_evals:
@@ -152,6 +180,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             target=selected_target,
             judge_evaluators=judges,
             live=live,
+            runtime_budget=budget,
         )
     except (ProviderConfigurationError, ValueError) as error:
         print(str(error), file=sys.stderr)
@@ -169,7 +198,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         "examples passed deterministic gates."
     )
     print(format_failure_summary(result))
-    return 0 if result.passed else 1
+    print(format_runtime_summary(result.runtime_summaries))
+    runtime_ok = not args.enforce_runtime_budgets or (
+        runtime_budgets_passed(result.runtime_summaries) is True
+    )
+    return 0 if result.passed and runtime_ok else 1
 
 
 if __name__ == "__main__":

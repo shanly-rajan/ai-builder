@@ -4498,3 +4498,112 @@ authorize replacing the ScholarPath use case or adding unrelated architecture.
 - Investigate a concrete window-related test/runner failure if mentor evidence becomes available.
 - The summary groups symptoms by failed check; root-cause analysis still requires inspecting
   the linked case or trace. It does not invent qualitative ratings, cost measurements, or causes.
+
+## Week 4 step 2: Expected outcomes and runtime measurements
+
+**Date:** 2026-09-06
+
+### Milestone objective
+
+Implement only the next prioritized evaluation step: explicit expected-outcome checks,
+per-case elapsed time and application-call usage, and five headline metrics with numeric bars.
+This addresses Week 4 phase 1's outcome, behavior, and latency/usage measurement requirements;
+it does not complete the reviewed golden dataset, live trace, or measured-improvement work.
+
+### Prompt used
+
+[`week4-2-outcome-and-runtime-metrics.md`](prompts/week4-2-outcome-and-runtime-metrics.md)
+archives “Lets proceed to next step” and its bounded interpretation against the agreed triage.
+
+### Files changed
+
+- `src/evaluation/models.py`, `evaluators.py`, and `scenarios.py`: typed declared outcomes,
+  deterministic `expected_behavior`, explicit empty-versus-unscoped labels, conflict provenance,
+  partial-result retention, planning coverage, independent-review revision, and graph outcomes.
+- `src/evaluation/measurements.py`: typed runtime/call observations, finite positive budgets,
+  median/nearest-rank p95 aggregation, sample coverage, unknown handling, and safe rendering.
+- `src/evaluation/targets.py`: preserve evidence conflict IDs and count existing fake-port
+  invocations, including failures/retries/alternate searches/model calls/memory. Custom adapters
+  without counters and live totals stay unknown. Existing graph behavior is unchanged.
+- `src/evaluation/runner.py`: independently time targets and evaluators; retain failed-target
+  durations; add runtime projections and SDK timestamp support; generate current UTC-date run
+  identities; protect the historical M12 dataset against new-label overwrite.
+- `src/evaluation/__init__.py`, `scripts/run_evals.py`: expose the new APIs and print metrics;
+  optionally enforce configurable fake-cohort runtime budgets without altering default hard gates.
+- `src/config.py`, `.env.example`: new provisional dataset/prefix defaults. No secrets or local
+  `.env` values were read, copied, or changed.
+- README, `docs/week4-metrics.md`, `docs/week4-triage.md`, prompt, and this journal: definitions,
+  observed offline results, exact commands, completed-step status, and remaining evidence gaps.
+- New `test_expected_behavior.py`, `test_measurements.py`, `test_target_measurements.py`, and
+  `test_runtime_reporting.py`; existing evaluator/scenario/config/registry tests updated for
+  intentional contract changes. Historical release assertions and baseline are preserved.
+
+### Tests added
+
+- **75** expected-behavior cases: correct and wrong IDs, explicit empty outcomes, missing or
+  malformed references, incomplete verification, missing conflicts/evidence, review disagreement,
+  planning source coverage, fallback, rejection, approval gating, and JSON round trips.
+- **46** runtime-unit cases: finite values, strict counters, zero versus unknown, per-family
+  grouping, median/p95, incomplete coverage, live-budget separation, and privacy-safe labels.
+- **18** target-counter cases: exact fake counts, repeated instrumented model deltas, timeout
+  retries, alternate searches, memory writes, unknown custom models, and retained conflict IDs.
+- **18** reporting cases: separate target/evaluator timing, error duration retention, fresh dates,
+  historical dataset protection, SDK row order/timestamps, missing telemetry, runtime opt-in,
+  CLI validation, privacy-safe serialization, and duplicate SDK rows cannot replace missing cases.
+
+### Test results
+
+- Offline editable install refreshed successfully without downloading dependencies:
+  `venv/bin/python -m pip install --no-deps --no-build-isolation -e . --config-settings editable_mode=strict`.
+- Focused runner/failure/runtime reporting run: `48 passed in 0.83s`.
+- Focused expected-behavior/evaluator/scenario/contract run: `126 passed`.
+- Ruff formatting: `276 files already formatted`; Ruff lint: all checks passed.
+- Strict mypy: no issues in `211 source files`.
+- First full run exposed only stale dataset-default/error-text assertions; these were updated
+  for the intended new contract. The next run passed all 1,758 tests but the audit subtest
+  correctly flagged that this new prompt had not yet been linked from the journal.
+- After completing audit artifacts: `1,758 passed, 9 deselected in 24.61s`, with **91.55%**
+  coverage. Final review then added two duplicate-SDK-row regressions.
+- **Final complete non-live suite:** `venv/bin/pytest -m 'not live'` returned
+  **`1,760 passed, 9 deselected in 24.88s`**, with **91.56% coverage**. All **157** new
+  regression cases pass; existing unit, graph, contract, integration, and UI tests still pass.
+- Final `venv/bin/ruff format --check .`, `venv/bin/ruff check .`,
+  `venv/bin/mypy src tests scripts`, and `git diff --check` all passed.
+- Final focused runner/failure/runtime reporting run: `50 passed in 0.86s`.
+- Offline CLI with `--enforce-runtime-budgets`: **11/11 cases passed**; expected outcomes
+  **11/11**, evidence/availability checks **28/28**, human approval checks **6/6**.
+- Observed fake graph p95 **0.060s**, maximum **39** application port invocations; all families
+  met the provisional **5s**, **2/component**, **40/graph** budgets with complete telemetry.
+- Recorded run: `scholarpath-week4-fake-2026-09-06-1e27825a`. Full definitions and family
+  observations are in [Week 4 metrics](week4-metrics.md). Tokens and monetary cost are unmeasured.
+- No live provider calls, LangSmith writes, or remote CI/Windows execution occurred.
+
+### Assumptions
+
+- Existing eleven-case references are synthetic declared outcomes, not human-reviewed ground truth.
+  They are newly versioned because their labels changed; historical before/after gains cannot be
+  inferred by comparing this result with an older 11/11 pass rate.
+- Application port counts are a bounded usage proxy, not HTTP or billing telemetry. Failed targets
+  without returned counters stay unknown rather than reporting fabricated zero consumption.
+- Runtime thresholds are provisional fake-cohort budgets, diagnostic unless explicitly enforced.
+  They must be reviewed/frozen before the Week 4 baseline comparison; no live SLA is established.
+- The optional real graph experiment still needs live-specific expected labels. Fixture IDs are
+  not valid labels for judging real Supervisor results.
+
+### Lessons learned
+
+- Structurally valid output can still be the wrong outcome. Explicit references make expected
+  partial evidence, fallback, conflicts, and human review part of task correctness.
+- Time only the target when measuring agent latency; evaluator work is a separate cost.
+- Missing telemetry must remain visible. Counting an absent SDK child list as zero calls would
+  falsely make a run appear cheap, and mixing target families hides meaningful variation.
+- Updating metric semantics requires a new dataset version and honest run provenance.
+
+### Remaining debt
+
+- Step 3: verify one privacy-safe synthetic LangSmith trace, then curate/version/human-review
+  the 30-case golden dataset. No trace upload or dataset expansion was started here.
+- Freeze labels/budgets, record the baseline, and select 3–4 small agent-quality improvements
+  from observed failures before claiming measured improvements or Week 4 completion.
+- Live latency, token/cost collection, reviewed live references, report, and recording remain
+  pending. No unresolved window/platform failure was reproduced locally.

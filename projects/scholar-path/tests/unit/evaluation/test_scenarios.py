@@ -64,8 +64,8 @@ def test_dataset_contains_the_ten_required_scenarios_plus_planning_coverage() ->
     assert {scenario.scenario_id for scenario in scenarios} == EXPECTED_SCENARIO_IDS
     assert {scenario.title for scenario in scenarios} == EXPECTED_SCENARIO_TITLES
     assert scenarios == EVALUATION_SCENARIOS
-    assert EVALUATION_DATASET_NAME == "scholarpath-m12-regression-v1"
-    assert EVALUATION_SCENARIO_VERSION == "m12-scenarios-v1"
+    assert EVALUATION_DATASET_NAME == "scholarpath-week4-regression-v1"
+    assert EVALUATION_SCENARIO_VERSION == "week4-scenarios-v1"
 
 
 def test_scenario_identifiers_tags_and_splits_are_unique_and_stable() -> None:

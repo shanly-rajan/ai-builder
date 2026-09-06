@@ -64,6 +64,7 @@ def test_m12_exports_exact_target_and_evaluator_families() -> None:
 
     assert tuple(item.__name__ for item in DETERMINISTIC_EVALUATORS) == (
         "schema_validity",
+        "expected_behavior",
         "canonical_terminology",
         "evidence_id_validity",
         "source_url_presence",
@@ -164,10 +165,10 @@ def test_m12_environment_example_keeps_uploads_and_live_execution_off_by_default
 
     assert "SCHOLARPATH_RUN_LANGSMITH_EVALS=false" in environment_example
     assert "SCHOLARPATH_RUN_LIVE_E2E_EVALS=false" in environment_example
-    assert "SCHOLARPATH_EVALUATION_DATASET_NAME=scholarpath-m12-regression-v1" in (
+    assert "SCHOLARPATH_EVALUATION_DATASET_NAME=scholarpath-week4-regression-v1" in (
         environment_example
     )
-    assert "SCHOLARPATH_EVALUATION_EXPERIMENT_PREFIX=scholarpath-m12" in (environment_example)
+    assert "SCHOLARPATH_EVALUATION_EXPERIMENT_PREFIX=scholarpath-week4" in (environment_example)
     assert "SCHOLARPATH_EVALUATION_JUDGE_MODEL=" in environment_example
     assert "LANGSMITH_API_KEY=" in environment_example
 

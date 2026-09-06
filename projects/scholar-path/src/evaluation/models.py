@@ -25,10 +25,12 @@ from ..domain import (
     IndependentReviewStatus,
     ResearchFitAssessment,
     SearchPlan,
+    SearchSourceType,
     VerificationStatus,
 )
 from ..graph import ReviewStatus
 from ..tools import SearchErrorCategory, SearchProvider
+from .measurements import TargetMeasurements
 
 NonEmptyEvaluationString = Annotated[
     str,
@@ -78,17 +80,56 @@ class CandidatePreferenceProjection(EvaluationModel):
     exclusions: tuple[NonEmptyEvaluationString, ...] = ()
 
 
+class VerificationExpectation(EvaluationModel):
+    """Declared outcome for one Supervisor, including deliberately incomplete evidence."""
+
+    supervisor_id: NonEmptyEvaluationString
+    verification_status: VerificationStatus
+    verified_supervisor_present: bool = Field(strict=True)
+    minimum_retained_evidence: Annotated[int, Field(strict=True, ge=0)] = 0
+    maximum_retained_evidence: Annotated[int, Field(strict=True, ge=0)] | None = None
+    required_claim_types: tuple[EvidenceClaimType, ...] = ()
+    expected_missing_required_evidence: tuple[NonEmptyEvaluationString, ...] | None = None
+    affiliation_conflict_surfaced: bool = Field(default=False, strict=True)
+
+    @model_validator(mode="after")
+    def verification_labels_must_be_consistent(self) -> Self:
+        if (
+            self.maximum_retained_evidence is not None
+            and self.maximum_retained_evidence < self.minimum_retained_evidence
+        ):
+            raise ValueError("retained evidence bounds must be ordered")
+        is_partial = self.verification_status is VerificationStatus.PARTIALLY_VERIFIED
+        if is_partial == self.verified_supervisor_present:
+            raise ValueError("verification status and Verified Supervisor presence disagree")
+        return self
+
+
+class IndependentReviewExpectation(EvaluationModel):
+    """Declared reconciliation outcome, independent of the scenario's name."""
+
+    supervisor_id: NonEmptyEvaluationString
+    review_status: IndependentReviewStatus
+    effective_score: Annotated[int, Field(strict=True, ge=0, le=100)]
+    effective_confidence: EvidenceConfidence
+    requires_candidate_attention: bool = Field(strict=True)
+
+
 class EvaluationExpectation(EvaluationModel):
-    """Optional deterministic expectations attached to one curated scenario."""
+    """Explicit labels; None means unscoped while an empty tuple expects no results."""
 
     expected_availability_status: AvailabilityStatus | None = None
-    expected_fallback_search_used: bool | None = None
+    expected_fallback_search_used: Annotated[bool, Field(strict=True)] | None = None
     expected_review_outcome: CandidateReviewOutcome | None = None
-    expected_interrupted: bool | None = None
-    expected_supervisor_ids: tuple[NonEmptyEvaluationString, ...] = ()
-    expected_proposed_supervisor_ids: tuple[NonEmptyEvaluationString, ...] = ()
-    expected_shortlisted_supervisor_ids: tuple[NonEmptyEvaluationString, ...] = ()
-    expected_rejected_supervisor_ids: tuple[NonEmptyEvaluationString, ...] = ()
+    expected_interrupted: Annotated[bool, Field(strict=True)] | None = None
+    expected_supervisor_ids: tuple[NonEmptyEvaluationString, ...] | None = None
+    expected_proposed_supervisor_ids: tuple[NonEmptyEvaluationString, ...] | None = None
+    expected_shortlisted_supervisor_ids: tuple[NonEmptyEvaluationString, ...] | None = None
+    expected_rejected_supervisor_ids: tuple[NonEmptyEvaluationString, ...] | None = None
+    expected_review_status: ReviewStatus | None = None
+    expected_verification_records: tuple[VerificationExpectation, ...] = ()
+    expected_independent_reviews: tuple[IndependentReviewExpectation, ...] = ()
+    required_planning_source_types: tuple[SearchSourceType, ...] = ()
     minimum_research_fit_score: Annotated[int, Field(strict=True, ge=0, le=100)] | None = None
     maximum_research_fit_score: Annotated[int, Field(strict=True, ge=0, le=100)] | None = None
     maximum_duplicate_supervisor_rate: Annotated[
@@ -108,6 +149,16 @@ class EvaluationExpectation(EvaluationModel):
             and self.minimum_research_fit_score > self.maximum_research_fit_score
         ):
             raise ValueError("minimum Research Fit Score must not exceed maximum")
+        for identifiers in (
+            self.expected_supervisor_ids,
+            self.expected_proposed_supervisor_ids,
+            self.expected_shortlisted_supervisor_ids,
+            self.expected_rejected_supervisor_ids,
+            tuple(record.supervisor_id for record in self.expected_verification_records),
+            tuple(review.supervisor_id for review in self.expected_independent_reviews),
+        ):
+            if identifiers is not None and len(identifiers) != len(set(identifiers)):
+                raise ValueError("expected Supervisor identifiers must be unique")
         return self
 
 
@@ -169,6 +220,7 @@ class EvidenceReferenceProjection(EvaluationModel):
     directly_supported: bool
     confidence: EvidenceConfidence
     availability_status: AvailabilityStatus | None = None
+    conflicting_evidence_ids: tuple[NonEmptyEvaluationString, ...] = ()
 
     @model_validator(mode="after")
     def availability_value_must_match_claim_type(self) -> Self:
@@ -203,6 +255,11 @@ class VerificationRecordProjection(EvaluationModel):
         evidence_ids = [item.evidence_id for item in self.evidence]
         if len(evidence_ids) != len(set(evidence_ids)):
             raise ValueError("verification evidence identifiers must be unique")
+        for item in self.evidence:
+            if not set(item.conflicting_evidence_ids).issubset(evidence_ids):
+                raise ValueError("conflicting evidence must reference the same verification record")
+            if item.evidence_id in item.conflicting_evidence_ids:
+                raise ValueError("an evidence claim cannot conflict with itself")
         return self
 
 
@@ -280,6 +337,7 @@ class SearchPlanningTargetOutput(EvaluationModel):
     target: Literal[EvaluationTargetKind.SEARCH_PLANNING]
     scenario_id: NonEmptyEvaluationString
     search_plan: SearchPlan
+    measurements: TargetMeasurements = Field(default_factory=TargetMeasurements)
 
 
 class EvidenceVerificationTargetOutput(EvaluationModel):
@@ -288,6 +346,7 @@ class EvidenceVerificationTargetOutput(EvaluationModel):
     target: Literal[EvaluationTargetKind.EVIDENCE_VERIFICATION]
     scenario_id: NonEmptyEvaluationString
     verification_records: tuple[VerificationRecordProjection, ...] = Field(min_length=1)
+    measurements: TargetMeasurements = Field(default_factory=TargetMeasurements)
 
 
 class ResearchFitTargetOutput(EvaluationModel):
@@ -297,6 +356,7 @@ class ResearchFitTargetOutput(EvaluationModel):
     scenario_id: NonEmptyEvaluationString
     candidate_preferences: CandidatePreferenceProjection
     assessments: tuple[ResearchFitAssessmentProjection, ...] = Field(min_length=1)
+    measurements: TargetMeasurements = Field(default_factory=TargetMeasurements)
 
 
 class GraphTargetOutput(EvaluationModel):
@@ -310,6 +370,7 @@ class GraphTargetOutput(EvaluationModel):
     execution_log: tuple[NonEmptyEvaluationString, ...]
     fallback_search_used: bool
     search_attempts: tuple[SearchAttemptProjection, ...]
+    measurements: TargetMeasurements = Field(default_factory=TargetMeasurements)
     raw_search_result_count: Annotated[int, Field(strict=True, ge=0)]
     plausible_profile_count: Annotated[int, Field(strict=True, ge=0)]
     prospective_supervisor_ids: tuple[NonEmptyEvaluationString, ...]

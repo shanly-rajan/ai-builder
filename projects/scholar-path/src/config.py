@@ -631,11 +631,11 @@ class EvaluationSettings(BaseSettings):
     run_langsmith_evals: bool = False
     run_live_e2e_evals: bool = False
     evaluation_dataset_name: str = Field(
-        default="scholarpath-m12-regression-v1",
+        default="scholarpath-week4-regression-v1",
         min_length=1,
     )
     evaluation_experiment_prefix: str = Field(
-        default="scholarpath-m12",
+        default="scholarpath-week4",
         min_length=1,
     )
     evaluation_judge_model: str = Field(default="gpt-5.4-mini", min_length=1)

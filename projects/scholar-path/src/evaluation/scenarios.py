@@ -4,18 +4,42 @@ from __future__ import annotations
 
 from typing import Final
 
-from ..domain import AvailabilityStatus
-from ..graph import build_walking_skeleton_fixtures, default_review_decision
+from ..domain import (
+    AvailabilityStatus,
+    EvidenceClaimType,
+    EvidenceConfidence,
+    IndependentReviewStatus,
+    SearchSourceType,
+    VerificationStatus,
+)
+from ..graph import ReviewStatus, build_walking_skeleton_fixtures, default_review_decision
 from .models import (
     CandidatePreferenceProjection,
     CandidateReviewOutcome,
     EvaluationExpectation,
     EvaluationScenario,
     EvaluationTargetKind,
+    IndependentReviewExpectation,
+    VerificationExpectation,
 )
 
-EVALUATION_DATASET_NAME: Final = "scholarpath-m12-regression-v1"
-EVALUATION_SCENARIO_VERSION: Final = "m12-scenarios-v1"
+EVALUATION_DATASET_NAME: Final = "scholarpath-week4-regression-v1"
+EVALUATION_SCENARIO_VERSION: Final = "week4-scenarios-v1"
+
+
+def _verified_expectation(supervisor_id: str) -> VerificationExpectation:
+    return VerificationExpectation(
+        supervisor_id=supervisor_id,
+        verification_status=VerificationStatus.VERIFIED,
+        verified_supervisor_present=True,
+        minimum_retained_evidence=3,
+        required_claim_types=(
+            EvidenceClaimType.IDENTITY,
+            EvidenceClaimType.CURRENT_AFFILIATION,
+            EvidenceClaimType.RESEARCH_INTEREST,
+        ),
+        expected_missing_required_evidence=(),
+    )
 
 
 def _candidate_preferences(
@@ -49,9 +73,11 @@ def build_evaluation_scenarios() -> tuple[EvaluationScenario, ...]:
     fixtures = build_walking_skeleton_fixtures()
     supervisor_ids = tuple(item.supervisor_id for item in fixtures.raw_search_results)
     default_proposal_ids = default_review_decision().supervisor_ids
+    revised_proposal_ids = (*default_proposal_ids[1:], supervisor_ids[5])
+    verified_expectations = tuple(_verified_expectation(item) for item in supervisor_ids)
     common_tags = ("application:scholarpath", f"scenario-version:{EVALUATION_SCENARIO_VERSION}")
 
-    scenarios = (
+    scenarios: tuple[EvaluationScenario, ...] = (
         EvaluationScenario(
             scenario_id="strong-research-alignment",
             title="Strong research alignment",
@@ -108,6 +134,7 @@ def build_evaluation_scenarios() -> tuple[EvaluationScenario, ...]:
             expected=EvaluationExpectation(
                 expected_availability_status=AvailabilityStatus.NOT_STATED,
                 expected_supervisor_ids=(supervisor_ids[0],),
+                expected_verification_records=(_verified_expectation(supervisor_ids[0]),),
             ),
         ),
         EvaluationScenario(
@@ -121,7 +148,24 @@ def build_evaluation_scenarios() -> tuple[EvaluationScenario, ...]:
             tags=(*common_tags, "evidence:conflict"),
             splits=("evidence-verification",),
             config={"evidence_case": "affiliation_conflict", "supervisor_index": 1},
-            expected=EvaluationExpectation(expected_supervisor_ids=(supervisor_ids[0],)),
+            expected=EvaluationExpectation(
+                expected_supervisor_ids=(supervisor_ids[0],),
+                expected_verification_records=(
+                    VerificationExpectation(
+                        supervisor_id=supervisor_ids[0],
+                        verification_status=VerificationStatus.VERIFIED_WITH_CONCERNS,
+                        verified_supervisor_present=True,
+                        minimum_retained_evidence=4,
+                        required_claim_types=(
+                            EvidenceClaimType.IDENTITY,
+                            EvidenceClaimType.CURRENT_AFFILIATION,
+                            EvidenceClaimType.RESEARCH_INTEREST,
+                        ),
+                        expected_missing_required_evidence=(),
+                        affiliation_conflict_surfaced=True,
+                    ),
+                ),
+            ),
         ),
         EvaluationScenario(
             scenario_id="duplicate-supervisor-multiple-queries",
@@ -139,6 +183,8 @@ def build_evaluation_scenarios() -> tuple[EvaluationScenario, ...]:
                 expected_review_outcome=CandidateReviewOutcome.AWAITING_REVIEW,
                 expected_interrupted=True,
                 expected_supervisor_ids=supervisor_ids,
+                expected_verification_records=verified_expectations,
+                expected_proposed_supervisor_ids=default_proposal_ids,
                 maximum_duplicate_supervisor_rate=0.0,
                 minimum_multi_query_provenance_count=1,
             ),
@@ -159,6 +205,9 @@ def build_evaluation_scenarios() -> tuple[EvaluationScenario, ...]:
                 expected_fallback_search_used=True,
                 expected_review_outcome=CandidateReviewOutcome.AWAITING_REVIEW,
                 expected_interrupted=True,
+                expected_supervisor_ids=supervisor_ids[:6],
+                expected_verification_records=verified_expectations[:6],
+                expected_proposed_supervisor_ids=default_proposal_ids,
                 minimum_you_attempts=2,
                 minimum_tavily_attempts=1,
             ),
@@ -178,6 +227,22 @@ def build_evaluation_scenarios() -> tuple[EvaluationScenario, ...]:
             expected=EvaluationExpectation(
                 expected_review_outcome=CandidateReviewOutcome.AWAITING_REVIEW,
                 expected_interrupted=True,
+                expected_supervisor_ids=supervisor_ids,
+                expected_proposed_supervisor_ids=revised_proposal_ids,
+                expected_verification_records=(
+                    VerificationExpectation(
+                        supervisor_id=supervisor_ids[0],
+                        verification_status=VerificationStatus.PARTIALLY_VERIFIED,
+                        verified_supervisor_present=False,
+                        maximum_retained_evidence=0,
+                        expected_missing_required_evidence=(
+                            "identity",
+                            "current_affiliation",
+                            "research_interest_or_publication",
+                        ),
+                    ),
+                    *verified_expectations[1:],
+                ),
             ),
         ),
         EvaluationScenario(
@@ -199,6 +264,18 @@ def build_evaluation_scenarios() -> tuple[EvaluationScenario, ...]:
             expected=EvaluationExpectation(
                 expected_review_outcome=CandidateReviewOutcome.AWAITING_REVIEW,
                 expected_interrupted=True,
+                expected_supervisor_ids=supervisor_ids,
+                expected_verification_records=verified_expectations,
+                expected_proposed_supervisor_ids=revised_proposal_ids,
+                expected_independent_reviews=(
+                    IndependentReviewExpectation(
+                        supervisor_id=supervisor_ids[0],
+                        review_status=IndependentReviewStatus.REVISED,
+                        effective_score=60,
+                        effective_confidence=EvidenceConfidence.MEDIUM,
+                        requires_candidate_attention=True,
+                    ),
+                ),
             ),
         ),
         EvaluationScenario(
@@ -216,6 +293,9 @@ def build_evaluation_scenarios() -> tuple[EvaluationScenario, ...]:
             expected=EvaluationExpectation(
                 expected_review_outcome=CandidateReviewOutcome.REJECT,
                 expected_interrupted=True,
+                expected_supervisor_ids=supervisor_ids,
+                expected_verification_records=verified_expectations,
+                expected_proposed_supervisor_ids=revised_proposal_ids,
                 expected_rejected_supervisor_ids=(supervisor_ids[0],),
                 expected_shortlisted_supervisor_ids=(),
             ),
@@ -235,6 +315,8 @@ def build_evaluation_scenarios() -> tuple[EvaluationScenario, ...]:
             expected=EvaluationExpectation(
                 expected_review_outcome=CandidateReviewOutcome.AWAITING_REVIEW,
                 expected_interrupted=True,
+                expected_supervisor_ids=supervisor_ids,
+                expected_verification_records=verified_expectations,
                 expected_proposed_supervisor_ids=default_proposal_ids,
                 expected_shortlisted_supervisor_ids=(),
             ),
@@ -251,8 +333,26 @@ def build_evaluation_scenarios() -> tuple[EvaluationScenario, ...]:
             splits=("planning",),
             candidate_preferences=_candidate_preferences(),
             config={"planning_case": "source_coverage"},
-            expected=EvaluationExpectation(),
+            expected=EvaluationExpectation(required_planning_source_types=tuple(SearchSourceType)),
         ),
+    )
+    scenarios = tuple(
+        scenario.model_copy(
+            update={
+                "expected": scenario.expected.model_copy(
+                    update={
+                        "expected_review_status": ReviewStatus.PROPOSED,
+                        "expected_shortlisted_supervisor_ids": (),
+                        "expected_rejected_supervisor_ids": (
+                            scenario.expected.expected_rejected_supervisor_ids or ()
+                        ),
+                    }
+                )
+            }
+        )
+        if scenario.target is EvaluationTargetKind.GRAPH_FAKE
+        else scenario
+        for scenario in scenarios
     )
     scenario_ids = [scenario.scenario_id for scenario in scenarios]
     if len(scenario_ids) != len(set(scenario_ids)):

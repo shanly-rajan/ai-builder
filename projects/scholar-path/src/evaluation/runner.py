@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from collections.abc import Callable, Mapping, Sequence
-from datetime import date
+from datetime import UTC, date, datetime
+from time import perf_counter
 from typing import Annotated, Final, Literal
-from uuid import UUID, uuid5
+from uuid import UUID, uuid4, uuid5
 
 from langsmith import Client
 from langsmith.evaluation import EvaluationResult
@@ -34,6 +35,14 @@ from .judges import (
     OpenAIEvaluationJudgeAdapter,
     make_judge_evaluators,
 )
+from .measurements import (
+    RuntimeBudget,
+    RuntimeCase,
+    RuntimeMeasurement,
+    RuntimeSummary,
+    summarize_runtime,
+    target_measurements,
+)
 from .models import EvaluationScenario, EvaluationTargetKind
 from .scenarios import (
     EVALUATION_DATASET_NAME,
@@ -52,7 +61,9 @@ from .targets import (
 )
 from .tracing import EVALUATION_APPLICATION, sanitize_evaluation_trace_metadata
 
+# Historical release identity retained for documentation/contracts, never reused by new runs.
 LOCAL_BASELINE_NAME: Final = "scholarpath-m13-fake-baseline-2026-08-30"
+_LOCAL_RUN_PREFIX: Final = "scholarpath-week4-fake"
 _EVALUATION_EXAMPLE_NAMESPACE: Final = UUID("1c83477e-5985-49fc-bffd-1edb8cfbf5cc")
 _PROMPT_VERSIONS: Final = (
     RESEARCH_PLANNING_PROMPT_VERSION,
@@ -87,6 +98,7 @@ class LocalScenarioRecord(BaseModel):
     target: EvaluationTargetKind
     passed: bool
     metrics: tuple[LocalMetricRecord, ...]
+    runtime: RuntimeMeasurement = Field(default_factory=RuntimeMeasurement)
 
 
 class LocalMetricSummary(BaseModel):
@@ -127,6 +139,8 @@ class LocalEvaluationReport(BaseModel):
     metric_summaries: tuple[LocalMetricSummary, ...]
     scenarios: tuple[LocalScenarioRecord, ...]
     failures: tuple[EvaluationFailure, ...] = ()
+    runtime_budget: RuntimeBudget = Field(default_factory=RuntimeBudget)
+    runtime_summaries: tuple[RuntimeSummary, ...] = ()
 
     @property
     def passed(self) -> bool:
@@ -153,6 +167,9 @@ class UploadedExperimentReport(BaseModel):
     example_count: Annotated[int, Field(ge=0)]
     failed_example_count: Annotated[int, Field(ge=0)]
     failures: tuple[EvaluationFailure, ...] = ()
+    runtime_budget: RuntimeBudget = Field(default_factory=RuntimeBudget)
+    runtime_cases: tuple[RuntimeCase, ...] = ()
+    runtime_summaries: tuple[RuntimeSummary, ...] = ()
 
     @property
     def passed(self) -> bool:
@@ -231,11 +248,15 @@ def run_local_baseline(
     scenarios: Sequence[EvaluationScenario] = EVALUATION_SCENARIOS,
     target: EvaluationTargetKind | None = None,
     evaluators: Sequence[EvaluationCallable] = DETERMINISTIC_EVALUATORS,
-    recorded_on: date = date(2026, 8, 30),
+    recorded_on: date | None = None,
+    runtime_budget: RuntimeBudget | None = None,
+    clock: Callable[[], float] = perf_counter,
 ) -> LocalEvaluationReport:
     """Execute fake targets and deterministic evaluators with no LangSmith client."""
     if target is EvaluationTargetKind.GRAPH_LIVE:
         raise ValueError("The offline baseline cannot execute the live graph target")
+    run_date = recorded_on or datetime.now(UTC).date()
+    budget = runtime_budget or RuntimeBudget()
     records: list[LocalScenarioRecord] = []
     failures: list[EvaluationFailure] = []
     metric_values: dict[str, list[LocalMetricRecord]] = defaultdict(list)
@@ -244,9 +265,13 @@ def run_local_baseline(
         reference_outputs = evaluation_dataset_reference_outputs(scenario)
         case_failures: list[EvaluationFailure] = []
         observations_list: list[LocalMetricRecord] = []
+        outputs: dict[str, object] = {}
+        target_failed = False
+        started = clock()
         try:
             outputs = dispatch_evaluation_target(inputs)
         except Exception:
+            target_failed = True
             case_failures.append(
                 EvaluationFailure(
                     scenario_id=scenario.scenario_id,
@@ -255,7 +280,9 @@ def run_local_baseline(
                     category="target_error",
                 )
             )
-        else:
+        target_seconds = clock() - started
+        evaluator_started = clock()
+        if not target_failed:
             for evaluator in evaluators:
                 category: Literal["metric_failed", "evaluator_error"]
                 try:
@@ -278,6 +305,7 @@ def run_local_baseline(
                             score=observation.score,
                         )
                     )
+        evaluator_seconds = clock() - evaluator_started
         observations = tuple(observations_list)
         failures.extend(case_failures)
         for observation in observations:
@@ -288,6 +316,11 @@ def run_local_baseline(
                 target=scenario.target,
                 passed=not case_failures,
                 metrics=observations,
+                runtime=RuntimeMeasurement(
+                    target_seconds=target_seconds,
+                    evaluator_seconds=evaluator_seconds,
+                    port_invocations=target_measurements(outputs).port_invocations,
+                ),
             )
         )
 
@@ -308,8 +341,8 @@ def run_local_baseline(
             )
         )
     return LocalEvaluationReport(
-        baseline_name=LOCAL_BASELINE_NAME,
-        recorded_on=recorded_on,
+        baseline_name=f"{_LOCAL_RUN_PREFIX}-{run_date.isoformat()}-{uuid4().hex[:8]}",
+        recorded_on=run_date,
         dataset_name=EVALUATION_DATASET_NAME,
         graph_version=GRAPH_VERSION,
         scenario_count=len(records),
@@ -317,6 +350,18 @@ def run_local_baseline(
         metric_summaries=tuple(summaries),
         scenarios=tuple(records),
         failures=tuple(failures),
+        runtime_budget=budget,
+        runtime_summaries=summarize_runtime(
+            tuple(
+                RuntimeCase(
+                    scenario_id=record.scenario_id,
+                    target=record.target.value,
+                    measurement=record.runtime,
+                )
+                for record in records
+            ),
+            budget,
+        ),
     )
 
 
@@ -366,14 +411,19 @@ def sync_evaluation_dataset(
     scenarios: Sequence[EvaluationScenario] = EVALUATION_SCENARIOS,
 ) -> DatasetSyncResult:
     """Create or idempotently upsert the versioned synthetic evaluation dataset."""
+    if dataset_name == "scholarpath-m12-regression-v1":
+        raise ValueError(
+            "The historical M12 dataset is frozen. Use the new Week 4 dataset name "
+            f"{EVALUATION_DATASET_NAME} for the expanded outcome labels."
+        )
     created = not client.has_dataset(dataset_name=dataset_name)
     if created:
         client.create_dataset(
             dataset_name,
             description=(
-                "ScholarPath M12 synthetic regression scenarios replayed against the M13 "
-                "release graph for planning, verification, Research Fit, resilience, review, "
-                "and Candidate approval enforcement."
+                "ScholarPath Week 4 provisional eleven-case synthetic cohort with explicit "
+                "expected outcomes for planning, verification, Research Fit, resilience, "
+                "review, and Candidate approval. Not the reviewed 30-case golden dataset."
             ),
             metadata={
                 "application": EVALUATION_APPLICATION,
@@ -437,6 +487,7 @@ def run_uploaded_experiment(
     target: EvaluationTargetKind | None = None,
     judge_evaluators: Sequence[JudgeEvaluator] = (),
     live: bool = False,
+    runtime_budget: RuntimeBudget | None = None,
 ) -> UploadedExperimentReport:
     """Run one uploaded experiment after all environment and CLI gates are satisfied."""
     if not evaluation_settings.run_langsmith_evals:
@@ -475,7 +526,7 @@ def run_uploaded_experiment(
         evaluators=evaluators,
         metadata=_experiment_metadata(live=live, judges=bool(judge_evaluators)),
         experiment_prefix=f"{evaluation_settings.evaluation_experiment_prefix}-{GRAPH_VERSION}",
-        description="ScholarPath M13 release regression over the M12 synthetic dataset.",
+        description="ScholarPath Week 4 outcome and runtime regression (provisional cohort).",
         max_concurrency=1 if live else 0,
         blocking=True,
         upload_results=True,
@@ -483,19 +534,30 @@ def run_uploaded_experiment(
     )
     rows = tuple(result)
     cases_by_example_id = {example.id: _scenario_from_example(example) for example in examples}
-    row_failures = tuple(
-        _uploaded_row_failures(row, cases_by_example_id, row_number=index)
-        for index, row in enumerate(rows, start=1)
-    )
-    returned_ids = {
-        getattr(row.get("example"), "id", None) for row in rows if isinstance(row, Mapping)
-    }
-    missing_count = max(0, len(examples) - len(rows))
+    row_failures: list[tuple[EvaluationFailure, ...]] = []
+    returned_ids: set[UUID] = set()
+    for index, row in enumerate(rows, start=1):
+        failures = _uploaded_row_failures(row, cases_by_example_id, row_number=index)
+        example_id = getattr(row.get("example"), "id", None) if isinstance(row, Mapping) else None
+        if isinstance(example_id, UUID) and example_id in cases_by_example_id:
+            if example_id in returned_ids:
+                failures = (
+                    *failures,
+                    EvaluationFailure(
+                        scenario_id=f"duplicate-example-result-{index}",
+                        target=cases_by_example_id[example_id].target,
+                        key="case_identity",
+                        category="missing_result",
+                    ),
+                )
+            returned_ids.add(example_id)
+        row_failures.append(failures)
     missing_cases = [
         scenario
         for example_id, scenario in cases_by_example_id.items()
         if example_id not in returned_ids
-    ][:missing_count]
+    ]
+    missing_count = len(missing_cases)
     missing_failures = tuple(
         EvaluationFailure(
             scenario_id=scenario.scenario_id,
@@ -505,12 +567,54 @@ def run_uploaded_experiment(
         )
         for scenario in missing_cases
     )
+    budget = runtime_budget or RuntimeBudget()
+    runtime_cases = _uploaded_runtime_cases(rows, cases_by_example_id, live=live)
     return UploadedExperimentReport(
         experiment_name=result.experiment_name,
-        example_count=max(len(examples), len(rows)),
+        # Orphan/duplicate SDK rows are extra failed result entries, not replacement cases.
+        example_count=len(rows) + missing_count,
         failed_example_count=sum(bool(failures) for failures in row_failures) + missing_count,
         failures=tuple(failure for failures in row_failures for failure in failures)
         + missing_failures,
+        runtime_budget=budget,
+        runtime_cases=runtime_cases,
+        runtime_summaries=summarize_runtime(runtime_cases, budget),
+    )
+
+
+def _uploaded_runtime_cases(
+    rows: Sequence[object], cases: Mapping[UUID, EvaluationScenario], *, live: bool
+) -> tuple[RuntimeCase, ...]:
+    """Use SDK target timestamps and explicit counters, not inferred child-run counts."""
+    measured: dict[UUID, RuntimeMeasurement] = {}
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        example_id = getattr(row.get("example"), "id", None)
+        if not isinstance(example_id, UUID) or example_id not in cases or example_id in measured:
+            continue
+        run = row.get("run")
+        start, end = getattr(run, "start_time", None), getattr(run, "end_time", None)
+        seconds: float | None = None
+        if isinstance(start, datetime) and isinstance(end, datetime):
+            try:
+                elapsed = (end - start).total_seconds()
+            except TypeError:  # Mixed timezone awareness is unavailable telemetry.
+                pass
+            else:
+                if elapsed >= 0:
+                    seconds = elapsed
+        measured[example_id] = RuntimeMeasurement(
+            target_seconds=seconds,
+            port_invocations=target_measurements(getattr(run, "outputs", None)).port_invocations,
+        )
+    return tuple(
+        RuntimeCase(
+            scenario_id=scenario.scenario_id,
+            target=EvaluationTargetKind.GRAPH_LIVE.value if live else scenario.target.value,
+            measurement=measured.get(example_id, RuntimeMeasurement()),
+        )
+        for example_id, scenario in cases.items()
     )
 
 
@@ -567,6 +671,7 @@ def _uploaded_row_failures(
 
 
 _FAILURE_GUIDANCE: Final = {
+    "expected_behavior": "Expected the labeled case outcome; inspect retained IDs and statuses.",
     "schema_validity": "Expected a valid typed output; inspect the target response contract.",
     "canonical_terminology": "Expected canonical role labels; inspect generated terminology.",
     "evidence_id_validity": "Expected owned evidence IDs; inspect citation references.",
