@@ -248,3 +248,218 @@ No production/test code changed in this live-execution step. The pre-run suite
 passed **1,872 tests**, **82 subtests**, and **91.78% coverage**; nine live tests
 were deselected. There was no Mem0 call, persisted shortlist, trace upload, or commit.
 Golden dataset, measured improvement, and submission gaps remain open.
+
+## Step 3g: excerpt normalization repaired with fixed fixtures
+
+Accumulated steps 3b–3f were committed as `268600b` before this repair; no push.
+Five offline cases reproduced inconsistent formatting treatment between excerpt
+admission and profile-context positioning. The scoped repair normalizes matching
+while retaining original offsets and checking all equivalent occurrences. Another
+negative case now keeps unsupported claims out of identity-context construction.
+
+Twenty new cases cover this path and rejection controls; **123 profile-context
+tests passed**. Strict identity, current affiliation, and research gates remain
+unchanged. No live request was made, and the historical live cause is still unknown.
+
+Next execution boundary, only after offline gates pass: one separately approved
+canary using the unchanged target and safe diagnostics. Do not add another broad
+diagnostic layer or weaken gates preemptively. Research-grounding causes, live
+Research Fit/Nebius coverage, the reviewed dataset, and measured quality remain open.
+
+## Step 3h: live verification still stops after the formatting repair
+
+The [single post-repair canary](week4-live-canary.md#step-3h-post-repair-live-result)
+returned **1 failed in 11.11s**, four logical calls. Extraction completed; strict
+verification still lacked grounded current affiliation and research-interest/publication
+evidence. It retained identity 1, affiliation 1, research interest 1, publication 2,
+and project 1; only identity was grounded. Research Fit and Nebius were not called.
+
+The prior local defect remains reproduced and repaired, but this new stochastic
+execution did not pass the live gate or identify the remaining rejection condition.
+Do not infer causality from the changed claim counts or keep adjusting heuristics.
+
+Next bounded offline diagnostic: fixed aggregate reason codes from the existing
+claim-support and context decisions, with fake/privacy tests. Do not log raw content,
+duplicate validation rules, broaden verification, or run another live attempt as
+part of that preparation. Golden dataset, quality/cost, and submission gaps remain open.
+
+Pre-run checks passed **1,892 tests**, **84 subtests**, and **91.78% coverage**; nine
+live tests were deselected. No new source/test changes, commit, or push in step 3h.
+
+## Step 3i: offline grounding reasons without changing verification
+
+The [canary diagnostic](week4-live-canary.md#step-3i-retained-claim-grounding-diagnostics-offline)
+now reports fixed final grounding reasons by claim type, preserving the original
+model support flag and counting contextual rescue as success. It reuses existing
+grounding checks; no parallel validator, relaxed gate, heuristic, or provider change.
+
+Counters cover retained claims only, after admission/deduplication and before
+conflict merging. They cannot explain discarded drafts or retroactively identify
+step 3h's cause. Empty completed output and unavailable diagnostics remain distinct.
+No raw data is stored in the collector or added to trace metadata.
+
+Added 57 offline reason/privacy/equivalence/call-budget tests. Full suite:
+**1,949 passed, 9 deselected, 85 subtests in 24.87s**, **91.86% coverage**;
+formatting, lint, and mypy pass. No live call,
+credential edit, commit, or push. Next is a separately approved single live canary
+to observe these reasons; quality, golden dataset, cost, and submission gaps remain.
+
+## Step 3j: live reasons locate the remaining subject/context gates
+
+The [single instrumented live canary](week4-live-canary.md#step-3j-live-grounding-reason-result)
+returned **1 failed in 10.33s**, four logical calls. Extraction completed; strict
+verification still lacked grounded affiliation and research/publication evidence.
+The retained affiliation failed `profile_identity_context_invalid` once. One
+research-interest claim and six publications failed `profile_subject_mismatch`.
+Identity passed. Research Fit and Nebius were not called.
+
+These reasons establish which existing checks rejected retained claims, not that
+the checks are defective or the sources lack facts. No raw text was retained;
+discarded drafts and historical failure causes remain unobserved.
+
+Next: one bounded offline **profile-subject binding reproduction**, with owner
+headings/academic-role text/contextual affiliation examples and genuine wrong-person
+controls. Fix only a demonstrated false rejection; keep strict gates and provenance.
+No further live invocation or speculative heuristic change in this execution step.
+
+Pre-run full suite: **1,949 passed, 9 deselected, 86 subtests in 25.09s**,
+**91.86% coverage**; Ruff formatting/lint and mypy pass. No new runtime/test changes,
+commit, push, Mem0, persistent graph/shortlist, outreach, or tracing upload.
+
+## Step 3k: profile subject false positives repaired offline
+
+Fixed examples reproduced the two measured rejection categories: three exact
+section labels were mistaken for people, and `Professor Of/In ...` role phrases
+were mistaken for titled names. The narrow repair extends only the known section
+allowlist and excludes those professorial role prepositions from the person regex.
+
+Added 30 regression cases, retaining actual-person, repeated-excerpt, unknown-label,
+unsupported-model, source/route, missing-field, and exact-provenance checks. The
+five-module focused run passed **204 tests in 0.64s**. See the
+[offline reproduction and limits](week4-live-canary.md#step-3k-fixed-fixture-profile-subject-repair-offline).
+
+Full non-live suite: **1,979 passed, 9 deselected, 87 subtests in 25.17s**,
+**91.86% coverage**. Formatting, lint, mypy, and independent scoped review pass.
+
+These synthetic fixtures prove local defects, not the unseen historical live text.
+Strict gates, actual wrong-person controls, source provenance, and availability
+handling remain intact. No live call, commit, push, or model/prompt change.
+Any next live canary requires separate approval; remaining quality/submission work
+and the pre-existing compound role-heading limitation are not declared complete.
+
+## Step 3l: the post-subject-repair live gate still fails
+
+The [single approved live observation](week4-live-canary.md#step-3l-post-subject-repair-live-result)
+returned **1 failed in 7.06s**, four logical calls. Extraction completed; strict
+verification still lacked grounded current affiliation and research/publication
+evidence. Identity was grounded. Affiliation, research interest, and availability
+each failed `profile_identity_context_invalid`; publication and project each failed
+`profile_subject_mismatch`. Research Fit and Nebius were not called.
+
+These six retained claims do not reveal dropped drafts or the exact source text.
+Availability was optional and not the blocking gate. Changed reason counts do not
+prove which repair was exercised, historical causality, or a regression.
+
+Next proposed boundary: refine the **existing linked-identity/context diagnostic**
+offline into fixed nested failure reasons, with same-decision and privacy tests.
+No exact production repair is currently supported by the counts. Keep heading
+policy and strict verification unchanged; no blind live rerun or weaker gate.
+
+Pre-run full suite: **1,979 passed, 9 deselected, 88 subtests in 25.14s**,
+**91.86% coverage**; formatting, lint, mypy, and 43 focused tests passed.
+Only documentation changed in this step. No commit, push, tracing upload, Mem0,
+persistent shortlist, or automatic rerun. Quality, dataset, measured improvement,
+and submission gaps remain open.
+
+## Step 3m: isolate context failures without changing decisions
+
+The [offline context diagnostic](week4-live-canary.md#step-3m-precise-context-failure-diagnostics-offline)
+splits the existing coarse failure into fixed reference/source/identity and
+excerpt-subject reason codes. Grounding and availability derivation reuse the same
+predicates. No heading exception, weaker evidence gate, or extra provider call.
+
+Fixed domain, extraction, and fake-canary examples test failure order, unchanged
+decisions, source provenance, and count-only privacy. The old coarse enum remains
+readable for historical output; old live failures cannot be relabelled without
+their unretained source/model data.
+
+Added **115 passing offline tests**. Full suite: **2,094 passed, 9 deselected,
+89 subtests in 25.43s**, **91.95% coverage**; formatting, lint, and mypy passed.
+Independent predicate review found no decision changes in 4,278 comparisons.
+
+This step prepares fault isolation, not live success. A future single live
+observation needs separate approval; do not tune matchers from synthetic examples
+alone or run repeatedly until green. Research Fit/Nebius live coverage, reviewed
+dataset, measured quality/cost improvement, and submission gaps remain open.
+
+## Step 3n: live context failures narrowed to excerpt checks
+
+The [single approved canary](week4-live-canary.md#step-3n-live-precise-context-result)
+returned **1 failed in 10.20s**, four logical calls. Extraction completed; only
+identity was grounded. Affiliation failed `context_conflicting_person` once;
+research interest failed `context_subject_pattern_missing` once; four publications
+failed `profile_subject_mismatch`. Research Fit and Nebius were not called.
+
+The two new context reasons occur after linked-identity/source checks passed.
+They identify matcher decisions, not actual wrong-person text or absent research.
+The rejected affiliation's later typed-field checks remain untested. Seven retained
+claims reconcile to one grounded and six rejected; no availability claim was retained.
+
+Next: prioritize an offline affiliation-conflict reproduction with genuine
+other-person controls. Research-interest wording is the second mandatory gap;
+do not broaden all three matchers or blindly rerun. An exact live-cause repair
+needs a minimal source-backed failing excerpt/expected subject for replay, which
+the count-only diagnostic did not retain. Any new payload capture needs a separate
+privacy-scoped decision. Synthetic examples alone cannot establish historical cause.
+
+Pre-run suite: **2,094 passed, 9 deselected, 90 subtests in 25.59s**,
+**91.95% coverage**; formatting, lint, mypy, and 122 focused tests passed.
+Only documentation changed; no automatic rerun, commit, push, Mem0, trace upload,
+or persistent shortlist write. Remaining dataset, quality, cost, and submission
+requirements are not declared complete.
+
+## Step 3o: two excerpt false rejections repaired offline
+
+The [fixed reproduction](week4-live-canary.md#step-3o-excerpt-boundary-repair-offline)
+proved complete titled owner names were truncated and a recognized research heading
+behaved differently inside versus immediately before an excerpt. Both are repaired
+without weakening strict gates or changing the separate page-heading/publication
+policy. Fifty new tests preserve actual-person/shared-prefix negatives, exact
+provenance, fake call limits, and diagnostic-on/off equivalence.
+
+The combined fake case now completes strict verification; a different person with
+the same given-name prefix still fails. Availability remains `not_stated`.
+This establishes offline correctness for the fixed cases, not live causality or a
+completed Research Fit/Nebius journey. No live call, credential change, commit, or push.
+
+Next: separately approve one bounded live observation with existing safe counts and
+call limits. Do not automatically rerun or weaken gates. Exact historical-cause
+replay would require source-backed minimal excerpts under a separate privacy scope.
+The reviewed dataset, measured quality/cost improvement, publication-heading debt,
+and remaining submission requirements are still open. Full suite: **2,144 passed,
+9 deselected, 91 subtests passed in 25.99s**, **91.95% coverage**; formatting,
+lint, and mypy pass. Exact commands are in the [build journal](build-journal.md).
+
+## Step 3p: live verification remains unresolved after excerpt repairs
+
+The [single approved observation](week4-live-canary.md#step-3p-post-excerpt-repair-live-result)
+returned **1 failed in 15.62s**, four logical calls. Identity was grounded;
+affiliation again failed `context_conflicting_person`, research interest failed
+`context_subject_pattern_missing`, and five publications failed
+`profile_subject_mismatch`. Research Fit and Nebius were not reached.
+
+The 50 new offline regression cases remain green. Their validity does not prove
+that the live input exercised the repaired paths. These counts are not enough
+to select another production exception or establish historical causality.
+
+**Next priority: obtain a minimal exact replay under an explicit privacy scope.**
+Use only the rejected affiliation/research excerpt, expected subject, relevant
+source-section context, and matcher result. Prefer an existing sanitized sample;
+any new live capture needs separate approval. Do not capture a full page, Candidate
+input, or credentials. No capture or extra live rerun was performed in step 3p.
+
+Pre-run suite: **2,144 passed, 9 deselected, 92 subtests passed in 25.62s**,
+**91.95% coverage**; formatting, lint, mypy, and 75 focused checks passed.
+Only documentation changed. Strict gates, public target, model settings, and
+provider limits were preserved. No commit, push, Mem0, trace upload, or persistent
+shortlist write. Quality, reviewed dataset, cost, and submission work remain open.

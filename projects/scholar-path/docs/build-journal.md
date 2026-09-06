@@ -4997,3 +4997,701 @@ and nine-call ceiling unchanged. No production or test implementation changes.
   measurement, or quality benchmark is claimed.
 - No Mem0, persistent shortlist write, outreach, trace upload, or repeated live run.
 - Golden dataset review, quality/cost measurements, and submission comparison remain open.
+
+## Week 4 step 3g — consistent profile-excerpt grounding (2026-09-06)
+
+### Objective and prompt
+
+Commit accumulated canary work first, then reproduce and repair the formatting-only
+grounding mismatch offline. [Prompt used](prompts/week4-3g-profile-excerpt-grounding.md).
+No live run, weaker verification gate, or attribution of the historical live cause.
+
+### Commit checkpoint
+
+- Committed steps 3b–3f as `268600b`,
+  `test: add bounded live canary diagnostics and record results` (13 files).
+- Pre-commit formatting, Ruff, mypy, and `git diff --check` passed. Complete suite:
+  **1,872 passed, 9 deselected, 82 subtests passed in 24.85s**, **91.78% coverage**.
+- The working tree was clean immediately after that commit; no push.
+
+### Files changed
+
+- `src/agents/evidence_verification.py`: normalized text with original source-offset
+  mapping, all-occurrence context matching, and unsupported-draft branch guard.
+- `tests/unit/agents/test_official_profile_evidence_context.py`: 20 additional
+  fixed-fixture regressions in the existing suite; no external calls.
+- README, live-canary runbook, triage, this journal, and saved prompt.
+
+### Tests and results
+
+- Before source changes, the five formatting-only reproductions failed:
+  `venv/bin/pytest -o addopts='' -q tests/unit/agents/test_official_profile_evidence_context.py -k normalized_affiliation_excerpt --tb=short`:
+  **5 failed, 103 deselected in 0.21s**. Affiliation claims were retained but indirect.
+- The initial matching repair changed those same five checks to
+  **5 passed, 103 deselected in 0.13s**.
+- Expanded negative cases then exposed unsupported drafts entering invalid context
+  construction: **1 failed, 122 passed in 0.43s**. Added a direct-support guard.
+- Complete profile-context module:
+  `venv/bin/pytest -o addopts='' -q tests/unit/agents/test_official_profile_evidence_context.py --tb=short`:
+  **123 passed in 0.34s**.
+- `venv/bin/ruff format --check .`: **295 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 221 source files**.
+- Complete non-live suite, `venv/bin/pytest -q --tb=short`: **1,892 passed,
+  9 deselected, 83 subtests passed in 24.86s**, **91.78% coverage** (90% floor).
+- Read-only independent review found no material offset/context/privacy issue.
+  Default tests blocked external sockets; no live calls or `.env` reads were used.
+- Final engineering/M13 documentation audit:
+  **12 passed, 83 subtests passed in 0.09s**. The documented five-case demonstration
+  returned **5 passed, 118 deselected in 0.10s**. `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- Excerpt equivalence must not discard the original page context used for identity
+  binding. Case/whitespace matching is not permission to alter facts or ignore
+  another person's heading.
+- Fixed fixtures can prove a local defect without proving it caused step 3f's live
+  failure. Raw model output/page content from that attempt was not retained.
+- Normalized text cannot be indexed as if it were the original page: whitespace
+  collapsing and Unicode casefold expansion change positions. Preserve the mapping.
+- Check all equivalent occurrences; an exact owner occurrence must not hide a
+  differently formatted occurrence beneath another recognized person heading.
+- A directly unsupported model draft must not receive a contextual identity link.
+  The added guard preserves this invariant without weakening domain validation.
+
+### Remaining debt
+
+- No live Research Fit/Nebius result, quality benchmark, or submission-completion
+  claim. Other grounding causes remain out of scope.
+- No live invocation, `.env` edit, source-fact substitution, or model/prompt change.
+- One separately approved canary can test the repair's effect; no automatic rerun.
+- The accumulated-work commit is complete; this new repair remains separate for review.
+
+## Week 4 step 3h — post-repair live canary (2026-09-06)
+
+### Objective and prompt
+
+Observe one live canary after the offline-tested step 3g repair.
+[Prompt used](prompts/week4-3h-post-repair-live-canary.md).
+Preserve strict verification, the public target, synthetic input, configured
+providers, timeout limits, nine-call ceiling, and trace suppression.
+
+### Files changed
+
+- Saved prompt, this journal, live-canary runbook, README, and triage record.
+- Step 3g's uncommitted source/test repair is preserved; no implementation change
+  in this execution step. No commit or push.
+
+### Tests and results
+
+- No new tests; reuse existing canary, grounding, contract, and regression checks.
+- Preflight confirmed credentials are present for all seven adapter roles, without
+  printing or changing values.
+- `venv/bin/ruff format --check .`: **296 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 221 source files**.
+- Focused canary diagnostics, official-profile context, and M13 contracts:
+  **182 passed in 0.61s**.
+- Complete pre-run suite, `venv/bin/pytest -q --tb=short`: **1,892 passed,
+  9 deselected, 84 subtests passed in 24.96s**, **91.78% coverage**.
+- One approved live invocation using the runbook's exact command: **1 failed in
+  11.11s**, exit code 1. Safe elapsed time **11.04s**, four logical calls: planning,
+  You.com, Tavily extraction, and OpenAI evidence once each. Tavily fallback,
+  OpenAI Research Fit, and Nebius were not called.
+- Evidence extraction completed; verification failed with `missing_required_evidence`.
+  Both Research Fit stages were `not_reached`. Standard `strict`, unknown entries 0;
+  missing `current_affiliation` and `research_interest_or_publication`.
+- Retained/grounded counts: identity **1/1**, affiliation **1/0**, research interest
+  **1/0**, publication **2/0**, project **1/0**; methodology and availability **0/0**.
+- No Verified Supervisor, proposal, or approval reached. No repeat invocation.
+- Final documentation/M13 audit:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py`:
+  **12 passed, 84 subtests passed in 0.10s**. `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- OpenAI Docs was consulted for interpretation: structured output can contain
+  mistakes, so valid shape and grounded evidence remain separate checks.
+- One post-repair non-deterministic run is not a controlled before/after quality
+  benchmark and cannot establish the historical live failure's exact cause.
+- This strict one-profile manual canary is not a persisted LangGraph run and does
+  not use the application's identity-only MVP policy or minimum Supervisor count.
+- The same gates remain missing after repair. Aggregate counts do not reveal which
+  support/context condition failed or even whether the repaired branch was used.
+- Step 3g's fixed-fixture proof remains valid; no live success or causal quality
+  improvement is inferred from the new run or its changed claim counts.
+
+### Remaining debt
+
+- Next bounded offline preparation: fixed aggregate rejection-reason codes from
+  existing claim-support/context decisions, with fake and privacy tests. Do not
+  duplicate validators, emit raw payloads, or change heuristics before diagnosis.
+- Read-only audit found the current grounder returns only a boolean and extraction
+  replaces the model's support flag. Preserve those existing decisions in diagnostic
+  output, count only final failures after contextual rescue, and test diagnostics
+  enabled/disabled for identical claims, evidence IDs, statuses, and provider calls.
+- Live verification, Research Fit, and Nebius remain unconfirmed; token/cost unknown.
+- No Mem0, persistent shortlist, outreach, trace upload, or automatic live rerun.
+- Dataset curation, human-rated quality, token/cost measurement, and submission
+  comparisons remain separate work.
+
+## Week 4 step 3i — grounding rejection diagnostics (2026-09-06)
+
+### Objective and prompt
+
+Explain retained-claim grounding failures with safe counters before another live
+attempt. [Prompt used](prompts/week4-3i-grounding-rejection-diagnostics.md).
+No verification-policy or model change, live call, commit, or push.
+
+### Files changed
+
+- Domain enums, public exports, and shared grounding predicate.
+- Evidence Verification Agent: optional call-local final-outcome collector.
+- Manual live-canary helper and offline summary-contract test.
+- M6 method-signature contract: require the added diagnostic argument to remain
+  optional and keyword-only so existing callers remain compatible.
+- New domain, extraction, and canary regression tests.
+- Saved prompt, this journal, live-canary runbook, triage, and README.
+
+### Tests added
+
+- Fixed first-failure reasons and compatibility of the boolean grounding API.
+- Contextual rescue counted as success, original unsupported model flags, absent
+  grounded identity, source/route/subject failures, and affiliation excerpt checks.
+- Diagnostics on/off equivalence, retained-claim accounting, privacy, per-call
+  isolation, and unchanged provider-call limits with fakes.
+- Canary diagnostics survive strict verification failure; extraction failure
+  remains unavailable rather than claiming zero failures.
+
+### Test results
+
+- Added **57** fixed-example tests: 36 domain, 15 extraction, and 6 canary cases.
+- Initial full run found one old exact-signature contract assertion:
+  **1 failed, 1,945 passed, 9 deselected, 85 subtests in 25.20s**. Updated that
+  contract to explicitly test backward-compatible opt-in diagnostics; no runtime
+  gate was relaxed. Added three privacy/isolation regression cases afterward.
+- `venv/bin/ruff format --check .`: **300 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 224 source files**.
+- Focused new diagnostics plus M6 contract:
+  **65 passed in 0.24s**.
+- Complete non-live suite, `venv/bin/pytest -q --tb=short`:
+  **1,949 passed, 9 deselected, 85 subtests passed in 24.87s**,
+  **91.86% coverage** (90% floor).
+- Independent read-only review found no blocking predicate-order, output-equivalence,
+  privacy, or call-budget issue. `git diff --check` passed.
+- No live calls, credential reads/edits, LangSmith uploads, commit, or push.
+
+### Assumptions and lessons learned
+
+- A rejection reason identifies an existing check, not the truth of a source fact
+  or the cause of a historical run whose draft details were not retained.
+- Counts cover retained claims after deduplication/admission, before verification
+  record conflict merging. Discarded drafts are deliberately outside this scope.
+- One claim gets one final reason, not every possible failure; context rescue must
+  finish before counting so a successfully grounded claim is not called rejected.
+- Diagnostics contain fixed labels/counts only and do not enter durable graph state.
+
+### Remaining debt
+
+- One separately approved live canary is needed to observe actual reason counts.
+  Live verification, Research Fit, and Nebius success remain unconfirmed.
+- Pre-admission loss, human-rated quality, golden dataset curation, cost/token
+  measurement, and broader submission gaps remain separate work.
+- Existing uncommitted step 3g source/test changes and step 3h records are preserved.
+
+## Week 4 step 3j — live grounding-reason observation (2026-09-06)
+
+### Objective and prompt
+
+Run one bounded canary with step 3i's final grounding-reason diagnostics.
+[Prompt used](prompts/week4-3j-live-grounding-reasons.md).
+Keep the target, synthetic input, strict rules, provider limits, and trace suppression.
+
+### Files changed
+
+- Saved prompt, this journal, live-canary runbook, README, and triage record.
+- Preserve prior source/test changes; no new runtime implementation in this step.
+
+### Tests and results
+
+- No additional tests; reused existing contract, grounding, canary, and full suites.
+- Credential presence configured for all seven adapter roles; no values printed
+  or changed. No provider was invoked by the presence check.
+- `venv/bin/ruff format --check .`: **301 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 224 source files**.
+- Focused diagnostic/domain/M6/M13 tests: **72 passed in 0.25s**.
+- Full pre-run suite, `venv/bin/pytest -q --tb=short`: **1,949 passed,
+  9 deselected, 86 subtests in 25.09s**, **91.86% coverage**.
+- Exactly one network-approved live invocation using the runbook command:
+  **1 failed in 10.33s**, exit code 1, safe elapsed **10.249s**, four logical calls.
+  Planning1, You.com1, Tavily extraction1, OpenAI evidence1; fallback0, fit0, Nebius0.
+- Evidence extraction completed; verification failed `missing_required_evidence`.
+  Strict missing gates: `current_affiliation`, `research_interest_or_publication`.
+  Both Research Fit stages `not_reached`; unknown missing-category count0.
+- Retained/grounded: identity **1/1**, affiliation **1/0**, research interest **1/0**,
+  publication **6/0**; other claim types **0/0**. Extraction and verification
+  counters agree; nine retained claims, one grounded, eight rejected.
+- Rejections: affiliation `profile_identity_context_invalid` **1**;
+  research interest `profile_subject_mismatch` **1**;
+  publication `profile_subject_mismatch` **6**. No unsupported-model-flag rejection
+  was reported among retained claims. Admission losses remain outside the counters.
+- No Verified Supervisor, fit assessment, independent review, proposal, or approval
+  reached. No automatic rerun; tokens/cost unmeasured.
+- Read-only audit confirmed strict defaults, bounds, trace suppression, and no
+  Mem0, persistent graph/shortlist, or outreach path in this canary.
+- Final documentation/M13 audit:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py`:
+  **12 passed, 86 subtests in 0.13s**. `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- OpenAI Docs informs interpretation: structured output can still contain mistakes;
+  valid shape is separate from local grounding and strict verification.
+- A safe reason identifies a failed existing predicate, not a source fact or proof
+  of the cause of an earlier run. Discarded drafts are outside these counters.
+
+### Remaining debt
+
+- Next bounded offline work: reproduce profile-subject binding for the observed
+  context-invalid/subject-mismatch categories, including role/navigation headings
+  and genuine other-person negative controls. Repair only a proven false rejection.
+- The exact live offending excerpt/heading remains unknown; do not claim a parser
+  defect, infer missing source facts, or attribute older failures to these reasons.
+- Live verification, Research Fit, and Nebius remain unconfirmed; quality/cost,
+  reviewed dataset, and broader submission requirements remain separate work.
+- No runtime/test change, automatic rerun, commit, push, model/prompt tuning,
+  relaxed gate, credential edit, or tracing upload in this step.
+
+## Week 4 step 3k — profile-subject binding repair (2026-09-06)
+
+### Objective and prompt
+
+Reproduce and repair only demonstrated role/section-heading false positives in
+existing subject binding. [Prompt used](prompts/week4-3k-profile-subject-binding.md).
+No live canary or historical-cause claim in this step.
+
+### Files changed
+
+- `src/agents/evidence_verification.py`: add exactly three non-person section labels
+  to the existing heading allowlist.
+- `src/domain/models.py`: exclude only `Prof/Professor of/in` role phrases from
+  titled-person matching, without changing the remaining name tokens.
+- New agent and domain regression modules; saved prompt, this journal, runbook,
+  triage, and README. No provider, graph, model/prompt, or configuration change.
+
+### Tests added
+
+- **30 new cases**: 19 extraction/verification cases and 11 direct-domain cases.
+- Owner-profile sections: `Academic Background`, `Research Overview`, and
+  `Research Publications`; role phrases `Professor Of Computer Science` and
+  `Professor In Information Systems`, including abbreviated/newline variants.
+- Negative controls: actual titled/untitled/credentialed people, other people after
+  role text, repeated normalized excerpts under another person, unknown labels,
+  ineligible sources/routes, model-unsupported claims, and missing affiliation fields.
+- Verify exact source wording, URL, kind, retrieval time, asserted fields, and
+  confidence are retained; diagnostics on/off yield identical claims/IDs/records,
+  one fake model call per extraction, and unchanged `not_stated` availability.
+
+### Test results
+
+- Before production edits: agent regressions **5 failed, 14 passed in 0.26s**;
+  domain regressions **8 failed, 3 passed in 0.02s**. Section examples reported
+  `profile_subject_mismatch`; contextual role examples reported
+  `profile_identity_context_invalid` (direct role examples `subject_not_established`).
+- After the narrow source patch: five focused grounding/context modules
+  **204 passed in 0.64s**; the new agent module **19 passed in 0.22s**.
+- Formatting corrected only the newly added domain test module.
+- `venv/bin/ruff format --check .`: **304 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 226 source files**.
+- Full non-live suite, `venv/bin/pytest -q --tb=short`: **1,979 passed,
+  9 deselected, 87 subtests in 25.17s**, **91.86% coverage** (90% floor).
+- Documented offline demonstration: **30 passed in 0.25s**.
+- Final governance/M13 documentation check:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py`:
+  **12 passed, 87 subtests in 0.10s**.
+- Independent read-only review found no blocking issue in the scoped changes;
+  the broader pre-existing compound role-heading limitation is recorded below.
+- `git diff --check` passed. No live calls, credential reads/edits, or commits.
+
+### Assumptions and lessons learned
+
+- A title-cased section label or academic-role phrase is not automatically a person.
+  Conversely, ignoring section labels must not erase another person's preceding heading.
+- The latest safe live counters identify rejected checks, not exact source wording.
+  A fixture-proven defect does not prove it caused the historical live result.
+- Recognize only exact known section labels, not arbitrary title-cased lines or
+  prefixes. The role exception is scoped to `Prof/Professor` and whole `of/in`
+  words; names such as Ines and Ofelia, and the `Dr` branch, remain checked.
+- Grounding requirements are unchanged. Repaired claims still need directly
+  supported identity, eligible source/context, and explicit affiliation/research
+  evidence; no evidence is invented or source text rewritten.
+
+### Remaining debt
+
+- Live verification/Research Fit/Nebius success, quality measurements, dataset
+  curation, and broader submission gaps remain separate work.
+- Preserve prior changes; no commit, push, live provider call, or relaxed evidence gate.
+- This finite English-label repair does not address every profile layout. A pre-existing
+  broad academic-role heading matcher can ignore a compound role line containing
+  another name; it was not broadened here and remains separate debt. The tested
+  role-plus-other-person excerpt still fails contextual ownership as required.
+
+## Week 4 step 3l — post-subject-repair live canary (2026-09-06)
+
+### Objective and prompt
+
+Observe one canary after step 3k's fixed-fixture subject matcher repair.
+[Prompt used](prompts/week4-3l-post-subject-repair-canary.md).
+Preserve the public target, synthetic input, strict gates, call limits, and privacy.
+
+### Files changed
+
+- Saved prompt, this journal, live-canary runbook, README, and triage record.
+- No runtime/test change in this execution step; existing uncommitted work preserved.
+
+### Tests and results
+
+- No tests added; reused the existing regression, contract, and canary suites.
+- `venv/bin/ruff format --check .`: **305 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 226 source files**.
+- `venv/bin/pytest -q --tb=short`: **1,979 passed, 9 deselected,
+  88 subtests in 25.14s**, **91.86% coverage** (90% floor).
+- Focused subject-binding, academic-role, canary-grounding, and release-contract
+  modules: **43 passed in 0.32s**.
+- Credential preflight reported all seven provider roles configured; no values
+  printed or changed. Read-only independent audit confirmed the strict policy,
+  nine-call ceiling, disabled tracing, and safe diagnostic projection.
+- One separately approved [exact live command](week4-live-canary.md):
+  **1 failed in 7.06s**, exit code 1; safe elapsed **6.992s**.
+- Four logical calls: OpenAI planning **1**, You.com **1**, Tavily extraction **1**,
+  OpenAI evidence **1**. Tavily search **0**, OpenAI Research Fit **0**, Nebius **0**.
+- Extraction completed; strict verification failed `missing_required_evidence`:
+  `current_affiliation`, `research_interest_or_publication`. Both Research Fit
+  stages `not_reached`; unrecognized missing-category count **0**.
+- Retained/grounded: identity **1/1**, affiliation **1/0**, research interest **1/0**,
+  publication **1/0**, project **1/0**, availability **1/0**, methodology **0/0**.
+  Extraction and verification counters agree: six retained, one grounded, five rejected.
+- Final rejections: `profile_identity_context_invalid` once each for affiliation,
+  research interest, and availability; `profile_subject_mismatch` once each for
+  publication and project. Availability is optional and was not the blocking gate.
+- No Verified Supervisor, Research Fit, Nebius review, proposal, or approval reached.
+  No automatic rerun. Token usage and cost remain unmeasured.
+- Final documentation/M13 audit:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py`:
+  **12 passed, 88 subtests in 0.12s**. `git diff --check` passed.
+- Independent result audit confirmed count conservation, optional availability,
+  and that the coarse context/subject reasons do not establish an exact repair.
+
+### Assumptions and lessons learned
+
+- A fixed-fixture repair is not a live success guarantee. Structured output still
+  requires grounding; OpenAI Docs was consulted for this interpretation.
+- Counts describe retained claims, not admission losses or missing real-world facts.
+- No raw source/model output from prior attempts was retained, so changes between
+  stochastic executions cannot establish which repair caused a changed outcome.
+
+### Remaining debt
+
+- Live strict verification still fails. No exact production repair is established
+  by these coarse reason codes. Proposed next step is offline refinement of the
+  existing linked-identity/context predicate into fixed diagnostic subreasons,
+  with same-decision, provenance, and privacy tests. No second validator or new
+  heading exception; later live observation requires separate approval.
+- Live Research Fit/Nebius success, quality/cost, reviewed dataset, and broader
+  submission gaps remain open. No claim that all Week 4 requirements are complete.
+- No runtime/test change, automatic rerun, commit, push, model/prompt tuning,
+  relaxed gate, credential edit, Mem0, durable graph/shortlist, outreach, or trace
+  upload in this execution step.
+
+## Week 4 step 3m — linked-identity/context fault isolation (2026-09-06)
+
+### Objective and prompt
+
+Expose the first nested failure of the existing context checks without changing
+evidence decisions. [Prompt used](prompts/week4-3m-context-failure-isolation.md).
+Keep this step offline; preserve earlier uncommitted work and strict policy.
+
+### Files changed
+
+- `src/domain/enums.py`: add fixed context reason codes; retain the legacy coarse
+  code for historical diagnostics.
+- `src/domain/models.py`: extract reason-returning helpers from the existing
+  reference/context booleans, keeping wrappers for availability derivation.
+- Existing reason assertions updated; new domain, extraction, and fake-canary
+  regression modules. README, runbook, triage, this journal, and saved prompt.
+- No extraction-agent, provider, graph, model/prompt, settings, or summary-schema
+  change in this step.
+
+### Tests added and results
+
+- Before the change: six existing grounding/context/canary modules **210 passed
+  in 0.66s**. After refactoring and updating only reason assertions in existing
+  tests: the same **210 passed in 0.67s**.
+- Added **115 cases**: 100 domain, 13 fake extraction, and 2 fake-canary summary
+  tests. The domain matrix checks 32 fixed scenarios for both booleans and precise
+  reasons, plus invalid explicit links, first-failure precedence, helper-only
+  guards, and unchanged inputs. Its new boolean-only subset ran after refactoring;
+  it is not represented as a second pre-refactor run.
+- Fake extraction tests preserve exact evidence fields, derived IDs, verification,
+  availability, and one fake model call with diagnostics enabled or disabled.
+  Fake canary tests retain precise reason counts after strict failure with zero
+  Research Fit calls, without exposing names, URLs, excerpts, or secret sentinels.
+- Documented 60-second offline command:
+  `venv/bin/pytest -o addopts='' -q tests/unit/domain/test_profile_context_failure_reasons.py tests/unit/agents/test_profile_context_diagnostics.py tests/unit/evaluation/test_live_canary_context_diagnostics.py`:
+  **115 passed in 0.28s**.
+- `venv/bin/ruff format --check .`: **309 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 229 source files**.
+- `venv/bin/pytest -q --tb=short`: **2,094 passed, 9 deselected,
+  89 subtests in 25.43s**, **91.95% coverage** (90% floor).
+- Independent read-only review found no blocking issue. An ad-hoc comparison used
+  the original boolean orchestration with current matching-policy helpers to
+  isolate this step from earlier regex repairs: **1,426 valid/malformed combinations,
+  4,278 equal grounding/reference/availability outcomes, zero exceptions**. This
+  audit is separate from the reported pytest count; it included cyclic references
+  and alias overlap. No raw live inputs or provider calls were involved.
+- Final documentation/release-contract command:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py`:
+  **12 passed, 89 subtests in 0.09s**. `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- A coarse failure code is not a proven source defect. Separate reference/source
+  mismatches from excerpt-person conflicts and missing subject-pattern matches.
+- Preserve first-failure ordering, including explicit invalid-link refusal even
+  when the excerpt contains a direct statement. No link remains valid for direct
+  evidence. Availability derivation must not drift from shared context checks.
+- Precise codes describe existing predicates, not factual certainty about the
+  source. No raw historical response is available to relabel the prior live run.
+
+### Remaining debt
+
+- New live verification, Research Fit/Nebius success, reviewed dataset, quality/cost
+  measurements, and broader submission work remain open. No live rerun in this step.
+- Page-heading/subject matching and the existing compound-role heading limitation
+  are unchanged. Do not add speculative exceptions or weaken evidence gates.
+- No credential access/change, commit, push, persistent data write, or trace upload.
+
+## Week 4 step 3n — live precise-context observation (2026-09-06)
+
+### Objective and prompt
+
+Observe one bounded live canary after the offline context-diagnostic refinement.
+[Prompt used](prompts/week4-3n-live-context-reasons.md).
+Keep the public target, synthetic input, strict policy, models, call caps, and
+trace suppression unchanged. No repair or automatic rerun in this step.
+
+### Files changed
+
+- Saved prompt, this journal, live-canary runbook, triage, and README.
+- No runtime/test changes; existing uncommitted work preserved.
+
+### Tests added and results
+
+- No tests added; reused existing offline and live-canary suites.
+- `venv/bin/ruff format --check .`: **310 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 229 source files**.
+- `venv/bin/pytest -q --tb=short`: **2,094 passed, 9 deselected,
+  90 subtests in 25.59s**, **91.95% coverage** (90% floor).
+- Context-domain, extraction, fake-canary, and release-contract focused checks:
+  **122 passed in 0.32s**.
+- All seven provider credential roles reported configured; no values displayed
+  or changed. Independent read-only audit confirmed the exact command, strict
+  defaults, nine-call ceiling, disabled SDK retries, and privacy boundaries.
+- One separately approved [exact live command](week4-live-canary.md):
+  **1 failed in 10.20s**, exit code 1; safe elapsed **10.125s**.
+- Four logical calls: OpenAI planning **1**, You.com **1**, Tavily extraction **1**,
+  OpenAI evidence **1**. Tavily search **0**, OpenAI Research Fit **0**, Nebius **0**.
+- Extraction completed. Strict verification failed `missing_required_evidence`:
+  `current_affiliation`, `research_interest_or_publication`; unknown category count
+  **0**. Both Research Fit stages were `not_reached`.
+- Retained/grounded: identity **1/1**, affiliation **1/0**, research interest **1/0**,
+  publication **4/0**; methodology/project/availability **0/0**. Extraction and final
+  verification counts agree: seven retained, one grounded, six rejected.
+- Reasons: affiliation `context_conflicting_person` **1**; research interest
+  `context_subject_pattern_missing` **1**; publications `profile_subject_mismatch`
+  **4**. No availability claim retained; availability is not a required gate.
+- No Verified Supervisor, Research Fit, Nebius review, proposal, or approval reached.
+  No automatic rerun. Token usage and cost remain unmeasured.
+- Independent result audit confirmed count conservation and that the context
+  reasons occur after identity/source checks. Later affiliation-field checks were
+  not reached; no actual conflicting person or exact source defect was established.
+- Final documentation/M13 audit:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py`:
+  **12 passed, 90 subtests in 0.13s**. `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- Precise diagnostics do not make verification more permissive or predict success.
+- OpenAI Docs informs interpretation: schema adherence is not evidence grounding.
+- Counts cover retained claims, not drafts discarded at admission. New reason
+  codes cannot be assigned retrospectively to earlier unretained model responses.
+
+### Remaining debt
+
+- Prioritize one bounded offline affiliation-conflict reproduction with actual-person
+  negative controls; research-interest subject wording is the second mandatory gap.
+  Do not expand every matcher or alter the separate publication-heading check now.
+- An exact live-cause repair needs a minimal, source-backed failing excerpt and
+  expected subject for offline replay. Count-only diagnostics did not retain it.
+  Any new live payload capture requires a separately scoped privacy decision.
+- Independent review identified an offline fixture hypothesis for the research
+  gate: a recognized preceding `Research Overview` heading and an excerpt that
+  includes the same heading currently exercise different checks. Test both excerpt
+  boundaries with wrong-person controls; do not assume this was the live wording.
+- Live Research Fit/Nebius, measured quality/cost, reviewed dataset, and submission
+  gaps remain open. No claim of a completed live journey or all Week 4 requirements.
+- No runtime/test change, automatic rerun, commit, push, credential change,
+  model/prompt tuning, weaker gate, Mem0, persistent graph/shortlist, outreach,
+  or trace upload in this step.
+
+## Week 4 step 3o — excerpt-boundary reproduction and repair (2026-09-06)
+
+### Objective and prompt
+
+Reproduce affiliation-person and research-heading/excerpt false rejections offline,
+then repair only demonstrated defects with genuine wrong-person controls.
+[Prompt used](prompts/week4-3o-excerpt-boundary-reproduction.md).
+No live payload was retained in step 3n; these fixtures cannot prove its exact cause.
+
+### Files changed
+
+- `src/domain/models.py`: extend titled-person capture past two tokens using
+  horizontal whitespace for additional tokens; preserve complete-name matching.
+  Apply one exact delimited research-heading wrapper removal only in a
+  research-interest validation view, before conflicting-person and subject checks.
+- Added `tests/unit/domain/test_affiliation_person_excerpt_regressions.py` and
+  `tests/unit/agents/test_research_overview_excerpt_boundaries.py`.
+- README, live-canary runbook, triage, this journal, and saved prompt.
+- No provider, graph, settings, model/prompt, extraction admission, page-heading
+  policy, or diagnostic-schema change. Previous uncommitted work preserved.
+
+### Tests added and results
+
+- Before production edits, affiliation suite: **6 failed, 11 passed**; six complete
+  three/four-part owner names falsely returned `context_conflicting_person`.
+  Research-boundary suite: **6 failed, 16 passed in 0.37s**; the included heading
+  caused subject-pattern or conflicting-person failures. Negative controls passed.
+- Added **50 offline regression cases** in total: 23 domain and 27 fake extraction.
+  Boundary controls include tabs/NBSP, line-wrapped unrelated names, next-line
+  headings, direct-subject grounding, exact/full-name mismatch, actual other people,
+  missing/unknown/nested wrappers, claim-type isolation, model-unsupported claims,
+  ineligible sources/routes, and repeated excerpts under the wrong person.
+- Combined strict verification succeeds for identity + affiliation + research;
+  same-prefix wrong-person affiliation still fails. Original claim fields and
+  provenance are checked. Diagnostic-on/off records and IDs are identical, with
+  one fake extraction-model call per invocation; availability stays `not_stated`.
+- Initial focused run of new and existing subject-binding modules:
+  **169 passed in 0.54s**. Added boundary tests afterwards.
+- Documented offline command:
+  `venv/bin/pytest -o addopts='' -q tests/unit/domain/test_affiliation_person_excerpt_regressions.py tests/unit/agents/test_research_overview_excerpt_boundaries.py`:
+  **50 passed in 0.37s**.
+- Initial Ruff lint found one overlong fixture string; split into adjacent literals.
+  Rerun `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/ruff format --check .`: **313 files already formatted**.
+- `venv/bin/mypy src tests scripts`: **no issues in 231 source files**.
+- Initial full run before this journal entry: **2,144 passed, 9 deselected,
+  90 subtests passed; one audit subtest failed in 26.08s** because the new prompt
+  was not yet linked here. Coverage **91.95%**. Added the missing audit link.
+- Final `venv/bin/pytest -q --tb=short`: **2,144 passed, 9 deselected,
+  91 subtests passed in 25.99s**, **91.95% coverage** (90% floor).
+- Final `venv/bin/ruff format --check .`: **313 files already formatted**.
+- Independent read-only review found no blocking issue; its targeted suite passed
+  **80 tests**, plus four ad-hoc direct-research owner/wrong-person probes. These
+  probes are separate from the reported pytest totals.
+- Documentation/release checks:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py`:
+  **12 passed, 91 subtests passed in 0.11s**. `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- A truncated match is not a conflicting person. Capture a complete name rather
+  than weakening name equivalence or accepting shared prefixes.
+- Section headings may sit inside a quote. Treat the exact wrapper consistently
+  without granting support to generic text or rewriting the retained source.
+- A green synthetic replay proves a local repair, not what the live model returned.
+  The strict identity, affiliation, and research gates remain mandatory.
+
+### Remaining debt
+
+- No live calls, credential access/change, payload capture, trace upload, commit,
+  or push. The next bounded live observation requires separate approval.
+- Publication/page-heading rules and the compound-role heading limitation remain
+  unchanged. Exact live-cause replay requires a minimal source-backed excerpt and
+  expected subject under a separately agreed privacy scope.
+- Live Research Fit/Nebius success, human-reviewed dataset, measured quality/cost,
+  and remaining Week 4 submission requirements are not declared complete.
+
+## Week 4 step 3p — post-excerpt-repair live observation (2026-09-06)
+
+### Objective and prompt
+
+Observe one live canary after step 3o's offline excerpt repairs, keeping strict
+verification, synthetic input, public target, models, and call limits unchanged.
+[Prompt used](prompts/week4-3p-post-excerpt-repair-live-canary.md).
+
+### Files changed
+
+- Saved prompt, this journal, live-canary runbook, triage, and README.
+- No runtime/test change. Existing uncommitted work preserved.
+
+### Tests added and results
+
+- No new tests; reuse the existing non-live suites and opt-in canary.
+- `venv/bin/ruff format --check .`: **314 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 231 source files**.
+- `venv/bin/pytest -q --tb=short`: **2,144 passed, 9 deselected,
+  92 subtests passed in 25.62s**, **91.95% coverage** (90% floor).
+- Focused excerpt/domain, safe-canary, and release checks: **75 passed in 0.42s**.
+- All seven provider credential roles reported configured; no secret values
+  displayed or changed. `git diff --check` passed.
+- Independent read-only preflight audit confirmed strict defaults, call caps,
+  timeout clamps, disabled SDK retries, tracing suppression, and no persistence.
+- One approved invocation of the [exact live command](week4-live-canary.md#exact-command):
+  **1 failed in 15.62s**, exit code 1; safe elapsed **15.555s**.
+- Four logical calls: OpenAI planning **1**, You.com **1**, Tavily extraction **1**,
+  OpenAI evidence **1**. Tavily search, OpenAI Research Fit, and Nebius **0**.
+- Evidence extraction completed. Strict verification failed
+  `missing_required_evidence`: `current_affiliation`,
+  `research_interest_or_publication`; unknown missing-category count **0**.
+  Research Fit input and evaluation were both `not_reached`.
+- Retained/grounded: identity **1/1**, affiliation **1/0**, research interest **1/0**,
+  publication **5/0**; methodology/project/availability **0/0**. Extraction and
+  final-verification counters agree: eight retained, one grounded, seven rejected.
+- Rejections: affiliation `context_conflicting_person` **1**; research interest
+  `context_subject_pattern_missing` **1**; publication `profile_subject_mismatch`
+  **5**. No availability claim was retained; it was not a required gate.
+- No Verified Supervisor, Research Fit, Nebius review, proposed result, or approval
+  reached. No second invocation or new payload capture. Token usage/cost **unknown**.
+- Independent result audit confirmed count conservation and first-failure ordering.
+  The repeated reason labels do not establish identical excerpts or a regression.
+- Final documentation/release command:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py`:
+  **12 passed, 92 subtests passed in 0.15s**. `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- A schema-valid response must still pass independent grounding checks, as
+  described by [OpenAI Docs](https://developers.openai.com/api/docs/guides/structured-outputs#handling-mistakes).
+- Synthetic regression cases do not establish which text a live model returns.
+  Keep the target and policies unchanged and report an unmet gate without rerunning.
+
+### Remaining debt
+
+- Step 3o's fixed regressions still pass, but this live case remains unresolved.
+  Repeated reason labels cannot establish exact source wording, which repair was
+  exercised, or a regression. Later affiliation-field checks were not reached.
+- Next proposed boundary: a separately approved minimal, privacy-scoped replay
+  of rejected affiliation/research excerpts, expected subject, and matcher output.
+  Prefer an already available sanitized sample; any new live capture must be
+  explicitly scoped. Do not add more heuristic exceptions or rerun from counts alone.
+- Live Research Fit/Nebius success, human-reviewed labels, measured quality/cost,
+  and other Week 4 submission requirements remain open.
+- No automatic rerun, runtime repair, payload capture, credential change, commit,
+  push, Mem0, persistent graph/shortlist, outreach, or trace upload in this step.

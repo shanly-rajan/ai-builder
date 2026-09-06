@@ -25,6 +25,7 @@ from .enums import (
     CandidateReviewAction,
     EvidenceClaimType,
     EvidenceConfidence,
+    GroundingFailureReason,
     IndependentReviewDecision,
     IndependentReviewFailureKind,
     IndependentReviewStatus,
@@ -104,8 +105,13 @@ _EXPLICIT_ACCEPTING_PATTERN = re.compile(
     rf"accepting\s+{_AVAILABILITY_AUDIENCE_PATTERN}\b"
 )
 _TITLED_PERSON_PATTERN = re.compile(
-    r"\b(?:Dr|Prof|Professor)\.?\s+[A-Z][A-Za-z'’-]*"
-    r"(?:\s+(?:al|bin|da|de|del|di|la|le|van|von))?\s+[A-Z][A-Za-z'’-]*\b"
+    # Of/In introduce a professorial role, not a given name; keep real names such
+    # as Ines and Ofelia, Dr handling, and later titled-person matches intact.
+    r"\b(?:Dr|(?:Prof|Professor)(?!\.?\s+(?i:of|in)\b))\.?\s+[A-Z][A-Za-z'’-]*"
+    r"(?:\s+(?:al|bin|da|de|del|di|la|le|van|von))?\s+[A-Z][A-Za-z'’-]*"
+    # Include remaining name tokens, but do not consume the next line's heading.
+    r"(?:(?:[^\S\r\n]+(?:al|bin|da|de|del|di|la|le|van|von))?"
+    r"[^\S\r\n]+[A-Z][A-Za-z'’-]*)*\b"
 )
 _ACADEMIC_TITLE_PREFIX_PATTERN = re.compile(
     r"^(?:associate\s+professor|assistant\s+professor|professor\s+emerit(?:a|us)|"
@@ -144,6 +150,10 @@ _OFFICIAL_PERSON_PROFILE_SOURCE_KINDS = frozenset(
 _PROFILE_CONTEXT_SUBJECT_PATTERN = re.compile(
     r"^(?:i\b|i['’]m\b|my\b|we\b|our\b|he\b|his\b|she\b|her\b|"
     r"they\b|their\b)",
+    re.IGNORECASE,
+)
+_RESEARCH_OVERVIEW_WRAPPER_PATTERN = re.compile(
+    r"^\s*(?:#{1,6}[ \t]*)?research[ \t]+overview[ \t]*(?::[ \t]*|\r?\n)\s*",
     re.IGNORECASE,
 )
 _PROFILE_SECTION_PREFIXES: dict[EvidenceClaimType, tuple[str, ...]] = {
@@ -718,36 +728,47 @@ def _normalized_profile_excerpt(value: str) -> str:
     return normalized.lstrip(" #>*_-`•").lstrip()
 
 
-def _profile_context_has_conflicting_person(claim: EvidenceClaim) -> bool:
+def _profile_context_has_conflicting_person(excerpt: str, asserted_name: str) -> bool:
     """Reject contextual ownership when an excerpt identifies somebody else."""
-    assert claim.asserted_name is not None
-    assert claim.supporting_excerpt is not None
     titled_conflict = any(
-        not supervisor_names_are_title_equivalent(match.group(0), claim.asserted_name)
-        for match in _TITLED_PERSON_PATTERN.finditer(claim.supporting_excerpt)
+        not supervisor_names_are_title_equivalent(match.group(0), asserted_name)
+        for match in _TITLED_PERSON_PATTERN.finditer(excerpt)
     )
     if titled_conflict:
         return True
     return any(
-        not supervisor_names_are_title_equivalent(match.group(1), claim.asserted_name)
+        not supervisor_names_are_title_equivalent(match.group(1), asserted_name)
         for pattern in _UNTITLED_CONTEXT_PERSON_PATTERNS
-        if (match := pattern.search(claim.supporting_excerpt)) is not None
+        if (match := pattern.search(excerpt)) is not None
     )
 
 
 def _profile_context_excerpt_is_subject_bound(claim: EvidenceClaim) -> bool:
+    """Keep availability derivation on the same subject checks as grounding."""
+    return _profile_context_excerpt_failure(claim) is None
+
+
+def _profile_context_excerpt_failure(claim: EvidenceClaim) -> GroundingFailureReason | None:
     """Recognize first-person, pronoun, or labelled sections on one official profile."""
     assert claim.asserted_name is not None
     assert claim.supporting_excerpt is not None
-    if _profile_context_has_conflicting_person(claim):
-        return False
-    excerpt = _normalized_profile_excerpt(claim.supporting_excerpt)
+    context_excerpt = claim.supporting_excerpt
+    if claim.claim_type is EvidenceClaimType.RESEARCH_INTEREST:
+        # A known heading can fall inside or immediately before the exact quote.
+        # Remove one wrapper only for validation; the body still needs a subject
+        # pattern and the stored source excerpt/provenance must remain untouched.
+        context_excerpt = _RESEARCH_OVERVIEW_WRAPPER_PATTERN.sub("", context_excerpt, count=1)
+    if _profile_context_has_conflicting_person(context_excerpt, claim.asserted_name):
+        return GroundingFailureReason.CONTEXT_CONFLICTING_PERSON
+    excerpt = _normalized_profile_excerpt(context_excerpt)
     if claim.claim_type is EvidenceClaimType.CURRENT_AFFILIATION:
         # The affiliation-specific grounder separately requires both exact typed fields.
-        return True
+        return None
     if _PROFILE_CONTEXT_SUBJECT_PATTERN.match(excerpt):
-        return True
-    return excerpt.startswith(_PROFILE_SECTION_PREFIXES.get(claim.claim_type, ()))
+        return None
+    if excerpt.startswith(_PROFILE_SECTION_PREFIXES.get(claim.claim_type, ())):
+        return None
+    return GroundingFailureReason.CONTEXT_SUBJECT_PATTERN_MISSING
 
 
 def _contextual_availability_polarity_matches_excerpt(claim: EvidenceClaim) -> bool:
@@ -804,52 +825,70 @@ def _subject_identity_reference_resolves(
     claim: EvidenceClaim,
     evidence_by_id: Mapping[str, EvidenceClaim],
 ) -> bool:
+    """Keep availability derivation on the same reference checks as grounding."""
+    return _subject_identity_reference_failure(claim, evidence_by_id) is None
+
+
+def _subject_identity_reference_failure(
+    claim: EvidenceClaim,
+    evidence_by_id: Mapping[str, EvidenceClaim],
+) -> GroundingFailureReason | None:
     """Resolve one contextual claim to direct identity from the same singular page."""
     identity_id = claim.subject_identity_evidence_id
-    if identity_id is None or claim.source_kind not in _OFFICIAL_PERSON_PROFILE_SOURCE_KINDS:
-        return False
+    if identity_id is None:
+        return GroundingFailureReason.CONTEXT_IDENTITY_REFERENCE_MISSING
+    if claim.source_kind not in _OFFICIAL_PERSON_PROFILE_SOURCE_KINDS:
+        return GroundingFailureReason.PROFILE_SOURCE_INELIGIBLE
     if not is_singular_person_profile_url(str(claim.source_url)):
-        return False
+        return GroundingFailureReason.PROFILE_ROUTE_INELIGIBLE
     identity = evidence_by_id.get(identity_id)
-    if (
-        identity is None
-        or identity.claim_type is not EvidenceClaimType.IDENTITY
-        or not identity.directly_supported
-    ):
-        return False
-    if (
-        identity.supervisor_id != claim.supervisor_id
-        or identity.source_kind is not claim.source_kind
-        or str(identity.source_url) != str(claim.source_url)
-        or identity.retrieved_at != claim.retrieved_at
-        or identity.subject_identity_evidence_id is not None
-        or identity.asserted_name is None
-        or identity.supporting_excerpt is None
-        or claim.asserted_name is None
-    ):
-        return False
+    if identity is None:
+        return GroundingFailureReason.CONTEXT_IDENTITY_NOT_FOUND
+    if identity.claim_type is not EvidenceClaimType.IDENTITY:
+        return GroundingFailureReason.CONTEXT_IDENTITY_TYPE_MISMATCH
+    if not identity.directly_supported:
+        return GroundingFailureReason.CONTEXT_IDENTITY_NOT_DIRECTLY_SUPPORTED
+    if identity.supervisor_id != claim.supervisor_id:
+        return GroundingFailureReason.CONTEXT_SUPERVISOR_ID_MISMATCH
+    if identity.source_kind is not claim.source_kind:
+        return GroundingFailureReason.CONTEXT_SOURCE_KIND_MISMATCH
+    if str(identity.source_url) != str(claim.source_url):
+        return GroundingFailureReason.CONTEXT_SOURCE_URL_MISMATCH
+    if identity.retrieved_at != claim.retrieved_at:
+        return GroundingFailureReason.CONTEXT_RETRIEVAL_TIME_MISMATCH
+    if identity.subject_identity_evidence_id is not None:
+        return GroundingFailureReason.CONTEXT_IDENTITY_REFERENCE_CHAINED
+    if identity.asserted_name is None:
+        return GroundingFailureReason.CONTEXT_IDENTITY_NAME_MISSING
+    if identity.supporting_excerpt is None:
+        return GroundingFailureReason.CONTEXT_IDENTITY_EXCERPT_MISSING
+    if claim.asserted_name is None:
+        return GroundingFailureReason.CONTEXT_CLAIM_NAME_MISSING
     if not _contains_exact_normalized_phrase(
         identity.supporting_excerpt,
         identity.asserted_name,
     ):
-        return False
-    return supervisor_names_are_title_equivalent(identity.asserted_name, claim.asserted_name)
+        return GroundingFailureReason.CONTEXT_IDENTITY_NAME_NOT_IN_EXCERPT
+    if not supervisor_names_are_title_equivalent(identity.asserted_name, claim.asserted_name):
+        return GroundingFailureReason.CONTEXT_IDENTITY_NAME_MISMATCH
+    return None
 
 
-def _official_profile_identity_context_is_grounded(
+def _official_profile_identity_context_failure(
     claim: EvidenceClaim,
     supervisor: SupervisorProfile,
     evidence_by_id: Mapping[str, EvidenceClaim],
-) -> bool:
+) -> GroundingFailureReason | None:
     """Validate subject context and its resolved identity against one Supervisor."""
-    if not _subject_identity_reference_resolves(claim, evidence_by_id):
-        return False
+    reference_failure = _subject_identity_reference_failure(claim, evidence_by_id)
+    if reference_failure is not None:
+        return reference_failure
     identity_id = claim.subject_identity_evidence_id
     assert identity_id is not None
     identity = evidence_by_id[identity_id]
     if not evidence_claim_is_grounded_for_supervisor(identity, supervisor):
-        return False
-    return _profile_context_excerpt_is_subject_bound(claim)
+        return GroundingFailureReason.CONTEXT_IDENTITY_NOT_GROUNDED
+    return _profile_context_excerpt_failure(claim)
 
 
 def evidence_claim_is_grounded_for_supervisor(
@@ -858,50 +897,71 @@ def evidence_claim_is_grounded_for_supervisor(
     evidence: tuple[EvidenceClaim, ...] = (),
 ) -> bool:
     """Return whether one direct claim is owned, subject-bound, and excerpt-grounded."""
-    if not claim.directly_supported or claim.supervisor_id != supervisor.supervisor_id:
-        return False
-    if claim.asserted_name is None or claim.supporting_excerpt is None:
-        return False
+    return evidence_claim_grounding_failure(claim, supervisor, evidence) is None
+
+
+def evidence_claim_grounding_failure(
+    claim: EvidenceClaim,
+    supervisor: SupervisorProfile,
+    evidence: tuple[EvidenceClaim, ...] = (),
+) -> GroundingFailureReason | None:
+    """Return the first failed grounding predicate, or None for a grounded claim.
+
+    Reasons describe existing checks rather than adding evidence requirements. They
+    contain no claim text, identities, source URLs, or provider response content.
+    """
+    if not claim.directly_supported:
+        return GroundingFailureReason.NOT_DIRECTLY_SUPPORTED
+    if claim.supervisor_id != supervisor.supervisor_id:
+        return GroundingFailureReason.SUPERVISOR_ID_MISMATCH
+    if claim.asserted_name is None:
+        return GroundingFailureReason.ASSERTED_NAME_MISSING
+    if claim.supporting_excerpt is None:
+        return GroundingFailureReason.SUPPORTING_EXCERPT_MISSING
     if not supervisor_names_are_title_equivalent(claim.asserted_name, supervisor.full_name):
-        return False
+        return GroundingFailureReason.SUPERVISOR_NAME_MISMATCH
     name_is_explicit = _contains_exact_normalized_phrase(
         claim.supporting_excerpt,
         claim.asserted_name,
     )
     if claim.claim_type is EvidenceClaimType.IDENTITY:
-        return name_is_explicit
+        return None if name_is_explicit else GroundingFailureReason.IDENTITY_NAME_NOT_IN_EXCERPT
 
     evidence_by_id = {item.evidence_id: item for item in evidence}
-    profile_context_is_grounded = _official_profile_identity_context_is_grounded(
+    context_failure = _official_profile_identity_context_failure(
         claim,
         supervisor,
         evidence_by_id,
     )
-    if claim.subject_identity_evidence_id is not None and not profile_context_is_grounded:
-        return False
+    profile_context_is_grounded = context_failure is None
+    if claim.subject_identity_evidence_id is not None and context_failure is not None:
+        return context_failure
     direct_subject_is_grounded = name_is_explicit and _excerpt_has_direct_supervisor_subject(claim)
     if not direct_subject_is_grounded and not profile_context_is_grounded:
-        return False
+        return GroundingFailureReason.SUBJECT_NOT_ESTABLISHED
 
     if claim.claim_type is EvidenceClaimType.CURRENT_AFFILIATION:
         if claim.asserted_institution is None or claim.asserted_department is None:
-            return False
+            return GroundingFailureReason.AFFILIATION_FIELDS_MISSING
         if not _contains_exact_normalized_phrase(
             claim.supporting_excerpt,
             claim.asserted_institution,
         ):
-            return False
+            return GroundingFailureReason.INSTITUTION_NOT_IN_EXCERPT
         if not _contains_exact_normalized_phrase(
             claim.supporting_excerpt,
             claim.asserted_department,
         ):
-            return False
+            return GroundingFailureReason.DEPARTMENT_NOT_IN_EXCERPT
 
     if claim.claim_type is EvidenceClaimType.AVAILABILITY:
         if direct_subject_is_grounded:
-            return _availability_polarity_matches_excerpt(claim)
-        return _contextual_availability_polarity_matches_excerpt(claim)
-    return True
+            polarity_matches = _availability_polarity_matches_excerpt(claim)
+        else:
+            polarity_matches = _contextual_availability_polarity_matches_excerpt(claim)
+        if not polarity_matches:
+            return GroundingFailureReason.AVAILABILITY_POLARITY_NOT_SUPPORTED
+    return None
 
 
 def missing_verification_evidence(

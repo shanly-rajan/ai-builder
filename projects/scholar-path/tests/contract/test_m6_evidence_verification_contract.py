@@ -38,12 +38,17 @@ def test_m6_exposes_typed_provider_and_model_ports() -> None:
         "self",
         "extraction_input",
     }
-    assert inspect.signature(EvidenceVerificationAgent.extract_claims).parameters.keys() == {
+    parameters = inspect.signature(EvidenceVerificationAgent.extract_claims).parameters
+    assert parameters.keys() == {
         "self",
         "supervisor",
         "extracted_content",
         "source_kind",
+        "diagnostics",
     }
+    # Existing positional callers remain compatible; diagnostics are opt-in only.
+    assert parameters["diagnostics"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameters["diagnostics"].default is None
 
 
 def test_m6_uses_official_tavily_extract_without_community_or_private_imports() -> None:

@@ -136,6 +136,7 @@ def test_canary_summary_reports_attempts_and_unmeasured_usage(
             for stage in canary._CanaryStage
         },
         "verification_diagnostics": None,
+        "grounding_diagnostics": None,
         "token_usage": None,
         "cost_usd": None,
     }

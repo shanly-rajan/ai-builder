@@ -43,6 +43,7 @@ from tests.fixtures import FIXED_EVIDENCE_RETRIEVED_AT, make_prospective_supervi
 
 PROFILE_URL = "https://profiles.example.edu/dhaval-thakker"
 PAGE_NAME = "Professor Dhavalkumar (Dhaval) Thakker"
+AFFILIATION_EXCERPT = "Current position: Professor, School of Management, University of Bradford."
 
 
 def _supervisor() -> ProspectiveSupervisor:
@@ -64,6 +65,25 @@ def _identity_draft(*, asserted_name: str = PAGE_NAME) -> StructuredEvidenceClai
         confidence=EvidenceConfidence.HIGH,
         directly_supported=True,
         asserted_name=asserted_name,
+    )
+
+
+def _affiliation_draft(
+    *,
+    supporting_excerpt: str = AFFILIATION_EXCERPT,
+    directly_supported: bool = True,
+    asserted_institution: str = "University of Bradford",
+    asserted_department: str = "School of Management",
+) -> StructuredEvidenceClaim:
+    return StructuredEvidenceClaim(
+        claim_type=EvidenceClaimType.CURRENT_AFFILIATION,
+        claim="The profile states a current affiliation.",
+        supporting_excerpt=supporting_excerpt,
+        confidence=EvidenceConfidence.HIGH,
+        directly_supported=directly_supported,
+        asserted_name=PAGE_NAME,
+        asserted_institution=asserted_institution,
+        asserted_department=asserted_department,
     )
 
 
@@ -1007,3 +1027,190 @@ def test_context_link_must_resolve_to_identity_from_the_same_page_and_retrieval(
                 "research_interest_or_publication",
             ),
         )
+
+
+@pytest.mark.parametrize(
+    "page_excerpt",
+    [
+        pytest.param(AFFILIATION_EXCERPT.lower(), id="case"),
+        pytest.param(AFFILIATION_EXCERPT.replace(" ", "\t"), id="tabs"),
+        pytest.param(AFFILIATION_EXCERPT.replace(" ", "\n"), id="newlines"),
+        pytest.param(AFFILIATION_EXCERPT.replace(" ", "\u00a0"), id="nonbreaking-spaces"),
+        pytest.param(AFFILIATION_EXCERPT.replace(" ", "   "), id="multiple-spaces"),
+    ],
+)
+def test_normalized_affiliation_excerpt_retains_its_grounded_profile_context(
+    page_excerpt: str,
+) -> None:
+    _, claims = _extract(
+        [_identity_draft(), _affiliation_draft()],
+        f"# {PAGE_NAME}\n{page_excerpt}",
+    )
+
+    assert len(claims) == 2
+    identity, affiliation = claims
+    assert affiliation.directly_supported is True
+    assert affiliation.subject_identity_evidence_id == identity.evidence_id
+    assert affiliation.supporting_excerpt == AFFILIATION_EXCERPT
+    assert str(affiliation.source_url) == PROFILE_URL
+    assert affiliation.retrieved_at == FIXED_EVIDENCE_RETRIEVED_AT
+    assert evidence_claim_is_grounded_for_supervisor(affiliation, _supervisor(), claims)
+
+
+def test_normalized_affiliation_can_complete_unchanged_strict_verification() -> None:
+    research_excerpt = "Research interests: enterprise systems and responsible AI."
+    research_draft = StructuredEvidenceClaim(
+        claim_type=EvidenceClaimType.RESEARCH_INTEREST,
+        claim="The profile states enterprise systems and responsible AI research.",
+        supporting_excerpt=research_excerpt,
+        confidence=EvidenceConfidence.HIGH,
+        directly_supported=True,
+        asserted_name=PAGE_NAME,
+    )
+    agent, claims = _extract(
+        [_identity_draft(), _affiliation_draft(), research_draft],
+        f"# {PAGE_NAME}\n{AFFILIATION_EXCERPT.lower()}\n{research_excerpt}",
+    )
+
+    record = agent.build_verification_record(_supervisor(), claims)
+
+    assert record.verified_supervisor is not None
+    assert record.verification_evidence_standard.value == "strict"
+    assert record.missing_required_evidence == ()
+    assert all(claim.directly_supported for claim in claims)
+    assert record.availability_status is AvailabilityStatus.NOT_STATED
+
+
+def test_normalized_excerpt_under_another_person_is_not_grounded() -> None:
+    _, claims = _extract(
+        [_identity_draft(), _affiliation_draft()],
+        f"# {PAGE_NAME}\n## Alice Smith\n{AFFILIATION_EXCERPT.lower()}",
+    )
+
+    assert len(claims) == 2
+    assert claims[1].directly_supported is False
+    assert claims[1].subject_identity_evidence_id is None
+
+
+@pytest.mark.parametrize("other_person_first", [False, True])
+def test_exact_and_normalized_repeated_excerpt_under_different_people_is_ambiguous(
+    other_person_first: bool,
+) -> None:
+    owner_section = f"# {PAGE_NAME}\n{AFFILIATION_EXCERPT}"
+    other_section = f"## Alice Smith\n{AFFILIATION_EXCERPT.lower()}"
+    sections = (
+        (other_section, owner_section) if other_person_first else (owner_section, other_section)
+    )
+    _, claims = _extract([_identity_draft(), _affiliation_draft()], "\n".join(sections))
+
+    assert len(claims) == 2
+    assert claims[1].directly_supported is False
+    assert claims[1].subject_identity_evidence_id is None
+
+
+@pytest.mark.parametrize(
+    "draft",
+    [
+        pytest.param(
+            _affiliation_draft(supporting_excerpt="Current position: School of Management."),
+            id="institution-absent-from-excerpt",
+        ),
+        pytest.param(
+            _affiliation_draft(supporting_excerpt="Current position: University of Bradford."),
+            id="department-absent-from-excerpt",
+        ),
+        pytest.param(
+            _affiliation_draft(asserted_institution="University of Elsewhere"),
+            id="invented-institution",
+        ),
+        pytest.param(
+            _affiliation_draft(asserted_department="Department of Astronomy"),
+            id="invented-department",
+        ),
+    ],
+)
+def test_normalized_context_does_not_supply_missing_affiliation_facts(
+    draft: StructuredEvidenceClaim,
+) -> None:
+    agent, claims = _extract(
+        [_identity_draft(), draft],
+        f"# {PAGE_NAME}\n{draft.supporting_excerpt.lower()}",
+    )
+
+    assert len(claims) == 2
+    assert claims[1].directly_supported is False
+    assert claims[1].subject_identity_evidence_id is None
+    record = agent.build_verification_record(_supervisor(), claims)
+    assert "current_affiliation" in record.missing_required_evidence
+    assert record.verified_supervisor is None
+
+
+def test_normalized_context_does_not_promote_an_unsupported_model_draft() -> None:
+    _, claims = _extract(
+        [_identity_draft(), _affiliation_draft(directly_supported=False)],
+        f"# {PAGE_NAME}\n{AFFILIATION_EXCERPT.lower()}",
+    )
+
+    assert len(claims) == 2
+    assert claims[1].directly_supported is False
+    assert claims[1].subject_identity_evidence_id is None
+
+
+@pytest.mark.parametrize(
+    "page_excerpt",
+    [
+        pytest.param(AFFILIATION_EXCERPT.replace(",", ";"), id="punctuation-changed"),
+        pytest.param(AFFILIATION_EXCERPT.replace("Management", "Engineering"), id="word-changed"),
+    ],
+)
+def test_nonformatting_excerpt_changes_are_not_admitted(page_excerpt: str) -> None:
+    _, claims = _extract(
+        [_identity_draft(), _affiliation_draft()],
+        f"# {PAGE_NAME}\n{page_excerpt}",
+    )
+
+    assert len(claims) == 1
+    assert claims[0].claim_type is EvidenceClaimType.IDENTITY
+
+
+@pytest.mark.parametrize("heading", [PAGE_NAME, "Alice Smith"])
+def test_unicode_casefold_expansion_keeps_original_person_heading_offsets(heading: str) -> None:
+    # Length-changing casefolding before the excerpt must not shift the original
+    # heading boundary. The accent is page content, not a model normalization edit.
+    prefix = "Navigation: Stra\u00dfe \u0130stanbul\n" * 20
+    _, claims = _extract(
+        [_identity_draft(), _affiliation_draft()],
+        f"# {PAGE_NAME}\n{prefix}## {heading}\n{AFFILIATION_EXCERPT.lower()}",
+    )
+
+    assert len(claims) == 2
+    assert claims[1].directly_supported is (heading == PAGE_NAME)
+    if heading == PAGE_NAME:
+        assert claims[1].subject_identity_evidence_id == claims[0].evidence_id
+    else:
+        assert claims[1].subject_identity_evidence_id is None
+
+
+def test_normalized_context_still_requires_grounded_identity_evidence() -> None:
+    agent, claims = _extract(
+        [_affiliation_draft()],
+        f"# {PAGE_NAME}\n{AFFILIATION_EXCERPT.lower()}",
+    )
+
+    assert len(claims) == 1
+    assert claims[0].directly_supported is False
+    assert claims[0].subject_identity_evidence_id is None
+    record = agent.build_verification_record(_supervisor(), claims)
+    assert record.verified_supervisor is None
+    assert "identity" in record.missing_required_evidence
+
+
+def test_normalized_excerpt_does_not_attach_to_a_later_person_heading() -> None:
+    _, claims = _extract(
+        [_identity_draft(), _affiliation_draft()],
+        f"# {PAGE_NAME}\n{AFFILIATION_EXCERPT.lower()}\n## Alice Smith\nOther profile details.",
+    )
+
+    assert len(claims) == 2
+    assert claims[1].directly_supported is True
+    assert claims[1].subject_identity_evidence_id == claims[0].evidence_id

@@ -5,7 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from typing import Annotated, Protocol, Self
+from collections import Counter
+from typing import Annotated, Protocol, Self, TypedDict
 
 from pydantic import (
     BaseModel,
@@ -23,12 +24,14 @@ from ..domain import (
     EvidenceClaim,
     EvidenceClaimType,
     EvidenceConfidence,
+    GroundingFailureReason,
     ProspectiveSupervisor,
     SourceKind,
     SupervisorVerificationRecord,
     VerificationEvidenceStandard,
     VerificationStatus,
     derive_availability_status,
+    evidence_claim_grounding_failure,
     evidence_claim_is_grounded_for_supervisor,
     is_singular_person_profile_url,
     missing_verification_evidence,
@@ -45,13 +48,74 @@ SupportingExcerpt = Annotated[
 ]
 
 
+class EvidenceGroundingSummary(TypedDict):
+    """Fixed labels and counts for retained claims, never source or model payloads."""
+
+    retained_claim_counts: dict[str, int]
+    grounded_claim_counts: dict[str, int]
+    rejection_counts: dict[str, dict[str, int]]
+
+
+class EvidenceGroundingDiagnostics:
+    """Optional call-local counter; create a fresh instance for each extraction."""
+
+    def __init__(self) -> None:
+        self._counts: Counter[tuple[EvidenceClaimType, GroundingFailureReason | None]] = Counter()
+
+    def record(self, claim_type: EvidenceClaimType, failure: GroundingFailureReason | None) -> None:
+        """Count only the final outcome after existing contextual rescue checks."""
+        if not isinstance(claim_type, EvidenceClaimType) or (
+            failure is not None and not isinstance(failure, GroundingFailureReason)
+        ):
+            raise ValueError("Grounding diagnostics require fixed enum values")
+        self._counts[(claim_type, failure)] += 1
+
+    def summary(self) -> EvidenceGroundingSummary:
+        """Return a detached allowlisted projection, with sparse failure counts."""
+        return {
+            "retained_claim_counts": {
+                kind.value: self._counts[(kind, None)]
+                + sum(self._counts[(kind, reason)] for reason in GroundingFailureReason)
+                for kind in EvidenceClaimType
+            },
+            "grounded_claim_counts": {
+                kind.value: self._counts[(kind, None)] for kind in EvidenceClaimType
+            },
+            "rejection_counts": {
+                kind.value: {
+                    reason.value: self._counts[(kind, reason)]
+                    for reason in GroundingFailureReason
+                    if self._counts[(kind, reason)]
+                }
+                for kind in EvidenceClaimType
+            },
+        }
+
+
 def _normalized_text(value: str) -> str:
     return " ".join(value.casefold().split())
+
+
+def _normalized_text_with_offsets(value: str) -> tuple[str, tuple[int, ...]]:
+    """Apply admission normalization while retaining each character's source position."""
+    parts: list[str] = []
+    offsets: list[int] = []
+    for token in re.finditer(r"\S+", value):
+        if parts:
+            parts.append(" ")
+            offsets.append(token.start() - 1)
+        for position, character in enumerate(token.group(), start=token.start()):
+            folded = character.casefold()
+            parts.append(folded)
+            # Casefolding can expand one source character, e.g. ß becomes ss.
+            offsets.extend([position] * len(folded))
+    return "".join(parts), tuple(offsets)
 
 
 _PROFILE_SECTION_HEADINGS = frozenset(
     {
         "about",
+        "academic background",
         "areas of expertise",
         "availability",
         "current position",
@@ -66,6 +130,8 @@ _PROFILE_SECTION_HEADINGS = frozenset(
         "research focus",
         "research interests",
         "research methods",
+        "research overview",
+        "research publications",
         "selected projects",
         "selected publications",
     }
@@ -113,12 +179,17 @@ def _exact_excerpt_is_under_expected_profile_subject(
     supporting_excerpt: str,
     asserted_name: str,
 ) -> bool:
-    """Reject a contextual excerpt positioned beneath another person's heading."""
+    """Match normalized wording, but check subject headings at original page positions."""
+    normalized_page, source_offsets = _normalized_text_with_offsets(page_content)
+    normalized_excerpt = _normalized_text(supporting_excerpt)
+    if not normalized_excerpt:
+        return False
     starts: list[int] = []
     offset = 0
-    while (position := page_content.find(supporting_excerpt, offset)) >= 0:
-        starts.append(position)
-        offset = position + max(len(supporting_excerpt), 1)
+    while (position := normalized_page.find(normalized_excerpt, offset)) >= 0:
+        starts.append(source_offsets[position])
+        # Inspect every equivalent occurrence, including differently formatted repeats.
+        offset = position + 1
     if not starts:
         return False
 
@@ -412,6 +483,8 @@ class EvidenceVerificationAgent:
         supervisor: ProspectiveSupervisor,
         extracted_content: ExtractedContent,
         source_kind: SourceKind,
+        *,
+        diagnostics: EvidenceGroundingDiagnostics | None = None,
     ) -> tuple[EvidenceClaim, ...]:
         """Bind grounded claim drafts to system-owned identifiers and provenance."""
         extraction_input = EvidenceExtractionInput(
@@ -474,10 +547,11 @@ class EvidenceVerificationAgent:
                 )
             except (ValidationError, ValueError):
                 continue
-            direct_support = evidence_claim_is_grounded_for_supervisor(
+            grounding_failure = evidence_claim_grounding_failure(
                 provisional_claim,
                 supervisor,
             )
+            direct_support = grounding_failure is None
             evidence_id = deterministic_evidence_id(
                 supervisor.supervisor_id,
                 str(extracted_content.source_url),
@@ -491,6 +565,13 @@ class EvidenceVerificationAgent:
                     "directly_supported": direct_support,
                 }
             )
+            if diagnostics is not None:
+                diagnostics.record(
+                    draft.claim_type,
+                    grounding_failure
+                    if draft.directly_supported
+                    else GroundingFailureReason.MODEL_NOT_DIRECTLY_SUPPORTED,
+                )
 
         identity_claims = tuple(identity_claims_by_position.values())
         grounded_identity_claims = tuple(
@@ -527,11 +608,12 @@ class EvidenceVerificationAgent:
             except (ValidationError, ValueError):
                 continue
 
-            direct_support = evidence_claim_is_grounded_for_supervisor(
+            grounding_failure = evidence_claim_grounding_failure(
                 provisional_claim,
                 supervisor,
                 identity_claims,
             )
+            direct_support = grounding_failure is None
             identity_context = next(
                 (
                     identity
@@ -547,32 +629,42 @@ class EvidenceVerificationAgent:
             )
             if (
                 not direct_support
+                and provisional_claim.directly_supported
                 and identity_context is not None
-                and source_kind
-                in {
+            ):
+                # These are the existing rescue gates, now retaining their first failure.
+                context_failure: GroundingFailureReason | None = None
+                if source_kind not in {
                     SourceKind.UNIVERSITY_PROFILE,
                     SourceKind.INSTITUTIONAL_DIRECTORY,
-                }
-                and is_singular_person_profile_url(str(extracted_content.source_url))
-                and draft.asserted_name is not None
-                and _exact_excerpt_is_under_expected_profile_subject(
+                }:
+                    context_failure = GroundingFailureReason.PROFILE_SOURCE_INELIGIBLE
+                elif not is_singular_person_profile_url(str(extracted_content.source_url)):
+                    context_failure = GroundingFailureReason.PROFILE_ROUTE_INELIGIBLE
+                elif draft.asserted_name is None:
+                    context_failure = GroundingFailureReason.ASSERTED_NAME_MISSING
+                elif not _exact_excerpt_is_under_expected_profile_subject(
                     extracted_content.content,
                     draft.supporting_excerpt,
                     draft.asserted_name,
-                )
-            ):
-                contextual_claim = provisional_claim.model_copy(
-                    update={
-                        "subject_identity_evidence_id": identity_context.evidence_id,
-                    }
-                )
-                if evidence_claim_is_grounded_for_supervisor(
-                    contextual_claim,
-                    supervisor,
-                    identity_claims,
                 ):
-                    provisional_claim = contextual_claim
-                    direct_support = True
+                    context_failure = GroundingFailureReason.PROFILE_SUBJECT_MISMATCH
+                if context_failure is None:
+                    contextual_claim = provisional_claim.model_copy(
+                        update={
+                            "subject_identity_evidence_id": identity_context.evidence_id,
+                        }
+                    )
+                    grounding_failure = evidence_claim_grounding_failure(
+                        contextual_claim, supervisor, identity_claims
+                    )
+                    if grounding_failure is None:
+                        provisional_claim = contextual_claim
+                        direct_support = True
+                elif grounding_failure is GroundingFailureReason.SUBJECT_NOT_ESTABLISHED:
+                    # Keep a more specific direct-claim failure (e.g. missing affiliation)
+                    # when the optional context path was ineligible as well.
+                    grounding_failure = context_failure
 
             evidence_id = deterministic_evidence_id(
                 supervisor.supervisor_id,
@@ -597,6 +689,12 @@ class EvidenceVerificationAgent:
                     }
                 )
             )
+            if diagnostics is not None:
+                if not draft.directly_supported:
+                    grounding_failure = GroundingFailureReason.MODEL_NOT_DIRECTLY_SUPPORTED
+                elif not grounded_identity_claims:
+                    grounding_failure = GroundingFailureReason.GROUNDED_IDENTITY_MISSING
+                diagnostics.record(draft.claim_type, grounding_failure)
         return tuple(claims)
 
     def build_verification_record(

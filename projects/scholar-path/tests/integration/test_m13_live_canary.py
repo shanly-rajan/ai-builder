@@ -41,6 +41,8 @@ from scholarpath.agents import (
     canonical_profile_url,
 )
 from scholarpath.agents.evidence_verification import (
+    EvidenceGroundingDiagnostics,
+    EvidenceGroundingSummary,
     EvidenceModelInvocationError,
     EvidenceModelOutputError,
 )
@@ -239,6 +241,7 @@ class _CallBudget:
     calls: Counter[str] = field(default_factory=Counter)
     stage_outcomes: dict[_CanaryStage, _StageOutcome] = field(default_factory=dict)
     verification_diagnostics: _VerificationDiagnostics | None = None
+    grounding_diagnostics: EvidenceGroundingSummary | None = None
 
     def consume(self, operation: str) -> None:
         limit = self.limits[operation]
@@ -295,6 +298,7 @@ def _summarized_call_budget() -> Iterator[_CallBudget]:
                     "elapsed_seconds": round(monotonic() - started_at, 3),
                     "stage_outcomes": _stage_summary(budget),
                     "verification_diagnostics": budget.verification_diagnostics,
+                    "grounding_diagnostics": budget.grounding_diagnostics,
                     "token_usage": None,
                     "cost_usd": None,
                 },
@@ -453,11 +457,15 @@ def _verify_and_evaluate(
 ) -> tuple[VerifiedSupervisor, ResearchFitAssessment]:
     """Observe the existing pipeline without weakening gates or adding model calls."""
     evidence_agent = EvidenceVerificationAgent(evidence_model)
+    grounding_diagnostics = EvidenceGroundingDiagnostics()
     with budget.observe(_CanaryStage.EVIDENCE_EXTRACTION):
         source_kind = classify_evidence_source_kind(
             extracted_content.source_url, title=prospective.full_name
         )
-        claims = evidence_agent.extract_claims(prospective, extracted_content, source_kind)
+        claims = evidence_agent.extract_claims(
+            prospective, extracted_content, source_kind, diagnostics=grounding_diagnostics
+        )
+        budget.grounding_diagnostics = grounding_diagnostics.summary()
     with budget.observe(_CanaryStage.EVIDENCE_VERIFICATION):
         verification = evidence_agent.build_verification_record(prospective, claims)
         budget.verification_diagnostics = _verification_diagnostics(verification)

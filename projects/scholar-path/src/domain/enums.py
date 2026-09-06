@@ -90,6 +90,46 @@ class EvidenceClaimType(StrEnum):
     AVAILABILITY = "availability"
 
 
+class GroundingFailureReason(StrEnum):
+    """Fixed, privacy-safe reasons an evidence claim did not pass grounding."""
+
+    NOT_DIRECTLY_SUPPORTED = "not_directly_supported"
+    SUPERVISOR_ID_MISMATCH = "supervisor_id_mismatch"
+    ASSERTED_NAME_MISSING = "asserted_name_missing"
+    SUPPORTING_EXCERPT_MISSING = "supporting_excerpt_missing"
+    SUPERVISOR_NAME_MISMATCH = "supervisor_name_mismatch"
+    IDENTITY_NAME_NOT_IN_EXCERPT = "identity_name_not_in_excerpt"
+    # Retained for historical diagnostics; new context failures use precise codes.
+    PROFILE_IDENTITY_CONTEXT_INVALID = "profile_identity_context_invalid"
+    CONTEXT_IDENTITY_REFERENCE_MISSING = "context_identity_reference_missing"
+    CONTEXT_IDENTITY_NOT_FOUND = "context_identity_not_found"
+    CONTEXT_IDENTITY_TYPE_MISMATCH = "context_identity_type_mismatch"
+    CONTEXT_IDENTITY_NOT_DIRECTLY_SUPPORTED = "context_identity_not_directly_supported"
+    CONTEXT_SUPERVISOR_ID_MISMATCH = "context_supervisor_id_mismatch"
+    CONTEXT_SOURCE_KIND_MISMATCH = "context_source_kind_mismatch"
+    CONTEXT_SOURCE_URL_MISMATCH = "context_source_url_mismatch"
+    CONTEXT_RETRIEVAL_TIME_MISMATCH = "context_retrieval_time_mismatch"
+    CONTEXT_IDENTITY_REFERENCE_CHAINED = "context_identity_reference_chained"
+    CONTEXT_IDENTITY_NAME_MISSING = "context_identity_name_missing"
+    CONTEXT_IDENTITY_EXCERPT_MISSING = "context_identity_excerpt_missing"
+    CONTEXT_CLAIM_NAME_MISSING = "context_claim_name_missing"
+    CONTEXT_IDENTITY_NAME_NOT_IN_EXCERPT = "context_identity_name_not_in_excerpt"
+    CONTEXT_IDENTITY_NAME_MISMATCH = "context_identity_name_mismatch"
+    CONTEXT_IDENTITY_NOT_GROUNDED = "context_identity_not_grounded"
+    CONTEXT_CONFLICTING_PERSON = "context_conflicting_person"
+    CONTEXT_SUBJECT_PATTERN_MISSING = "context_subject_pattern_missing"
+    SUBJECT_NOT_ESTABLISHED = "subject_not_established"
+    AFFILIATION_FIELDS_MISSING = "affiliation_fields_missing"
+    INSTITUTION_NOT_IN_EXCERPT = "institution_not_in_excerpt"
+    DEPARTMENT_NOT_IN_EXCERPT = "department_not_in_excerpt"
+    AVAILABILITY_POLARITY_NOT_SUPPORTED = "availability_polarity_not_supported"
+    MODEL_NOT_DIRECTLY_SUPPORTED = "model_not_directly_supported"
+    GROUNDED_IDENTITY_MISSING = "grounded_identity_missing"
+    PROFILE_SOURCE_INELIGIBLE = "profile_source_ineligible"
+    PROFILE_ROUTE_INELIGIBLE = "profile_route_ineligible"
+    PROFILE_SUBJECT_MISMATCH = "profile_subject_mismatch"
+
+
 class VerificationStatus(StrEnum):
     """Outcome of applying evidence sufficiency rules."""
 

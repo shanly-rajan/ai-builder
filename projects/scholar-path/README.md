@@ -1952,3 +1952,79 @@ was grounded. Research Fit and Nebius were not reached. The exact rejection caus
 is still unconfirmed; the next bounded step is an offline affiliation-grounding
 reproduction, without relaxing verification. See the
 [recorded live result](docs/week4-live-canary.md#step-3f-live-missing-evidence-result).
+
+Step 3g reproduced and repaired one formatting-only grounding defect offline:
+excerpt admission and profile-context matching now share case/whitespace equivalence,
+while preserving original page positions and checking all matching occurrences.
+Unsupported claims remain unsupported; strict verification and wrong-person checks
+are unchanged. Twenty regression cases were added. This is not yet a confirmed fix
+for the earlier live run. See the
+[repair and offline demonstration](docs/week4-live-canary.md#step-3g-formatting-only-grounding-repair-offline).
+
+Step 3h tested the repair with one approved live canary: **1 failed in 11.11s**,
+four logical calls. The same affiliation and research gates remained unmet; only
+identity was grounded. Research Fit and Nebius were not reached. This does not
+invalidate the fixture-proven repair, but it does not establish live success.
+Next, capture fixed aggregate grounding-rejection reasons offline before further
+live attempts or heuristic changes. See the
+[post-repair result](docs/week4-live-canary.md#step-3h-post-repair-live-result).
+
+Step 3i adds offline-tested, aggregate grounding reasons for retained claims.
+The canary can now distinguish an unsupported model flag, missing grounded identity,
+and failed source/subject/affiliation checks without logging evidence text or IDs.
+Existing grounding, context rescue, and provider limits are unchanged. Discarded
+drafts are outside these counters. No new live result is claimed; see the
+[diagnostic scope and offline check](docs/week4-live-canary.md#step-3i-retained-claim-grounding-diagnostics-offline).
+
+Step 3j observed those reasons in one approved live run: **1 failed in 10.33s**,
+four logical calls. Identity passed; affiliation failed linked-identity/context
+validation once, and one research-interest claim plus six publications failed
+page-subject binding. Research Fit and Nebius were not called. Next is a focused
+offline subject-binding reproduction, not relaxed verification or repeated live
+attempts. See the [measured result and limits](docs/week4-live-canary.md#step-3j-live-grounding-reason-result).
+
+Step 3k reproduced and repaired two subject-binding false positives offline:
+three exact section headings no longer override the profile owner, and
+`Prof/Professor of/in` role phrases no longer count as another person's name.
+Thirty regression cases retain genuine wrong-person and missing-evidence controls;
+strict verification is unchanged. This is not yet a confirmed fix for the live
+run. See the [fixture demonstration and limits](docs/week4-live-canary.md#step-3k-fixed-fixture-profile-subject-repair-offline).
+
+Step 3l observed the repair in one approved live canary: **1 failed in 7.06s**,
+four logical calls. Extraction completed, but only identity was grounded;
+strict affiliation and research gates still failed. Research Fit and Nebius were
+not called. The counts locate subject/context checks but do not yet justify an
+exact production repair. Next proposed work is an offline refinement of the
+existing context-failure diagnostic, not relaxed verification or another blind
+live attempt. See the [recorded result](docs/week4-live-canary.md#step-3l-post-subject-repair-live-result).
+
+Step 3m refines that context diagnostic offline: fixed reason codes now distinguish
+linked-identity/source mismatches, conflicting-person text matches, and missing
+subject patterns. Existing verification decisions and call limits are unchanged;
+fake tests check privacy and provenance. This does not yet explain the historical
+live text or establish live Research Fit/Nebius success. See the
+[diagnostic scope and demonstration](docs/week4-live-canary.md#step-3m-precise-context-failure-diagnostics-offline).
+
+Step 3n used those diagnostics in one approved live canary: **1 failed in 10.20s**,
+four logical calls. Affiliation triggered the excerpt's conflicting-person matcher;
+research interests lacked an allowed contextual subject pattern; four publications
+failed page-heading subject checks. Identity passed, but Research Fit and Nebius
+were not reached. These are precise failed checks, not proof of an exact source
+defect. Prioritize a bounded affiliation reproduction before further tuning; see the
+[live result and replay boundary](docs/week4-live-canary.md#step-3n-live-precise-context-result).
+
+Step 3o repaired two fixture-proven excerpt bugs offline: titled names no longer
+stop after two name tokens, and including one exact `Research Overview` heading
+does not invalidate an otherwise subject-bound research excerpt. Wrong-person,
+missing-evidence, source, and strict-verification checks remain enforced. Fifty
+new regression cases pass, including a complete strict fake verification and its
+same-prefix wrong-person control. This is not proof of the previous live cause;
+see the [offline repair and next boundary](docs/week4-live-canary.md#step-3o-excerpt-boundary-repair-offline).
+
+Step 3p ran one approved live canary after those repairs: **1 failed in 15.62s**,
+four logical calls. The same affiliation-person and research-subject checks still
+blocked strict verification; five publications failed page-subject binding.
+Research Fit and Nebius were not called. Do not infer a live fix from passing
+synthetic cases or continue tuning from counts alone. Next proposed work is a
+separately scoped minimal source-excerpt replay, not another blind rerun. See the
+[recorded result and privacy boundary](docs/week4-live-canary.md#step-3p-post-excerpt-repair-live-result).
