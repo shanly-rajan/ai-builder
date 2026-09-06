@@ -1193,10 +1193,264 @@ capture privacy, strict gates, timeouts, and the nine-logical-call ceiling.
 No runtime/test change, credential change, second live run, Mem0, persistent
 graph/shortlist write, outreach, trace upload, commit, or push in this step.
 
+## Step 3y: isolated live Nebius review passed
+
+On **2026-09-06**, one separately network-approved invocation of the
+[isolated smoke command](#step-3x-isolated-nebius-smoke-diagnostics-offline)
+returned **1 passed in 4.37s** (exit 0). The safe summary measured **4.356s**
+and **one logical Nebius call**. No second invocation was made.
+
+```text
+Fixed synthetic input -> Nebius -> Structured response and reference checks
+  -> Reconciliation: ACCEPTED -> Final check: PASS
+```
+
+All six stages completed with null failure categories: `configuration`,
+`review_input`, `model_call`, `response_checks`, `reconciliation`, and
+`final_checks`. `review_status` was **`accepted`**, and `failure_kind` was **null**.
+
+This establishes one real Nebius response passing the existing schema, score,
+evidence-reference, and reconciliation checks for fixed synthetic evidence. It
+does not prove that the review is substantively useful to a Candidate, explain
+the exact earlier step 3u response, or validate a real Supervisor's evidence.
+An isolated success is not full-pipeline, persisted LangGraph/UI, or repeatability
+evidence. The current-affiliation failure from step 3w remains open.
+
+The request timeout was capped at 60 seconds and SDK retries remained zero.
+Tracing was forced off. No OpenAI, search, extraction, Mem0, private capture or
+artifact access, persistence, shortlist approval/write, or outreach occurred.
+No provider configuration, prompt, fixture, or production code changed. Tokens
+and cost remain **unknown**, not zero.
+
+Preflight: formatting **333 files**, Ruff pass, mypy **241 source files**, full
+offline suite **2,541 passed, 9 deselected, 101 subtests passed in 27.12s**,
+**92.08% coverage**. Exact execution and final documentation checks are in the
+[build journal](build-journal.md).
+
+**Next bounded priority:** return to the Week 4 evaluation deliverable: prepare a
+review-ready 30-case synthetic dataset, retaining the original eleven-case version
+and the five starting outcomes approved for review. Include distinct happy, edge,
+known-failure, and adversarial cases with explicit expected outcomes and label
+provenance. Do not call new labels human-reviewed or silently overwrite an existing
+baseline. Keep the affiliation/review failure patterns as explicit evaluation
+work, not reasons for repeated live canaries or lowered evidence gates.
+
+## Step 3x: isolated Nebius smoke diagnostics (offline)
+
+The existing `tests/integration/test_nebius_review_live.py` now isolates the
+reviewer using a fixed synthetic Candidate, Verified Supervisor, and Research Fit
+assessment. It makes no search, extraction, OpenAI, or Mem0 call and performs no
+shortlist approval or persistence. Step 3x ran it **with fakes only**.
+
+```text
+Configuration -> Fixed review input -> Nebius model call
+  -> Response checks -> Deterministic reconciliation -> Final check
+```
+
+The `nebius_smoke.summary` event always contains six fixed `stage_outcomes`:
+`configuration`, `review_input`, `model_call`, `response_checks`, `reconciliation`,
+and `final_checks`. Each is `not_reached`, `started`, `completed`, or `failed`,
+with a null or fixed `failure_category`.
+
+| Failure boundary | Safe category |
+| --- | --- |
+| Validated provider configuration or construction raises a validation error | `configuration_invalid` |
+| Fixed domain input fails validation | `input_validation` |
+| Adapter raises typed request/output error | `model_invocation` / `invalid_output` |
+| Returned value fails the structured response schema | `invalid_output` |
+| Reviewer cites an ineligible evidence reference | `invalid_evidence_reference` |
+| Reconciliation returns a failure kind | `review_not_completed` at final check |
+| Local validation, assertion/pytest failure, or other exception | `local_validation` / `check_failed` / `unexpected_failure` |
+| A second model invocation is attempted | `call_limit`, before calling the model |
+
+`review_calls` is a logical invocation count, capped at one. `review_status` and
+`failure_kind` are allowlisted reconciliation enums, or null before a result (and
+for unrecognized labels). An adapter failure can therefore have a failed model
+stage but a null reconciliation failure kind; inspect the stage category.
+No inputs, IDs, source URLs, scores, review prose, credentials, or exception text
+are serialized. Elapsed seconds are measured; token usage/cost remain null.
+
+All original decision, score, evidence-allowlist, and reconciliation requirements
+remain in order. The smoke still invokes the adapter directly; it does not turn
+the agent's graceful-degradation path into a successful review. Typed response
+validation also rejects malformed port returns before local checks.
+
+Tracing is explicitly disabled around construction and invocation and restored
+after exit, including failure. The disable context does not load settings or
+create a tracing client. The configured request timeout is clamped to **at most
+60 seconds**, preserving a lower value; the adapter still has zero SDK retries.
+These are not an enforced overall elapsed-time deadline or currency budget.
+
+Opt-in/missing-key skips remain before diagnostics, as do settings-loader errors.
+They cannot be mistaken for a completed review, but they do not emit a summary.
+A stage interrupted by `KeyboardInterrupt`/`SystemExit` may remain `started`;
+the observer does not swallow those exceptions. Deliberate pytest failures are
+recorded as failures and rethrown.
+
+Offline demonstration from `projects/scholar-path`:
+
+```bash
+venv/bin/pytest -o addopts='' -q tests/unit/evaluation/test_nebius_smoke_diagnostics.py
+```
+
+For the **next separately approved single live observation**, use the existing
+ignored `.env` for the Nebius credential; do not paste a token into the command:
+
+```bash
+SCHOLARPATH_RUN_LIVE_TESTS=true LANGSMITH_TRACING=false \
+SCHOLARPATH_LOG_LEVEL=WARNING NEBIUS_REVIEW_TIMEOUT_SECONDS=60 \
+venv/bin/pytest -o addopts='' -q -rs -s --tb=no --show-capture=no \
+  --log-level=CRITICAL -m live tests/integration/test_nebius_review_live.py
+```
+
+Keep traceback/log suppression: raw pytest output can contain provider/input
+context even though the custom summary is safe. A skip is not a pass. Do not
+automatically rerun or tune prompts/models to get green. This isolated test does
+not diagnose the exact historical step 3u response or establish full-pipeline,
+UI, live source quality, or repeatable verification success.
+
+No live call or production change occurred in step 3x. The affiliation-repeatability
+issue stays open. Exact offline checks are in the [build journal](build-journal.md).
+
+## Step 3w: instrumented live observation stopped at affiliation
+
+On **2026-09-06**, one separately network-approved invocation of the
+[bounded vertical-canary command](#exact-command) returned **1 failed in 8.62s**
+(exit 1). Safe elapsed time was
+**8.521s**. No second invocation or speculative repair followed.
+
+```text
+Planning -> You.com discovery -> Tavily extraction -> OpenAI evidence: completed
+  -> strict verification: FAILED (current affiliation not grounded)
+  -> Research Fit / Nebius / synthesis / synthetic approval: NOT REACHED
+```
+
+| Operation | Logical calls |
+| --- | ---: |
+| OpenAI planning | 1 |
+| You.com search | 1 |
+| Tavily fallback search | 0 |
+| Tavily extraction | 1 |
+| OpenAI evidence extraction | 1 |
+| OpenAI Research Fit | 0 |
+| Nebius independent review | 0 |
+| **Total** | **4** |
+
+`evidence_extraction` completed. `evidence_verification` failed with
+`missing_required_evidence`. The verification standard was **strict**; the only
+missing required category was **`current_affiliation`**, with zero unknown categories.
+All remaining ten stages were **`not_reached`**, with null failure categories.
+`review_diagnostics`, `proposed_supervisor_count`, and `shortlisted_supervisor_count`
+were **null**, meaning unobserved, not zero completed results.
+
+| Claim type | Retained | Grounded | Rejection reason/count |
+| --- | ---: | ---: | --- |
+| Identity | 1 | 1 | None |
+| Current affiliation | 1 | 0 | `institution_not_in_excerpt`: 1 |
+| Research interest | 1 | 1 | None |
+| Methodology | 0 | 0 | None |
+| Publication | 2 | 0 | `profile_subject_mismatch`: 2 |
+| Project | 1 | 0 | `profile_subject_mismatch`: 1 |
+| Availability | 1 | 0 | `context_subject_pattern_missing`: 1 |
+
+Extraction and verification counts agree: **seven retained, two grounded, five
+rejected**. Identity and research evidence cleared their gates. The retained
+affiliation claim did not establish the configured institution under the existing
+excerpt-matching rule. This reason does not prove that the official page lacks
+affiliation, that the discovered affiliation is correct, or that the model omitted
+a particular sentence. No raw excerpt was captured or inspected in this step.
+
+This run does **not** diagnose step 3u's later failure: Nebius was not reached.
+The differing required-evidence outcome shows that the previous strict-verification
+success was not repeatable in this observation; aggregate counts alone do not
+isolate whether page content, extraction choices, or identity/institution matching
+caused the difference. No timeout, credential problem, or fix is inferred.
+
+Tracing and private capture stayed off. No private artifact access, Mem0, persistent
+graph/shortlist write, outreach, or real Candidate approval occurred. Tokens and
+cost remain **unknown**. This is not a live quality baseline or full UI/graph result.
+
+**Next bounded priority:** isolate the unresolved Nebius integration using the
+existing synthetic, fixed-evidence review smoke test, with safe stage reporting
+and a single-call/time limit checked before separate live approval. This avoids
+depending on another variable upstream extraction just to reach the reviewer.
+It must not be reported as an end-to-end canary pass. Keep the affiliation
+repeatability issue open for a separately scoped evidence reproduction; do not
+weaken its gate or rerun the full pipeline until green.
+
+Preflight: formatting **330 files**, Ruff pass, mypy **240 source files**, full
+offline suite **2,515 passed, 9 deselected, 99 subtests passed in 26.61s**,
+**92.08% coverage**. Scope audit found no blocker. Exact execution and final
+documentation checks are recorded in the [build journal](build-journal.md).
+
+## Step 3v: post-fit diagnostics (offline)
+
+Checkpoint **`2fbfbeb`** preserves steps 3q–3u. The new diagnostic work is separate
+and was tested without live services. It extends the four existing evidence/fit
+stage outcomes; it does not replace production agents or change their gates.
+
+```text
+Review input -> Independent Review Agent [model call -> reconciliation]
+  -> completed-review gate -> synthesis -> proposal checks
+  -> synthetic approval (memory only) -> final assertions
+```
+
+| New stage | Meaning of `completed` |
+| --- | --- |
+| `review_input` | The same pure input mapping used by the agent passed. |
+| `review_model_call` | The adapter returned; its output is not necessarily an accepted review. |
+| `independent_review` | The agent returned a reconciled result, possibly `unavailable`. |
+| `review_gate` | Review is accepted/revised and has no failure kind. |
+| `shortlist_synthesis` | Deterministic synthesis returned a proposal. |
+| `proposal_checks` | Original lifecycle, availability, and one-result assertions passed. |
+| `synthetic_approval` | The explicit test-only approval produced an in-memory shortlist. |
+| `final_checks` | Original shortlist, call-budget, and prohibited-prose assertions passed. |
+
+The model call occurs inside the agent stage. A caught model failure can therefore
+produce `review_model_call: failed`, `independent_review: completed`, and
+`review_gate: failed`. This is deliberate: a safely degraded result is not a valid
+independent review. A structurally returned response can also fail later local
+validation or evidence-reference reconciliation.
+
+New summary fields:
+
+- `review_diagnostics`: `null` before a reconciled result, otherwise only the
+  allowlisted `review_status` and `failure_kind` enum values. Unknown values become
+  `null`; no critique, evidence identifiers, input data, or exception text is emitted.
+- `proposed_supervisor_count` and `shortlisted_supervisor_count`: `null` until the
+  corresponding factory returns; zero means an observed empty result. Counts do
+  not assert persistence or Candidate-approved production results.
+- `review_not_completed`: the explicit completed-review requirement failed.
+- `check_failed`: an assertion or deliberate pytest failure stopped a tracked stage.
+  Typed review adapter failures retain `model_invocation` or `invalid_output`;
+  other exceptions use the existing safe categories, without parsing messages.
+
+The observer catches and rethrows pytest's specific failure outcome as well as
+normal exceptions. It does not swallow `KeyboardInterrupt`/`SystemExit`; an
+interrupted stage can remain `started`, never falsely `completed`.
+
+Offline demonstration (no API keys or network required):
+
+```bash
+venv/bin/pytest -o addopts='' -q tests/unit/evaluation/test_live_canary_post_fit.py
+```
+
+Fixtures cover accepted/revised reviews, invocation errors, malformed returned
+objects, invalid evidence references, invalid local input, later-stage failures,
+redaction, unchanged data, budgets, and exception propagation. The original
+assertions remain in the same order: review/proposal checks before synthetic
+approval, final checks afterward. Exact results are in the [build journal](build-journal.md).
+
+No live call, new capture, private artifact access, Mem0, tracing, durable shortlist
+write, or push occurred. **Step 3u's exact failure remains unconfirmed.** A further
+single live observation requires separate approval using the existing command
+with capture/tracing explicitly disabled; do not automatically rerun until green.
+
 ## Step 3u: post-repair live result
 
-On **2026-09-06**, the single separately network-approved invocation of the exact
-command above returned **1 failed in 22.19s** (exit 1), safe elapsed **22.088s**.
+On **2026-09-06**, the single separately network-approved invocation of the
+[bounded vertical-canary command](#exact-command) returned **1 failed in 22.19s**
+(exit 1), safe elapsed **22.088s**.
 Private capture was explicitly `false`. There was no second invocation, new
 source artifact, private artifact read/write, or LangSmith upload.
 

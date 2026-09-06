@@ -137,6 +137,9 @@ def test_canary_summary_reports_attempts_and_unmeasured_usage(
         },
         "verification_diagnostics": None,
         "grounding_diagnostics": None,
+        "review_diagnostics": None,
+        "proposed_supervisor_count": None,
+        "shortlisted_supervisor_count": None,
         "token_usage": None,
         "cost_usd": None,
     }

@@ -483,6 +483,94 @@ No human relevance labels, model quality/cost result, persisted graph/UI complet
 or completion of all Week 4 requirements is claimed. Exact counts and validation
 are in the [runbook](week4-live-canary.md#step-3u-post-repair-live-result).
 
+## Step 3v: checkpoint and post-fit diagnostics ready for observation
+
+Committed the 21 validated files from steps 3q–3u as **`2fbfbeb`** before starting
+this change; no push. The separate new diagnostics cover review input, adapter
+call/return, reconciled status/failure kind, the completed-review requirement,
+synthesis, proposal checks, synthetic in-memory approval, and final assertions.
+
+Fake regressions distinguish an adapter error from a returned but unusable review
+and from a later shortlist failure. They preserve exception propagation, call
+ceilings, approval ordering, exact evidence, and privacy. Production source,
+models, provider configuration, retries, and strict evidence thresholds did not change.
+
+**Next bounded priority:** separately approve one live canary with these diagnostics,
+tracing/capture disabled, and the same synthetic Candidate/public target and call
+limits. Stop after its first result. Do not change Nebius settings or relax review
+validation before the new summary identifies the actual failure boundary.
+
+The earlier live failure cannot be diagnosed retroactively. No new live review,
+shortlist/UI success, quality/cost measurement, or completion of all Week 4
+requirements is claimed. See the [stage guide](week4-live-canary.md#step-3v-post-fit-diagnostics-offline).
+
+## Step 3w: upstream variation prevented post-fit observation
+
+The single approved live canary returned **1 failed in 8.62s**, using **four
+logical calls**. Extraction completed, but strict verification lacked grounded
+current affiliation (`institution_not_in_excerpt`: 1). Identity and research
+evidence passed. All Research Fit, review, synthesis, and approval stages were
+`not_reached`; review/proposal/shortlist summary fields were null.
+
+Do not blame Nebius: it was not called in this run. The earlier step 3u post-fit
+failure remains unconfirmed, and its successful verification was not repeated
+here. Counts cannot identify the exact raw-page/model-excerpt difference. No
+second invocation, private artifact access, runtime edit, or lowered gate occurred.
+
+**Next bounded priority:** isolate Nebius using the existing fixed synthetic-
+evidence review smoke test. Check single-call/time bounds and privacy-safe stage
+reporting offline before separately approving that live observation. This can
+test a real reviewer without repeatedly paying for variable upstream discovery
+and extraction; it is not an end-to-end success claim.
+
+Keep current-affiliation repeatability as separate evidence-reproduction debt.
+Quality labels, cost metrics, persisted graph/UI behaviour, and the remaining
+Week 4 submission requirements are still open. See the
+[runbook result](week4-live-canary.md#step-3w-instrumented-live-observation-stopped-at-affiliation).
+
+## Step 3x: isolated reviewer diagnostic prepared offline
+
+The existing Nebius smoke now reports fixed configuration/input/model/response/
+reconciliation/final-check outcomes, without serializing input or review content.
+It retains the original synthetic fixtures and validation requirements. A guard
+prevents a second logical call; request timeout is capped at 60 seconds and tracing
+is forcibly disabled. Fake regressions exercise success, failures, privacy, and
+scope. No production or live-provider change was made.
+
+**Next bounded priority:** separately approve one invocation of this isolated smoke
+with its safe command. Stop at the first result; do not repeat the full pipeline
+or change provider prompts/gates speculatively. An isolated pass would establish
+one fixed-input Nebius integration observation, not explain the exact historical
+response or close end-to-end/quality requirements.
+
+Settings-loader failures and opt-in/missing-key skips are before summary creation;
+those remain explicit preflight outcomes. Affiliation repeatability, measured
+quality/cost, and persisted graph/UI completion are separate open work.
+See the [smoke guide](week4-live-canary.md#step-3x-isolated-nebius-smoke-diagnostics-offline).
+
+## Step 3y: isolated Nebius integration confirmed once
+
+One separately approved live smoke passed (**1 passed in 4.37s**, safe elapsed
+**4.356s**, **one Nebius call**). Every diagnostic stage completed, the review
+was `accepted`, and no reconciliation failure kind was present. Fixed synthetic
+evidence passed schema, score, reference, and reconciliation checks.
+
+This closes the immediate question of whether the reviewer can complete a real
+call with valid fixed input. It does not diagnose the historical step 3u output,
+resolve step 3w's affiliation repeatability, or establish end-to-end/quality results.
+No other provider, capture, tracing, persistence, or approval was exercised.
+
+**Next bounded priority:** resume original priority 3: prepare a versioned,
+review-ready 30-case synthetic dataset with distinct cases and labeling provenance.
+Preserve the eleven-case baseline; build on the five starting outcomes approved
+for review without presenting new labels as human-reviewed. Use the planned
+15 happy / 9 edge / 4 known-failure / 2 adversarial mix, including observed failure
+patterns as synthetic scenarios rather than copying private live content.
+Human review, freezing/uploading the dataset, and baseline comparisons remain
+separate subsequent gates. No further live canary is needed for this next step.
+
+See the [observed result](week4-live-canary.md#step-3y-isolated-live-nebius-review-passed).
+
 ## Step 3o: two excerpt false rejections repaired offline
 
 The [fixed reproduction](week4-live-canary.md#step-3o-excerpt-boundary-repair-offline)

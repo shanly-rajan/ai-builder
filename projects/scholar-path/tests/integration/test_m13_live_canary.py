@@ -48,6 +48,10 @@ from scholarpath.agents.evidence_verification import (
     EvidenceModelOutputError,
     RejectedExcerptObserver,
 )
+from scholarpath.agents.independent_review import (
+    IndependentReviewModelInvocationError,
+    IndependentReviewModelOutputError,
+)
 from scholarpath.agents.nebius_review import NebiusReviewModelAdapter
 from scholarpath.agents.research_fit import ResearchFitEvaluationError, ResearchFitFailureKind
 from scholarpath.config import (
@@ -67,7 +71,9 @@ from scholarpath.domain import (
     CandidateReviewAction,
     CandidateReviewDecision,
     EvidenceClaimType,
+    IndependentReviewFailureKind,
     IndependentReviewStatus,
+    ProposedSupervisorShortlist,
     ProspectiveSupervisor,
     ReconciledResearchFitAssessment,
     ResearchFitAssessment,
@@ -77,6 +83,7 @@ from scholarpath.domain import (
     SearchSourceType,
     SourceKind,
     SupervisorLifecycleStatus,
+    SupervisorShortlist,
     SupervisorVerificationRecord,
     VerificationEvidenceStandard,
     VerifiedSupervisor,
@@ -142,6 +149,14 @@ class _CanaryStage(StrEnum):
     EVIDENCE_VERIFICATION = "evidence_verification"
     RESEARCH_FIT_INPUT = "research_fit_input"
     RESEARCH_FIT_EVALUATION = "research_fit_evaluation"
+    REVIEW_INPUT = "review_input"
+    REVIEW_MODEL_CALL = "review_model_call"
+    INDEPENDENT_REVIEW = "independent_review"
+    REVIEW_GATE = "review_gate"
+    SHORTLIST_SYNTHESIS = "shortlist_synthesis"
+    PROPOSAL_CHECKS = "proposal_checks"
+    SYNTHETIC_APPROVAL = "synthetic_approval"
+    FINAL_CHECKS = "final_checks"
 
 
 class _StageStatus(StrEnum):
@@ -158,6 +173,8 @@ class _FailureCategory(StrEnum):
     INPUT_VALIDATION = "input_validation"
     VERIFICATION_CONTRACT = "verification_contract_invalid"
     MISSING_REQUIRED_EVIDENCE = "missing_required_evidence"
+    REVIEW_NOT_COMPLETED = "review_not_completed"
+    CHECK_FAILED = "check_failed"
     UNEXPECTED_FAILURE = "unexpected_failure"
 
 
@@ -179,6 +196,28 @@ class _VerificationDiagnostics(TypedDict):
     unrecognized_missing_category_count: int
     retained_claim_counts: dict[str, int]
     grounded_claim_counts: dict[str, int]
+
+
+class _ReviewDiagnostics(TypedDict):
+    """Only allowlisted reconciliation outcomes, never review prose or references."""
+
+    review_status: str | None
+    failure_kind: str | None
+
+
+def _review_diagnostics(review: ReconciledResearchFitAssessment) -> _ReviewDiagnostics:
+    return {
+        "review_status": (
+            review.review_status.value
+            if isinstance(review.review_status, IndependentReviewStatus)
+            else None
+        ),
+        "failure_kind": (
+            review.failure_kind.value
+            if isinstance(review.failure_kind, IndependentReviewFailureKind)
+            else None
+        ),
+    }
 
 
 def _verification_diagnostics(record: SupervisorVerificationRecord) -> _VerificationDiagnostics:
@@ -215,8 +254,21 @@ def _verification_diagnostics(record: SupervisorVerificationRecord) -> _Verifica
     }
 
 
-def _failure_category(stage: _CanaryStage, error: Exception) -> _FailureCategory:
+def _failure_category(stage: _CanaryStage, error: BaseException) -> _FailureCategory:
     """Classify only known types at their actual stage, never exception text or inputs."""
+    if isinstance(error, pytest.fail.Exception):
+        return (
+            _FailureCategory.REVIEW_NOT_COMPLETED
+            if stage is _CanaryStage.REVIEW_GATE
+            else _FailureCategory.CHECK_FAILED
+        )
+    if isinstance(error, AssertionError):
+        return _FailureCategory.CHECK_FAILED
+    if stage is _CanaryStage.REVIEW_MODEL_CALL:
+        if isinstance(error, (IndependentReviewModelOutputError, ValueError)):
+            return _FailureCategory.INVALID_OUTPUT
+        if isinstance(error, IndependentReviewModelInvocationError):
+            return _FailureCategory.MODEL_INVOCATION
     if stage is _CanaryStage.EVIDENCE_VERIFICATION:
         if isinstance(error, _MissingRequiredEvidenceError):
             return _FailureCategory.MISSING_REQUIRED_EVIDENCE
@@ -235,7 +287,7 @@ def _failure_category(stage: _CanaryStage, error: Exception) -> _FailureCategory
         if error.kind is ResearchFitFailureKind.INVALID_OUTPUT:
             return _FailureCategory.INVALID_OUTPUT
     if isinstance(error, ValueError):  # Includes Pydantic ValidationError; do not serialize it.
-        if stage is _CanaryStage.RESEARCH_FIT_INPUT:
+        if stage in {_CanaryStage.RESEARCH_FIT_INPUT, _CanaryStage.REVIEW_INPUT}:
             return _FailureCategory.INPUT_VALIDATION
         return _FailureCategory.LOCAL_VALIDATION
     return _FailureCategory.UNEXPECTED_FAILURE
@@ -250,6 +302,9 @@ class _CallBudget:
     stage_outcomes: dict[_CanaryStage, _StageOutcome] = field(default_factory=dict)
     verification_diagnostics: _VerificationDiagnostics | None = None
     grounding_diagnostics: EvidenceGroundingSummary | None = None
+    review_diagnostics: _ReviewDiagnostics | None = None
+    proposed_supervisor_count: int | None = None
+    shortlisted_supervisor_count: int | None = None
 
     def consume(self, operation: str) -> None:
         limit = self.limits[operation]
@@ -265,7 +320,7 @@ class _CallBudget:
         self.stage_outcomes[stage] = _StageOutcome(_StageStatus.STARTED)
         try:
             yield
-        except Exception as error:
+        except (Exception, pytest.fail.Exception) as error:
             self.stage_outcomes[stage] = _StageOutcome(
                 _StageStatus.FAILED, _failure_category(stage, error)
             )
@@ -307,6 +362,9 @@ def _summarized_call_budget() -> Iterator[_CallBudget]:
                     "stage_outcomes": _stage_summary(budget),
                     "verification_diagnostics": budget.verification_diagnostics,
                     "grounding_diagnostics": budget.grounding_diagnostics,
+                    "review_diagnostics": budget.review_diagnostics,
+                    "proposed_supervisor_count": budget.proposed_supervisor_count,
+                    "shortlisted_supervisor_count": budget.shortlisted_supervisor_count,
                     "token_usage": None,
                     "cost_usd": None,
                 },
@@ -407,8 +465,9 @@ class _BudgetedReviewModel:
         self._budget = budget
 
     def review(self, review_input: IndependentReviewInput) -> IndependentReviewResult:
-        self._budget.consume("nebius_review")
-        return self._delegate.review(review_input)
+        with self._budget.observe(_CanaryStage.REVIEW_MODEL_CALL):
+            self._budget.consume("nebius_review")
+            return self._delegate.review(review_input)
 
 
 def _targeted_plan(
@@ -502,6 +561,102 @@ def _configured_private_capture() -> RejectedExcerptCapture | None:
     if all(_enabled(flag) for flag in (*_LIVE_FLAGS, "SCHOLARPATH_CAPTURE_GROUNDING_REPLAY")):
         return RejectedExcerptCapture(origin="live_canary")
     return None
+
+
+def _review_and_synthesize(
+    profile: CandidateProfile,
+    verified: VerifiedSupervisor,
+    assessment: ResearchFitAssessment,
+    review_model: IndependentReviewModelPort,
+    budget: _CallBudget,
+) -> tuple[ReconciledResearchFitAssessment, ProposedSupervisorShortlist]:
+    """Locate post-fit outcomes without changing the agent or its completed-review gate."""
+    with budget.observe(_CanaryStage.REVIEW_INPUT):
+        # Pure preflight, identical to the agent's mapping; never another model call.
+        IndependentReviewInput.from_domain(profile, verified, assessment)
+    with budget.observe(_CanaryStage.INDEPENDENT_REVIEW):
+        reviewed = IndependentReviewAgent(review_model).review(profile, verified, assessment)
+        budget.review_diagnostics = _review_diagnostics(reviewed)
+    with budget.observe(_CanaryStage.REVIEW_GATE):
+        _require_completed_review(reviewed)
+    with budget.observe(_CanaryStage.SHORTLIST_SYNTHESIS):
+        proposal = ShortlistSynthesisAgent(max_results=1).synthesize(
+            profile.candidate_id,
+            (verified,),
+            (assessment,),
+            datetime.now(UTC),
+            (reviewed,),
+        )
+        budget.proposed_supervisor_count = len(proposal.recommendations)
+    return reviewed, proposal
+
+
+def _approve_canary_shortlist(
+    profile: CandidateProfile,
+    prospective: ProspectiveSupervisor,
+    verified: VerifiedSupervisor,
+    proposal: ProposedSupervisorShortlist,
+    budget: _CallBudget,
+) -> SupervisorShortlist:
+    """Keep original proposal checks ahead of synthetic, memory-only approval."""
+    with budget.observe(_CanaryStage.PROPOSAL_CHECKS):
+        assert prospective.status is SupervisorLifecycleStatus.PROSPECTIVE
+        assert verified.status is SupervisorLifecycleStatus.VERIFIED
+        availability_claims = tuple(
+            claim
+            for claim in verified.evidence
+            if claim.claim_type is EvidenceClaimType.AVAILABILITY
+        )
+        if not availability_claims:
+            assert verified.availability_status is AvailabilityStatus.NOT_STATED
+        assert len(proposal.recommendations) == 1
+        assert proposal.recommendations[0].supervisor.status is SupervisorLifecycleStatus.VERIFIED
+
+    with budget.observe(_CanaryStage.SYNTHETIC_APPROVAL):
+        approval = CandidateReviewDecision(
+            action=CandidateReviewAction.APPROVE,
+            supervisor_ids=(verified.supervisor_id,),
+            reason="Explicit approval for the opt-in live canary.",
+        )
+        shortlist = create_supervisor_shortlist(
+            profile.candidate_id,
+            (verified,),
+            approval,
+            generated_at=datetime.now(UTC),
+            briefing="One explicitly approved, evidence-backed live canary result.",
+        )
+        budget.shortlisted_supervisor_count = len(shortlist.shortlisted_supervisors)
+    return shortlist
+
+
+def _check_canary_results(
+    assessment: ResearchFitAssessment,
+    reviewed: ReconciledResearchFitAssessment,
+    proposal: ProposedSupervisorShortlist,
+    shortlist: SupervisorShortlist,
+    budget: _CallBudget,
+) -> None:
+    """Observe the original final assertions; no persistence or provider operations."""
+    with budget.observe(_CanaryStage.FINAL_CHECKS):
+        assert shortlist.shortlisted_supervisors[0].status is SupervisorLifecycleStatus.SHORTLISTED
+        assert budget.calls["openai_planning"] in {1, 2}
+        assert budget.calls["you_search"] == 1
+        assert budget.calls["tavily_search"] in {0, 1}
+        assert budget.calls["tavily_extract"] == 1
+        assert budget.calls["openai_evidence"] == 1
+        assert budget.calls["openai_research_fit"] in {1, 2}
+        assert budget.calls["nebius_review"] == 1
+        assert sum(budget.calls.values()) <= 9
+        assert all(
+            forbidden not in payload.casefold()
+            for payload in (
+                assessment.model_dump_json(),
+                reviewed.model_dump_json(),
+                proposal.model_dump_json(),
+                shortlist.model_dump_json(),
+            )
+            for forbidden in ("admission probability", "chance of admission")
+        )
 
 
 def _save_private_replay(
@@ -723,54 +878,9 @@ def test_live_vertical_canary_stays_within_provider_call_budgets(
         finally:
             if capture is not None:
                 _save_private_replay(capture)
-        reviewed = IndependentReviewAgent(review_model).review(profile, verified, assessment)
-        _require_completed_review(reviewed)
-        proposal = ShortlistSynthesisAgent(max_results=1).synthesize(
-            profile.candidate_id,
-            (verified,),
-            (assessment,),
-            datetime.now(UTC),
-            (reviewed,),
+        reviewed, proposal = _review_and_synthesize(
+            profile, verified, assessment, review_model, budget
         )
 
-    assert prospective.status is SupervisorLifecycleStatus.PROSPECTIVE
-    assert verified.status is SupervisorLifecycleStatus.VERIFIED
-    availability_claims = tuple(
-        claim for claim in verified.evidence if claim.claim_type is EvidenceClaimType.AVAILABILITY
-    )
-    if not availability_claims:
-        assert verified.availability_status is AvailabilityStatus.NOT_STATED
-    assert len(proposal.recommendations) == 1
-    assert proposal.recommendations[0].supervisor.status is SupervisorLifecycleStatus.VERIFIED
-
-    approval = CandidateReviewDecision(
-        action=CandidateReviewAction.APPROVE,
-        supervisor_ids=(verified.supervisor_id,),
-        reason="Explicit approval for the opt-in live canary.",
-    )
-    shortlist = create_supervisor_shortlist(
-        profile.candidate_id,
-        (verified,),
-        approval,
-        generated_at=datetime.now(UTC),
-        briefing="One explicitly approved, evidence-backed live canary result.",
-    )
-    assert shortlist.shortlisted_supervisors[0].status is SupervisorLifecycleStatus.SHORTLISTED
-    assert budget.calls["openai_planning"] in {1, 2}
-    assert budget.calls["you_search"] == 1
-    assert budget.calls["tavily_search"] in {0, 1}
-    assert budget.calls["tavily_extract"] == 1
-    assert budget.calls["openai_evidence"] == 1
-    assert budget.calls["openai_research_fit"] in {1, 2}
-    assert budget.calls["nebius_review"] == 1
-    assert sum(budget.calls.values()) <= 9
-    assert all(
-        forbidden not in payload.casefold()
-        for payload in (
-            assessment.model_dump_json(),
-            reviewed.model_dump_json(),
-            proposal.model_dump_json(),
-            shortlist.model_dump_json(),
-        )
-        for forbidden in ("admission probability", "chance of admission")
-    )
+    shortlist = _approve_canary_shortlist(profile, prospective, verified, proposal, budget)
+    _check_canary_results(assessment, reviewed, proposal, shortlist, budget)

@@ -1646,14 +1646,21 @@ LANGSMITH_TRACING=false SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m 
 ```
 
 The optional Nebius smoke test reviews that fixed evidence record through strict
-structured output and validates the score bounds and evidence references locally:
+structured output and validates the score bounds and evidence references locally.
+From `projects/scholar-path`, its settings loader reads the ignored `.env` directly:
 
 ```bash
-set -a
-source .env
-set +a
-LANGSMITH_TRACING=false SCHOLARPATH_RUN_LIVE_TESTS=true pytest -o addopts='' -m live tests/integration/test_nebius_review_live.py
+SCHOLARPATH_RUN_LIVE_TESTS=true LANGSMITH_TRACING=false \
+SCHOLARPATH_LOG_LEVEL=WARNING NEBIUS_REVIEW_TIMEOUT_SECONDS=60 \
+venv/bin/pytest -o addopts='' -q -rs -s --tb=no --show-capture=no \
+  --log-level=CRITICAL -m live tests/integration/test_nebius_review_live.py
 ```
+
+Run once after explicit opt-in, not repeatedly until green. This uses at most one
+Nebius call with a request timeout of at most 60 seconds and forced tracing-off.
+Keep the output-suppression flags to expose only safe diagnostic stages. A skip
+is not a pass; this is an isolated integration check, not a live end-to-end result.
+See the [diagnostic guide](docs/week4-live-canary.md#step-3x-isolated-nebius-smoke-diagnostics-offline).
 
 The optional You.com smoke test follows the same opt-in policy and performs one bounded
 search call:
@@ -2069,3 +2076,37 @@ attempted in 22.088 seconds; no automatic rerun, relaxed gate, tracing, or priva
 capture was used. Completed independent review and end-to-end success are **not**
 claimed. Next is a small offline extension to the post-fit stage diagnostics.
 See the [observed result](docs/week4-live-canary.md#step-3u-post-repair-live-result).
+
+Checkpoint `2fbfbeb` preserves steps 3q–3u. Step 3v adds **offline-tested post-fit
+canary diagnostics**, distinguishing review input, adapter return, reconciled
+review outcome, the completed-review gate, synthesis, proposal checks, synthetic
+approval, and final assertions. Only allowlisted statuses/failure codes and counts
+are reported. Production rules, assertion order, and call limits are unchanged.
+No live run occurred during step 3v; it could not diagnose step 3u retroactively.
+See the [diagnostic meanings and offline test command](docs/week4-live-canary.md#step-3v-post-fit-diagnostics-offline).
+
+Step 3w's single instrumented live attempt stopped **earlier**, at strict current-
+affiliation verification: one affiliation claim was retained but its institution
+was not grounded in the excerpt. Identity and research evidence passed; Research
+Fit and Nebius were **not called**. Result: **1 failed in 8.62s**, four logical
+provider calls, no rerun or relaxed gate. This does not diagnose the earlier
+post-fit failure or establish repeatable end-to-end success. Next, isolate Nebius
+with fixed synthetic evidence before another full-pipeline attempt; keep the
+affiliation repeatability issue open. See the
+[result and next boundary](docs/week4-live-canary.md#step-3w-instrumented-live-observation-stopped-at-affiliation).
+
+Step 3x prepares the **isolated Nebius smoke test** offline: fixed synthetic input,
+one model call maximum, at-most-60-second request timeout, tracing forcibly off,
+and safe stage/failure codes. Existing response and evidence-reference checks are
+preserved. No new live result is claimed; the next single Nebius observation needs
+separate approval and does not prove the full pipeline works. See the
+[isolated smoke guide and commands](docs/week4-live-canary.md#step-3x-isolated-nebius-smoke-diagnostics-offline).
+
+Step 3y's **isolated live Nebius smoke passed**: one call, an `accepted` review,
+and all six diagnostic stages completed (**1 passed in 4.37s**). Schema,
+evidence-reference, and reconciliation checks passed on fixed synthetic evidence.
+This is not a full-pipeline result or a diagnosis of the earlier step 3u failure;
+affiliation repeatability and human-rated quality remain open. No other provider,
+tracing, or persistence was used. Next, prepare a review-ready 30-case Week 4
+dataset rather than rerunning the live pipeline. See the
+[isolated live result and limits](docs/week4-live-canary.md#step-3y-isolated-live-nebius-review-passed).

@@ -93,8 +93,10 @@ def test_fixed_evidence_completes_all_four_stages_without_live_services(
     assert fit_model.call_count == 1
     assert verified.availability_status is AvailabilityStatus.NOT_STATED
     assert assessment.supervisor_id == verified.supervisor_id
-    for stage in canary._CanaryStage:
+    for stage in list(canary._CanaryStage)[:4]:
         _assert_stage(summary, stage, canary._StageStatus.COMPLETED)
+    for stage in list(canary._CanaryStage)[4:]:
+        _assert_stage(summary, stage, canary._StageStatus.NOT_REACHED)
     assert summary["total_provider_calls"] == 2
 
 
@@ -250,11 +252,13 @@ def test_research_fit_failure_categories_preserve_existing_retry_limits(
     assert captured_error.value.attempts == attempts
     assert fit_model.call_count == attempts
     assert summary["provider_calls"]["openai_research_fit"] == attempts
-    for stage in list(canary._CanaryStage)[:-1]:
+    for stage in list(canary._CanaryStage)[:3]:
         _assert_stage(summary, stage, canary._StageStatus.COMPLETED)
     _assert_stage(
         summary, canary._CanaryStage.RESEARCH_FIT_EVALUATION, canary._StageStatus.FAILED, category
     )
+    for stage in list(canary._CanaryStage)[4:]:
+        _assert_stage(summary, stage, canary._StageStatus.NOT_REACHED)
     assert PRIVATE not in captured.out + captured.err
 
 

@@ -6110,3 +6110,359 @@ venv/bin/pytest -o addopts='' -q -rs -s --tb=no --show-capture=no \
   measured cost, persisted graph/UI behaviour, and remaining Week 4 submission
   requirements remain unconfirmed.
 - No Mem0, private capture/artifact mutation, trace upload, commit, or push.
+
+## Week 4 step 3v — checkpoint and post-fit diagnostics (2026-09-06)
+
+### Objective and prompt
+
+Commit the validated existing work, then add offline-tested diagnostics to locate
+the unconfirmed post-fit live failure without changing provider or business rules.
+[Prompt used](prompts/week4-3v-checkpoint-and-post-fit-diagnostics.md).
+
+### Checkpoint
+
+- Reviewed all 21 pending files; independent audit found no unrelated changes,
+  credentials, or private captured excerpts. Synthetic redaction test sentinels
+  were distinguished from credentials. `.env` and the private capture remain ignored.
+- Formatting (**327 files**), Ruff lint, mypy (**239 source files**), and
+  `git diff --check` passed. Pre-commit `venv/bin/pytest -q --tb=short`:
+  **2,490 passed, 9 deselected, 97 subtests passed in 26.47s**, **92.04% coverage**.
+- Explicitly staged the 21 reviewed paths; staged diff check passed. Created
+  **`2fbfbeb` — `fix: repair evidence grounding with private replay diagnostics`**.
+  The worktree was clean immediately afterward. No push was performed.
+
+### Files changed
+
+- `tests/integration/test_m13_live_canary.py`: observe review input, model call,
+  reconciliation, completed-review gate, synthesis, proposal checks, synthetic
+  approval, and final checks. Report only allowlisted review outcomes and counts.
+- `tests/unit/evaluation/test_live_canary_post_fit.py`: new fake-only coverage.
+- `tests/unit/evaluation/test_live_canary_checks.py` and
+  `test_live_canary_stages.py`: updated summary and not-reached stage assertions.
+- README, `docs/week4-live-canary.md`, `docs/week4-triage.md`, this journal,
+  and the archived prompt: document the checkpoint, interpretation, and next gate.
+
+The new work is separate from the checkpoint and remains uncommitted. No
+production source, provider configuration, retry/call limit, or approval rule changed.
+
+### Tests added and results
+
+- Initial red check:
+  `venv/bin/pytest -o addopts='' -q --tb=short tests/unit/evaluation/test_live_canary_checks.py -k summary_reports`:
+  **1 failed, 15 deselected in 0.18s**, because the three new summary fields
+  did not exist yet. Those assertions pass after implementation.
+- **25 new regression tests** cover accepted/revised reviews, typed invocation
+  and output failures, invalid evidence references, malformed returned output,
+  synthesis/approval/final-check failures, original pipeline parity, exception
+  propagation, call caps, and redacted summaries. The focused new file passed:
+  **25 passed in 0.17s**.
+- Combined canary diagnostic/replay and engineering/release contract tests:
+  **118 passed, 98 subtests passed in 0.49s**.
+- `venv/bin/ruff format --check .`: **329 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 240 source files**.
+  An intermediate test import/export issue was corrected before this final check.
+- `venv/bin/pytest -q --tb=short`: **2,515 passed, 9 deselected,
+  98 subtests passed in 26.70s**; **92.08% coverage**, above the 90% threshold.
+- Independent read-only audit found no blocker: original assertions/order,
+  provider caps, business rules, and private-output boundaries remain intact.
+- After the journal update, engineering/release contract tests passed again:
+  **12 passed, 98 subtests passed in 0.12s**.
+- `git diff --check` passed. No live providers or trace uploads were used.
+
+These diagnostics cannot retroactively determine which post-fit boundary failed
+in step 3u. Model-call completion means a result returned, not that reconciliation
+accepted it. All approval exercised by these canary helpers is synthetic/in-memory.
+
+### Assumptions and lessons learned
+
+- A returned agent result may be safely degraded; it is not a completed review.
+- pytest's deliberate failure outcome needs explicit observation; process
+  interrupts must remain unswallowed. Only enums/counts are eligible for reporting.
+
+### Remaining debt
+
+- Next live observation needs separate approval after this offline step passes.
+  Prior live review/proposal/approval, reviewed quality/cost, persisted UI/graph
+  completion, and remaining Week 4 requirements remain unconfirmed.
+- No live call, private artifact read/write, Mem0, trace upload, or push in this step.
+
+## Week 4 step 3w — instrumented post-fit live observation (2026-09-06)
+
+### Objective and prompt
+
+Run one separately network-approved live canary using step 3v's post-fit
+diagnostics. Locate the stopping boundary without changing provider or business
+rules. [Prompt used](prompts/week4-3w-post-fit-instrumented-live-canary.md).
+
+### Files changed
+
+This prompt, build journal, and result documentation in README,
+`docs/week4-live-canary.md`, and `docs/week4-triage.md`. Preserve the existing
+uncommitted step 3v implementation. No production or test code changes planned.
+
+### Tests added and results
+
+No new tests: this is an observation of the existing instrumented live canary.
+
+- Settings-loader preflight reported configured credentials for OpenAI planning,
+  evidence, Research Fit, You.com, Tavily search/extraction, and Nebius. Only
+  booleans were displayed; no credentials or private artifacts were inspected.
+- `venv/bin/ruff format --check .`: **330 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 240 source files**.
+- `venv/bin/pytest -q --tb=short`: **2,515 passed, 9 deselected,
+  99 subtests passed in 26.61s**; **92.08% coverage**.
+- `git diff --check` passed. Independent read-only scope audit found no blocker:
+  strict gates, nine-logical-call ceiling, per-call timeouts, disabled OpenAI/
+  Nebius SDK retries, allowlisted summaries, and synthetic-only approval remain intact.
+- Requested and received network approval for one invocation of the runbook
+  command with tracing and private capture explicitly disabled.
+
+### Single live observation
+
+Executed once from `projects/scholar-path`:
+
+```bash
+SCHOLARPATH_RUN_LIVE_TESTS=true \
+SCHOLARPATH_RUN_LIVE_CANARY=true \
+SCHOLARPATH_CAPTURE_GROUNDING_REPLAY=false \
+SCHOLARPATH_LIVE_CANARY_SUPERVISOR_NAME="Alan Woodward" \
+SCHOLARPATH_LIVE_CANARY_INSTITUTION="University of Surrey" \
+SCHOLARPATH_LIVE_CANARY_PROFILE_URL="https://www.surrey.ac.uk/people/alan-woodward" \
+LANGSMITH_TRACING=false SCHOLARPATH_LOG_LEVEL=WARNING \
+venv/bin/pytest -o addopts='' -q -rs -s --tb=no --show-capture=no \
+  --log-level=CRITICAL -m live tests/integration/test_m13_live_canary.py
+```
+
+- **1 failed in 8.62s**, exit **1**; safe elapsed **8.521s**.
+- **Four logical calls:** OpenAI planning 1, You.com 1, Tavily extraction 1,
+  OpenAI evidence 1. Tavily search, Research Fit, and Nebius all **0**.
+- `evidence_extraction` completed; `evidence_verification` failed with
+  `missing_required_evidence`. All ten later stages were `not_reached`.
+- Verification standard **strict**; missing required categories:
+  **`current_affiliation`** only, unknown categories **0**.
+- Retained/grounded: identity **1/1**, affiliation **1/0**, research **1/1**,
+  methodology **0/0**, publication **2/0**, project **1/0**, availability **1/0**.
+  Extraction/final-verification totals agree: **seven retained, two grounded,
+  five rejected**.
+- Rejections: affiliation `institution_not_in_excerpt` **1**; publication
+  `profile_subject_mismatch` **2**; project `profile_subject_mismatch` **1**;
+  availability `context_subject_pattern_missing` **1**. No rejected claim was
+  promoted to pass the gate.
+- Review diagnostics, proposed count, and shortlisted count were **null**:
+  unobserved, not successful empty outputs. No later-stage result is claimed.
+- No second live invocation, private capture/artifact access, Mem0, durable
+  graph/shortlist write, outreach, or LangSmith upload. Tokens/cost remain unknown.
+- Independent result audit confirmed that this does not establish a code
+  regression or diagnose the historical post-fit failure. The existing isolated
+  Nebius smoke uses fixed synthetic evidence and one adapter call, but needs safe
+  stage reporting, forced tracing-off, and an explicit timeout cap before use.
+- Final formatting, Ruff lint, and mypy passed again. Final offline command:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py tests/contract/test_m6_evidence_verification_contract.py tests/unit/evaluation/test_live_canary_post_fit.py`:
+  **45 passed, 99 subtests passed in 0.20s**. `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- A provider invocation, valid review, synthesized proposal, and synthetic
+  approval are distinct outcomes. Use the new boundary diagnostics to distinguish them.
+- Keep the same public target and synthetic input; do not use a new target to
+  evade an existing gate. Strict verification and existing call/time limits apply.
+- Tracing and private capture remain off. No private artifact access, Mem0 call,
+  durable graph/shortlist write, or outreach. Approval is synthetic/in-memory only.
+- A single service-integration result does not establish a quality benchmark,
+  repeatability, or full persisted LangGraph/UI completion. Tokens/cost are unmeasured.
+- Step 3u's successful verification was not repeated. The new reason identifies
+  the institution/excerpt gate, not whether source content, model extraction, or
+  institution matching caused the difference. No exact excerpt was inspected.
+- Nebius was not reached, so this result cannot diagnose step 3u's post-fit
+  failure. Isolate a downstream provider with fixed synthetic evidence to avoid
+  repeatedly depending on changing upstream output for its integration check.
+
+### Remaining debt
+
+- Next: bounded offline review of the existing isolated Nebius smoke test's safe
+  diagnostics and single-call/time scope, then separate live approval. This is not
+  a full-pipeline canary pass and must not be described as one.
+- Current-affiliation repeatability needs its own scoped evidence reproduction;
+  historical post-fit failure, quality labels/cost, persisted graph/UI completion,
+  and remaining Week 4 requirements remain unconfirmed.
+- No automatic rerun, implementation repair, commit, or push in this step.
+
+## Week 4 step 3x — isolated Nebius smoke diagnostics (2026-09-06)
+
+### Objective and prompt
+
+Prepare the existing fixed-evidence Nebius smoke test with safe failure-stage
+reporting, forced tracing-off, and explicit call/time limits. This is an offline
+diagnostic change, not another live canary or a production repair.
+[Prompt used](prompts/week4-3x-isolated-nebius-smoke-diagnostics.md).
+
+### Files changed
+
+- `tests/integration/test_nebius_review_live.py`: fixed configuration/input/model/
+  response/reconciliation/final-check stages, typed failure categories, safe summary,
+  one-call guard, timeout clamp, and forced tracing-off scope.
+- `tests/unit/evaluation/test_nebius_smoke_diagnostics.py`: fake-only regression tests.
+- README, `docs/week4-live-canary.md`, `docs/week4-triage.md`, prompt, and this journal.
+- Existing step 3v/3w changes preserved. No production, provider prompt, model,
+  credential, dependency, or full-canary changes in this step.
+
+### Tests added and results
+
+- Initial red run: **2 failed in 0.17s**, accepted/revised cases failing because
+  the new `_summarized_smoke` helper did not exist yet.
+- **26 new offline regression cases** cover accepted/revised result parity and
+  unchanged input snapshots, typed invocation/output failures, malformed returns,
+  both evidence-reference allowlists, unavailable/failed reconciliation, invalid
+  input/configuration, assertion/pytest failure and interrupt propagation, one-call
+  limits, timeout clamps, opt-in/key skips, unknown-label redaction, and tracing
+  disable/restoration on success and failure. All use fakes and synthetic settings.
+- During implementation mypy rejected `_env_file=None` on a tracing-settings
+  constructor. Replaced that setup with the existing disabled tracing-context
+  primitive directly; no tracing settings or client are loaded by that scope.
+- `venv/bin/ruff format --check .`: **332 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 241 source files**.
+- `venv/bin/pytest -q --tb=short`: **2,541 passed, 9 deselected,
+  100 subtests passed in 27.11s**, **92.08% coverage**.
+- Focused checks:
+  `venv/bin/pytest -o addopts='' -q tests/unit/evaluation/test_nebius_smoke_diagnostics.py tests/unit/agents/test_nebius_review.py tests/contract/test_m8_independent_review_contract.py tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py`:
+  **54 passed, 100 subtests passed in 0.23s**.
+- Independent final read-only audit found no code blocker; original assertions,
+  one-call/time bounds, tracing scope, and summary privacy remain intact. Its
+  focused smoke/M8 run passed **31 tests in 0.18s**. Clarified historical runbook
+  command links so the earlier full canary cannot be confused with the isolated smoke.
+- Final documentation-contract/smoke recheck after the journal update:
+  **38 passed, 100 subtests passed in 0.18s**.
+- `git diff --check` passed. No marked live test or service was invoked in this step.
+
+### Assumptions and lessons learned
+
+- Fix the inputs to isolate a downstream provider. This does not turn synthetic
+  fixtures into evidence about a real Supervisor or validate discovery/extraction.
+- Model output can pass structure checks and still fail evidence references or
+  reconciliation. Preserve the existing assertion sequence and evidence allowlists.
+- A single-call guard and at-most-60-second request timeout are not an enforced
+  overall wall-clock deadline or currency budget. Tokens/cost remain unmeasured.
+- Summaries contain fixed codes/counts only. Unrestricted pytest tracebacks can
+  still reveal input/error context; keep traceback/log suppression for live use.
+- Keep opt-in and missing-key skips before diagnostic construction. A skip is
+  not a pass; settings-loader failures before that point do not emit a summary.
+
+### Remaining debt
+
+- One separately approved isolated Nebius observation after these offline checks
+  pass. No live review result is claimed by this step.
+- Step 3u's post-fit failure, current-affiliation repeatability, reviewed quality/
+  cost, persisted graph/UI completion, and remaining Week 4 requirements stay open.
+- No live calls, private capture/artifact access, Mem0, persistent shortlist write,
+  outreach, trace uploads, commit, or push in this step.
+
+## Week 4 step 3y — isolated live Nebius observation (2026-09-06)
+
+### Objective and prompt
+
+Observe one real Nebius review with fixed synthetic evidence using the existing
+instrumented isolated smoke test. Distinguish provider/response/reconciliation
+outcomes without depending on upstream search or extraction.
+[Prompt used](prompts/week4-3y-isolated-nebius-live-observation.md).
+
+### Files changed
+
+README, `docs/week4-live-canary.md`, `docs/week4-triage.md`, prompt, and this journal
+will record the observation. All existing uncommitted work is preserved. No
+production/test code, fixture, prompt, model, provider, or credential changes.
+
+### Tests added and results
+
+No new tests: this step executes the existing offline suite and one separately
+approved isolated live smoke.
+
+- Nebius settings-loader preflight reported a configured credential. Only the
+  presence boolean was displayed; no secret value or private artifact was read.
+- `venv/bin/ruff format --check .`: **333 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 241 source files**.
+- `venv/bin/pytest -q --tb=short`: **2,541 passed, 9 deselected,
+  101 subtests passed in 27.12s**, **92.08% coverage**.
+- `git diff --check` passed. Independent read-only scope audit found no blocker:
+  fixed synthetic input, one-call guard, timeout clamp, zero SDK retries, disabled
+  tracing, original response/reconciliation checks, and summary privacy intact.
+
+### Single live observation
+
+After network approval, executed exactly once from `projects/scholar-path`:
+
+```bash
+SCHOLARPATH_RUN_LIVE_TESTS=true LANGSMITH_TRACING=false \
+SCHOLARPATH_LOG_LEVEL=WARNING NEBIUS_REVIEW_TIMEOUT_SECONDS=60 \
+venv/bin/pytest -o addopts='' -q -rs -s --tb=no --show-capture=no \
+  --log-level=CRITICAL -m live tests/integration/test_nebius_review_live.py
+```
+
+- **1 passed in 4.37s**, exit **0**; safe elapsed **4.356s**.
+- **One logical Nebius call**; review status **`accepted`**, failure kind **null**.
+- All six stages completed with null failure categories: configuration, review
+  input, model call, response checks, reconciliation, and final checks.
+- Schema, score bounds, both evidence-reference allowlists, and reconciliation
+  checks passed for the fixed synthetic input. No review prose, score, identifiers,
+  exception text, or provider payload was emitted by the diagnostic summary.
+- No second invocation, OpenAI/search/extraction/Mem0 call, private capture/artifact
+  access, LangSmith upload, persistence, shortlist approval/write, or outreach.
+- No prompt, model, fixture, credential, or production-code tuning. Tokens/cost
+  are unmeasured and remain null, not zero.
+- Independent read-only result audit confirmed the isolated pass and its limits.
+  The current dataset has eleven cases; the five approved starting outcomes are
+  a subset, not additional cases. Original Week 4 dataset work is the next priority.
+- Final formatting, Ruff lint, and mypy passed again. Final command:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py tests/contract/test_m8_independent_review_contract.py tests/unit/evaluation/test_nebius_smoke_diagnostics.py`:
+  **43 passed, 101 subtests passed in 0.20s**. `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- One logical Nebius invocation, zero SDK retries, request timeout at most
+  60 seconds. This is not a currency cap or overall elapsed-time deadline.
+- Use fixed synthetic inputs only, with tracing forcibly disabled. No search,
+  extraction, OpenAI, Mem0, private capture/artifact access, graph persistence,
+  shortlist approval/write, or outreach.
+- A valid isolated review does not diagnose the exact historical step 3u response,
+  validate real Supervisor evidence, or establish end-to-end or quality success.
+- Only fixed diagnostic codes and counts are recorded. Tokens/cost unmeasured.
+- The isolated reviewer completed successfully without upstream services. This
+  supports returning to dataset/review work rather than repeatedly invoking the
+  full pipeline to investigate whether Nebius is operational at all.
+
+### Remaining debt
+
+- Next: prepare a review-ready, versioned 30-case synthetic dataset against the
+  Week 4 rubric, retaining the original eleven-case version and the five starting
+  outcomes approved for review. New labels need provenance and human review;
+  do not treat synthetic expectations as reviewed ground truth or overwrite history.
+- Affiliation repeatability, the historical post-fit failure, substantive review
+  quality, cost metrics, persisted graph/UI completion, frozen baseline/comparison
+  evidence, and the remaining submission requirements stay open.
+- No automatic live rerun, code tuning, commit, or push in this step.
+
+### Follow-up checkpoint authorization and validation
+
+The user requested: **"lets commit first before we proceed to next step"**.
+This explicitly authorizes a checkpoint of completed steps 3v–3y, superseding
+their earlier no-automatic-commit boundaries. The [archived prompt](prompts/week4-3y-isolated-nebius-live-observation.md)
+records this follow-up. The intervening dataset turn performed repository reads
+only; no 30-case draft or evaluation-source changes exist.
+
+Checkpoint scope is the 14 reviewed files: two instrumented integration tests,
+four unit-test files, four milestone prompts, README, runbook, triage, and journal.
+No production source change, live rerun, credential/private-artifact inclusion,
+or push. Ignored `.env`, artifacts, and local checkpoints remain excluded.
+
+- Independent read-only audit found no blocker. Credential-like test values are
+  explicit synthetic sentinels, not real credentials. Clarified README wording
+  so the planned 30-case dataset is not described as already present.
+- Formatting: **333 files already formatted**; Ruff lint passed; mypy passed
+  with **no issues in 241 source files**.
+- Pre-commit `venv/bin/pytest -q --tb=short`: **2,541 passed, 9 deselected,
+  101 subtests passed in 26.72s**, **92.08% coverage**.
+- `git diff --check` passed. No live calls were made during this checkpoint.
+- Checkpoint message: `test: add post-fit and isolated Nebius review diagnostics`.
