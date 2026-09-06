@@ -3,6 +3,11 @@
 ScholarPath now measures **both scopes separately**, as requested. This is an
 instrumentation change, not a runtime optimization or a budget increase.
 
+**Subsequent decision:** step 3aj adds the separately
+[approved 40/80 policy](week4-interaction-policy.md). This page and its saved v1
+measurement contract retain their historical unset limits; they are not rewritten
+to make the legacy result pass.
+
 ## Metric contract
 
 | Measurement | Boundary | What it does not mean |
@@ -54,8 +59,8 @@ fake port calls, and the complete scripted case takes 31–76. Every case passes
 existing expected-behavior check; eleven of twelve meet the legacy whole-case
 limit. This is a measurement result, not an improvement in execution cost.
 
-The user approved tracking both scopes, **not a new numeric allowance**. The new
-first-review and interaction limits remain **unset / not configured**. An unset
+At step 3ai the user approved tracking both scopes, **not a new numeric allowance**.
+The v1 measurement report's limits remain **unset / not configured**. An unset
 limit is not a passing result. The unchanged legacy whole-case test still reports
 the request-more case as **76/40 exceeded**.
 
@@ -94,7 +99,7 @@ Validation: **3,111 tests passed**, nine live tests deselected, **92.71% coverag
 Ruff formatting/lint and mypy passed. The thirty-case correctness suite remains
 **30/30**, while the historical whole-case runtime failure remains visible.
 
-Next agree the numerical limits for a stated workload, distinguishing one initial
-review from a bounded interaction with search revisions and final approval. Until
-then, neither new limit is enforced or claimed to pass. Caching and live performance
-calibration remain separate work; this step is not another agent-quality gain.
+The numerical decision deferred at this checkpoint is now recorded separately in
+step 3aj. Its policy distinguishes initial review from an interaction with a search
+revision and final approval. Caching and live performance calibration remain separate
+work; this measurement step is not another agent-quality gain.

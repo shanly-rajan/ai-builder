@@ -1,0 +1,864 @@
+{
+  "report_version": "week4-interaction-policy-report-v1",
+  "recorded_on": "2026-09-06",
+  "policy": {
+    "version": "week4-interaction-policy-v1",
+    "first_review_limit": 40,
+    "full_interaction_limit": 80,
+    "max_research_revisions": 1,
+    "max_candidate_actions": 2
+  },
+  "source_measurements": {
+    "measurement_version": "week4-interaction-measurements-v1",
+    "dataset_name": "scholarpath-week4-30case-reviewed-v1",
+    "reviewed_version": "week4-30case-reviewed-v1",
+    "content_digest": "732ad206d79f30e2f9a3c0efd89c07daf4680216754fa21ce8e4d8f7bda911d5",
+    "source_draft_digest": "f705973c08abec07d88977873900a40af9e5835d3f02a6b010d751c5f820594e",
+    "recorded_on": "2026-09-06",
+    "execution_mode": "fake_only",
+    "measurement_scope": "actual_graph_invocation_boundaries",
+    "supplemental_policy_status": "not_configured",
+    "first_review_limit": null,
+    "full_interaction_limit": null,
+    "legacy_budget_scope": "complete_graph_case",
+    "legacy_graph_port_invocation_budget": 40,
+    "case_count": 12,
+    "cases": [
+      {
+        "scenario_id": "duplicate-supervisor-multiple-queries",
+        "invocations": [
+          {
+            "invocation_index": 0,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_calls": 38
+          }
+        ],
+        "first_review_calls": 38,
+        "complete_scripted_interaction_calls": 38,
+        "final_review_status": "proposed",
+        "final_interrupted": true,
+        "candidate_actions": [],
+        "candidate_action_count": 0,
+        "expected_behavior_passed": true,
+        "legacy_whole_case_budget_passed": true
+      },
+      {
+        "scenario_id": "you-timeout-tavily-fallback",
+        "invocations": [
+          {
+            "invocation_index": 0,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 2,
+              "fallback_search": 3,
+              "alternate_evidence_search": 0,
+              "content_extraction": 6,
+              "evidence_model": 6,
+              "research_fit": 6,
+              "independent_review": 6,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_counts": {
+              "planning": 1,
+              "primary_search": 2,
+              "fallback_search": 3,
+              "alternate_evidence_search": 0,
+              "content_extraction": 6,
+              "evidence_model": 6,
+              "research_fit": 6,
+              "independent_review": 6,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_calls": 31
+          }
+        ],
+        "first_review_calls": 31,
+        "complete_scripted_interaction_calls": 31,
+        "final_review_status": "proposed",
+        "final_interrupted": true,
+        "candidate_actions": [],
+        "candidate_action_count": 0,
+        "expected_behavior_passed": true,
+        "legacy_whole_case_budget_passed": true
+      },
+      {
+        "scenario_id": "evidence-extraction-failure",
+        "invocations": [
+          {
+            "invocation_index": 0,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 1,
+              "content_extraction": 8,
+              "evidence_model": 7,
+              "research_fit": 7,
+              "independent_review": 7,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 1,
+              "content_extraction": 8,
+              "evidence_model": 7,
+              "research_fit": 7,
+              "independent_review": 7,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_calls": 36
+          }
+        ],
+        "first_review_calls": 36,
+        "complete_scripted_interaction_calls": 36,
+        "final_review_status": "proposed",
+        "final_interrupted": true,
+        "candidate_actions": [],
+        "candidate_action_count": 0,
+        "expected_behavior_passed": true,
+        "legacy_whole_case_budget_passed": true
+      },
+      {
+        "scenario_id": "independent-reviewer-disagreement",
+        "invocations": [
+          {
+            "invocation_index": 0,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_calls": 38
+          }
+        ],
+        "first_review_calls": 38,
+        "complete_scripted_interaction_calls": 38,
+        "final_review_status": "proposed",
+        "final_interrupted": true,
+        "candidate_actions": [],
+        "candidate_action_count": 0,
+        "expected_behavior_passed": true,
+        "legacy_whole_case_budget_passed": true
+      },
+      {
+        "scenario_id": "candidate-rejects-highly-theoretical",
+        "invocations": [
+          {
+            "invocation_index": 0,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_calls": 38
+          },
+          {
+            "invocation_index": 1,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 1
+            },
+            "invocation_counts": {
+              "planning": 0,
+              "primary_search": 0,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 0,
+              "evidence_model": 0,
+              "research_fit": 0,
+              "independent_review": 0,
+              "memory_load": 0,
+              "memory_store": 1
+            },
+            "invocation_calls": 1
+          }
+        ],
+        "first_review_calls": 38,
+        "complete_scripted_interaction_calls": 39,
+        "final_review_status": "proposed",
+        "final_interrupted": true,
+        "candidate_actions": [
+          "reject"
+        ],
+        "candidate_action_count": 1,
+        "expected_behavior_passed": true,
+        "legacy_whole_case_budget_passed": true
+      },
+      {
+        "scenario_id": "approval-required-before-persistence",
+        "invocations": [
+          {
+            "invocation_index": 0,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_calls": 38
+          }
+        ],
+        "first_review_calls": 38,
+        "complete_scripted_interaction_calls": 38,
+        "final_review_status": "proposed",
+        "final_interrupted": true,
+        "candidate_actions": [],
+        "candidate_action_count": 0,
+        "expected_behavior_passed": true,
+        "legacy_whole_case_budget_passed": true
+      },
+      {
+        "scenario_id": "draft-graph-approve-one",
+        "invocations": [
+          {
+            "invocation_index": 0,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_calls": 38
+          },
+          {
+            "invocation_index": 1,
+            "at_candidate_review": false,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 1
+            },
+            "invocation_counts": {
+              "planning": 0,
+              "primary_search": 0,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 0,
+              "evidence_model": 0,
+              "research_fit": 0,
+              "independent_review": 0,
+              "memory_load": 0,
+              "memory_store": 1
+            },
+            "invocation_calls": 1
+          }
+        ],
+        "first_review_calls": 38,
+        "complete_scripted_interaction_calls": 39,
+        "final_review_status": "completed",
+        "final_interrupted": false,
+        "candidate_actions": [
+          "approve"
+        ],
+        "candidate_action_count": 1,
+        "expected_behavior_passed": true,
+        "legacy_whole_case_budget_passed": true
+      },
+      {
+        "scenario_id": "draft-graph-approve-subset",
+        "invocations": [
+          {
+            "invocation_index": 0,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_calls": 38
+          },
+          {
+            "invocation_index": 1,
+            "at_candidate_review": false,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 1
+            },
+            "invocation_counts": {
+              "planning": 0,
+              "primary_search": 0,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 0,
+              "evidence_model": 0,
+              "research_fit": 0,
+              "independent_review": 0,
+              "memory_load": 0,
+              "memory_store": 1
+            },
+            "invocation_calls": 1
+          }
+        ],
+        "first_review_calls": 38,
+        "complete_scripted_interaction_calls": 39,
+        "final_review_status": "completed",
+        "final_interrupted": false,
+        "candidate_actions": [
+          "approve"
+        ],
+        "candidate_action_count": 1,
+        "expected_behavior_passed": true,
+        "legacy_whole_case_budget_passed": true
+      },
+      {
+        "scenario_id": "draft-graph-request-more",
+        "invocations": [
+          {
+            "invocation_index": 0,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_calls": 38
+          },
+          {
+            "invocation_index": 1,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 2,
+              "primary_search": 8,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 16,
+              "evidence_model": 16,
+              "research_fit": 16,
+              "independent_review": 16,
+              "memory_load": 1,
+              "memory_store": 1
+            },
+            "invocation_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 0,
+              "memory_store": 1
+            },
+            "invocation_calls": 38
+          }
+        ],
+        "first_review_calls": 38,
+        "complete_scripted_interaction_calls": 76,
+        "final_review_status": "proposed",
+        "final_interrupted": true,
+        "candidate_actions": [
+          "request_more"
+        ],
+        "candidate_action_count": 1,
+        "expected_behavior_passed": true,
+        "legacy_whole_case_budget_passed": false
+      },
+      {
+        "scenario_id": "draft-graph-reject-then-approve",
+        "invocations": [
+          {
+            "invocation_index": 0,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_calls": 38
+          },
+          {
+            "invocation_index": 1,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 1
+            },
+            "invocation_counts": {
+              "planning": 0,
+              "primary_search": 0,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 0,
+              "evidence_model": 0,
+              "research_fit": 0,
+              "independent_review": 0,
+              "memory_load": 0,
+              "memory_store": 1
+            },
+            "invocation_calls": 1
+          },
+          {
+            "invocation_index": 2,
+            "at_candidate_review": false,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 2
+            },
+            "invocation_counts": {
+              "planning": 0,
+              "primary_search": 0,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 0,
+              "evidence_model": 0,
+              "research_fit": 0,
+              "independent_review": 0,
+              "memory_load": 0,
+              "memory_store": 1
+            },
+            "invocation_calls": 1
+          }
+        ],
+        "first_review_calls": 38,
+        "complete_scripted_interaction_calls": 40,
+        "final_review_status": "completed",
+        "final_interrupted": false,
+        "candidate_actions": [
+          "reject",
+          "approve"
+        ],
+        "candidate_action_count": 2,
+        "expected_behavior_passed": true,
+        "legacy_whole_case_budget_passed": true
+      },
+      {
+        "scenario_id": "draft-graph-review-timeout",
+        "invocations": [
+          {
+            "invocation_index": 0,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_calls": 38
+          }
+        ],
+        "first_review_calls": 38,
+        "complete_scripted_interaction_calls": 38,
+        "final_review_status": "proposed",
+        "final_interrupted": true,
+        "candidate_actions": [],
+        "candidate_action_count": 0,
+        "expected_behavior_passed": true,
+        "legacy_whole_case_budget_passed": true
+      },
+      {
+        "scenario_id": "draft-graph-review-malformed",
+        "invocations": [
+          {
+            "invocation_index": 0,
+            "at_candidate_review": true,
+            "cumulative_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_counts": {
+              "planning": 1,
+              "primary_search": 4,
+              "fallback_search": 0,
+              "alternate_evidence_search": 0,
+              "content_extraction": 8,
+              "evidence_model": 8,
+              "research_fit": 8,
+              "independent_review": 8,
+              "memory_load": 1,
+              "memory_store": 0
+            },
+            "invocation_calls": 38
+          }
+        ],
+        "first_review_calls": 38,
+        "complete_scripted_interaction_calls": 38,
+        "final_review_status": "proposed",
+        "final_interrupted": true,
+        "candidate_actions": [],
+        "candidate_action_count": 0,
+        "expected_behavior_passed": true,
+        "legacy_whole_case_budget_passed": true
+      }
+    ],
+    "legacy_whole_case_budget_passed": false
+  },
+  "decisions": [
+    {
+      "scenario_id": "duplicate-supervisor-multiple-queries",
+      "first_review_calls": 38,
+      "interaction_calls": 38,
+      "research_revisions": 0,
+      "candidate_action_count": 0,
+      "first_review_status": "passed",
+      "interaction_status": "within_budget_so_far",
+      "scope_reason": "within_scope",
+      "legacy_whole_case_budget_passed": true
+    },
+    {
+      "scenario_id": "you-timeout-tavily-fallback",
+      "first_review_calls": 31,
+      "interaction_calls": 31,
+      "research_revisions": 0,
+      "candidate_action_count": 0,
+      "first_review_status": "passed",
+      "interaction_status": "within_budget_so_far",
+      "scope_reason": "within_scope",
+      "legacy_whole_case_budget_passed": true
+    },
+    {
+      "scenario_id": "evidence-extraction-failure",
+      "first_review_calls": 36,
+      "interaction_calls": 36,
+      "research_revisions": 0,
+      "candidate_action_count": 0,
+      "first_review_status": "passed",
+      "interaction_status": "within_budget_so_far",
+      "scope_reason": "within_scope",
+      "legacy_whole_case_budget_passed": true
+    },
+    {
+      "scenario_id": "independent-reviewer-disagreement",
+      "first_review_calls": 38,
+      "interaction_calls": 38,
+      "research_revisions": 0,
+      "candidate_action_count": 0,
+      "first_review_status": "passed",
+      "interaction_status": "within_budget_so_far",
+      "scope_reason": "within_scope",
+      "legacy_whole_case_budget_passed": true
+    },
+    {
+      "scenario_id": "candidate-rejects-highly-theoretical",
+      "first_review_calls": 38,
+      "interaction_calls": 39,
+      "research_revisions": 0,
+      "candidate_action_count": 1,
+      "first_review_status": "passed",
+      "interaction_status": "within_budget_so_far",
+      "scope_reason": "within_scope",
+      "legacy_whole_case_budget_passed": true
+    },
+    {
+      "scenario_id": "approval-required-before-persistence",
+      "first_review_calls": 38,
+      "interaction_calls": 38,
+      "research_revisions": 0,
+      "candidate_action_count": 0,
+      "first_review_status": "passed",
+      "interaction_status": "within_budget_so_far",
+      "scope_reason": "within_scope",
+      "legacy_whole_case_budget_passed": true
+    },
+    {
+      "scenario_id": "draft-graph-approve-one",
+      "first_review_calls": 38,
+      "interaction_calls": 39,
+      "research_revisions": 0,
+      "candidate_action_count": 1,
+      "first_review_status": "passed",
+      "interaction_status": "passed",
+      "scope_reason": "within_scope",
+      "legacy_whole_case_budget_passed": true
+    },
+    {
+      "scenario_id": "draft-graph-approve-subset",
+      "first_review_calls": 38,
+      "interaction_calls": 39,
+      "research_revisions": 0,
+      "candidate_action_count": 1,
+      "first_review_status": "passed",
+      "interaction_status": "passed",
+      "scope_reason": "within_scope",
+      "legacy_whole_case_budget_passed": true
+    },
+    {
+      "scenario_id": "draft-graph-request-more",
+      "first_review_calls": 38,
+      "interaction_calls": 76,
+      "research_revisions": 1,
+      "candidate_action_count": 1,
+      "first_review_status": "passed",
+      "interaction_status": "within_budget_so_far",
+      "scope_reason": "within_scope",
+      "legacy_whole_case_budget_passed": false
+    },
+    {
+      "scenario_id": "draft-graph-reject-then-approve",
+      "first_review_calls": 38,
+      "interaction_calls": 40,
+      "research_revisions": 0,
+      "candidate_action_count": 2,
+      "first_review_status": "passed",
+      "interaction_status": "passed",
+      "scope_reason": "within_scope",
+      "legacy_whole_case_budget_passed": true
+    },
+    {
+      "scenario_id": "draft-graph-review-timeout",
+      "first_review_calls": 38,
+      "interaction_calls": 38,
+      "research_revisions": 0,
+      "candidate_action_count": 0,
+      "first_review_status": "passed",
+      "interaction_status": "within_budget_so_far",
+      "scope_reason": "within_scope",
+      "legacy_whole_case_budget_passed": true
+    },
+    {
+      "scenario_id": "draft-graph-review-malformed",
+      "first_review_calls": 38,
+      "interaction_calls": 38,
+      "research_revisions": 0,
+      "candidate_action_count": 0,
+      "first_review_status": "passed",
+      "interaction_status": "within_budget_so_far",
+      "scope_reason": "within_scope",
+      "legacy_whole_case_budget_passed": true
+    }
+  ],
+  "summary": {
+    "first_review_passed": 12,
+    "first_review_exceeded": 0,
+    "first_review_not_reached": 0,
+    "completed_interaction_passed": 3,
+    "within_budget_so_far": 9,
+    "interaction_exceeded": 0,
+    "interaction_not_completed": 0,
+    "interaction_not_applicable": 0,
+    "legacy_whole_case_failures": 1
+  }
+}

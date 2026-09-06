@@ -695,6 +695,20 @@ unset, not automatically passed or raised. This instrumentation does not count a
 a measured agent-quality improvement. Next agree numerical targets for a bounded
 workload; no live calls, caching, or automatic commit are included.
 
+### Step 3aj: approved separate 40/80 policy
+
+The user approved the [versioned 40/80 policy](week4-interaction-policy.md). It
+classifies the unchanged frozen measurements: **12 first-review passes**, **3
+completed interactions within budget**, and **9 paused within budget so far**.
+The original **76/40** failure remains. No paused case is labeled completed, no
+historical artifact is rewritten, and no application execution is changed.
+
+The numerical-policy decision is complete. This does not count as one of the
+required agent-quality improvements. Return next to the Week 4 submission evidence
+check: distinguish the measured grounding fix from instrumentation/policy changes,
+identify remaining comparable improvements and report/recording gaps, and avoid
+claiming live performance or a completed submission from synthetic passes alone.
+
 ## Step 3o: two excerpt false rejections repaired offline
 
 The [fixed reproduction](week4-live-canary.md#step-3o-excerpt-boundary-repair-offline)

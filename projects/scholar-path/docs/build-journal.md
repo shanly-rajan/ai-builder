@@ -7292,3 +7292,105 @@ The original 76/40 overrun remains. New workload-specific numerical limits requi
 agreement; no caching, live calibration, quality improvement, or budget waiver is
 claimed. Further Week 4 measured improvements and the submission recording remain
 separate follow-ups. Step 3ai is left uncommitted for review.
+
+## Week 4 step 3aj: approved 40/80 interaction policy
+
+**Date:** 2026-09-06
+
+### Milestone objective
+
+Implement the explicitly approved provisional limits as a separate versioned
+offline policy: 40 calls to first Candidate review and 80 total for a bounded
+interaction. Preserve the historical whole-case result and distinguish paused
+prefixes from completed, approved interactions.
+
+### Prompt used
+
+[`docs/prompts/week4-3aj-approved-interaction-policy.md`](prompts/week4-3aj-approved-interaction-policy.md)
+
+The user answered **“yes”** to the explicit 40/80 proposal, not merely to tracking
+two scopes. This approval and its workload boundary are recorded before applying
+the new policy. The prior measurement milestone was committed as `c76df18` after
+3,111 tests passed; the worktree was clean at the start of this increment.
+
+### Files changed
+
+- `src/evaluation/interaction_policy.py`: strict immutable policy, bounded-scope
+  classification, deterministic first-review and interaction decisions.
+- `src/evaluation/interaction_policy_report.py` and
+  `scripts/check_interaction_policy.py`: separate offline text/JSON policy report,
+  validated derivation from unchanged source measurements, distinct outcome counts,
+  and retained legacy-failure exit behavior.
+- `tests/unit/evaluation/test_interaction_policy.py` and
+  `tests/unit/evaluation/test_interaction_policy_report.py`: policy boundaries,
+  incomplete outcomes, scope, tampering, privacy, historical immutability, and CLI.
+- Saved policy observations, [policy guide](week4-interaction-policy.md), README,
+  historical measurement cross-reference, metrics/triage guidance, prompt, journal.
+
+### Tests added
+
+Inclusive 40/80 and exceeded 41/81 limits; first review not reached; completed runs
+without approval; paused request-more and invalid approval sequences; more than
+one research revision or two accepted actions; actual planning-bearing resumes;
+strict policy values; nested forged inputs, decisions, and summaries; unchanged
+source reports; safe CLI output, tracing disabled under opt-in flags, sanitized
+errors, process-control exceptions, and saved-report consistency.
+
+### Test results
+
+- Policy tests: **29 passed in 0.10s**; report/CLI tests: **27 passed in 1.21s**.
+- Offline policy CLI text report: **12 first-review passes**, **3 completed
+  interaction passes**, **9 paused within budget so far**, and **1 legacy whole-case
+  failure**. Request-more remains **76/40 exceeded** under the old policy and is
+  only **76/80 within budget so far** under the new one. Exit **1** intentionally
+  preserves the historical failure.
+- Added one saved-report/fresh-run consistency test. The
+  [actual policy report](evaluation/week4-interaction-policy-2026-09-06.json) embeds
+  unchanged v1 source measurements alongside the approved policy and derived counts.
+- `scripts/run_reviewed_evals.py --check`: **30/30 correctness**, all eleven metric
+  outcomes unchanged, **exit 0**. Local run
+  `scholarpath-week4-reviewed-local-20260906T182833Z-7c8b6660`; graph maximum remains
+  **76/40 exceeded**. No experiment was uploaded.
+- Strict editable installation refreshed with `--no-index --no-deps
+  --no-build-isolation`; no dependency downloads.
+- `venv/bin/ruff format --check .`: **385 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 274 source files**.
+- Final `SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false venv/bin/pytest -q
+  --tb=line --show-capture=no`: **3,168 passed, 9 deselected, 112 subtests in
+  60.62s**, **92.79% coverage**, exit **0**. This adds 57 passing test cases to the
+  committed 3,111-case checkpoint.
+- Post-documentation contract check: **184 passed, 112 subtests in 1.95s**.
+- `git diff --check` passed. Existing graph/agent execution, measurement code,
+  frozen fixtures, evaluator definitions, manifests, and historical report artifacts
+  have no diff. New changes remain unstaged and uncommitted; no live calls, uploads,
+  or pushes were made.
+- Independent read-only review found no material scope, approval, derivation,
+  privacy, or historical-result issues.
+
+### Assumptions
+
+The bounded interaction permits one initial research pass, at most one subsequent
+research revision, and up to two accepted Candidate actions, with approval last.
+These are evaluation scope limits, not new restrictions on the production graph.
+A resumed invocation with planning calls consumes the revision allowance; repeated
+request-more actions are independently bounded. The 80-call total includes feedback
+and finalization, not only search/model work. A paused case cannot establish the
+eventual cost of approval.
+
+### Lessons learned
+
+A target change needs recorded agreement and a versioned workload definition.
+Preserving the source report exposes the difference between actual behavior and
+the new interpretation. An aggregate must distinguish completed passes from
+paused prefixes; otherwise raising a limit can misleadingly look like completion
+or optimization.
+
+### Remaining debt
+
+No runtime, quality, or live-cost improvement is claimed. The legacy 76/40 result
+remains recorded, and the live end-to-end cost of one revision followed by approval
+is unmeasured. The next bounded task is the Week 4 submission evidence check:
+separate genuine measured improvements from instrumentation/policy work and
+identify remaining comparison, report, and recording gaps. No further policy
+instrumentation, live calls, uploads, caching, or automatic commit is included.

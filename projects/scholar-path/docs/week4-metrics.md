@@ -41,6 +41,13 @@ now distinguish the first review pause, each executed resume, and the complete
 scripted case. New numeric limits remain unset; the original budget and evaluator
 definitions remain unchanged.
 
+**Approved supplemental policy (step 3aj):** [40 calls to first review and 80 total
+for a bounded interaction](week4-interaction-policy.md) now apply in a separate
+versioned report. The historical measurement contract and 40-call whole-case check
+remain unchanged. Three frozen interactions complete within the new limit; nine
+are only within budget so far. No runtime optimization or quality improvement is
+inferred from the new allowance.
+
 ## What changed
 
 - `expected_behavior` now consumes the previously unused `expected_supervisor_ids` labels.

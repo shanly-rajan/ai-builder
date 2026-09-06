@@ -2176,5 +2176,13 @@ not a measured runtime optimization or an uploaded experiment.
 Step 3ai adds [separate first-review and interaction measurements](docs/week4-interaction-measurements.md).
 `scripts/inspect_interaction_budget.py` captures counters at actual initial/resume
 boundaries in each frozen fake graph case. It keeps the original whole-case limit
-and historical reports intact. The newly separated numeric limits are **not yet
-configured**; tracking both scopes does not approve a larger budget.
+and historical reports intact. That measurement contract leaves its separate numeric
+limits unset; the subsequently approved policy is evaluated independently below.
+
+Step 3aj implements the [approved 40/80 interaction policy](docs/week4-interaction-policy.md).
+`scripts/check_interaction_policy.py` reports **12 first-review passes**, **3 completed
+interactions within budget**, and **9 paused within budget so far**. The new bounded
+scope permits one research revision and two accepted Candidate actions, with final
+approval required for a completed pass. The original **76/40** failure remains
+visible, so the command still exits **1**. This is a policy decision, not a measured
+speed, cost, or agent-quality improvement.
