@@ -1862,3 +1862,15 @@ choice.
 
 Focus next on the remaining window-related test failures and make the
 summary of failed evaluation cases easier to follow.
+
+### Follow-up: 2026-09-06
+
+| Mentor action | Status and next check |
+|---|---|
+| Resolve the remaining window-related test failures | Not reproduced: the inspected revision passed **1,587 tests**, with **9 live tests deselected** and **91.14% coverage**, on macOS with Python 3.14.6. No Windows runner was used; the mentor's wording does not establish which window or platform failed. |
+| Make failed evaluation cases easier to follow | Implemented in Week 4 step 1: the offline and uploaded evaluation CLI shows case IDs, failed checks, scores, grouped counts, and safe investigation guidance. Failed cases do not prevent evaluation of remaining cases; missing results remain visible. |
+
+The [Week 4 triage and delivery order](docs/week4-triage.md) records the remaining
+dataset, measurement, trace, and submission gaps. The existing eleven-case offline
+baseline does **not** establish completion of all Week 4 requirements. Human label
+review, actual LangSmith evidence, and a measured before/after comparison remain pending.

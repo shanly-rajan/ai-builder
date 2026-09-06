@@ -18,6 +18,7 @@ from scholarpath.evaluation import (
     EvaluationTargetKind,
     build_openai_judge_evaluators,
     create_langsmith_evaluation_client,
+    format_failure_summary,
     run_local_baseline,
     run_uploaded_experiment,
     sync_evaluation_dataset,
@@ -112,6 +113,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"- {metric.key}: {metric.passed_count}/{metric.applicable_count} "
                 f"passed; mean={observed}"
             )
+        print(format_failure_summary(report))
         return 0 if report.passed else 1
 
     evaluation_settings = load_evaluation_settings()
@@ -166,6 +168,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"{result.example_count - result.failed_example_count}/{result.example_count} "
         "examples passed deterministic gates."
     )
+    print(format_failure_summary(result))
     return 0 if result.passed else 1
 
 

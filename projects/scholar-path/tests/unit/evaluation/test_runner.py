@@ -24,7 +24,6 @@ from scholarpath.evaluation import (
     DETERMINISTIC_EVALUATORS,
     EVALUATION_SCENARIOS,
     EvaluationTargetKind,
-    UploadedExperimentReport,
     create_langsmith_evaluation_client,
     evaluation_example,
     run_local_baseline,
@@ -227,12 +226,14 @@ def test_uploaded_experiment_reports_deterministic_gate_failures_truthfully() ->
         item for item in EVALUATION_SCENARIOS if item.target is EvaluationTargetKind.RESEARCH_FIT
     )
     example = MagicMock()
+    example.id = stable_example_id("dataset-test", scenario.scenario_id)
     example.inputs = {"scenario": scenario.model_dump(mode="json", exclude={"expected"})}
     client = MagicMock(spec=Client)
     client.list_examples.return_value = (example,)
     client.evaluate.return_value = _ExperimentRows(
         [
             {
+                "example": example,
                 "run": SimpleNamespace(error=None),
                 "evaluation_results": {
                     "results": _hard_gate_results(failing_key="schema_validity")
@@ -247,11 +248,11 @@ def test_uploaded_experiment_reports_deterministic_gate_failures_truthfully() ->
         target=EvaluationTargetKind.RESEARCH_FIT,
     )
 
-    assert report == UploadedExperimentReport(
-        experiment_name="m12-test-experiment",
-        example_count=1,
-        failed_example_count=1,
-    )
+    assert report.experiment_name == "m12-test-experiment"
+    assert report.example_count == 1
+    assert report.failed_example_count == 1
+    assert len(report.failures) == 1
+    assert report.failures[0].key == "schema_validity"
     assert not report.passed
     call = client.evaluate.call_args
     assert call.kwargs["upload_results"] is True
@@ -264,12 +265,14 @@ def test_uploaded_experiment_passes_only_with_complete_hard_gate_results() -> No
         item for item in EVALUATION_SCENARIOS if item.target is EvaluationTargetKind.SEARCH_PLANNING
     )
     example = MagicMock()
+    example.id = stable_example_id("dataset-test", scenario.scenario_id)
     example.inputs = {"scenario": scenario.model_dump(mode="json", exclude={"expected"})}
     client = MagicMock(spec=Client)
     client.list_examples.return_value = (example,)
     client.evaluate.return_value = _ExperimentRows(
         [
             {
+                "example": example,
                 "run": SimpleNamespace(error=None),
                 "evaluation_results": {"results": _hard_gate_results()},
             }

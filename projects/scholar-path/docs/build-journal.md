@@ -4411,3 +4411,90 @@ The bounded repair prompt is archived as
   Python 3.12 runner.
 - The local environment does not include the GitHub CLI, so the hosted annotation itself could not
   be fetched; the workflow file and all of its commands were reproduced locally instead.
+
+## Week 4 step 1: Triage and actionable evaluation failure summaries
+
+**Date:** 2026-09-06
+
+### Milestone objective
+
+Cross-reference the Week 4 own-agent evaluation requirements with ScholarPath, prioritize the
+mentor's Focus next feedback under an end-of-day deadline, and implement only the first small
+repair: readable failed-case reporting for the existing evaluation command.
+
+### Prompt used
+
+The user request and bounded interpretation are archived as
+[`week4-1-triage-and-evaluation-failure-summary.md`](prompts/week4-1-triage-and-evaluation-failure-summary.md).
+The supplied Week 4 handout informs requirements; its example agents and other tracks do not
+authorize replacing the ScholarPath use case or adding unrelated architecture.
+
+### Files changed
+
+- Added `docs/week4-triage.md` with the ordered tasks, requirement gaps, mentor status, and quick
+  verification commands. Updated the README while preserving the original mentor quote.
+- Extended `src/evaluation/runner.py` with typed failure records and deterministic summary
+  rendering. Local case and evaluator exceptions are recorded without exception text, and later
+  cases still execute. Empty batches cannot claim success.
+- Uploaded reports retain failed checks, scores, known scenario IDs, and SDK run IDs, matching
+  examples by UUID rather than position. Missing result rows/checks remain failures.
+- Exported the summary API and wired it into both paths of `scripts/run_evals.py`, preserving
+  the existing metric summary, hard gates, live opt-in controls, and nonzero failure exit status.
+- Updated SDK-shaped test doubles and added focused failure-reporting tests.
+
+### Tests added
+
+- Grouped multiple failures with exact case IDs, scores, and fixed investigation guidance.
+- Expected fallback/rejection, non-applicable scores, zero duplicate rate, and advisory judges.
+- Local target/evaluator errors do not abort later cases or expose payloads or error messages.
+- Uploaded results map correctly even when SDK rows arrive in a different order.
+- Missing SDK rows, missing checks, unknown case identities, and evaluator errors cannot report
+  a passing experiment. Empty offline datasets cannot claim success.
+- Both CLI paths preserve success/failure exit codes and render the summary with fake providers
+  or a mocked LangSmith client under the default network blocker.
+
+### Test results
+
+- Before changes: `1,587 passed, 9 deselected in 22.61s`, with `91.14%` coverage, on macOS and
+  Python 3.14.6. No window-related failure reproduced; CI is configured for Ubuntu/Python 3.12,
+  and no Windows run is claimed.
+- Existing eleven-case offline baseline replay: `11/11` passed before the reporting change.
+- Initial focused runner and new reporting tests: `30 passed in 0.78s`; two further empty-batch
+  and unknown-case regressions were then added.
+- Ruff formatting: `269 files already formatted`; Ruff lint: all checks passed.
+- Strict mypy: no issues in `206 source files`.
+- Complete non-live pytest: `1,603 passed, 9 deselected in 23.08s`, with `91.27%` coverage.
+  All 16 new failure-reporting regressions passed under the default network blocker.
+- Post-change offline CLI replay: `11/11` existing scenarios passed with the explicit
+  `Failure summary: no failed cases` message. This preserves the historical dataset identity;
+  it is not a new live baseline or evidence of improved Supervisor relevance.
+- `git diff --check`: passed. No live provider calls, LangSmith upload, or Windows run executed.
+
+### Assumptions
+
+- The requested first delivery ends after the first prioritized implementation. Dataset expansion,
+  metric improvements, live traces, baseline comparisons, and submission assembly are next steps.
+- The existing scenario IDs are public synthetic labels. Summaries use those labels and numeric
+  scores, never raw Candidate data, Supervisor content, evaluator comments, or provider exceptions.
+- Expected negative paths count as passes only when existing evaluators accept their outcomes.
+- The phrase “window-related” does not establish that the Windows operating system is involved.
+  No remote issue log or platform-specific failure was supplied or verified in this delivery.
+
+### Lessons learned
+
+- Aggregate pass rates hide which case and check require attention. Case identifiers and grouped
+  counts make the same evaluation outputs actionable without new models or application refactors.
+- Target failures must not suppress later observations, and absent results must not appear green.
+- Passing eleven synthetic cases and the pytest suite does not establish live relevance, cost,
+  latency, or completion of the Week 4 30–50-case evaluation and measured-delta requirements.
+
+### Remaining debt
+
+- Define the Week 4 headline metrics and numeric bars; check currently unused expected behavior
+  and record latency/tool usage. Preserve accurate run dates and dataset versions.
+- Verify one safe LangSmith trace, curate and human-review the frozen golden dataset, execute
+  baseline and comparison experiments, and measure three to four targeted improvements.
+- Produce the final report, trace/dataset references, and recording from actual measurements.
+- Investigate a concrete window-related test/runner failure if mentor evidence becomes available.
+- The summary groups symptoms by failed check; root-cause analysis still requires inspecting
+  the linked case or trace. It does not invent qualitative ratings, cost measurements, or causes.

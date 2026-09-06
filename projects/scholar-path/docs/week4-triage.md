@@ -1,0 +1,122 @@
+# Week 4 evaluation triage
+
+Date: 2026-09-06. Scope: evaluate and improve the existing ScholarPath agent using the
+supplied **Week 4 Project Handout (Aug 2026)** and the mentor's **Focus next** feedback.
+The current delivery implements only the first bounded item below. This document is a
+gap analysis, not a claim that the Week 4 submission is complete.
+
+The handout is evaluation guidance for the selected own-agent track. Its other tracks,
+example agent names, and suggested architectural changes do not expand this task into
+building another agent or redesigning ScholarPath.
+
+## Mentor actions and current evidence
+
+The original feedback remains in the [project README](../README.md):
+
+> Focus next on the remaining window-related test failures and make the
+> summary of failed evaluation cases easier to follow.
+
+1. **Window-related test failures: not reproduced.** The inspected revision passed
+   **1,587 tests**, with **9 live tests deselected** and **91.14% coverage**, on macOS
+   with Python **3.14.6**. No Windows runner was used. “Window-related” could refer to
+   a platform, an interface window, or a time-window rule; the available feedback does
+   not identify a failing test. Preserve the passing behavior and investigate a
+   concrete failing test or runner log if one becomes available.
+2. **Failed evaluation summaries: actionable repair.** Before this delivery,
+   [`scripts/run_evals.py`](../scripts/run_evals.py) printed aggregate metric means
+   without identifying failed cases. The local runner discarded evaluator explanations,
+   and an unexpected target exception could stop evaluation of later cases. Uploaded
+   experiment reporting retained only a total failure count. These are specific,
+   reproducible reporting gaps.
+
+The passing pytest result is a regression check. It does not measure live Supervisor
+relevance, live provider cost, or the quality of an entire research run.
+
+## Prioritized execution order
+
+Order reflects requirement alignment and value relative to implementation effort.
+Later items remain pending; each should be delivered as a separate small change.
+
+| Order | Deliverable | Requirement or mentor alignment | Bounded implementation / verification |
+|---|---|---|---|
+| **1 — current delivery** | Readable failure summaries for offline and uploaded evaluations | Mentor: easier failed-case summary. Week 4 phase 3: connect failed cases to metrics and cluster failures. | Extend the existing result records and CLI with case identifiers, failed checks, sanitized failure explanations, and grouped counts; retain remaining cases after a target error. Verify with fixed passing, failing, and error examples. |
+| **2** | Check expected behavior and measure runtime | Week 4 phase 1: outcome-based metrics, numeric pass bars, and at least one quality plus one cost/latency metric. | Add an expected-behavior evaluator using existing reference labels; record per-case elapsed time and aggregate latency. Keep unmeasured live tokens/cost explicitly unavailable. Verify wrong, empty, and correct outputs against reference behavior. |
+| **3** | Verify one trace, then version and review a 30-case golden dataset | Week 4 phases 1–2: working trace instrumentation and 30–50 labeled happy, edge, known-failure, and adversarial cases. | First verify a synthetic case's bounded inputs/outputs and child runs are visible in LangSmith. Then reuse realistic fixtures and reported failure patterns for distinct cases with scenario type and label provenance. A practical mix is 15 happy, 9 edge, 4 known failures, and 2 adversarial. Human review must confirm expected behavior before calling the labels reviewed ground truth. |
+| **4** | Run the frozen baseline and identify its dominant failure clusters | Week 4 phases 2–3: comparable measurements and failures linked to trace evidence. | Reuse dataset upload and experiment commands. Preserve dataset version, experiment name, case IDs, actual trace links, and metric results; rank failures by frequency and measured cost. |
+| **5** | Address the dominant failures with 3–4 measured changes | Week 4 phases 3–4: failure frequencies/costs, targeted improvements, and measured delta. | Choose fixes from the baseline clusters, freeze the dataset, and rerun the same metrics after each small improvement. Record gains, regressions, and no-change results honestly. Avoid a model upgrade or architecture rewrite unless a measured failure requires it. |
+| **6** | Assemble the Week 4 report and short walkthrough | Submission: framework, dataset, prompts or relevant screenshots, trace evidence, and video explaining what changed, improved, and still fails. | Link real baseline and comparison evidence; summarize metrics, top failures, 3–4 hypotheses/results, remaining work, and monitoring decisions. Record the walkthrough after results exist. |
+
+The first repair improves evaluation visibility. It is not automatically one of the
+three to four required agent-quality improvements: those must target observed failures
+and have measured effects on the chosen metrics.
+
+## Requirement cross-check
+
+| Week 4 requirement | Existing evidence | Remaining gap |
+|---|---|---|
+| Evaluation one-liner and completed framework | Product purpose and regression goals are described in the [evaluation plan](evaluation-plan.md). | Write the Week 4 measurement one-liner and framework with agreed metric bars, latency/cost limits, dataset version, and actual baseline/comparison references. |
+| Three to five outcome, behavior, and cost/latency metrics | Ten deterministic invariant evaluators and four optional qualitative judges already exist in [`src/evaluation/`](../src/evaluation/). | Select headline metrics that predict Candidate value. Add missing expected-behavior and timing observations rather than treating valid schemas alone as task success. |
+| Labeled 30–50-case golden dataset | [`scenarios.py`](../src/evaluation/scenarios.py) defines eleven synthetic cases with stable IDs, splits, and typed expectations. | Add distinct cases, scenario-type mix, labeling provenance, and human review. Do not relabel the existing eleven cases as a sufficient Week 4 dataset. |
+| Reference expectations actually checked | Score ranges, availability, fallback, and approval expectations feed existing evaluators. | `expected_supervisor_ids` is currently populated but unused by evaluators. Conflict and extraction-failure scenarios need explicit outcome checks so their named behavior is scored. |
+| Versioned LangSmith dataset | [`runner.py`](../src/evaluation/runner.py) supports stable example IDs and dataset synchronization. | Freeze the reviewed Week 4 version and retain its actual uploaded dataset reference. |
+| Trace visibility and linkage | Existing trace context includes scenario ID, versions, provider, fallback, and review outcome. | The evaluation client hides all inputs and outputs. Verify a safe synthetic projection is visible and case results can be connected to traces. Do not expose raw production content to meet this requirement. |
+| Baseline metrics and verified trace | The [historical baseline](evaluation-baseline.md) honestly records **11/11 offline scenarios passed**. | It explicitly records no LangSmith upload, live provider run, or judge run. Actual Week 4 trace evidence and measured baseline results are still required. |
+| Failure clusters with frequency, examples, and rough cost | Existing evaluator comments and typed errors provide useful building blocks. | Current delivery adds readable case/cluster reporting. Actual baseline clusters, linked example traces, and costs still require a measured run. |
+| Three to four improvements and comparable delta | Earlier milestones document implementation iterations. | Historical changes are not a same-dataset Week 4 comparison. Record new hypotheses and before/after measurements without inventing improvements. |
+| Submission report and recording | Project architecture, reliability notes, and evaluation documentation are available. | A focused Week 4 report, dataset handoff, trace links/screenshots, and short recorded walkthrough remain pending. |
+
+The optional LLM judges already exist. They are not required to check facts that code
+can validate. If used for Research Fit relevance or usefulness, compare their judgments
+with human ratings and record disagreement; an uncalibrated judge score is not human
+ground truth.
+
+## First delivery: quick verification
+
+Run these commands from `projects/scholar-path` with the project's environment installed:
+
+```bash
+SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false \
+venv/bin/python scripts/run_evals.py --target all
+venv/bin/pytest -o addopts='' -q tests/unit/evaluation/test_failure_reporting.py
+```
+
+The first command exercises the existing fake-provider dataset without a network call.
+An all-pass dataset should report no failures. The focused tests provide deliberately
+failing cases and provider errors so the failure summaries are verified without adding
+known-bad examples to the accepted baseline or calling a live provider.
+
+Failed summaries group checks by frequency and list each public case ID, target, check,
+score, and a fixed explanation of what to inspect. Uploaded summaries include a LangSmith
+run ID when returned by the SDK and resolve cases by example ID, independent of row order.
+Target errors, evaluator errors, and missing results are separate categories. No raw error
+text, evaluator comments, Candidate content, or target payload is copied into the summary.
+Expected fallback, safe rejection, and non-applicable checks do not become failures.
+
+For the complete non-live regression check:
+
+```bash
+venv/bin/pytest -m "not live"
+```
+
+An uploaded experiment is a separate operation. Use it only when intentionally ready
+to write evaluation data to the configured LangSmith workspace:
+
+```bash
+SCHOLARPATH_RUN_LANGSMITH_EVALS=true LANGSMITH_TRACING=true \
+venv/bin/python scripts/run_evals.py --target all --upload
+```
+
+This uploads the current fake-provider experiment; it does not run live model/search
+providers or establish live quality/cost. Credentials, the regional endpoint, and any
+required workspace ID must already be configured. The baseline and all remaining
+Week 4 measurements must be named and dated accurately rather than reusing the historical
+Aug 30 baseline identity.
+
+## Completion boundaries
+
+- Preserve the historical eleven-case baseline and its provenance.
+- Keep the default test and evaluation path offline.
+- Human label review, actual trace evidence, measured before/after deltas, and the
+  recording are pending submission evidence, not facts inferred from passing tests.
+- No major refactor, additional model provider, vector database, or unrelated product
+  feature is needed for this evaluation work.

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable, Mapping, Sequence
 from datetime import date
-from typing import Annotated, Final
+from typing import Annotated, Final, Literal
 from uuid import UUID, uuid5
 
 from langsmith import Client
@@ -100,6 +100,19 @@ class LocalMetricSummary(BaseModel):
     observed_mean: float | None
 
 
+class EvaluationFailure(BaseModel):
+    """A failed check linked to a public case, without evaluated content or exceptions."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    scenario_id: str = Field(min_length=1)
+    target: EvaluationTargetKind | None
+    key: str = Field(min_length=1)
+    category: Literal["metric_failed", "target_error", "evaluator_error", "missing_result"]
+    score: bool | int | float | None = None
+    run_id: UUID | None = None
+
+
 class LocalEvaluationReport(BaseModel):
     """Serializable offline baseline report containing no target payloads."""
 
@@ -113,11 +126,12 @@ class LocalEvaluationReport(BaseModel):
     passed_scenario_count: Annotated[int, Field(ge=0)]
     metric_summaries: tuple[LocalMetricSummary, ...]
     scenarios: tuple[LocalScenarioRecord, ...]
+    failures: tuple[EvaluationFailure, ...] = ()
 
     @property
     def passed(self) -> bool:
         """Return whether every selected scenario met every applicable hard gate."""
-        return self.scenario_count == self.passed_scenario_count
+        return self.scenario_count > 0 and self.scenario_count == self.passed_scenario_count
 
 
 class DatasetSyncResult(BaseModel):
@@ -138,6 +152,7 @@ class UploadedExperimentReport(BaseModel):
     experiment_name: str = Field(min_length=1)
     example_count: Annotated[int, Field(ge=0)]
     failed_example_count: Annotated[int, Field(ge=0)]
+    failures: tuple[EvaluationFailure, ...] = ()
 
     @property
     def passed(self) -> bool:
@@ -222,21 +237,56 @@ def run_local_baseline(
     if target is EvaluationTargetKind.GRAPH_LIVE:
         raise ValueError("The offline baseline cannot execute the live graph target")
     records: list[LocalScenarioRecord] = []
+    failures: list[EvaluationFailure] = []
     metric_values: dict[str, list[LocalMetricRecord]] = defaultdict(list)
     for scenario in _selected_scenarios(scenarios, target):
         inputs = evaluation_dataset_inputs(scenario)
-        outputs = dispatch_evaluation_target(inputs)
         reference_outputs = evaluation_dataset_reference_outputs(scenario)
-        observations = tuple(
-            _metric_record(evaluator(outputs, reference_outputs)) for evaluator in evaluators
-        )
+        case_failures: list[EvaluationFailure] = []
+        observations_list: list[LocalMetricRecord] = []
+        try:
+            outputs = dispatch_evaluation_target(inputs)
+        except Exception:
+            case_failures.append(
+                EvaluationFailure(
+                    scenario_id=scenario.scenario_id,
+                    target=scenario.target,
+                    key="target_execution",
+                    category="target_error",
+                )
+            )
+        else:
+            for evaluator in evaluators:
+                category: Literal["metric_failed", "evaluator_error"]
+                try:
+                    observation = _metric_record(evaluator(outputs, reference_outputs))
+                except Exception:
+                    observation = LocalMetricRecord(
+                        key=evaluator.__name__, applicable=True, passed=False
+                    )
+                    category = "evaluator_error"
+                else:
+                    category = "metric_failed"
+                observations_list.append(observation)
+                if not observation.passed:
+                    case_failures.append(
+                        EvaluationFailure(
+                            scenario_id=scenario.scenario_id,
+                            target=scenario.target,
+                            key=observation.key,
+                            category=category,
+                            score=observation.score,
+                        )
+                    )
+        observations = tuple(observations_list)
+        failures.extend(case_failures)
         for observation in observations:
             metric_values[observation.key].append(observation)
         records.append(
             LocalScenarioRecord(
                 scenario_id=scenario.scenario_id,
                 target=scenario.target,
-                passed=all(item.passed for item in observations),
+                passed=not case_failures,
                 metrics=observations,
             )
         )
@@ -266,6 +316,7 @@ def run_local_baseline(
         passed_scenario_count=sum(record.passed for record in records),
         metric_summaries=tuple(summaries),
         scenarios=tuple(records),
+        failures=tuple(failures),
     )
 
 
@@ -431,37 +482,151 @@ def run_uploaded_experiment(
         error_handling="log",
     )
     rows = tuple(result)
+    cases_by_example_id = {example.id: _scenario_from_example(example) for example in examples}
+    row_failures = tuple(
+        _uploaded_row_failures(row, cases_by_example_id, row_number=index)
+        for index, row in enumerate(rows, start=1)
+    )
+    returned_ids = {
+        getattr(row.get("example"), "id", None) for row in rows if isinstance(row, Mapping)
+    }
+    missing_count = max(0, len(examples) - len(rows))
+    missing_cases = [
+        scenario
+        for example_id, scenario in cases_by_example_id.items()
+        if example_id not in returned_ids
+    ][:missing_count]
+    missing_failures = tuple(
+        EvaluationFailure(
+            scenario_id=scenario.scenario_id,
+            target=scenario.target,
+            key="evaluation_results",
+            category="missing_result",
+        )
+        for scenario in missing_cases
+    )
     return UploadedExperimentReport(
         experiment_name=result.experiment_name,
-        example_count=len(rows),
-        failed_example_count=sum(_uploaded_row_failed(row) for row in rows),
+        example_count=max(len(examples), len(rows)),
+        failed_example_count=sum(bool(failures) for failures in row_failures) + missing_count,
+        failures=tuple(failure for failures in row_failures for failure in failures)
+        + missing_failures,
     )
 
 
-def _uploaded_row_failed(row: object) -> bool:
-    """Detect target errors or deterministic hard-gate failures in one result row."""
-    if not isinstance(row, Mapping):
-        return True
-    run = row.get("run")
+def _uploaded_row_failures(
+    row: object,
+    cases_by_example_id: Mapping[UUID, EvaluationScenario],
+    *,
+    row_number: int,
+) -> tuple[EvaluationFailure, ...]:
+    """Describe failures using known case IDs; never trust free-text SDK error content."""
+    values = row if isinstance(row, Mapping) else {}
+    run = values.get("run")
+    example_id = getattr(values.get("example"), "id", None)
+    scenario = cases_by_example_id.get(example_id) if isinstance(example_id, UUID) else None
+    run_id = getattr(run, "id", None)
+
+    def failure(
+        key: str,
+        category: Literal["metric_failed", "target_error", "evaluator_error", "missing_result"],
+        score: bool | int | float | None = None,
+    ) -> EvaluationFailure:
+        return EvaluationFailure(
+            scenario_id=scenario.scenario_id if scenario else f"unidentified-example-{row_number}",
+            target=scenario.target if scenario else None,
+            key=key,
+            category=category,
+            score=score,
+            run_id=run_id if isinstance(run_id, UUID) else None,
+        )
+
     if run is None or bool(getattr(run, "error", None)):
-        return True
-    raw_evaluations = row.get("evaluation_results")
+        return (failure("target_execution", "target_error"),)
+    if scenario is None:
+        return (failure("case_identity", "missing_result"),)
+    raw_evaluations = values.get("evaluation_results")
     if not isinstance(raw_evaluations, Mapping):
-        return True
+        return (failure("evaluation_results", "missing_result"),)
     raw_results = raw_evaluations.get("results")
     if not isinstance(raw_results, Sequence) or isinstance(raw_results, (str, bytes)):
-        return True
+        return (failure("evaluation_results", "missing_result"),)
     results = tuple(item for item in raw_results if isinstance(item, EvaluationResult))
     hard_gate_keys = {evaluator.__name__ for evaluator in DETERMINISTIC_EVALUATORS}
     hard_gate_results = tuple(item for item in results if item.key in hard_gate_keys)
-    if {item.key for item in hard_gate_results} != hard_gate_keys:
-        return True
-    return any(not _metric_passed(item)[1] for item in hard_gate_results)
+    failures = [
+        failure(key, "missing_result")
+        for key in sorted(hard_gate_keys - {item.key for item in hard_gate_results})
+    ]
+    for item in hard_gate_results:
+        if (item.metadata or {}).get("error") is True:
+            failures.append(failure(item.key, "evaluator_error"))
+        elif not _metric_passed(item)[1]:
+            failures.append(failure(item.key, "metric_failed", _metric_record(item).score))
+    return tuple(failures)
+
+
+_FAILURE_GUIDANCE: Final = {
+    "schema_validity": "Expected a valid typed output; inspect the target response contract.",
+    "canonical_terminology": "Expected canonical role labels; inspect generated terminology.",
+    "evidence_id_validity": "Expected owned evidence IDs; inspect citation references.",
+    "source_url_presence": "Expected source URLs on claims; inspect evidence provenance.",
+    "score_range_and_component_totals": "Expected bounded, summed scores; inspect the rubric.",
+    "no_unsupported_availability_claim": "Expected source-backed availability; inspect claims.",
+    "no_admission_probability": "Expected no admission prediction; inspect assessment wording.",
+    "correct_fallback_route": "Expected the labeled retry/fallback route; inspect search attempts.",
+    "duplicate_supervisor_rate": "Expected the duplicate-rate limit; inspect deduplication.",
+    "human_approval_enforcement": "Expected approval before persistence; inspect the review gate.",
+}
+
+
+def format_failure_summary(report: LocalEvaluationReport | UploadedExperimentReport) -> str:
+    """Render deterministic case-level failures and counts without free-text payloads."""
+    if isinstance(report, LocalEvaluationReport):
+        total = report.scenario_count
+        failed = total - report.passed_scenario_count
+    else:
+        total, failed = report.example_count, report.failed_example_count
+    if total == 0:
+        return "Failure summary: no evaluation cases ran. Check the dataset and target selection."
+    if failed == 0:
+        return "Failure summary: no failed cases. Expected fallback or rejection is not a failure."
+    lines = [f"Failure summary: {failed}/{total} cases failed."]
+    if not report.failures:
+        return "\n".join((*lines, "Case details unavailable; inspect the experiment results."))
+    counts = Counter((item.category, item.key) for item in report.failures)
+    lines.append("Failed checks by frequency (a case can fail more than one check):")
+    for (category, key), count in sorted(counts.items(), key=lambda item: (-item[1], item[0])):
+        lines.append(f"- {key} [{category}]: {count}")
+    lines.append("Failed cases:")
+    for item in sorted(
+        report.failures, key=lambda item: (item.scenario_id, item.key, item.category)
+    ):
+        target = item.target.value if item.target else "unknown target"
+        score = "not produced" if item.score is None else str(item.score)
+        if item.category == "target_error":
+            guidance = (
+                "Target raised an error; inspect that case's execution. Other cases run separately."
+            )
+        elif item.category == "evaluator_error":
+            guidance = "Evaluator raised an error; inspect the check before trusting its score."
+        elif item.category == "missing_result":
+            guidance = "Required evaluation result missing; inspect evaluator completion."
+        else:
+            guidance = _FAILURE_GUIDANCE.get(item.key, "Inspect the evaluator's declared pass bar.")
+        lines.append(
+            f"- {item.scenario_id} [{target}]: {item.key}; "
+            f"{item.category}; score={score}. {guidance}"
+        )
+        if item.run_id:
+            lines.append(f"  LangSmith run ID: {item.run_id}")
+    return "\n".join(lines)
 
 
 __all__ = [
     "LOCAL_BASELINE_NAME",
     "DatasetSyncResult",
+    "EvaluationFailure",
     "LocalEvaluationReport",
     "LocalMetricRecord",
     "LocalMetricSummary",
@@ -471,6 +636,7 @@ __all__ = [
     "create_langsmith_evaluation_client",
     "dispatch_evaluation_target",
     "evaluation_example",
+    "format_failure_summary",
     "run_local_baseline",
     "run_uploaded_experiment",
     "stable_example_id",
