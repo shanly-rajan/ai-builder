@@ -5695,3 +5695,418 @@ verification, synthetic input, public target, models, and call limits unchanged.
   and other Week 4 submission requirements remain open.
 - No automatic rerun, runtime repair, payload capture, credential change, commit,
   push, Mem0, persistent graph/shortlist, outreach, or trace upload in this step.
+
+## Week 4 step 3q — checkpoint and private excerpt-replay preparation (2026-09-06)
+
+### Objective and prompt
+
+Commit the accumulated work, then prepare a bounded local diagnostic to obtain
+the precise rejected excerpt needed for offline reproduction without weakening gates.
+[Prompt used](prompts/week4-3q-private-excerpt-replay.md).
+
+### Checkpoint
+
+- Committed 32 reviewed ScholarPath files for steps 3g–3p as **`af115b6`**:
+  `fix: harden evidence grounding and record bounded live diagnostics`.
+- Pre-commit formatting/lint passed, mypy passed (231 files), and full non-live
+  suite: **2,144 passed, 9 deselected, 92 subtests passed in 27.82s**,
+  **91.95% coverage**. Staged diff/secret-pattern audit passed; worktree clean
+  immediately after commit. No push.
+
+### Files changed
+
+- Evidence agent: explicit default-off private rejected-excerpt observer.
+- Domain: expose the existing pure excerpt check for replay, preserving its wrapper.
+- Private replay schema/collector/storage and offline replay script.
+- Canary opt-in wiring, regression tests, README, runbook, triage, prompt, journal.
+- Paths: `src/agents/evidence_verification.py`, `src/domain/models.py`,
+  `src/evaluation/grounding_replay.py`, `scripts/replay_grounding.py`,
+  `tests/integration/test_m13_live_canary.py`,
+  `tests/unit/evaluation/test_grounding_replay.py`,
+  `tests/unit/evaluation/test_private_canary_replay.py`,
+  `tests/contract/test_m6_evidence_verification_contract.py`, `README.md`,
+  `docs/week4-live-canary.md`, `docs/week4-triage.md`, this journal, and the prompt.
+
+### Tests added and results
+
+- **176 new offline tests**: 155 schema/capture/privacy/replay/storage cases and
+  21 observer/canary/CLI cases. Covers exact excerpts, two-sample/size caps, unsafe
+  fields, no-follow paths, exclusive creation, private permissions, bounded reads,
+  no-write defaults, all opt-in combinations, observer failures, unchanged evidence
+  and fake call counts, and count-only output even on malformed CLI arguments.
+- Updated the existing M6 signature contract to require the new observer to be
+  keyword-only with default `None`; existing positional callers remain compatible.
+- Refreshed local strict editable links with
+  `venv/bin/pip install -e . --no-deps --no-build-isolation --config-settings editable_mode=strict`.
+  No dependency versions changed or live providers invoked.
+- `venv/bin/ruff format --check .`: **319 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 235 source files**.
+- Focused command:
+  `venv/bin/pytest -o addopts='' -q tests/unit/evaluation/test_grounding_replay.py tests/unit/evaluation/test_private_canary_replay.py tests/unit/agents/test_grounding_diagnostics.py tests/unit/domain/test_profile_context_failure_reasons.py tests/unit/agents/test_research_overview_excerpt_boundaries.py`:
+  **318 passed in 0.67s**.
+- Initial full suite identified the stale M6 signature assertion; after correcting
+  that contract, `venv/bin/pytest -q --tb=short`: **2,320 passed, 9 deselected,
+  93 subtests passed in 25.94s**, **92.00% coverage** (90% floor).
+- `venv/bin/python -m scripts.replay_grounding --help`: exit **0**, safe usage only.
+- `git check-ignore -v --no-index artifacts/grounding-replays/example.json`:
+  covered by the existing project `/artifacts/` rule. No real capture file created.
+- `git diff --check`: passed. Independent code/privacy review confirmed unchanged
+  grounding predicates, strict canary gates, and provider limits. It identified
+  quoted credential/PEM detection and argparse error-echo gaps; both were fixed
+  and covered by synthetic regressions before the final passing suite.
+- Final documentation/contracts command:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py tests/contract/test_m6_evidence_verification_contract.py`:
+  **20 passed, 93 subtests passed in 0.10s**. Final `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- This replays only the excerpt-subject check, not page admission, all verification
+  gates, or Research Fit. The historical live response cannot be reconstructed.
+- Minimized excerpts still contain source text and names: private local artifacts
+  must not be uploaded or committed without a separate sanitization review.
+- Credential-pattern rejection is a defensive filter, not proof of universal
+  personal-data removal. Accepted excerpts are never altered to satisfy validation.
+- Replay equality means a rejection was reproduced, not that evidence was verified.
+  The live cause still requires a separately scoped exact sample.
+
+### Remaining debt
+
+- No new live invocation, credential access/change, or real payload capture here.
+  A future capture needs explicit opt-in and network approval. Current live failure
+  remains unresolved; no matcher relaxation or source-fact inference.
+- New diagnostic work is separate from checkpoint `af115b6`; no second commit or push.
+
+## Week 4 step 3r — one live private excerpt capture and replay (2026-09-06)
+
+### Objective and prompt
+
+Observe one bounded live canary with step 3q's explicitly opted-in private capture,
+then replay any retained failure offline without changing verification rules.
+[Prompt used](prompts/week4-3r-live-private-excerpt-replay.md).
+
+### Files changed
+
+- Prompt, this journal, live-canary runbook, README, and triage.
+- Existing step 3q working changes preserved. No new runtime/test change planned.
+- Any captured excerpt stays in the ignored private artifacts directory, not Git.
+
+### Tests added and results
+
+- No new tests; current full non-live suite and prepared opt-in canary reused.
+- `venv/bin/ruff format --check .`: **320 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 235 source files**.
+- The first preflight found the new prompt was not yet linked in this journal;
+  completing that audit entry resolved the contract subtest. No runtime failure.
+- `venv/bin/pytest -q --tb=short`: **2,320 passed, 9 deselected,
+  94 subtests passed in 26.55s**, **92.00% coverage** (90% floor).
+- All seven required provider credential roles returned configured booleans;
+  no credential values printed or changed. `git diff --check` passed.
+- Independent read-only preflight audit confirmed the three opt-ins, strict gates,
+  timeout clamps, nine-logical-call ceiling, private file caps/permissions, and
+  tracing suppression. No Mem0 or durable graph/shortlist operation in this canary.
+- One network-approved invocation of the
+  [three-opt-in command](week4-live-canary.md#future-single-capture-explicit-approval-required):
+  **1 failed in 11.81s**, exit **1**, safe elapsed **11.709s**.
+- Actual logical calls: OpenAI planning **1**, You.com **1**, Tavily extraction **1**,
+  OpenAI evidence **1**; Tavily search, OpenAI Research Fit, Nebius **0**.
+- Evidence extraction completed. Strict verification failed
+  `missing_required_evidence`: `current_affiliation`,
+  `research_interest_or_publication`; unknown-category count **0**. Research Fit
+  input/evaluation were `not_reached`.
+- Retained/grounded: identity **1/1**, affiliation **1/0**, research **1/0**,
+  project **3/0**; publication/methodology/availability **0/0**. Extraction/final
+  verification totals agree: **six retained, one grounded, five rejected**.
+- Rejections: affiliation `context_conflicting_person` **1**, research
+  `context_subject_pattern_missing` **1**, project `profile_subject_mismatch` **3**.
+  No Verified Supervisor, fit/review/proposal/approval reached. Cost/tokens unknown.
+- Private capture: **two samples, zero excluded**, **1,012 bytes**, file mode
+  **0600**, directory **0700**. Existing Git ignore rule verified against the
+  exact file. No private text copied into docs/tests, output, or trace metadata.
+- `venv/bin/python -m scripts.replay_grounding artifacts/grounding-replays/faa43dd6-215e-4be0-8ad0-c6d8ecfde3c7.json`:
+  exit **0**, **two matched, zero changed, zero excluded**. These are reproduced
+  rejections, not verified claims. No network or mutation during replay.
+- Local structural probes emitted only fixed categories/booleans: affiliation's
+  titled-person matcher captures a role/discipline label (26-character span in a
+  70-character excerpt). Research's 147-character excerpt starts with an untitled
+  owner while its asserted name is titled; removing the title in memory still
+  fails the direct-subject check because the `is` relation is not allowed there.
+  The stored samples and production rules remain unchanged.
+- Independent result review confirmed count conservation and the distinction
+  between the direct-name/relation check and contextual-prefix fallback. Project
+  claims cannot satisfy the required research-interest-or-publication category.
+- Final formatting/lint/mypy passed again. Final command:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py tests/contract/test_m6_evidence_verification_contract.py tests/unit/evaluation/test_grounding_replay.py tests/unit/evaluation/test_private_canary_replay.py`:
+  **196 passed, 94 subtests passed in 0.30s**. `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- User's continuation authorizes the proposed single capture, subject to network
+  approval. It does not authorize repeated live calls or speculative matcher edits.
+- Replay is excerpt-level diagnosis, not proof that all evidence gates pass.
+- The role/discipline match supplies a concrete offline regression target. Clearing
+  it may expose later affiliation-field checks; it does not itself verify affiliation.
+- Title normalization alone cannot fix the research case. Do not broadly whitelist
+  copular statements or accept arbitrary named-owner prose as research evidence.
+- The two excerpts are private local source material, not a public dataset or a
+  universal privacy guarantee. Keep them ignored; separately review any future
+  minimal regression fixture before committing source-derived material.
+
+### Remaining debt
+
+- Next: a minimal role/discipline reproduction with actual other-person negative
+  controls, then a narrow offline matcher repair and replay. Research title/grammar
+  and project-heading issues remain separate; do not broaden all checks at once.
+- Strict live verification, Research Fit/Nebius success, reviewed labels, measured
+  quality/cost, and remaining Week 4 requirements are not complete.
+- No second live invocation, runtime/test edit, commit, push, relaxed verification,
+  Mem0, durable graph/shortlist, outreach, or trace upload in this step. The existing
+  uncommitted step 3q work and checkpoint `af115b6` were preserved.
+
+## Week 4 step 3s — role/discipline false-person repair (2026-09-06)
+
+### Objective and prompt
+
+Reproduce and narrowly repair the observed affiliation role/discipline false-person
+match, preserving real-person negative controls and strict verification rules.
+[Prompt used](prompts/week4-3s-role-discipline-grounding-repair.md).
+
+### Files changed
+
+- Shared domain titled-person matching, private replay matcher usage, fixed tests,
+  README, runbook, triage, prompt, and journal. Existing changes preserved.
+- Private source artifact is read only; no real source excerpts added to Git.
+- Runtime paths: `src/domain/models.py`, `src/evaluation/grounding_replay.py`.
+- Added tests: `tests/unit/domain/test_role_discipline_matching.py` and
+  `tests/unit/agents/test_role_discipline_grounding.py`.
+
+### Tests added and results
+
+- **76 new synthetic tests**: 60 domain/matcher/replay cases and 16 fake-agent cases.
+  Positive controls cover complete role-label spacing/title variants and direct
+  versus contextual affiliation. Negative controls cover actual other people
+  before/after a role, extended names, Doctor titles, LF/CRLF wraps and surname
+  particles, missing identity/fields, source mismatch/ineligibility, unsupported
+  model output, and unchanged research grammar. Fake strict verification retains
+  provenance/IDs and optional `not_stated` availability, with one fake call and
+  identical outputs whether aggregate diagnostics are enabled or disabled.
+- Initial red command:
+  `venv/bin/pytest -o addopts='' -q --tb=short tests/unit/domain/test_role_discipline_matching.py`:
+  **12 failed, 24 passed in 0.22s**, reproducing the role-label rejection.
+- Independent review exposed a wrapped-name continuation risk in the first
+  complete-match filter. Regression command with `-k name-extension`: **8 failed,
+  44 deselected in 0.11s**. Added the conservative single-line bound and more
+  wrapped-particle controls before final validation. No pre-fix agent red run was
+  claimed; those tests first ran after the initial repair.
+- Final focused command:
+  `venv/bin/pytest -o addopts='' -q --tb=short tests/unit/domain/test_role_discipline_matching.py tests/unit/agents/test_role_discipline_grounding.py tests/unit/domain/test_academic_role_grounding.py tests/unit/domain/test_affiliation_person_excerpt_regressions.py tests/unit/domain/test_profile_context_failure_reasons.py tests/unit/evaluation/test_grounding_replay.py`:
+  **365 passed in 0.43s**.
+- `venv/bin/ruff format --check .`: **323 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 237 source files**.
+- `venv/bin/pytest -q --tb=short`: **2,396 passed, 9 deselected,
+  95 subtests passed in 26.31s**, **92.03% coverage** (90% floor).
+- Offline replay of the unchanged ignored file:
+  `venv/bin/python -m scripts.replay_grounding artifacts/grounding-replays/faa43dd6-215e-4be0-8ad0-c6d8ecfde3c7.json`:
+  **two samples, one matched, one changed, zero excluded**, exit **1** as designed
+  when a historical rejection changes. Affiliation excerpt reason/matcher are now
+  `None`; research remains `context_subject_pattern_missing`. This is not complete
+  verification. File remains **1,012 bytes**, **0600**, and Git-ignored.
+- Independent final review found no blockers and confirmed all three consumers
+  share the rule. Nine independent synthetic boundary probes also passed.
+  `git diff --check` passed; no live provider or credential access in this step.
+- Final documentation/regression command:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py tests/unit/domain/test_role_discipline_matching.py tests/unit/agents/test_role_discipline_grounding.py`:
+  **88 passed, 95 subtests passed in 0.27s**. Final `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- A narrow role-label exception must not hide a real person's name elsewhere in
+  an excerpt or grant evidence support without the existing grounding checks.
+- Clearing one excerpt check is not proof of complete live verification.
+- A complete regex match may still be a prefix of a line-wrapped longer name.
+  The exception is therefore limited to the observed single-line form; multiline
+  excerpts intentionally keep prior conservative behavior.
+- The role filter is an exact structural fix, not an inference of current
+  affiliation, a general discipline classifier, or a replacement for source evidence.
+
+### Remaining debt
+
+- Research title/grammar and project-heading failures remain separate and unchanged.
+- Next is an offline reproduction of the research title/sentence-form case, with
+  unsupported-research and wrong-person controls before any narrow repair. Do not
+  add a blanket `is` whitelist or claim later live affiliation gates already pass.
+- No new live verification, Research Fit/Nebius success, human quality labels,
+  cost measurement, or completion of remaining Week 4 requirements is claimed.
+- No live call, credential change, trace upload, private artifact mutation, commit,
+  or push is authorized in this bounded offline repair.
+
+## Week 4 step 3t — named academic specialisation grounding (2026-09-06)
+
+### Objective and prompt
+
+Reproduce the remaining research title/sentence rejection offline and repair only
+an explicitly supported specialisation form, retaining strict identity/source gates.
+[Prompt used](prompts/week4-3t-named-specialisation-grounding.md).
+
+### Files changed
+
+Research-context subject helper, shared private replay diagnostics, new synthetic
+domain/agent regression tests, README, runbook, triage, prompt, and this journal.
+Existing uncommitted steps 3q–3s and private source artifact are preserved.
+
+### Tests added and results
+
+- **94 new synthetic cases:** 56 domain/replay tests and 38 fake-agent tests.
+  They cover complete name/title/spelling variants, unsupported/generic/negated
+  sentences, real other people, all 15 existing identity-reference failure cases,
+  absent links/excerpts, wrong/repeated person headings, missing affiliation,
+  source/route eligibility, and unchanged non-research evidence handling.
+  Successful agent cases retain exact provenance/IDs, optional `not_stated`
+  availability, strict verification, one fake model call, and diagnostic-on/off
+  equivalence. No real source excerpt or subject is used in these fixtures.
+- Initial red command:
+  `venv/bin/pytest -o addopts='' -q --tb=short tests/unit/domain/test_named_specialisation_grounding.py`:
+  **14 failed, 42 passed in 0.23s** before the runtime change.
+- Initial post-repair focused run: **327 passed in 0.42s**. Final focused command:
+  `venv/bin/pytest -o addopts='' -q --tb=short tests/unit/domain/test_named_specialisation_grounding.py tests/unit/agents/test_named_specialisation_grounding.py tests/unit/domain/test_role_discipline_matching.py tests/unit/agents/test_role_discipline_grounding.py tests/unit/domain/test_profile_context_failure_reasons.py tests/unit/evaluation/test_grounding_replay.py`:
+  **425 passed in 0.74s**.
+- Independent read-only review found no blocking identity/source bypass;
+  its domain/agent/replay run reported **249 passed in 0.51s**.
+- Initial lint found one import-order error in the new domain test; it was fixed.
+  `venv/bin/ruff format --check .`: **326 files already formatted**.
+  `venv/bin/ruff check .`: **all checks passed**.
+  `venv/bin/mypy src tests scripts`: **no issues in 239 source files**.
+- Read-only private replay command:
+  `venv/bin/python -m scripts.replay_grounding artifacts/grounding-replays/faa43dd6-215e-4be0-8ad0-c6d8ecfde3c7.json`:
+  **two samples, zero matched, two changed, zero excluded**, exit **1**, as
+  expected when historical rejection reasons change. Both current reasons and
+  conflict matchers are `None`; the research prefix is now recognized.
+  This is excerpt-level success, not full evidence verification.
+- The artifact remains **1,012 bytes**, **0600**, inside a **0700** directory,
+  with matching before/after replay digests and its exact Git-ignore rule verified.
+  `git diff --check` passed.
+- `venv/bin/pytest -q --tb=short`: **2,490 passed, 9 deselected,
+  96 subtests passed in 26.61s**, **92.04% coverage** (90% floor).
+- Final documentation contracts:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py tests/contract/test_m6_evidence_verification_contract.py`:
+  **20 passed, 96 subtests passed in 0.10s**.
+
+### Assumptions and lessons learned
+
+- Structural inspection confirms an explicit academic specialisation relation,
+  not merely employment. Only generic grammar categories were emitted locally;
+  original names, topic lists, source URL, and full excerpt were not printed.
+- Title normalization must not bypass same-page identity binding or turn generic
+  named sentences into research evidence. Model output still needs source support.
+- The rule handles one observed explicit specialisation form plus its spelling
+  variant; it is not a general semantic entailment checker or expertise classifier.
+
+### Remaining debt
+
+- A passing excerpt replay is not complete verification; later affiliation fields,
+  project headings, live Research Fit/Nebius, reviewed quality and cost remain open.
+- Next: separately approve one bounded live canary to observe the complete gates
+  after these reproduced repairs. Do not automatically rerun or lower thresholds.
+- No new live calls, credential changes, trace upload, commit, or push.
+
+## Week 4 step 3u — post-grounding-repair live canary (2026-09-06)
+
+### Objective and prompt
+
+Observe the complete strict-verification boundary once after the two reproduced
+excerpt repairs, without changing any runtime gate or repeatedly calling providers.
+[Prompt used](prompts/week4-3u-post-grounding-repair-live-canary.md).
+
+### Files changed
+
+Documentation only: README, live-canary runbook, triage, prompt, and build journal.
+Existing runtime/test work from steps 3q–3t remains untouched and uncommitted.
+
+### Tests added and results
+
+No tests added for this observation. Preflight completed before the single
+network-approved live invocation; its result is recorded below.
+
+- All seven required settings loaders reported credential presence as `True`;
+  no secret value was printed, copied, or edited.
+- Independent read-only audit confirmed unchanged per-provider caps/timeouts,
+  disabled OpenAI/Nebius SDK retries, tracing suppression, and memory-only
+  synthetic approval. The command explicitly disables private capture.
+- `venv/bin/ruff format --check .`: **327 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 239 source files**.
+- `venv/bin/pytest -q --tb=short`: **2,490 passed, 9 deselected,
+  97 subtests passed in 26.81s**, **92.04% coverage** (90% floor).
+- Focused canary diagnostics/privacy/contracts:
+  `venv/bin/pytest -o addopts='' -q tests/unit/evaluation/test_live_canary_checks.py tests/unit/evaluation/test_live_canary_stages.py tests/unit/evaluation/test_live_canary_verification.py tests/unit/evaluation/test_live_canary_grounding.py tests/unit/evaluation/test_live_canary_context_diagnostics.py tests/unit/evaluation/test_private_canary_replay.py tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py tests/contract/test_m6_evidence_verification_contract.py`:
+  **101 passed, 97 subtests passed in 0.50s**. `git diff --check` passed.
+
+### Live command and result
+
+Executed once, after network approval, from `projects/scholar-path`:
+
+```bash
+SCHOLARPATH_RUN_LIVE_TESTS=true SCHOLARPATH_RUN_LIVE_CANARY=true \
+SCHOLARPATH_CAPTURE_GROUNDING_REPLAY=false \
+SCHOLARPATH_LIVE_CANARY_SUPERVISOR_NAME='Alan Woodward' \
+SCHOLARPATH_LIVE_CANARY_INSTITUTION='University of Surrey' \
+SCHOLARPATH_LIVE_CANARY_PROFILE_URL='https://www.surrey.ac.uk/people/alan-woodward' \
+LANGSMITH_TRACING=false SCHOLARPATH_LOG_LEVEL=WARNING \
+venv/bin/pytest -o addopts='' -q -rs -s --tb=no --show-capture=no \
+  --log-level=CRITICAL -m live tests/integration/test_m13_live_canary.py
+```
+
+- **1 failed in 22.19s**, exit **1**; safe elapsed **22.088s**.
+- **Six logical calls:** OpenAI planning 1, You.com 1, Tavily extraction 1,
+  OpenAI evidence 1, OpenAI Research Fit 1, Nebius 1. Tavily search 0.
+- All tracked stages completed with no failure category: evidence extraction,
+  strict verification, Research Fit input, and Research Fit evaluation.
+- Strict verification: no missing required evidence, zero unknown categories.
+  Retained/grounded: identity **1/1**, affiliation **1/1**, research **2/1**,
+  methodology **1/0**, publication **2/0**, project **1/0**, availability **0/0**.
+  Totals agree between extraction/final verification: **eight retained, three
+  grounded, five rejected**.
+- Rejections retained: research `profile_subject_mismatch` **1**, methodology
+  `context_subject_pattern_missing` **1**, publication `profile_subject_mismatch`
+  **2**, project `profile_subject_mismatch` **1**. They were not promoted merely
+  to make verification pass. No availability evidence was inferred.
+- Nebius was called, but current diagnostics do not expose review reconciliation,
+  synthesis, synthetic approval, or final assertion outcomes. The exact failing
+  post-fit boundary is unconfirmed. No valid review/final-shortlist claim is made.
+- No second live invocation, capture, private artifact read/write, Mem0 call,
+  durable graph/shortlist write, outreach, or tracing. Tokens/cost remain unknown.
+- Independent read-only result review confirmed that Nebius invocation is not
+  evidence of successful reconciliation, and proposal/approval must be called
+  unconfirmed rather than definitely unreached.
+- Final formatting, Ruff lint, and mypy passed again. Final command:
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py tests/contract/test_m6_evidence_verification_contract.py tests/unit/evaluation/test_live_canary_checks.py`:
+  **36 passed, 97 subtests passed in 0.16s**. `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- The continuation authorizes the proposed single canary subject to network
+  approval, not repeated runs or weakened gates.
+- Use the existing public known-profile target and synthetic Candidate only.
+  LangSmith and private capture are disabled explicitly. The test performs
+  synthetic approval in memory only if every preceding gate passes.
+- At most nine logical calls; timeouts remain per-call, not an overall elapsed or
+  currency budget. Tokens/cost are not inferred from elapsed time or call counts.
+- The repaired boundaries now permit strict verification in a live observation.
+  Varying source/model output means this does not prove identical excerpts recurred.
+- A model call counter is not a successful review outcome. Post-fit diagnostics
+  are needed before attributing failure to Nebius or tuning its configuration.
+
+### Remaining debt
+
+- Next: offline-tested, fixed-code outcomes for independent review and subsequent
+  synthesis/approval/check stages. Do not automatically rerun the live canary.
+- Diagnostic implementation caveat: the existing stage observer catches
+  `Exception`, but `pytest.fail` uses a different outcome base class. Record the
+  completed-review gate explicitly; do not misreport a failed gate as `started`
+  or broadly catch/obscure process interrupts.
+- Completed independent review, proposal/approval outcomes, quality labels,
+  measured cost, persisted graph/UI behaviour, and remaining Week 4 submission
+  requirements remain unconfirmed.
+- No Mem0, private capture/artifact mutation, trace upload, commit, or push.

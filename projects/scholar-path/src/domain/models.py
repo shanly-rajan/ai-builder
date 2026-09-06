@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from datetime import datetime
 from typing import Annotated, Any, Literal, Self
 from urllib.parse import unquote, urlsplit
@@ -113,6 +113,12 @@ _TITLED_PERSON_PATTERN = re.compile(
     r"(?:(?:[^\S\r\n]+(?:al|bin|da|de|del|di|la|le|van|von))?"
     r"[^\S\r\n]+[A-Z][A-Za-z'’-]*)*\b"
 )
+_COMPUTER_SCIENCE_ROLE_LABEL_PATTERN = re.compile(
+    # One observed complete role label, not a name prefix or a general discipline list.
+    # Keep Dr handling, extra name tokens, and line-wrapped names conservative.
+    r"(?:Prof|Professor)\.?[^\S\r\n]+Computer[^\S\r\n]+Science",
+    re.IGNORECASE,
+)
 _ACADEMIC_TITLE_PREFIX_PATTERN = re.compile(
     r"^(?:associate\s+professor|assistant\s+professor|professor\s+emerit(?:a|us)|"
     r"professor|prof\.?|dr\.?)\s+",
@@ -155,6 +161,10 @@ _PROFILE_CONTEXT_SUBJECT_PATTERN = re.compile(
 _RESEARCH_OVERVIEW_WRAPPER_PATTERN = re.compile(
     r"^\s*(?:#{1,6}[ \t]*)?research[ \t]+overview[ \t]*(?::[ \t]*|\r?\n)\s*",
     re.IGNORECASE,
+)
+_ACADEMIC_SPECIALISATION_RELATION_PATTERN = re.compile(
+    # One explicit expertise form; an employment role or bare "is" is insufficient.
+    r"^is an engineer and academic speciali[sz]ing in [^\W\d_]"
 )
 _PROFILE_SECTION_PREFIXES: dict[EvidenceClaimType, tuple[str, ...]] = {
     EvidenceClaimType.CURRENT_AFFILIATION: (
@@ -728,11 +738,24 @@ def _normalized_profile_excerpt(value: str) -> str:
     return normalized.lstrip(" #>*_-`•").lstrip()
 
 
+def _titled_person_matches(excerpt: str) -> Iterator[re.Match[str]]:
+    """Share exact role-label exclusion across grounding and replay diagnostics."""
+    # Stay within the observed single-line form: a wrapped name/particle may extend
+    # beyond the raw match, and must not be mistaken for this complete role label.
+    single_line = "\n" not in excerpt and "\r" not in excerpt
+    for match in _TITLED_PERSON_PATTERN.finditer(excerpt):
+        if (
+            not single_line
+            or _COMPUTER_SCIENCE_ROLE_LABEL_PATTERN.fullmatch(match.group(0)) is None
+        ):
+            yield match
+
+
 def _profile_context_has_conflicting_person(excerpt: str, asserted_name: str) -> bool:
     """Reject contextual ownership when an excerpt identifies somebody else."""
     titled_conflict = any(
         not supervisor_names_are_title_equivalent(match.group(0), asserted_name)
-        for match in _TITLED_PERSON_PATTERN.finditer(excerpt)
+        for match in _titled_person_matches(excerpt)
     )
     if titled_conflict:
         return True
@@ -752,21 +775,48 @@ def _profile_context_excerpt_failure(claim: EvidenceClaim) -> GroundingFailureRe
     """Recognize first-person, pronoun, or labelled sections on one official profile."""
     assert claim.asserted_name is not None
     assert claim.supporting_excerpt is not None
-    context_excerpt = claim.supporting_excerpt
-    if claim.claim_type is EvidenceClaimType.RESEARCH_INTEREST:
+    return profile_context_excerpt_failure(
+        claim.claim_type, claim.asserted_name, claim.supporting_excerpt
+    )
+
+
+def _named_academic_specialisation_prefix(excerpt: str, asserted_name: str) -> bool:
+    """Recognize one normalized owner-led relation, only for linked profile context."""
+    owner = _ACADEMIC_TITLE_PREFIX_PATTERN.sub(
+        "", _normalized_grounding_text(asserted_name), count=1
+    )
+    without_title = _ACADEMIC_TITLE_PREFIX_PATTERN.sub("", excerpt, count=1)
+    # Full literal name + a space: never accept a shortened or longer person's name.
+    if len(owner.split()) < 2 or not without_title.startswith(f"{owner} "):
+        return False
+    return (
+        _ACADEMIC_SPECIALISATION_RELATION_PATTERN.match(without_title[len(owner) + 1 :]) is not None
+    )
+
+
+def profile_context_excerpt_failure(
+    claim_type: EvidenceClaimType, asserted_name: str, supporting_excerpt: str
+) -> GroundingFailureReason | None:
+    """Replay only the excerpt-subject gate; success is not full evidence verification."""
+    context_excerpt = supporting_excerpt
+    if claim_type is EvidenceClaimType.RESEARCH_INTEREST:
         # A known heading can fall inside or immediately before the exact quote.
         # Remove one wrapper only for validation; the body still needs a subject
         # pattern and the stored source excerpt/provenance must remain untouched.
         context_excerpt = _RESEARCH_OVERVIEW_WRAPPER_PATTERN.sub("", context_excerpt, count=1)
-    if _profile_context_has_conflicting_person(context_excerpt, claim.asserted_name):
+    if _profile_context_has_conflicting_person(context_excerpt, asserted_name):
         return GroundingFailureReason.CONTEXT_CONFLICTING_PERSON
     excerpt = _normalized_profile_excerpt(context_excerpt)
-    if claim.claim_type is EvidenceClaimType.CURRENT_AFFILIATION:
+    if claim_type is EvidenceClaimType.CURRENT_AFFILIATION:
         # The affiliation-specific grounder separately requires both exact typed fields.
         return None
     if _PROFILE_CONTEXT_SUBJECT_PATTERN.match(excerpt):
         return None
-    if excerpt.startswith(_PROFILE_SECTION_PREFIXES.get(claim.claim_type, ())):
+    if excerpt.startswith(_PROFILE_SECTION_PREFIXES.get(claim_type, ())):
+        return None
+    if claim_type is EvidenceClaimType.RESEARCH_INTEREST and _named_academic_specialisation_prefix(
+        excerpt, asserted_name
+    ):
         return None
     return GroundingFailureReason.CONTEXT_SUBJECT_PATTERN_MISSING
 
@@ -806,7 +856,7 @@ def _excerpt_has_direct_supervisor_subject(claim: EvidenceClaim) -> bool:
             "",
             _normalized_grounding_text(match.group(0)).rstrip("."),
         )
-        for match in _TITLED_PERSON_PATTERN.finditer(claim.supporting_excerpt)
+        for match in _titled_person_matches(claim.supporting_excerpt)
     }
     if any(
         not supervisor_names_are_title_equivalent(person, claim.asserted_name)

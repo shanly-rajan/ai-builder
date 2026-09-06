@@ -50,6 +50,7 @@ From `projects/scholar-path`, with the project's existing ignored `.env` populat
 ```bash
 SCHOLARPATH_RUN_LIVE_TESTS=true \
 SCHOLARPATH_RUN_LIVE_CANARY=true \
+SCHOLARPATH_CAPTURE_GROUNDING_REPLAY=false \
 SCHOLARPATH_LIVE_CANARY_SUPERVISOR_NAME="Alan Woodward" \
 SCHOLARPATH_LIVE_CANARY_INSTITUTION="University of Surrey" \
 SCHOLARPATH_LIVE_CANARY_PROFILE_URL="https://www.surrey.ac.uk/people/alan-woodward" \
@@ -1001,6 +1002,371 @@ focused tests **75 passed in 0.42s**. Full offline suite: **2,144 passed,
 9 deselected, 92 subtests passed in 25.62s**, **91.95% coverage**. All required
 credential roles reported configured without exposing values. Independent
 read-only review confirmed execution limits and privacy boundaries.
+
+## Step 3q: private excerpt-replay preparation
+
+On **2026-09-06**, steps 3g–3p were checkpointed as `af115b6`. The next bounded
+change prepares a **default-off diagnostic**, not another matcher repair or live
+experiment. All examples tested in this step are synthetic. No real excerpt was
+captured, no provider was called, and the strict live verification failure remains
+unresolved.
+
+```text
+Existing evidence check -> unchanged rejection / unchanged verification outcome
+                       -> optional observer -> private local file (max 2 excerpts)
+                                             -> offline excerpt replay -> counts
+```
+
+### Capture and privacy boundaries
+
+- Only `context_conflicting_person` or `context_subject_pattern_missing`, and
+  only the first eligible affiliation/research excerpt per type (two total).
+- Each sample keeps exact excerpt text (maximum 1,200 characters), expected and
+  asserted Supervisor names, clean official HTTPS source URL/kind, claim type,
+  and observed reason. Full pages, claim prose, complete model outputs, Candidate
+  data, evidence IDs, and other claim types are not included.
+- Oversized or suspicious fields are excluded, **not truncated or rewritten**.
+  Recognizable email/credential patterns and source URLs with credentials,
+  queries, or fragments are rejected. This is data minimization, not a universal
+  personal-data detector: review artifacts privately before any sharing.
+- Files are limited to 16 KiB under ignored `artifacts/grounding-replays/` with
+  random filenames and `0600` permissions. The private directory is `0700`.
+  Symlink paths and overwrites are rejected; existing unrelated artifacts remain
+  untouched. No eligible sample means no file. This secure IO targets macOS/Linux
+  and fails closed if the required filesystem capabilities are unavailable.
+- The observer cannot change evidence, strict gates, or provider-call counts.
+  Capture failure is nonfatal. The normal `live_canary.summary` stays aggregate;
+  the additional opt-in event reports only status, counts, and a random filename.
+  No replay payload is added to traces or application logs.
+
+### Future single capture: explicit approval required
+
+Do **not** use this command as an automatic retry. After separately approving
+one live capture, run from `projects/scholar-path` with the existing credentials
+configured locally. All three opt-ins must be present in the process environment;
+placing the capture flag in `.env` alone does not enable it.
+
+```bash
+SCHOLARPATH_RUN_LIVE_TESTS=true \
+SCHOLARPATH_RUN_LIVE_CANARY=true \
+SCHOLARPATH_CAPTURE_GROUNDING_REPLAY=true \
+SCHOLARPATH_LIVE_CANARY_SUPERVISOR_NAME="Alan Woodward" \
+SCHOLARPATH_LIVE_CANARY_INSTITUTION="University of Surrey" \
+SCHOLARPATH_LIVE_CANARY_PROFILE_URL="https://www.surrey.ac.uk/people/alan-woodward" \
+LANGSMITH_TRACING=false SCHOLARPATH_LOG_LEVEL=WARNING \
+venv/bin/pytest -o addopts='' -q -rs -s --tb=no --show-capture=no \
+  --log-level=CRITICAL -m live tests/integration/test_m13_live_canary.py
+```
+
+The existing provider caps, target, strict policy, timeout clamps, and synthetic
+Candidate remain unchanged. A canary failure may still produce a private sample;
+capture itself is **not** a successful live verification result. If a sample is
+written, use only its emitted random filename for the next offline step:
+
+```bash
+venv/bin/python -m scripts.replay_grounding artifacts/grounding-replays/REPLACE-WITH-FILENAME.json
+```
+
+This command prints only counts and calls no model or network. `matched_count`
+means the original **rejection reason was reproduced**, not that a claim passed.
+Exit `0` means every captured reason was reproduced, `1` means a reason changed,
+and `2` means a safe argument/read/validation failure. The Python-only
+`replay_details()` helper offers private matcher-family/matched-span inspection;
+its derived text must not be pasted into public logs or traces.
+
+If an older strict editable installation cannot import the new module, refresh
+its local package links without downloading or changing dependencies:
+
+```bash
+venv/bin/python -m pip install -e . --no-deps --no-build-isolation --config-settings editable_mode=strict
+```
+
+Replay covers the excerpt-subject check only. It cannot reconstruct historical
+model output or prove page admission, affiliation fields, full verification,
+availability, or Research Fit. A later source-backed correction still needs
+negative controls and the normal regression suite.
+
+Offline checks for this preparation:
+
+```bash
+venv/bin/pytest -o addopts='' -q tests/unit/evaluation/test_grounding_replay.py tests/unit/evaluation/test_private_canary_replay.py
+```
+
+No live execution is needed for these tests. See the
+[build journal](build-journal.md#week-4-step-3q--checkpoint-and-private-excerpt-replay-preparation-2026-09-06)
+for final full-suite results. The new diagnostic work is not part of checkpoint
+`af115b6`; no second commit or push was made in this step.
+
+## Step 3r: live capture and offline replay result
+
+On **2026-09-06**, one approved invocation of the three-opt-in capture command
+returned **1 failed in 11.81s** (exit code 1); safe elapsed **11.709s**.
+There was no automatic retry or second invocation. The unchanged strict canary
+made four logical calls: OpenAI planning, You.com search, Tavily extraction, and
+OpenAI evidence extraction once each. Tavily search, OpenAI Research Fit, and
+Nebius were **not called**. Tokens and monetary cost remain unknown.
+
+```text
+Planning -> discovery -> page retrieval -> evidence extraction
+  -> strict verification: STOP (affiliation + research evidence not grounded)
+  -> private capture: 2 excerpts -> offline replay: 2 failures reproduced
+```
+
+### What the live run established
+
+Evidence extraction completed. Strict verification failed
+`missing_required_evidence` for `current_affiliation` and
+`research_interest_or_publication`. Unknown missing-category count was zero.
+Research Fit input/evaluation were both `not_reached`.
+
+| Claim type | Retained | Grounded | Rejection reason |
+| --- | ---: | ---: | --- |
+| Identity | 1 | 1 | None |
+| Current affiliation | 1 | 0 | `context_conflicting_person`: 1 |
+| Research interest | 1 | 0 | `context_subject_pattern_missing`: 1 |
+| Project | 3 | 0 | `profile_subject_mismatch`: 3 |
+| Publication, methodology, availability | 0 each | 0 each | None retained |
+
+Extraction/final-verification counts agree: six retained, one grounded, five
+rejected. Availability was not stated and was not a required verification gate.
+No Verified Supervisor, Research Fit assessment, independent review, proposal,
+or synthetic approval was reached.
+
+### Private capture and offline findings
+
+The observer wrote **two eligible samples, zero excluded**: one affiliation
+excerpt (70 characters) and one research excerpt (147 characters). The file is
+**1,012 bytes**, mode `0600`, in a `0700` directory covered by the existing
+`/artifacts/` ignore rule. No full page, Candidate content, claim prose, credentials,
+or complete model response was retained. Source text and matcher spans were not
+printed into the public report or copied into documentation/tests/traces.
+
+The offline CLI returned exit **0** with:
+
+```json
+{"sample_count":2,"matched_count":2,"changed_count":0,"excluded_count":0}
+```
+
+This means both **rejections reproduced**, not that either claim passed.
+Private local structural checks, emitting only fixed categories and booleans,
+established:
+
+- Affiliation: the `titled_person` matcher captured an academic title followed by
+  a discipline label as though it were another person's name. Its 26-character
+  match contained no line break. The expected/asserted names were title-equivalent.
+  This identifies a false-person match in this excerpt, not an actual affiliation
+  conflict. Later affiliation-field checks remain unproven.
+- Research: no conflicting-person matcher fired; no permitted contextual prefix
+  was recognized. The excerpt begins with the title-equivalent, untitled owner
+  name, while the asserted name includes an academic title. The direct-subject
+  check requires a literal normalized prefix and fails that comparison. A local
+  in-memory title-removal probe still failed because the sentence begins with
+  an `is` relation outside the current research-relation allowlist. Neither the
+  artifact nor production logic was modified. This describes parser restrictions;
+  it does not prove that every named sentence should qualify as research evidence.
+- The three project claims failed a separate page-subject check and were outside
+  the two-type capture scope. Do not infer their exact failure cause from this file.
+
+### Replay this observation without another provider call
+
+From `projects/scholar-path`, with the ignored file still present locally:
+
+```bash
+venv/bin/python -m scripts.replay_grounding artifacts/grounding-replays/faa43dd6-215e-4be0-8ad0-c6d8ecfde3c7.json
+```
+
+The random filename is only a local artifact locator. It carries no source identity
+and the file is deliberately not available from a fresh Git checkout. Do not upload
+it or add it to Git without a separate privacy review.
+
+### Next boundary and checks
+
+Prioritize a minimal offline role/discipline regression and a narrow false-person
+repair with real other-person controls. Replay the saved samples afterward before
+considering another live observation. Research grammar/title handling and project
+page-subject checks remain separate issues; do not relax the mandatory gates.
+
+Pre-run formatting (**320 files**), Ruff lint, and mypy (**235 source files**) passed.
+The full non-live suite passed: **2,320 passed, 9 deselected, 94 subtests passed in
+26.55s**, **92.00% coverage**. Independent read-only preflight review confirmed
+capture privacy, strict gates, timeouts, and the nine-logical-call ceiling.
+No runtime/test change, credential change, second live run, Mem0, persistent
+graph/shortlist write, outreach, trace upload, commit, or push in this step.
+
+## Step 3u: post-repair live result
+
+On **2026-09-06**, the single separately network-approved invocation of the exact
+command above returned **1 failed in 22.19s** (exit 1), safe elapsed **22.088s**.
+Private capture was explicitly `false`. There was no second invocation, new
+source artifact, private artifact read/write, or LangSmith upload.
+
+```text
+Planning -> You.com discovery -> Tavily page extraction -> OpenAI evidence
+  -> strict verification: PASS -> Research Fit input: PASS
+  -> OpenAI Research Fit evaluation: PASS -> Nebius: CALLED
+  -> canary FAIL: exact post-fit boundary not exposed by current summary
+```
+
+| Operation | Actual logical calls |
+| --- | ---: |
+| OpenAI planning | 1 |
+| You.com search | 1 |
+| Tavily fallback search | 0 |
+| Tavily extraction | 1 |
+| OpenAI evidence extraction | 1 |
+| OpenAI Research Fit | 1 |
+| Nebius independent review | 1 |
+| **Total** | **6** |
+
+All four tracked stages (`evidence_extraction`, `evidence_verification`,
+`research_fit_input`, `research_fit_evaluation`) reported **completed**, with
+null failure categories. Verification standard was **strict**, missing required
+evidence was **empty**, and unknown missing-category count was **zero**.
+
+| Claim type | Retained | Grounded | Rejection reason/count |
+| --- | ---: | ---: | --- |
+| Identity | 1 | 1 | None |
+| Current affiliation | 1 | 1 | None |
+| Research interest | 2 | 1 | `profile_subject_mismatch`: 1 |
+| Methodology | 1 | 0 | `context_subject_pattern_missing`: 1 |
+| Publication | 2 | 0 | `profile_subject_mismatch`: 2 |
+| Project | 1 | 0 | `profile_subject_mismatch`: 1 |
+| Availability | 0 | 0 | None retained |
+
+Extraction/final-verification counts agree: **eight retained, three grounded,
+five rejected**. Required identity, current affiliation, and research-interest
+evidence all exist, without promoting the rejected claims. Availability evidence
+was absent and did not block verification. Tokens and monetary cost are **unknown**.
+
+### What remains unconfirmed
+
+This establishes a live Verified Supervisor and completed Research Fit evaluation,
+not a useful score, successful independent review, or a final shortlist. Nebius's
+call counter proves an attempted call, not a validated/reconciled result. The test
+continues through review validation, proposal synthesis, synthetic approval, and
+final assertions after the last tracked stage. With tracebacks suppressed and
+no post-fit status fields, the actual failing boundary cannot be identified from
+this output. Do not label it a credential, timeout, model, or review failure yet.
+
+No Mem0 call, SQLite/graph persistence, durable shortlist write, outreach, or
+real Candidate approval occurred. The test's possible synthetic in-memory approval
+is not confirmed as reached. This remains a service-integration diagnostic, not
+the full UI/LangGraph workflow or a quality benchmark. Live source/model outputs
+can vary, so the new counts do not prove the exact same excerpt forms recurred.
+
+### Next bounded action and checks
+
+Add privacy-safe, offline-tested outcomes for independent review and later
+synthesis/approval/check boundaries, without changing their behaviour or provider
+budgets. Then separately approve one live observation if needed. Do not rerun
+until green or relax verification now that its required gates have passed.
+
+Pre-run validation: Ruff formatting **327 files**, lint pass, mypy **239 source
+files**, full default suite **2,490 passed, 9 deselected, 97 subtests passed in
+26.81s**, **92.04% coverage**. Focused canary/privacy/contracts: **101 passed,
+97 subtests passed in 0.50s**. See the [build journal](build-journal.md) for the
+recorded command and final checks. This step changes documentation only; existing
+runtime/test repairs remain uncommitted. No commit or push was made.
+
+## Step 3t: named-specialisation repair (offline)
+
+Structural inspection of the retained research sample confirmed an explicit
+academic specialisation relation after an untitled owner name. The new contextual
+rule recognizes only that affirmative relation (including its spelling variant)
+after the complete name. It leaves direct identity/name matching unchanged and
+still requires an official singular profile and same-source grounded identity.
+Generic employment, `is researching`, uncertain/negated statements, and other
+evidence categories do not gain acceptance through this rule.
+
+Synthetic tests replace the person, institution, URL, and research topics. They
+exercise strict verification, all invalid identity-reference cases, wrong-person
+headings, absent page excerpts, source eligibility, model-unsupported output,
+and diagnostic-on/off equivalence. Source text, IDs, timestamps, and confidence
+remain untouched. No live provider call, credential access, or trace upload occurred.
+
+Read-only replay:
+
+```bash
+venv/bin/python -m scripts.replay_grounding artifacts/grounding-replays/faa43dd6-215e-4be0-8ad0-c6d8ecfde3c7.json
+```
+
+Result: **two samples, zero matched, two changed, zero excluded**, exit **1**.
+This exit means historical rejection reasons changed, not a tool error. Both current
+excerpt reasons are now `None`. The ignored file remains **1,012 bytes**, mode
+**0600**, inside a **0700** directory; before/after replay digests match.
+
+**This is not complete verification or a live success.** The capture has no full
+page or typed affiliation fields. Later full gates must still pass; Research Fit
+and Nebius have not been reached by a new live run. A separately approved bounded
+canary is the next observation, with no automatic reruns. Exact offline commands
+and results are recorded in the [build journal](build-journal.md).
+
+## Step 3s: role-discipline repair (offline)
+
+On **2026-09-06**, the observed role/discipline false-person match was reproduced
+with synthetic names/institutions and repaired without a new live call. The
+initial domain regression showed **12 failed, 24 passed in 0.22s**: the positive
+role cases failed while existing other-person controls continued to reject.
+
+The change is deliberately narrow:
+
+```text
+Titled-name pattern -> shared complete-role filter -> existing grounding checks
+                            |
+                      same filter used by offline replay
+```
+
+Only the complete `Prof`/`Professor` computer-science role label (optional title
+period and horizontal spacing variants) is excluded from person matches, and only
+inside a **single-line excerpt**. This is not a growing list of inferred disciplines,
+a prefix exemption, or a change to identity/affiliation/research requirements.
+Direct checks, contextual checks, and replay diagnostics share the same helper.
+
+Independent review identified a wrapped-name risk in the first filter: a longer
+name can continue after a line break or surname particle beyond the regex's match.
+Eight added LF/CRLF extension cases reproduced that risk before the single-line
+bound was added. Those cases now retain conservative rejection, as do Doctor
+titles, longer same-line names, near-match labels, and actual other people before
+or after the role. Multiline role excerpts deliberately retain the old behavior;
+they were not the observed case and were not broadened in this repair.
+
+Synthetic fake-agent checks establish complete strict verification **only when**
+identity, current affiliation fields, and supported research are present. Exact
+excerpts, source URLs/kinds, retrieval timestamps, evidence IDs, and diagnostics
+remain consistent; availability stays `not_stated`. Each extraction uses one fake
+model call. Missing evidence, changed identity provenance, source ineligibility,
+unsupported claims, and the named-owner research `is` form still fail safely.
+
+### Saved replay result
+
+The same private file was read without modification. Its replay now reports:
+
+```json
+{"sample_count":2,"matched_count":1,"changed_count":1,"excluded_count":0}
+```
+
+| Captured check | Before | After |
+| --- | --- | --- |
+| Affiliation excerpt subject | `context_conflicting_person` | No excerpt-subject failure |
+| Research excerpt subject | `context_subject_pattern_missing` | Unchanged |
+
+The replay command documented in step 3r now exits **1** because one historical
+rejection changed; that is expected for this repair, not a CLI crash. The file is
+still 1,012 bytes, `0600`, and Git-ignored. Neither its source text nor identities
+were copied into the tests or this report. Only its generic role-label structure
+informed the synthetic fixtures.
+
+This proves that the captured false-person check clears, **not** that the real
+Supervisor satisfies every affiliation field or complete strict verification.
+The private replay does not contain all inputs for those later gates. Research
+title/grammar and project/page-subject handling remain unchanged. No live Research
+Fit/Nebius result, graph progression, or shortlist approval is claimed.
+
+Next is a bounded offline reproduction of the research title/sentence-form case,
+not another automatic live run or a broad `is` relation exception. See the
+[build journal](build-journal.md#week-4-step-3s--rolediscipline-false-person-repair-2026-09-06)
+for full test results. No credential change, live provider call, trace upload,
+private artifact mutation, commit, or push in this step.
 
 ## Interpretation and remaining work
 

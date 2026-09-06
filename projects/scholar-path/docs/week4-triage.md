@@ -418,6 +418,71 @@ Only documentation changed; no automatic rerun, commit, push, Mem0, trace upload
 or persistent shortlist write. Remaining dataset, quality, cost, and submission
 requirements are not declared complete.
 
+## Step 3s: observed role/discipline conflict repaired offline
+
+The [bounded repair](week4-live-canary.md#step-3s-role-discipline-repair-offline)
+shares one deterministic role-label filter across direct/contextual grounding and
+private replay. It skips only the complete known professorial discipline label
+inside a single-line excerpt. Extra name tokens, Doctor titles, real other people,
+and line-wrapped names/particles keep their previous conservative treatment.
+
+The saved affiliation excerpt's conflict clears in offline replay; the research
+excerpt retains its original rejection. Strict fake examples with identity,
+affiliation fields, and supported research now verify. Tests still reject missing
+evidence, changed provenance, unsupported model claims, and other-person conflicts.
+No live provider was called and the private capture was not changed or committed.
+
+**Next bounded priority:** reproduce the research title-prefix and sentence-form
+case offline, using minimal synthetic text and negative controls. Inspect whether
+the sentence actually states a supported research relation before proposing a
+narrow change; do not whitelist every sentence beginning with a name or `is`.
+The real affiliation's later field checks, project-heading failures, live Research
+Fit/Nebius, reviewed labels, and submission quality/cost metrics remain unproven.
+
+## Step 3t: named academic specialisation repaired offline
+
+The remaining research excerpt has an explicit specialisation relation. A narrow
+research-only contextual rule now recognizes its complete owner name with or
+without an academic title. It does not whitelist all `is` sentences, change direct
+identity matching, relax source requirements, or alter any verification threshold.
+
+Both saved excerpt checks now clear in read-only replay. Synthetic complete-evidence
+cases verify strictly; negative controls still fail for missing identity/affiliation,
+different people/pages, unsupported model output, and incomplete source excerpts.
+The private source text remains ignored and has not been copied into regression
+fixtures or documentation. No provider was called.
+
+**Next bounded priority:** separately approve one tightly limited live canary to
+observe the remaining full-verification gates after these two reproduced repairs.
+Do not repeatedly rerun services or assume excerpt success establishes affiliation
+fields, research scores, or Nebius review. The reviewed dataset, quality/cost metrics,
+project-heading debt, and remaining submission requirements stay open.
+See the [runbook](week4-live-canary.md#step-3t-named-specialisation-repair-offline)
+and [build journal](build-journal.md) for exact offline results.
+
+## Step 3u: strict live verification and Research Fit reached
+
+One separately approved live observation returned **1 failed in 22.19s**, with
+**six logical calls**. Unlike the previous observation, strict identity,
+affiliation, and research evidence passed; Research Fit input and evaluation
+completed, and Nebius was called once. No fallback search was needed.
+
+The failed test is not a successful end-to-end canary. Current diagnostics stop at
+Research Fit evaluation, so they cannot distinguish an unavailable/invalid Nebius
+review from a later proposal, synthetic approval, or assertion failure. Do not
+infer that review was unavailable or tune credentials/model settings from this
+summary alone. No rerun or further runtime change was made.
+
+**Next bounded priority:** add offline-tested, privacy-safe outcomes for independent
+review and the later synthesis/approval/check boundaries. Use fixed status/failure
+codes and counts only, preserve existing behaviour/call limits, and prove that
+each failure is located without leaking model output or exception text. Only after
+that should another single live observation be considered for separate approval.
+
+No human relevance labels, model quality/cost result, persisted graph/UI completion,
+or completion of all Week 4 requirements is claimed. Exact counts and validation
+are in the [runbook](week4-live-canary.md#step-3u-post-repair-live-result).
+
 ## Step 3o: two excerpt false rejections repaired offline
 
 The [fixed reproduction](week4-live-canary.md#step-3o-excerpt-boundary-repair-offline)
@@ -463,3 +528,50 @@ Pre-run suite: **2,144 passed, 9 deselected, 92 subtests passed in 25.62s**,
 Only documentation changed. Strict gates, public target, model settings, and
 provider limits were preserved. No commit, push, Mem0, trace upload, or persistent
 shortlist write. Quality, reviewed dataset, cost, and submission work remain open.
+
+## Step 3q: prepare a minimal private replay before further tuning
+
+Checkpoint `af115b6` preserves steps 3g–3p. The new
+[private diagnostic](week4-live-canary.md#step-3q-private-excerpt-replay-preparation)
+adds an optional observer and offline replay of the **unchanged** excerpt checks.
+It is tested using fixed synthetic inputs; no live invocation or actual source
+excerpt was captured. This diagnostic work remains separate from that commit.
+
+The bounded capture admits at most one rejected affiliation and one rejected
+research excerpt, preserves their exact wording, and writes only a new ignored
+private file. Three explicit flags are required for canary capture; ordinary
+application runs do not attach the observer. Logs/CLI output show counts only.
+
+Next: separately approve one capture under this privacy scope, inspect its exact
+matcher locally, and add a source-backed regression if it reveals a false rejection.
+Do not infer success from replaying a rejection, broaden verification, or repeatedly
+rerun live services. Live Research Fit/Nebius, reviewed labels, measured quality/cost,
+and remaining submission requirements are still unresolved.
+
+## Step 3r: live rejection reproduced without exposing source text
+
+The [single approved capture](week4-live-canary.md#step-3r-live-capture-and-offline-replay-result)
+returned **1 failed in 11.81s**, four logical calls, and two eligible private
+excerpts. Both excerpt checks reproduced their observed failures offline.
+Identity was grounded; strict affiliation/research requirements remained unmet.
+Research Fit and Nebius were not reached. No second live invocation was made.
+
+The affiliation case now identifies a concrete false-person match: a role/discipline
+label was consumed as a titled person's name. Research is a separate case: the
+asserted name contains an academic title, the excerpt's owner prefix does not, and
+the remaining sentence form is outside the existing research-relation allowlist.
+An in-memory title-only adjustment still fails. This is not proof that all factual
+requirements would pass after either change.
+
+**Next bounded priority:** turn the role/discipline case into a privacy-reviewed
+minimal offline regression, retain true different-person negative controls, and
+repair only that false-person boundary. Then replay both samples to measure the
+actual effect. Keep the research grammar and project-heading issues visible as
+separate debt; do not accept all named sentences or lower evidence requirements.
+
+The source text remains in an ignored private `0600` artifact inside a `0700`
+directory. It was not copied into documentation, tests, traces, or application logs.
+No runtime code was changed in this observation. Pre-run validation: **2,320 passed,
+9 deselected, 94 subtests passed in 26.55s**, **92.00% coverage**, with formatting,
+lint, and mypy passing. Live quality, reviewed labels, cost, and other submission
+requirements are not declared complete.

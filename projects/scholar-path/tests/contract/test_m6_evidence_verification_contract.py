@@ -45,10 +45,12 @@ def test_m6_exposes_typed_provider_and_model_ports() -> None:
         "extracted_content",
         "source_kind",
         "diagnostics",
+        "rejected_excerpt_observer",
     }
     # Existing positional callers remain compatible; diagnostics are opt-in only.
-    assert parameters["diagnostics"].kind is inspect.Parameter.KEYWORD_ONLY
-    assert parameters["diagnostics"].default is None
+    for name in ("diagnostics", "rejected_excerpt_observer"):
+        assert parameters[name].kind is inspect.Parameter.KEYWORD_ONLY
+        assert parameters[name].default is None
 
 
 def test_m6_uses_official_tavily_extract_without_community_or_private_imports() -> None:

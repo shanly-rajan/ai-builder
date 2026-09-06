@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
+from pathlib import Path
 from time import monotonic
 from typing import TypedDict
 
@@ -45,6 +46,7 @@ from scholarpath.agents.evidence_verification import (
     EvidenceGroundingSummary,
     EvidenceModelInvocationError,
     EvidenceModelOutputError,
+    RejectedExcerptObserver,
 )
 from scholarpath.agents.nebius_review import NebiusReviewModelAdapter
 from scholarpath.agents.research_fit import ResearchFitEvaluationError, ResearchFitFailureKind
@@ -83,6 +85,11 @@ from scholarpath.domain import (
     is_singular_person_profile_url,
     supervisor_names_are_title_equivalent,
 )
+from scholarpath.evaluation.grounding_replay import (
+    PrivateReplayError,
+    RejectedExcerptCapture,
+    write_private_replay,
+)
 from scholarpath.graph.verification import classify_evidence_source_kind
 from scholarpath.observability import LangSmithObservability
 from scholarpath.tools import (
@@ -95,6 +102,7 @@ from scholarpath.tools import (
 )
 
 _HTTP_URL_ADAPTER = TypeAdapter(HttpUrl)
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _LIVE_FLAGS = ("SCHOLARPATH_RUN_LIVE_TESTS", "SCHOLARPATH_RUN_LIVE_CANARY")
 _TARGET_SETTINGS = (
     "SCHOLARPATH_LIVE_CANARY_SUPERVISOR_NAME",
@@ -454,6 +462,8 @@ def _verify_and_evaluate(
     evidence_model: EvidenceVerificationModelPort,
     research_fit_model: ResearchFitModelPort,
     budget: _CallBudget,
+    *,
+    rejected_excerpt_observer: RejectedExcerptObserver | None = None,
 ) -> tuple[VerifiedSupervisor, ResearchFitAssessment]:
     """Observe the existing pipeline without weakening gates or adding model calls."""
     evidence_agent = EvidenceVerificationAgent(evidence_model)
@@ -463,7 +473,11 @@ def _verify_and_evaluate(
             extracted_content.source_url, title=prospective.full_name
         )
         claims = evidence_agent.extract_claims(
-            prospective, extracted_content, source_kind, diagnostics=grounding_diagnostics
+            prospective,
+            extracted_content,
+            source_kind,
+            diagnostics=grounding_diagnostics,
+            rejected_excerpt_observer=rejected_excerpt_observer,
         )
         budget.grounding_diagnostics = grounding_diagnostics.summary()
     with budget.observe(_CanaryStage.EVIDENCE_VERIFICATION):
@@ -481,6 +495,37 @@ def _verify_and_evaluate(
     with budget.observe(_CanaryStage.RESEARCH_FIT_EVALUATION):
         assessment = ResearchFitEvaluationAgent(research_fit_model).evaluate(profile, verified)
     return verified, assessment
+
+
+def _configured_private_capture() -> RejectedExcerptCapture | None:
+    """Capture needs all three explicit environment opt-ins, not .env defaults."""
+    if all(_enabled(flag) for flag in (*_LIVE_FLAGS, "SCHOLARPATH_CAPTURE_GROUNDING_REPLAY")):
+        return RejectedExcerptCapture(origin="live_canary")
+    return None
+
+
+def _save_private_replay(
+    capture: RejectedExcerptCapture, *, project_root: Path = _PROJECT_ROOT
+) -> None:
+    """Write only explicitly opted-in minimized excerpts; stdout remains payload-free."""
+    try:
+        output_path = write_private_replay(capture, project_root)
+        summary = {
+            "event": "live_canary.replay_capture",
+            "status": "written" if output_path is not None else "not_written",
+            "sample_count": len(capture.snapshot().samples),
+            "excluded_count": capture.snapshot().excluded_count,
+            "file_name": output_path.name if output_path is not None else None,
+        }
+    except (PrivateReplayError, OSError, ValueError):
+        summary = {
+            "event": "live_canary.replay_capture",
+            "status": "unavailable",
+            "sample_count": 0,
+            "excluded_count": capture.snapshot().excluded_count,
+            "file_name": None,
+        }
+    print(json.dumps(summary, sort_keys=True))
 
 
 @pytest.mark.live
@@ -551,6 +596,7 @@ def test_live_vertical_canary_stays_within_provider_call_budgets(
         )
 
     budget = live_canary_budget
+    capture = _configured_private_capture()
     planning_configuration = planning_settings.for_planning_model().model_copy(
         update={"timeout_seconds": min(planning_settings.planning_timeout_seconds, 60.0)}
     )
@@ -664,9 +710,19 @@ def test_live_vertical_canary_stays_within_provider_call_budgets(
             )
 
         extracted_content = content_extractor.extract(prospective.profile_url)
-        verified, assessment = _verify_and_evaluate(
-            profile, prospective, extracted_content, evidence_model, research_fit_model, budget
-        )
+        try:
+            verified, assessment = _verify_and_evaluate(
+                profile,
+                prospective,
+                extracted_content,
+                evidence_model,
+                research_fit_model,
+                budget,
+                rejected_excerpt_observer=capture,
+            )
+        finally:
+            if capture is not None:
+                _save_private_replay(capture)
         reviewed = IndependentReviewAgent(review_model).review(profile, verified, assessment)
         _require_completed_review(reviewed)
         proposal = ShortlistSynthesisAgent(max_results=1).synthesize(

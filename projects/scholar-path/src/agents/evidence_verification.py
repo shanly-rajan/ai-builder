@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 from collections import Counter
+from contextlib import suppress
 from typing import Annotated, Protocol, Self, TypedDict
 
 from pydantic import (
@@ -54,6 +55,16 @@ class EvidenceGroundingSummary(TypedDict):
     retained_claim_counts: dict[str, int]
     grounded_claim_counts: dict[str, int]
     rejection_counts: dict[str, dict[str, int]]
+
+
+class RejectedExcerptObserver(Protocol):
+    """Explicit private diagnostic sink, never enabled by production graph wiring."""
+
+    def observe(
+        self, *, expected_name: str, claim: EvidenceClaim, failure: GroundingFailureReason
+    ) -> None:
+        """Observe a retained excerpt failure without changing the evidence."""
+        ...
 
 
 class EvidenceGroundingDiagnostics:
@@ -485,6 +496,7 @@ class EvidenceVerificationAgent:
         source_kind: SourceKind,
         *,
         diagnostics: EvidenceGroundingDiagnostics | None = None,
+        rejected_excerpt_observer: RejectedExcerptObserver | None = None,
     ) -> tuple[EvidenceClaim, ...]:
         """Bind grounded claim drafts to system-owned identifiers and provenance."""
         extraction_input = EvidenceExtractionInput(
@@ -689,12 +701,31 @@ class EvidenceVerificationAgent:
                     }
                 )
             )
+            if not draft.directly_supported:
+                grounding_failure = GroundingFailureReason.MODEL_NOT_DIRECTLY_SUPPORTED
+            elif not grounded_identity_claims:
+                grounding_failure = GroundingFailureReason.GROUNDED_IDENTITY_MISSING
             if diagnostics is not None:
-                if not draft.directly_supported:
-                    grounding_failure = GroundingFailureReason.MODEL_NOT_DIRECTLY_SUPPORTED
-                elif not grounded_identity_claims:
-                    grounding_failure = GroundingFailureReason.GROUNDED_IDENTITY_MISSING
                 diagnostics.record(draft.claim_type, grounding_failure)
+            if (
+                rejected_excerpt_observer is not None
+                and draft.claim_type
+                in {EvidenceClaimType.CURRENT_AFFILIATION, EvidenceClaimType.RESEARCH_INTEREST}
+                and grounding_failure
+                in {
+                    GroundingFailureReason.CONTEXT_CONFLICTING_PERSON,
+                    GroundingFailureReason.CONTEXT_SUBJECT_PATTERN_MISSING,
+                }
+            ):
+                assert grounding_failure is not None
+                # A private diagnostic failure must neither alter verification
+                # nor expose its payload through an exception or log message.
+                with suppress(Exception):
+                    rejected_excerpt_observer.observe(
+                        expected_name=supervisor.full_name,
+                        claim=claims[-1],
+                        failure=grounding_failure,
+                    )
         return tuple(claims)
 
     def build_verification_record(

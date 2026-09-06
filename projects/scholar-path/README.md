@@ -2028,3 +2028,44 @@ Research Fit and Nebius were not called. Do not infer a live fix from passing
 synthetic cases or continue tuning from counts alone. Next proposed work is a
 separately scoped minimal source-excerpt replay, not another blind rerun. See the
 [recorded result and privacy boundary](docs/week4-live-canary.md#step-3p-post-excerpt-repair-live-result).
+
+Step 3q checkpointed steps 3g–3p as `af115b6` and prepared an **opt-in private
+excerpt replay**. It can retain at most one rejected affiliation excerpt and one
+rejected research excerpt in an ignored local file, then replay the existing
+excerpt checks offline. Default runs capture nothing; logs still contain counts
+only. This preparation made no live calls and does not resolve the live failure.
+See the [privacy scope and commands](docs/week4-live-canary.md#step-3q-private-excerpt-replay-preparation).
+
+Step 3r ran one approved capture: **1 failed in 11.81s**, four logical provider
+calls, with two private excerpts retained. Both rejection reasons reproduced
+offline. The affiliation matcher mistook an academic role/discipline label for a
+different person's name. The research excerpt also encountered title-prefix and
+sentence-form restrictions; removing the title alone did not pass the direct
+subject check. Strict verification still failed; Research Fit and Nebius were not
+called. Next is a source-backed, offline role/person regression and narrow repair,
+not another live rerun. See the
+[observed result and limits](docs/week4-live-canary.md#step-3r-live-capture-and-offline-replay-result).
+
+Step 3s repairs the observed role/discipline false-person match offline. A complete
+known professorial role label is excluded only in a single-line excerpt; longer
+names, wrapped names, Doctor titles, and actual other people remain protected.
+The saved affiliation excerpt now clears that one check, while the research
+rejection is unchanged. Synthetic complete-evidence examples verify strictly;
+this is not a new live success. See the
+[repair, replay, and remaining boundary](docs/week4-live-canary.md#step-3s-role-discipline-repair-offline).
+
+Step 3t repairs the remaining named academic-specialisation sentence offline.
+The complete owner name may omit its academic title, but acceptance still requires
+the official single-person profile and same-page grounded identity. Generic `is`
+statements and other evidence types are unchanged. Both saved excerpt checks now
+clear; this is **not** a new live verification or Research Fit/Nebius result.
+See the [replay and limitations](docs/week4-live-canary.md#step-3t-named-specialisation-repair-offline).
+
+Step 3u's single live canary now **passes strict evidence verification and Research
+Fit evaluation**, and reaches a real Nebius call. The overall canary still fails
+after those tracked stages: its aggregate output cannot identify whether review
+reconciliation or a later shortlist/assertion check failed. Six logical calls were
+attempted in 22.088 seconds; no automatic rerun, relaxed gate, tracing, or private
+capture was used. Completed independent review and end-to-end success are **not**
+claimed. Next is a small offline extension to the post-fit stage diagnostics.
+See the [observed result](docs/week4-live-canary.md#step-3u-post-repair-live-result).
