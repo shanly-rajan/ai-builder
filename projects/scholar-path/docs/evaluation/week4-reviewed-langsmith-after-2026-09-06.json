@@ -1,0 +1,2878 @@
+{
+  "experiment_name": "scholarpath-week4-reviewed-upload-m13-b804f2f2",
+  "example_count": 30,
+  "failed_example_count": 0,
+  "failures": [],
+  "runtime_budget": {
+    "fake_target_p95_seconds": 5,
+    "component_port_invocations": 2,
+    "graph_port_invocations": 40
+  },
+  "runtime_cases": [
+    {
+      "scenario_id": "strong-research-alignment",
+      "target": "research_fit",
+      "measurement": {
+        "target_seconds": 0.01457,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "superficial-keyword-poor-fit",
+      "target": "research_fit",
+      "measurement": {
+        "target_seconds": 0.007324,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "availability-not-stated",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.006724,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "conflicting-institutional-affiliation",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.008364,
+        "evaluator_seconds": null,
+        "port_invocations": 2
+      }
+    },
+    {
+      "scenario_id": "duplicate-supervisor-multiple-queries",
+      "target": "graph_fake",
+      "measurement": {
+        "target_seconds": 0.142125,
+        "evaluator_seconds": null,
+        "port_invocations": 38
+      }
+    },
+    {
+      "scenario_id": "you-timeout-tavily-fallback",
+      "target": "graph_fake",
+      "measurement": {
+        "target_seconds": 0.055701,
+        "evaluator_seconds": null,
+        "port_invocations": 31
+      }
+    },
+    {
+      "scenario_id": "evidence-extraction-failure",
+      "target": "graph_fake",
+      "measurement": {
+        "target_seconds": 0.060711,
+        "evaluator_seconds": null,
+        "port_invocations": 36
+      }
+    },
+    {
+      "scenario_id": "independent-reviewer-disagreement",
+      "target": "graph_fake",
+      "measurement": {
+        "target_seconds": 0.057164,
+        "evaluator_seconds": null,
+        "port_invocations": 38
+      }
+    },
+    {
+      "scenario_id": "candidate-rejects-highly-theoretical",
+      "target": "graph_fake",
+      "measurement": {
+        "target_seconds": 0.085118,
+        "evaluator_seconds": null,
+        "port_invocations": 39
+      }
+    },
+    {
+      "scenario_id": "approval-required-before-persistence",
+      "target": "graph_fake",
+      "measurement": {
+        "target_seconds": 0.058003,
+        "evaluator_seconds": null,
+        "port_invocations": 38
+      }
+    },
+    {
+      "scenario_id": "planning-source-coverage",
+      "target": "search_planning",
+      "measurement": {
+        "target_seconds": 0.001145,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-confirmed-accepting",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.007916,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-confirmed-not-accepting",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.004929,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-markdown-identity",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.004729,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-honorific-identity",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.004786,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-line-wrapped-affiliation",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.004541,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-publication-only",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.004537,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-heading-bound-research",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.0051,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-missing-identity",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.004182,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-missing-affiliation",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.004339,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-missing-research",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.004627,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-publication-year-not-stated",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.004814,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-availability-without-statement",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.004896,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-off-page-excerpt",
+      "target": "evidence_verification",
+      "measurement": {
+        "target_seconds": 0.004324,
+        "evaluator_seconds": null,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-graph-approve-one",
+      "target": "graph_fake",
+      "measurement": {
+        "target_seconds": 0.080598,
+        "evaluator_seconds": null,
+        "port_invocations": 39
+      }
+    },
+    {
+      "scenario_id": "draft-graph-approve-subset",
+      "target": "graph_fake",
+      "measurement": {
+        "target_seconds": 0.078927,
+        "evaluator_seconds": null,
+        "port_invocations": 39
+      }
+    },
+    {
+      "scenario_id": "draft-graph-request-more",
+      "target": "graph_fake",
+      "measurement": {
+        "target_seconds": 0.108627,
+        "evaluator_seconds": null,
+        "port_invocations": 76
+      }
+    },
+    {
+      "scenario_id": "draft-graph-reject-then-approve",
+      "target": "graph_fake",
+      "measurement": {
+        "target_seconds": 0.105879,
+        "evaluator_seconds": null,
+        "port_invocations": 40
+      }
+    },
+    {
+      "scenario_id": "draft-graph-review-timeout",
+      "target": "graph_fake",
+      "measurement": {
+        "target_seconds": 0.057258,
+        "evaluator_seconds": null,
+        "port_invocations": 38
+      }
+    },
+    {
+      "scenario_id": "draft-graph-review-malformed",
+      "target": "graph_fake",
+      "measurement": {
+        "target_seconds": 0.058216,
+        "evaluator_seconds": null,
+        "port_invocations": 38
+      }
+    }
+  ],
+  "runtime_summaries": [
+    {
+      "target": "evidence_verification",
+      "case_count": 15,
+      "latency_sample_count": 15,
+      "median_target_seconds": 0.004786,
+      "p95_target_seconds": 0.008364,
+      "latency_budget_seconds": 5,
+      "latency_budget_passed": true,
+      "invocation_sample_count": 15,
+      "maximum_port_invocations": 2,
+      "invocation_budget": 2,
+      "invocation_budget_passed": true
+    },
+    {
+      "target": "graph_fake",
+      "case_count": 12,
+      "latency_sample_count": 12,
+      "median_target_seconds": 0.06981899999999999,
+      "p95_target_seconds": 0.142125,
+      "latency_budget_seconds": 5,
+      "latency_budget_passed": true,
+      "invocation_sample_count": 12,
+      "maximum_port_invocations": 76,
+      "invocation_budget": 40,
+      "invocation_budget_passed": false
+    },
+    {
+      "target": "research_fit",
+      "case_count": 2,
+      "latency_sample_count": 2,
+      "median_target_seconds": 0.010947,
+      "p95_target_seconds": 0.01457,
+      "latency_budget_seconds": 5,
+      "latency_budget_passed": true,
+      "invocation_sample_count": 2,
+      "maximum_port_invocations": 1,
+      "invocation_budget": 2,
+      "invocation_budget_passed": true
+    },
+    {
+      "target": "search_planning",
+      "case_count": 1,
+      "latency_sample_count": 1,
+      "median_target_seconds": 0.001145,
+      "p95_target_seconds": 0.001145,
+      "latency_budget_seconds": 5,
+      "latency_budget_passed": true,
+      "invocation_sample_count": 1,
+      "maximum_port_invocations": 1,
+      "invocation_budget": 2,
+      "invocation_budget_passed": true
+    }
+  ],
+  "run_references": [
+    {
+      "run_id": "01a07809-24f3-7212-9049-c7be66d18e20",
+      "trace_id": "01a07809-24f3-7212-9049-c7be66d18e20",
+      "start_time": "2026-09-06T18:44:20.339342Z"
+    },
+    {
+      "run_id": "01a07809-250b-7b32-8312-87c55e848e9e",
+      "trace_id": "01a07809-250b-7b32-8312-87c55e848e9e",
+      "start_time": "2026-09-06T18:44:20.363181Z"
+    },
+    {
+      "run_id": "01a07809-2517-7390-9740-bcdff4168dd2",
+      "trace_id": "01a07809-2517-7390-9740-bcdff4168dd2",
+      "start_time": "2026-09-06T18:44:20.375582Z"
+    },
+    {
+      "run_id": "01a07809-2521-7082-9f40-edc376f66b71",
+      "trace_id": "01a07809-2521-7082-9f40-edc376f66b71",
+      "start_time": "2026-09-06T18:44:20.385816Z"
+    },
+    {
+      "run_id": "01a07809-252d-7372-b51b-9fe3e9a0a389",
+      "trace_id": "01a07809-252d-7372-b51b-9fe3e9a0a389",
+      "start_time": "2026-09-06T18:44:20.397451Z"
+    },
+    {
+      "run_id": "01a07809-25c9-79c1-a9d0-bd3656f64e14",
+      "trace_id": "01a07809-25c9-79c1-a9d0-bd3656f64e14",
+      "start_time": "2026-09-06T18:44:20.553651Z"
+    },
+    {
+      "run_id": "01a07809-260c-7d53-a01f-df26f95e8607",
+      "trace_id": "01a07809-260c-7d53-a01f-df26f95e8607",
+      "start_time": "2026-09-06T18:44:20.620521Z"
+    },
+    {
+      "run_id": "01a07809-2655-7d51-add0-214ae9933458",
+      "trace_id": "01a07809-2655-7d51-add0-214ae9933458",
+      "start_time": "2026-09-06T18:44:20.693371Z"
+    },
+    {
+      "run_id": "01a07809-269c-7040-8559-7018b52f2491",
+      "trace_id": "01a07809-269c-7040-8559-7018b52f2491",
+      "start_time": "2026-09-06T18:44:20.764188Z"
+    },
+    {
+      "run_id": "01a07809-26ff-7e32-ac75-d658f16d7d75",
+      "trace_id": "01a07809-26ff-7e32-ac75-d658f16d7d75",
+      "start_time": "2026-09-06T18:44:20.863039Z"
+    },
+    {
+      "run_id": "01a07809-2746-73a1-8f35-6984569e4cfc",
+      "trace_id": "01a07809-2746-73a1-8f35-6984569e4cfc",
+      "start_time": "2026-09-06T18:44:20.934830Z"
+    },
+    {
+      "run_id": "01a07809-274a-7c32-802a-bf975424fcd6",
+      "trace_id": "01a07809-274a-7c32-802a-bf975424fcd6",
+      "start_time": "2026-09-06T18:44:20.938070Z"
+    },
+    {
+      "run_id": "01a07809-2754-78d3-b80a-aa32901007d6",
+      "trace_id": "01a07809-2754-78d3-b80a-aa32901007d6",
+      "start_time": "2026-09-06T18:44:20.948597Z"
+    },
+    {
+      "run_id": "01a07809-275c-77e2-81f0-de1c9fd4b462",
+      "trace_id": "01a07809-275c-77e2-81f0-de1c9fd4b462",
+      "start_time": "2026-09-06T18:44:20.956107Z"
+    },
+    {
+      "run_id": "01a07809-2763-7003-b779-78a511936665",
+      "trace_id": "01a07809-2763-7003-b779-78a511936665",
+      "start_time": "2026-09-06T18:44:20.963355Z"
+    },
+    {
+      "run_id": "01a07809-276a-7ba1-af0a-7f884abc5156",
+      "trace_id": "01a07809-276a-7ba1-af0a-7f884abc5156",
+      "start_time": "2026-09-06T18:44:20.970862Z"
+    },
+    {
+      "run_id": "01a07809-2772-72c3-8399-76e51233675d",
+      "trace_id": "01a07809-2772-72c3-8399-76e51233675d",
+      "start_time": "2026-09-06T18:44:20.978235Z"
+    },
+    {
+      "run_id": "01a07809-2779-7862-bd98-5162521a4ad8",
+      "trace_id": "01a07809-2779-7862-bd98-5162521a4ad8",
+      "start_time": "2026-09-06T18:44:20.985223Z"
+    },
+    {
+      "run_id": "01a07809-2781-7d70-ae29-4e8b652ec13b",
+      "trace_id": "01a07809-2781-7d70-ae29-4e8b652ec13b",
+      "start_time": "2026-09-06T18:44:20.993075Z"
+    },
+    {
+      "run_id": "01a07809-2787-7281-8c77-a250cc9630ae",
+      "trace_id": "01a07809-2787-7281-8c77-a250cc9630ae",
+      "start_time": "2026-09-06T18:44:20.999665Z"
+    },
+    {
+      "run_id": "01a07809-278e-74d0-9a21-74f8bcbb9ca3",
+      "trace_id": "01a07809-278e-74d0-9a21-74f8bcbb9ca3",
+      "start_time": "2026-09-06T18:44:21.006513Z"
+    },
+    {
+      "run_id": "01a07809-2796-7f53-84f8-2cf7572db02d",
+      "trace_id": "01a07809-2796-7f53-84f8-2cf7572db02d",
+      "start_time": "2026-09-06T18:44:21.014345Z"
+    },
+    {
+      "run_id": "01a07809-279d-7ee1-8346-568db0f42f1e",
+      "trace_id": "01a07809-279d-7ee1-8346-568db0f42f1e",
+      "start_time": "2026-09-06T18:44:21.021621Z"
+    },
+    {
+      "run_id": "01a07809-27a5-7270-a7d9-c69a921101bc",
+      "trace_id": "01a07809-27a5-7270-a7d9-c69a921101bc",
+      "start_time": "2026-09-06T18:44:21.029019Z"
+    },
+    {
+      "run_id": "01a07809-27ac-7110-a88f-c6a2afffed21",
+      "trace_id": "01a07809-27ac-7110-a88f-c6a2afffed21",
+      "start_time": "2026-09-06T18:44:21.036569Z"
+    },
+    {
+      "run_id": "01a07809-280a-7ea1-9235-60fef95836b5",
+      "trace_id": "01a07809-280a-7ea1-9235-60fef95836b5",
+      "start_time": "2026-09-06T18:44:21.130491Z"
+    },
+    {
+      "run_id": "01a07809-2866-7a21-a288-7dec86926b61",
+      "trace_id": "01a07809-2866-7a21-a288-7dec86926b61",
+      "start_time": "2026-09-06T18:44:21.222641Z"
+    },
+    {
+      "run_id": "01a07809-28e1-7101-b30c-0ad0cbe4dc3a",
+      "trace_id": "01a07809-28e1-7101-b30c-0ad0cbe4dc3a",
+      "start_time": "2026-09-06T18:44:21.345194Z"
+    },
+    {
+      "run_id": "01a07809-2958-7d82-abe9-6d1d74fcc31e",
+      "trace_id": "01a07809-2958-7d82-abe9-6d1d74fcc31e",
+      "start_time": "2026-09-06T18:44:21.464702Z"
+    },
+    {
+      "run_id": "01a07809-299f-79d3-94cc-bb04defd3ba8",
+      "trace_id": "01a07809-299f-79d3-94cc-bb04defd3ba8",
+      "start_time": "2026-09-06T18:44:21.535616Z"
+    }
+  ],
+  "recorded_on": "2026-09-06",
+  "observation_source": "upload",
+  "graph_version": "m13",
+  "dataset_name": "scholarpath-week4-30case-reviewed-v1",
+  "dataset_id": "327ce17a-9808-42b1-ad5f-590c38fe0258",
+  "dataset_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/datasets/327ce17a-9808-42b1-ad5f-590c38fe0258",
+  "snapshot_as_of": "2026-09-06T15:55:54.898948Z",
+  "dataset_created": false,
+  "reviewed_version": "week4-30case-reviewed-v1",
+  "content_digest": "732ad206d79f30e2f9a3c0efd89c07daf4680216754fa21ce8e4d8f7bda911d5",
+  "source_draft_digest": "f705973c08abec07d88977873900a40af9e5835d3f02a6b010d751c5f820594e",
+  "approval_scope": "expected_behaviors",
+  "execution_mode": "fake_only",
+  "experiment_id": "ab08118f-afbb-47e0-bbdd-6d6726b83e20",
+  "experiment_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/datasets/327ce17a-9808-42b1-ad5f-590c38fe0258/compare?selectedSessions=ab08118f-afbb-47e0-bbdd-6d6726b83e20",
+  "cases": [
+    {
+      "scenario_id": "strong-research-alignment",
+      "example_id": "85a9e9cf-6705-57af-afda-c6874de6ccee",
+      "run_id": "01a07809-24f3-7212-9049-c7be66d18e20",
+      "trace_id": "01a07809-24f3-7212-9049-c7be66d18e20",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-24f3-7212-9049-c7be66d18e20?trace_id=01a07809-24f3-7212-9049-c7be66d18e20&start_time=2026-09-06T18:44:20.339342",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "superficial-keyword-poor-fit",
+      "example_id": "957596ff-33cd-55b5-af2c-e603297a622b",
+      "run_id": "01a07809-250b-7b32-8312-87c55e848e9e",
+      "trace_id": "01a07809-250b-7b32-8312-87c55e848e9e",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-250b-7b32-8312-87c55e848e9e?trace_id=01a07809-250b-7b32-8312-87c55e848e9e&start_time=2026-09-06T18:44:20.363181",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "availability-not-stated",
+      "example_id": "48129f85-bb62-5dee-82b8-4670ef816576",
+      "run_id": "01a07809-2517-7390-9740-bcdff4168dd2",
+      "trace_id": "01a07809-2517-7390-9740-bcdff4168dd2",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-2517-7390-9740-bcdff4168dd2?trace_id=01a07809-2517-7390-9740-bcdff4168dd2&start_time=2026-09-06T18:44:20.375582",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "conflicting-institutional-affiliation",
+      "example_id": "d0b2d0c7-5a48-5485-b296-73839c4490c0",
+      "run_id": "01a07809-2521-7082-9f40-edc376f66b71",
+      "trace_id": "01a07809-2521-7082-9f40-edc376f66b71",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-2521-7082-9f40-edc376f66b71?trace_id=01a07809-2521-7082-9f40-edc376f66b71&start_time=2026-09-06T18:44:20.385816",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "duplicate-supervisor-multiple-queries",
+      "example_id": "783a44cf-d37e-533a-b02c-6f8cdd98fd75",
+      "run_id": "01a07809-252d-7372-b51b-9fe3e9a0a389",
+      "trace_id": "01a07809-252d-7372-b51b-9fe3e9a0a389",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-252d-7372-b51b-9fe3e9a0a389?trace_id=01a07809-252d-7372-b51b-9fe3e9a0a389&start_time=2026-09-06T18:44:20.397451",
+      "persisted": true,
+      "graph_child_visible": true,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "you-timeout-tavily-fallback",
+      "example_id": "923ec397-98b1-525d-ad7c-b451f0296cfa",
+      "run_id": "01a07809-25c9-79c1-a9d0-bd3656f64e14",
+      "trace_id": "01a07809-25c9-79c1-a9d0-bd3656f64e14",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-25c9-79c1-a9d0-bd3656f64e14?trace_id=01a07809-25c9-79c1-a9d0-bd3656f64e14&start_time=2026-09-06T18:44:20.553651",
+      "persisted": true,
+      "graph_child_visible": true,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "evidence-extraction-failure",
+      "example_id": "def52a8e-b4b1-585e-a847-ff1b599ea9a0",
+      "run_id": "01a07809-260c-7d53-a01f-df26f95e8607",
+      "trace_id": "01a07809-260c-7d53-a01f-df26f95e8607",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-260c-7d53-a01f-df26f95e8607?trace_id=01a07809-260c-7d53-a01f-df26f95e8607&start_time=2026-09-06T18:44:20.620521",
+      "persisted": true,
+      "graph_child_visible": true,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "independent-reviewer-disagreement",
+      "example_id": "38b9d267-3124-5260-bc51-c80b0ad7a1ff",
+      "run_id": "01a07809-2655-7d51-add0-214ae9933458",
+      "trace_id": "01a07809-2655-7d51-add0-214ae9933458",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-2655-7d51-add0-214ae9933458?trace_id=01a07809-2655-7d51-add0-214ae9933458&start_time=2026-09-06T18:44:20.693371",
+      "persisted": true,
+      "graph_child_visible": true,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "candidate-rejects-highly-theoretical",
+      "example_id": "e01793cc-1e51-5d20-9b4c-5a3357f09f4d",
+      "run_id": "01a07809-269c-7040-8559-7018b52f2491",
+      "trace_id": "01a07809-269c-7040-8559-7018b52f2491",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-269c-7040-8559-7018b52f2491?trace_id=01a07809-269c-7040-8559-7018b52f2491&start_time=2026-09-06T18:44:20.764188",
+      "persisted": true,
+      "graph_child_visible": true,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "approval-required-before-persistence",
+      "example_id": "5b11caf5-f25a-50e0-b1be-88e6a22c9ecd",
+      "run_id": "01a07809-26ff-7e32-ac75-d658f16d7d75",
+      "trace_id": "01a07809-26ff-7e32-ac75-d658f16d7d75",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-26ff-7e32-ac75-d658f16d7d75?trace_id=01a07809-26ff-7e32-ac75-d658f16d7d75&start_time=2026-09-06T18:44:20.863039",
+      "persisted": true,
+      "graph_child_visible": true,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "planning-source-coverage",
+      "example_id": "a932ee07-0523-5dc8-9110-8a0490794951",
+      "run_id": "01a07809-2746-73a1-8f35-6984569e4cfc",
+      "trace_id": "01a07809-2746-73a1-8f35-6984569e4cfc",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-2746-73a1-8f35-6984569e4cfc?trace_id=01a07809-2746-73a1-8f35-6984569e4cfc&start_time=2026-09-06T18:44:20.934830",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-evidence-confirmed-accepting",
+      "example_id": "f09afe72-6ab5-5780-a7cd-ffa1e3fd20b8",
+      "run_id": "01a07809-274a-7c32-802a-bf975424fcd6",
+      "trace_id": "01a07809-274a-7c32-802a-bf975424fcd6",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-274a-7c32-802a-bf975424fcd6?trace_id=01a07809-274a-7c32-802a-bf975424fcd6&start_time=2026-09-06T18:44:20.938070",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-evidence-confirmed-not-accepting",
+      "example_id": "10524299-1367-50f7-8f78-a9d0cec8fde5",
+      "run_id": "01a07809-2754-78d3-b80a-aa32901007d6",
+      "trace_id": "01a07809-2754-78d3-b80a-aa32901007d6",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-2754-78d3-b80a-aa32901007d6?trace_id=01a07809-2754-78d3-b80a-aa32901007d6&start_time=2026-09-06T18:44:20.948597",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-evidence-markdown-identity",
+      "example_id": "9e577e9c-3aea-5ddb-84da-67b2b44a59eb",
+      "run_id": "01a07809-275c-77e2-81f0-de1c9fd4b462",
+      "trace_id": "01a07809-275c-77e2-81f0-de1c9fd4b462",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-275c-77e2-81f0-de1c9fd4b462?trace_id=01a07809-275c-77e2-81f0-de1c9fd4b462&start_time=2026-09-06T18:44:20.956107",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-evidence-honorific-identity",
+      "example_id": "3264afc6-7a9c-53d4-afea-25fc81fc08df",
+      "run_id": "01a07809-2763-7003-b779-78a511936665",
+      "trace_id": "01a07809-2763-7003-b779-78a511936665",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-2763-7003-b779-78a511936665?trace_id=01a07809-2763-7003-b779-78a511936665&start_time=2026-09-06T18:44:20.963355",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-evidence-line-wrapped-affiliation",
+      "example_id": "13abd0e3-ed28-5f73-bd4e-37b1b15c45ad",
+      "run_id": "01a07809-276a-7ba1-af0a-7f884abc5156",
+      "trace_id": "01a07809-276a-7ba1-af0a-7f884abc5156",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-276a-7ba1-af0a-7f884abc5156?trace_id=01a07809-276a-7ba1-af0a-7f884abc5156&start_time=2026-09-06T18:44:20.970862",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-evidence-publication-only",
+      "example_id": "e1339cd8-e230-54eb-a5ea-bfb037468760",
+      "run_id": "01a07809-2772-72c3-8399-76e51233675d",
+      "trace_id": "01a07809-2772-72c3-8399-76e51233675d",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-2772-72c3-8399-76e51233675d?trace_id=01a07809-2772-72c3-8399-76e51233675d&start_time=2026-09-06T18:44:20.978235",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-evidence-heading-bound-research",
+      "example_id": "b9912042-69fa-5c77-b29d-595c1815f22b",
+      "run_id": "01a07809-2779-7862-bd98-5162521a4ad8",
+      "trace_id": "01a07809-2779-7862-bd98-5162521a4ad8",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-2779-7862-bd98-5162521a4ad8?trace_id=01a07809-2779-7862-bd98-5162521a4ad8&start_time=2026-09-06T18:44:20.985223",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-evidence-missing-identity",
+      "example_id": "312bfa37-de91-542d-9cc1-08341f089dae",
+      "run_id": "01a07809-2781-7d70-ae29-4e8b652ec13b",
+      "trace_id": "01a07809-2781-7d70-ae29-4e8b652ec13b",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-2781-7d70-ae29-4e8b652ec13b?trace_id=01a07809-2781-7d70-ae29-4e8b652ec13b&start_time=2026-09-06T18:44:20.993075",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-evidence-missing-affiliation",
+      "example_id": "bdd19bd8-070e-5804-a372-05abfa06b1f5",
+      "run_id": "01a07809-2787-7281-8c77-a250cc9630ae",
+      "trace_id": "01a07809-2787-7281-8c77-a250cc9630ae",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-2787-7281-8c77-a250cc9630ae?trace_id=01a07809-2787-7281-8c77-a250cc9630ae&start_time=2026-09-06T18:44:20.999665",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-evidence-missing-research",
+      "example_id": "bf00ea82-a0ff-5f9e-9ea1-9850a53ad8f3",
+      "run_id": "01a07809-278e-74d0-9a21-74f8bcbb9ca3",
+      "trace_id": "01a07809-278e-74d0-9a21-74f8bcbb9ca3",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-278e-74d0-9a21-74f8bcbb9ca3?trace_id=01a07809-278e-74d0-9a21-74f8bcbb9ca3&start_time=2026-09-06T18:44:21.006513",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-evidence-publication-year-not-stated",
+      "example_id": "8cc98555-6809-5f27-bac4-1e3b1214ed7d",
+      "run_id": "01a07809-2796-7f53-84f8-2cf7572db02d",
+      "trace_id": "01a07809-2796-7f53-84f8-2cf7572db02d",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-2796-7f53-84f8-2cf7572db02d?trace_id=01a07809-2796-7f53-84f8-2cf7572db02d&start_time=2026-09-06T18:44:21.014345",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-evidence-availability-without-statement",
+      "example_id": "69384669-782e-5e36-8171-3ed67c386bf1",
+      "run_id": "01a07809-279d-7ee1-8346-568db0f42f1e",
+      "trace_id": "01a07809-279d-7ee1-8346-568db0f42f1e",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-279d-7ee1-8346-568db0f42f1e?trace_id=01a07809-279d-7ee1-8346-568db0f42f1e&start_time=2026-09-06T18:44:21.021621",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-evidence-off-page-excerpt",
+      "example_id": "df8a33a2-4e43-51cb-9a3d-5e05ff5527cf",
+      "run_id": "01a07809-27a5-7270-a7d9-c69a921101bc",
+      "trace_id": "01a07809-27a5-7270-a7d9-c69a921101bc",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-27a5-7270-a7d9-c69a921101bc?trace_id=01a07809-27a5-7270-a7d9-c69a921101bc&start_time=2026-09-06T18:44:21.029019",
+      "persisted": true,
+      "graph_child_visible": null,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-graph-approve-one",
+      "example_id": "cb73eb2d-c526-550f-a2e6-318b7e350a2b",
+      "run_id": "01a07809-27ac-7110-a88f-c6a2afffed21",
+      "trace_id": "01a07809-27ac-7110-a88f-c6a2afffed21",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-27ac-7110-a88f-c6a2afffed21?trace_id=01a07809-27ac-7110-a88f-c6a2afffed21&start_time=2026-09-06T18:44:21.036569",
+      "persisted": true,
+      "graph_child_visible": true,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-graph-approve-subset",
+      "example_id": "0769d599-3615-583e-84f1-bc0845c246b6",
+      "run_id": "01a07809-280a-7ea1-9235-60fef95836b5",
+      "trace_id": "01a07809-280a-7ea1-9235-60fef95836b5",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-280a-7ea1-9235-60fef95836b5?trace_id=01a07809-280a-7ea1-9235-60fef95836b5&start_time=2026-09-06T18:44:21.130491",
+      "persisted": true,
+      "graph_child_visible": true,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-graph-request-more",
+      "example_id": "7e16d92d-2848-55e6-990d-f2ca7fb6400c",
+      "run_id": "01a07809-2866-7a21-a288-7dec86926b61",
+      "trace_id": "01a07809-2866-7a21-a288-7dec86926b61",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-2866-7a21-a288-7dec86926b61?trace_id=01a07809-2866-7a21-a288-7dec86926b61&start_time=2026-09-06T18:44:21.222641",
+      "persisted": true,
+      "graph_child_visible": true,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-graph-reject-then-approve",
+      "example_id": "38093d3f-7142-52c2-986b-c86d74edc0c4",
+      "run_id": "01a07809-28e1-7101-b30c-0ad0cbe4dc3a",
+      "trace_id": "01a07809-28e1-7101-b30c-0ad0cbe4dc3a",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-28e1-7101-b30c-0ad0cbe4dc3a?trace_id=01a07809-28e1-7101-b30c-0ad0cbe4dc3a&start_time=2026-09-06T18:44:21.345194",
+      "persisted": true,
+      "graph_child_visible": true,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-graph-review-timeout",
+      "example_id": "46e8269c-398d-552f-8f04-892fa6e6ac65",
+      "run_id": "01a07809-2958-7d82-abe9-6d1d74fcc31e",
+      "trace_id": "01a07809-2958-7d82-abe9-6d1d74fcc31e",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-2958-7d82-abe9-6d1d74fcc31e?trace_id=01a07809-2958-7d82-abe9-6d1d74fcc31e&start_time=2026-09-06T18:44:21.464702",
+      "persisted": true,
+      "graph_child_visible": true,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    },
+    {
+      "scenario_id": "draft-graph-review-malformed",
+      "example_id": "7d2e854c-8f6f-5f69-949e-c71a90f8bc2f",
+      "run_id": "01a07809-299f-79d3-94cc-bb04defd3ba8",
+      "trace_id": "01a07809-299f-79d3-94cc-bb04defd3ba8",
+      "run_url": "https://smith.langchain.com/o/8cf85d4c-234a-42f3-9611-a3f19687db75/projects/p/ab08118f-afbb-47e0-bbdd-6d6726b83e20/r/01a07809-299f-79d3-94cc-bb04defd3ba8?trace_id=01a07809-299f-79d3-94cc-bb04defd3ba8&start_time=2026-09-06T18:44:21.535616",
+      "persisted": true,
+      "graph_child_visible": true,
+      "feedback_persisted": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "duplicate_rate_semantics_source": "evaluation_result"
+    }
+  ],
+  "readback_complete": true,
+  "provisional_runtime_budgets_passed": false
+}

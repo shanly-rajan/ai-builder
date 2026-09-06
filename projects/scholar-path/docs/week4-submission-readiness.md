@@ -1,16 +1,17 @@
 # Week 4 submission evidence scorecard
 
-Reviewed **2026-09-06**, after checkpoint **`15cf752`**. **Submission incomplete.**
+Updated **2026-09-06**, step 3al after checkpoint **`1c9ad44`**. **Submission incomplete.**
 This is the current evidence index; older step reports remain historical records.
 The supplied Week 4 handout's **own Week 3 agent / LangSmith track** applies to
 ScholarPath. Customer-support and social-post examples are not extra product requirements.
 
 ## Bottom line
 
-- The reviewed dataset and LangSmith **before** experiment exist.
-- One same-dataset repair improved correctness from **29/30 to 30/30** locally.
-- The **after** experiment, remaining measured-improvement evidence, and Week 4
-  report/recording are still outstanding.
+- The reviewed dataset and comparable LangSmith **before and after** experiments exist.
+- One same-dataset repair improved correctness from **29/30 to 30/30**, now also
+  confirmed in the [uploaded after-experiment](week4-reviewed-langsmith-after.md).
+- Remaining measured-improvement evidence and the Week 4 report/recording are
+  still outstanding.
 - The approved 40/80 policy did not save calls. The original **76/40** failure remains.
 - Real provider calls have occurred, but live relevance, token usage, monetary cost,
   and successful repeatable live end-to-end completion are not established.
@@ -24,7 +25,7 @@ evaluators and human-approved expected behaviors; require **100% applicable
 correctness**, fake-target **p95 ≤5 seconds**, and the recorded **2/component,
 40/whole-graph-case** call bars, reporting the separately approved **40/80** policy
 without replacing the original baseline; compare LangSmith before and after runs
-on the same frozen version, with the after upload still pending.
+on the same frozen version, with the after upload and readback now complete.
 
 ## Requirement cross-check
 
@@ -33,16 +34,20 @@ on the same frozen version, with the after upload still pending.
 | Agent and user outcome | ScholarPath helps a Candidate find research-aligned Supervisors with sources and explicit shortlist approval. | Real Candidate ratings are needed to establish the product target of four relevant recommendations out of five within 15 minutes. |
 | 3–5 metrics, judges, numeric bars | [Five headline metrics](week4-metrics.md); eleven deterministic checks remain active. Human approval covers expected behaviors, not observed live quality. | No optional LLM judge has been calibrated or used for this cohort. Live tokens/cost remain unknown. |
 | 30–50 labeled, versioned cases | [Frozen manifest](evaluation/week4-30case-reviewed-v1.json): 30 cases, 15 happy / 9 edge / 4 known failure / 2 adversarial. [Approval ledger](week4-label-review.md): five individual approvals, 25 explicitly batch-approved. | Synthetic, informed by reported failures; not 30 real-user journeys or independent expert annotations. |
-| LangSmith dataset and before experiment | [Authenticated dataset, experiment, and case links](week4-reviewed-langsmith-baseline.md); 30 saved roots, 330 feedback records, 12 matching graph children. | Recorded readback evidence, not a new remote inspection in this step. No public sharing or upload occurred here. |
+| LangSmith dataset and before experiment | [Authenticated dataset, experiment, and case links](week4-reviewed-langsmith-baseline.md); 30 saved roots, 330 feedback records, 12 matching graph children. Read-only preflight reconfirmed the baseline in step 3al. | Historical experiment remains unchanged; no public sharing. |
 | Trace inputs/outputs, children, versions, errors and timing | Privacy-safe case/node summaries and case IDs are recorded. Synthetic fixture recipes supply detailed reproduction locally. | Fake targets have no actual LLM token usage to display. Full live trace/usage evidence is not established by synthetic spans. |
 | Baseline and failure clusters | [Before report](evaluation/week4-reviewed-baseline-2026-09-06.json): one correctness failure and a separate runtime overrun. See clusters below. | Do not invent a third cluster just to fill a top-three template; clearly separate historical live observations. |
 | 3–4 targeted improvements with measured deltas | [Heading-grounding repair](week4-heading-grounding-repair.md) has one comparable 30-case before/after result. | Evidence for the remaining 2–3 targeted improvements is incomplete. Diagnostics and a larger allowance are not additional quality gains. |
-| Comparable LangSmith after experiment | [Local after report](evaluation/week4-heading-grounding-after-2026-09-06.json): 30/30 with unchanged manifest/evaluators. | Upload once with existing tooling after explicit approval; verify saved results, matching cases and actual comparison links. |
+| Comparable LangSmith after experiment | [Uploaded after report and links](week4-reviewed-langsmith-after.md): 30/30, complete readback, 30 roots, 330 metric records, 12 graph children; same dataset snapshot. | Complete for this fake-provider cohort. Does not establish live quality or three separate improvements. |
 | Mentor: easier failed-case summaries | [Step 1](week4-triage.md#first-delivery-quick-verification) adds case IDs, failed checks, grouped counts and safe guidance. | Implemented and tested; not a measured agent-quality improvement. |
 | Mentor: window-related failures | Not reproduced on the inspected macOS environment; no Windows runner evidence. | Obtain the exact failing test/runner log before claiming resolution or making a speculative platform fix. |
-| Report, dataset, prompts, trace evidence and short Loom | This index, dataset, [prompt archive](prompts/), [journal](build-journal.md), and before-trace links are available. | Assemble the focused Week 4 report and record/link the walkthrough. An earlier product demo is not evidence of a Week 4 evaluation recording. |
+| Report, dataset, prompts, trace evidence and short Loom | This index, dataset, [prompt archive](prompts/), [journal](build-journal.md), and before/after trace links are available. | Assemble the focused Week 4 report and record/link the walkthrough. An earlier product demo is not evidence of a Week 4 evaluation recording. |
 
-## Comparable measurements, not a new experiment
+## Saved local comparison
+
+These earlier local observations are preserved. The separately
+[uploaded comparison](week4-reviewed-langsmith-after.md#observed-delta) records
+the hosted before/after timing and feedback; do not mix the two timing cohorts.
 
 Dataset: **`scholarpath-week4-30case-reviewed-v1`**; reviewed version:
 **`week4-30case-reviewed-v1`**. Both local artifacts share digest
@@ -95,20 +100,19 @@ Zero or negative deltas are valid findings; a passing test count alone is not a 
 
 ## Minimum remaining execution order
 
-1. **Close the after-trace gap.** Use the existing
-   [reviewed upload command](week4-reviewed-langsmith-baseline.md#reproduce), after
-   explicit approval for one LangSmith write. Keep providers fake and the manifest
-   unchanged. Verify the saved cases/feedback and record an actual after link.
-2. **Complete the improvement ledger.** First reuse the recorded focused before/after
+The after-trace gap is closed by step 3al; no further upload is needed to prove
+this repair's 29/30 → 30/30 result.
+
+1. **Complete the improvement ledger.** First reuse the recorded focused before/after
    reproductions to identify defensible comparisons; distinguish their cohorts from
    the 30-case baseline. If comparable evidence is absent, leave the requirement
    incomplete and scope only the smallest reproducible repair. Do not manufacture
    failures, weaken labels, or introduce caching/refactors simply to reach a count.
-3. **Assemble the report and recording.** Show the dataset, linked before/after cases,
+2. **Assemble the report and recording.** Show the dataset, linked before/after cases,
    measured deltas, unresolved 76/40 finding, live limitations, and next hypotheses.
    Obtain a screenshot/export or suitable access for reviewers without making
    private traces public automatically. Record and attach the short Loom.
-4. **Resolve the mentor's unidentified failure when evidence arrives.** Request the
+3. **Resolve the mentor's unidentified failure when evidence arrives.** Request the
    failing command and runner/test log. Current passing macOS tests do not prove a
    Windows-specific issue fixed.
 
@@ -137,5 +141,6 @@ SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false venv/bin/python scripts/ch
 
 Expect the documentation contracts to pass; correctness prints 30/30 and exits 0;
 the policy command retains 76/40 and exits 1. These commands do not upload or call
-live providers. This step adds documentation and documentation checks only; it
-does not change graph execution, verification gates, fixtures, labels or policies.
+live providers. The initial scorecard step was documentation-only; step 3al updated
+it after one authorized LangSmith after-upload. Neither changes graph execution,
+verification gates, fixtures, labels or policies.

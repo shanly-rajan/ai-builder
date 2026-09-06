@@ -38,9 +38,9 @@ shortlist write.
 | Measure | Current position |
 |---|---|
 | Complete deterministic suite | Checkpoint `15cf752`: 3,168 non-live tests passed; nine live tests deselected; 92.79% coverage |
-| Reviewed Week 4 evaluation | 30/30 reviewed synthetic cases pass locally after one grounding repair; the recorded LangSmith before experiment remains 29/30. The original 11-case cohort is retained separately. |
+| Reviewed Week 4 evaluation | 30/30 reviewed synthetic cases pass locally and in the [LangSmith after-experiment](docs/week4-reviewed-langsmith-after.md); the recorded before experiment remains 29/30. The original 11-case cohort is retained separately. |
 | Measured improvement | +1/30 cases (+3.33 percentage points); the 76/40 whole-case call overrun remains. The 40/80 supplemental policy is not an optimization. |
-| Week 4 submission | Incomplete: after-experiment trace comparison, remaining measured-improvement evidence, focused report and recording are pending. |
+| Week 4 submission | Incomplete: remaining measured-improvement evidence, focused report and recording are pending. Comparable before/after LangSmith trace evidence is now available. |
 | Failure recovery | Typed You.com failure, bounded Tavily fallback, partial-result preservation, and finite loops are exercised end to end |
 | Human authority | Candidate approval is mechanically required before shortlist persistence; outreach remains unimplemented |
 | Product target | Five evidence-backed recommendations in under 15 minutes, with at least four rated relevant by the Candidate |
@@ -1932,9 +1932,10 @@ summary of failed evaluation cases easier to follow.
 
 The [current Week 4 evidence scorecard](docs/week4-submission-readiness.md) records
 what is demonstrated and what remains. Thirty expected behaviors are now approved,
-the LangSmith before baseline exists, and one local comparable repair improved
-29/30 to 30/30. The after upload, remaining measured-improvement evidence and
-report/recording are still pending. The [triage history](docs/week4-triage.md) below
+the LangSmith before baseline exists, and one comparable repair improved
+29/30 to 30/30 both locally and in the [uploaded after-experiment](docs/week4-reviewed-langsmith-after.md).
+Remaining measured-improvement evidence and report/recording are still pending.
+The [triage history](docs/week4-triage.md) below
 preserves earlier checkpoints; they are not the current submission status.
 
 Week 4 step 2 is also implemented: [declared outcomes and runtime metrics](docs/week4-metrics.md)

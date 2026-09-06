@@ -7484,3 +7484,104 @@ experiment using the existing reviewed uploader, followed by the remaining
 improvement ledger and Week 4 report/recording. The mentor's window-related issue
 still needs a concrete failing log. No new live calls, uploads, public sharing,
 push, or commit of this new documentation step occurred.
+
+## Week 4 step 3al: reviewed LangSmith after-experiment
+
+### Milestone objective
+
+Commit the completed submission evidence scorecard, then close the comparable
+after-trace gap with one fake-provider LangSmith experiment using the unchanged
+reviewed thirty-case dataset and eleven deterministic evaluators.
+
+### Prompt used
+
+[Commit and reviewed after-experiment](prompts/week4-3al-reviewed-langsmith-after.md).
+User: “lets commit and move to next step”.
+
+### Checkpoint and preflight
+
+- Committed the six scorecard/documentation files as **`1c9ad44`**,
+  `docs: reconcile Week 4 submission evidence`; worktree then clean.
+- Formatting, lint and mypy passed; **13 tests and 113 subtests passed in 0.14s**
+  for the scorecard and engineering contracts before committing.
+- Existing reviewed manifest/baseline/upload/tracing tests: **197 passed in 16.06s**.
+  Independent read-only audit's upload/tracing subset: **139 passed in 14.09s**.
+- Offline preview confirmed the thirty-case reviewed digest without a network call.
+- Settings presence check printed no credentials. The configured US endpoint
+  differed from earlier EU setup notes, so a read-only baseline inspection ran first.
+- Authenticated inspection of `scholarpath-week4-reviewed-upload-m13-5c37c1c1`
+  succeeded: **29/30**, complete readback, existing dataset ID and snapshot/digest
+  unchanged. Exit **1** represents the historical correctness failure, not an access
+  failure. No dataset was created; `.env` and endpoint settings remain unchanged.
+
+### Files changed and tests added
+
+- Added the actual CLI report at
+  `docs/evaluation/week4-reviewed-langsmith-after-2026-09-06.json` and its
+  [comparison guide](week4-reviewed-langsmith-after.md), with authenticated before,
+  after, dataset and case-level links.
+- Updated the current README, scorecard, triage pointer and baseline-page
+  cross-reference. Historical JSON artifacts remain unchanged.
+- Added eight artifact contracts in `tests/contract/test_week4_langsmith_after.py`
+  and a link-check case for the new guide. Updated the existing scorecard tests to
+  reflect the completed upload without claiming the submission itself complete.
+- Tests validate typed round trips, identical snapshots/digests/example IDs,
+  distinct saved runs, 330 metric records, 12 graph children, exactly one changed
+  metric outcome, unchanged per-case effort, correct authenticated URLs and no
+  private payload fields. No application or evaluation behavior changed.
+
+### Results
+
+- Invoked `SCHOLARPATH_RUN_LANGSMITH_EVALS=true LANGSMITH_TRACING=true
+  SCHOLARPATH_LOG_LEVEL=WARNING venv/bin/python scripts/upload_reviewed_evals.py
+  --upload --format json` exactly once after preflight, with network approval.
+- Actual experiment: **`scholarpath-week4-reviewed-upload-m13-b804f2f2`**;
+  ID **`ab08118f-afbb-47e0-bbdd-6d6726b83e20`**. **30/30**, zero failed cases,
+  **30** persisted roots, **330** metric records, **12** matching graph children,
+  complete authenticated readback, CLI exit **0**.
+- Dataset ID **`327ce17a-9808-42b1-ad5f-590c38fe0258`**, snapshot
+  **`2026-09-06T15:55:54.898948Z`**, reviewed digest and all example IDs unchanged;
+  `dataset_created=false`. No second experiment, public sharing or data overwrite.
+- Only `draft-evidence-heading-bound-research` / `expected_behavior` changes from
+  fail to pass. That is **+1/30 cases, +3.33 percentage points**, not another new
+  repair. Other metric outcomes and all per-case port counts are unchanged.
+- Hosted fake-graph p95: **0.131363 s → 0.142125 s**; no latency improvement claimed.
+  The original **76/40** workload still fails its runtime bar. Exit 0 measures
+  correctness plus readback, not a runtime-budget pass.
+- Artifact contracts: **8 passed in 0.14s**. Contract suite before adding the final
+  guide-link case: **200 passed, 114 subtests in 2.15s**. Final focused artifact,
+  scorecard and engineering contracts: **22 passed, 114 subtests in 0.16s**.
+- Final Ruff formatting: **391 files already formatted**; lint passed; mypy:
+  **no issues in 276 source files**. `git diff --check` passed. Production source,
+  scripts, frozen manifest and historical baseline JSON have no diff. New files
+  remain unstaged and uncommitted.
+- Independent read-only review confirmed the saved metrics/links and bounded
+  interpretation; no material corrections were needed.
+- Complete `SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false venv/bin/pytest
+  -q --tb=no --show-capture=no`: **3,185 passed, 9 deselected, 114 subtests in
+  60.94s**, **92.79% coverage**, exit **0**. Nine new contract cases were added
+  to the committed 3,176-test checkpoint; default tests made no live calls.
+
+### Assumptions
+
+The approved frozen synthetic cohort is the comparison workload. LangSmith access
+does not authorize live application providers, public trace sharing, dataset
+overwrites, or another experiment merely to obtain a pass. SDK-generated experiment
+names retain the uploader's existing prefix; this journal identifies the after role.
+
+### Lessons learned
+
+Verify the saved dataset/workspace rather than changing endpoint settings based
+only on old setup notes. Compare like-for-like cases and retain historical failures.
+LangSmith readback can represent boolean feedback as numeric 0/1; equivalent
+representations are not changed metric outcomes. A completed after-experiment
+adds comparison evidence for the existing repair, not a second measured improvement.
+
+### Remaining debt
+
+Next assemble the remaining measured-improvement ledger from reproducible prior
+comparisons, distinguishing their cohorts and honest zero/negative deltas; then
+prepare the Week 4 report/recording. Live relevance and monetary cost remain
+unmeasured. This step does not optimize the original 76/40 workload or establish
+a full live end-to-end success. No live application providers, environment edits,
+Git push, or commit of the new after-experiment records occurred.

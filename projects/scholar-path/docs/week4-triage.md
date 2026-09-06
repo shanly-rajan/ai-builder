@@ -1,13 +1,13 @@
 # Week 4 evaluation triage
 
-**Current checkpoint: step 3ak.** Use the
+**Current checkpoint: step 3al.** Use the
 [submission evidence scorecard](week4-submission-readiness.md) for present status.
 The chronological entries below preserve what was known at each step. Thirty
 expected behaviors are reviewed; the uploaded before baseline is 29/30 and the
-local after result is 30/30. One comparable improvement is demonstrated, not three
-or four. The next bounded action is one explicitly approved LangSmith after upload,
-followed by the remaining improvement evidence and report/recording. No live calls
-or upload occurred during this documentation audit.
+local and [uploaded after results](week4-reviewed-langsmith-after.md) are 30/30.
+One comparable improvement is demonstrated, not three or four. One authorized
+after-experiment reused the unchanged dataset with complete readback; only LangSmith
+was live. Next assemble the remaining improvement evidence, then the report/recording.
 
 Date: 2026-09-06. Scope: evaluate and improve the existing ScholarPath agent using the
 supplied **Week 4 Project Handout (Aug 2026)** and the mentor's **Focus next** feedback.

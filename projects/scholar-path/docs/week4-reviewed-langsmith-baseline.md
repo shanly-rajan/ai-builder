@@ -9,6 +9,10 @@ This page records the historical **29/30** uploaded baseline. The subsequent
 [step 3ag grounding repair](week4-heading-grounding-repair.md) measures **30/30
 locally** against the same manifest; that after-run has not been uploaded here.
 
+**Subsequent comparison:** [step 3al's separate after-experiment](week4-reviewed-langsmith-after.md)
+now records **30/30** in LangSmith on the same snapshot. This baseline page and
+its machine-readable report preserve the original 29/30 observation.
+
 ```mermaid
 flowchart LR
     A[Approved thirty-case manifest] --> B{Exact snapshot matches?}
