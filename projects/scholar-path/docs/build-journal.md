@@ -4677,3 +4677,323 @@ Keep all application providers fake and honor the user's instruction not to comm
 - Precommit recheck: formatting, Ruff, and mypy passed; the complete non-live suite
   returned **1,820 passed, 9 deselected, 77 subtests passed in 24.51s**, with
   **91.74% coverage**. Scope review found no secrets or runtime artifacts in the 15 files.
+
+## Week 4 step 3b — bounded live-provider canary (2026-09-06)
+
+### Objective and prompt
+
+Follow the verified synthetic trace with one tightly limited real-provider
+diagnostic. [Prompt used](prompts/week4-3b-live-provider-canary.md).
+
+### Files changed
+
+- `tests/integration/test_m13_live_canary.py`: reject unavailable Nebius review
+  as canary success; add aggregate call/timing summary without changing budgets
+  or production behavior.
+- `tests/unit/evaluation/test_live_canary_checks.py`: fake-driven review-success
+  and call-budget/reporting regressions.
+- README, saved prompt, this journal, [triage](week4-triage.md), and
+  [live-canary runbook](week4-live-canary.md).
+
+### Tests and results
+
+- Added 16 offline cases covering accepted/revised review, unavailable/malformed/
+  invalid-reference review, safe summaries after failure, and all call ceilings.
+- Focused tests plus existing M13 contracts: **23 passed in 0.14s**.
+- `venv/bin/ruff format --check .`: **288 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 219 source files**.
+- `venv/bin/pytest -q`: **1,836 passed, 9 deselected, 78 subtests passed in
+  24.63s**, **91.74% coverage**; default tests blocked external sockets.
+- One explicitly authorized live invocation, using the exact runbook command:
+  **1 failed in 12.16s**, exit code 1. Safe summary: **4 logical calls**, **12.090s**.
+  OpenAI planning, You.com search, Tavily extraction, and OpenAI evidence each
+  had one call. Tavily fallback, OpenAI Research Fit, and Nebius had zero calls.
+- Planning, exact-profile discovery, and page extraction completed. Execution
+  stopped after the evidence-model attempt and before any Research Fit model call.
+  The suppressed raw traceback means verification completion and the exact failure
+  stage/cause are unconfirmed. No proposal or shortlist was produced.
+- No retry of the canary, trace upload, Mem0 call, persistent shortlist write,
+  `.env` edit, commit, or push. Tokens/cost remain unmeasured.
+- Final post-documentation check: formatting, Ruff, mypy, and `git diff --check`
+  passed. `venv/bin/pytest -o addopts='' -q tests/unit/evaluation/test_live_canary_checks.py tests/contract` returned
+  **200 passed, 78 subtests passed in 1.88s**.
+
+### Assumptions and lessons learned
+
+- Reuse the existing manual nine-call M13 pipeline; do not claim full LangGraph
+  end-to-end behavior or live trace coverage.
+- A counted Nebius invocation is not a successful review. The app should degrade
+  gracefully, while the integration test must expose provider failure.
+- Public source preflight is not app verification. Keep strict evidence checks,
+  exact target matching, and all current provider request limits unchanged.
+- Official OpenAI documentation was checked using the OpenAI Docs skill; no model,
+  prompt, SDK, or provider integration migration is needed for this bounded check.
+- Offline correctness and configured credentials do not establish live completion.
+  Aggregate call counts identify the last attempted model, not its success or the
+  local failure stage; input validation can fail before the next model is called.
+
+### Remaining debt
+
+- The bounded diagnostic attempt is recorded, but the live canary is **not passing**.
+  Next capture fixed, privacy-safe evidence and pre-model Research Fit outcomes with offline regressions
+  before authorizing another live call. Do not lower verification to mask the failure.
+- Mem0, live LangGraph persistence/tracing, human-rated quality, tokens/cost,
+  the reviewed golden dataset, and comparable improvements remain separate steps.
+- No commits or live memory/shortlist writes are authorized as part of this step.
+
+## Week 4 step 3c — privacy-safe canary stage diagnostics (2026-09-06)
+
+### Objective and prompt
+
+Make a future bounded canary distinguish evidence processing failures from local
+Research Fit input validation. [Prompt used](prompts/week4-3c-canary-stage-diagnostics.md).
+This is diagnostic preparation, not a claim that the previous live failure is fixed.
+
+### Files changed
+
+- `tests/integration/test_m13_live_canary.py`: fixed stage/status/category enums,
+  a stage observer that reraises failures, and an instrumented evidence-to-fit helper.
+- `tests/unit/evaluation/test_live_canary_checks.py`: retain the step 3b summary
+  regression with all new stages initially marked `not_reached`.
+- `tests/unit/evaluation/test_live_canary_stages.py`: fixed-page/fake-port stage,
+  validation, privacy, and bounded-retry checks.
+- README, saved prompt, this journal, triage, and the live-canary runbook.
+
+### Tests and results
+
+- Added **19 offline stage tests**: fixed-page success; missing identity, affiliation,
+  or research evidence; evidence invocation and malformed output; local Research Fit
+  input validation with zero model calls; fit retry ceilings; stage-aware conflicts;
+  error/causal-chain privacy; interruptions; unknown stages and failure categories.
+- `venv/bin/pytest -o addopts='' -q tests/unit/evaluation/test_live_canary_stages.py`:
+  **19 passed in 0.18s**.
+- Existing canary checks plus M13 release contracts: **23 passed in 0.18s**.
+- `venv/bin/ruff format --check .`: **290 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 220 source files**.
+- `venv/bin/pytest -q`: **1,855 passed, 9 deselected, 79 subtests passed in
+  24.95s**, **91.78% coverage**. External sockets were blocked for non-live tests.
+- After the final documentation update,
+  `venv/bin/pytest -o addopts='' -q tests/unit/evaluation/test_live_canary_stages.py tests/unit/evaluation/test_live_canary_checks.py tests/contract`:
+  **219 passed, 79 subtests passed in 2.00s**.
+- `git diff --check`: passed.
+- No live invocation, model/search/memory call, upload, `.env` edit, commit, or push.
+
+### Assumptions and lessons learned
+
+- A model-attempt counter cannot prove that a later deterministic validation passed.
+  Explicit stage completion prevents that ambiguity.
+- Classify by stage and typed errors: an evidence-output exception during conflict
+  merging is a verification-contract problem, not a new provider invocation.
+- Research Fit preflight repeats the existing pure input mapping only. It adds no
+  model call and leaves production validation, strict gates, and retries intact.
+- Emit fixed enums, not raw errors or validation inputs. Unknown exceptions remain
+  unknown; diagnostics must not invent a provider diagnosis.
+- The malformed-output test supplies a wire-like mapping to the real agent boundary;
+  `model_construct` alone bypasses normal Pydantic validation and is not representative
+  of a validated provider response. No production schema was changed.
+- Preserve all uncommitted step 3b work and the historical failure. No `.env`,
+  runtime source, dependencies, memory, persistent shortlist, or trace changes.
+
+### Remaining debt
+
+- A separately approved live attempt is needed to collect actual stage outcomes.
+  No live failure diagnosis, quality improvement, or passing live result is claimed.
+- The reviewed golden dataset, baseline/comparison metrics, cost measurement,
+  further provider coverage, and submission recording remain separate work.
+- Changes are left uncommitted for review; no push.
+
+## Week 4 step 3d — instrumented live canary (2026-09-06)
+
+### Objective and prompt
+
+Execute one separately approved live attempt with step 3c's safe diagnostics.
+[Prompt used](prompts/week4-3d-instrumented-live-canary.md).
+Keep the same public target, synthetic input, provider configuration, strict gates,
+and nine-call ceiling. No implementation changes or repeated live attempts.
+
+### Files changed
+
+- Saved prompt, this journal, live-canary runbook, README, and triage record.
+- Existing uncommitted test/diagnostic work is preserved; no production code changes.
+
+### Tests and results
+
+- No new tests: this step executes the existing diagnostic and regression suite.
+- Preflight credential-presence checks were true for all required adapters; no
+  values were printed or changed. OpenAI Docs was consulted for structured-output
+  interpretation; no model, SDK, prompt, or schema migration.
+- Formatting: 290 files already formatted. Ruff passed. Mypy: no issues in 220 files.
+- Focused canary and M13 contract tests: **42 passed in 0.22s**.
+- Initial full check: **1 failed, 1,855 passed, 9 deselected, 79 subtests passed
+  in 25.12s**, **91.78% coverage**. The audit contract detected the newly saved
+  step 3d prompt missing from the journal. This entry supplies the missing link;
+  no runtime defect was reported.
+- Complete recheck, `venv/bin/pytest -q --tb=short`: **1,855 passed, 9 deselected,
+  80 subtests passed in 25.77s**, **91.78% coverage**. This passed before starting
+  the live attempt; default tests blocked external sockets.
+- One explicitly approved live invocation, using the runbook's exact command:
+  **1 failed in 9.35s**, exit code 1; safe summary **9.277s**, **4 logical calls**.
+  Planning, You.com, Tavily extraction, and OpenAI evidence each had one call;
+  Tavily fallback, OpenAI Research Fit, and Nebius had zero calls.
+- Actual stages: evidence extraction **completed**; evidence verification **failed**
+  with **missing_required_evidence**; Research Fit input/evaluation **not_reached**.
+  A valid partial record was returned, but no Verified Supervisor or shortlist.
+- The exact missing category and underlying cause remain unknown. No additional
+  live attempt, implementation change, `.env` edit, or persistent write occurred.
+- Final documentation audit,
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py`:
+  **5 passed, 80 subtests passed in 0.01s**. Final formatting reported **291 files
+  already formatted**; Ruff and mypy passed (220 source files), and
+  `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- The single manual provider pipeline is not a live LangGraph end-to-end run or
+  a quality benchmark. Native structured output does not establish verified facts.
+- Fixed stage categories may locate a boundary without identifying an exact field
+  or exception cause. Record that uncertainty; do not infer credentials or content.
+- Preserve the first live attempt's history and do not retroactively assign it the
+  outcome of a later non-deterministic execution.
+- This canary uses strict verification regardless of the application's identity-only
+  MVP setting. The app's cohort minimum is unrelated to this one-profile gate.
+- The missing-evidence failure could reflect source coverage, extraction omissions,
+  or grounding rejection. A completed extraction is not proof of factual sufficiency.
+
+### Remaining debt
+
+- This diagnostic run is recorded, but the canary remains failing. Next expose only
+  allowlisted missing gate tokens and the verification standard, with fixed-fixture
+  grounding/privacy tests, before approving another live invocation. No gate relaxation.
+- No Mem0, persistent shortlist writes, outreach, LangSmith uploads, commits, or push.
+- Reviewed dataset, quality/cost measurements, and submission comparisons remain open.
+
+## Week 4 step 3e — missing-evidence diagnostics (2026-09-06)
+
+### Objective and prompt
+
+Expose the existing verifier's missing-category result without leaking source or
+Candidate data. [Prompt used](prompts/week4-3e-missing-evidence-diagnostics.md).
+This is offline preparation; step 3d's exact missing category remains unconfirmed.
+
+### Files changed
+
+- `tests/integration/test_m13_live_canary.py`: typed verification projection and
+  nullable summary field, captured before the existing missing-evidence failure.
+- `tests/unit/evaluation/test_live_canary_checks.py`: new field is null before a
+  valid record is produced; preserve the existing call/timing expectations.
+- `tests/unit/evaluation/test_live_canary_verification.py`: fixed-fixture diagnostic
+  and grounding/privacy regressions.
+- README, saved prompt, this journal, triage, and live-canary runbook.
+
+### Tests and results
+
+- Added **17 offline cases** covering each missing gate, multiple missing gates,
+  complete records, retained versus grounded counts, contextual identity links,
+  unknown-token privacy, canonical ordering, early failures, and unchanged budgets.
+- `venv/bin/pytest -o addopts='' -q tests/unit/evaluation/test_live_canary_verification.py`:
+  **17 passed in 0.20s**.
+- Existing canary checks/stages plus engineering and M13 contract checks:
+  **47 passed, 81 subtests passed in 0.24s**.
+- `venv/bin/ruff format --check .`: **293 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 221 source files**.
+- Complete non-live suite, `venv/bin/pytest -q --tb=short`: **1,872 passed,
+  9 deselected, 81 subtests passed in 24.92s**; **91.78% coverage** against the
+  90% floor. Default tests block external sockets.
+- Final documentation audit after recording results,
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py`:
+  **5 passed, 81 subtests passed in 0.01s**.
+- `git diff --check`: passed. No live invocation or production change.
+
+### Assumptions and lessons learned
+
+- Reuse the verifier's outcome rather than asking a model to explain a failure.
+  Fixed labels and counts suffice for this diagnostic.
+- Retained evidence and directly grounded evidence differ. The count projection
+  reuses `evidence_claim_is_grounded_for_supervisor` with the entire evidence tuple
+  so contextual subject links have the same meaning as in the domain validator.
+- A null diagnostic means no valid record was captured. An empty missing list
+  is meaningful only alongside the standard, unknown-entry count, and stage status.
+- Unknown category values are counted, not printed; an unknown standard emits null.
+- No production source, schema, prompt, strict gate, retry, provider budget, or
+  application MVP/cohort setting changed. Previous uncommitted work is preserved.
+
+### Remaining debt
+
+- The historical live failure's exact missing gate and source/grounding cause are
+  still unknown. A separately approved bounded canary can collect the new summary.
+- No passing live quality benchmark, live Research Fit/Nebius result, dataset
+  completion, or measured improvement is implied by these offline tests.
+- Leave changes uncommitted for review; no push.
+
+## Week 4 step 3f — live missing-evidence diagnostic (2026-09-06)
+
+### Objective and prompt
+
+Execute one approved live canary with step 3e's safe verification diagnostics.
+[Prompt used](prompts/week4-3f-live-missing-evidence-diagnostic.md).
+Keep the target, synthetic input, configured providers, strict gates, timeouts,
+and nine-call ceiling unchanged. No production or test implementation changes.
+
+### Files changed
+
+- Saved prompt, this journal, live-canary runbook, README, and Week 4 triage.
+- Prior uncommitted diagnostic/test changes are preserved; no commit or push.
+
+### Tests and results
+
+- No new tests; this step executes the existing diagnostics and regression checks.
+- Credential-presence preflight succeeded for all seven configured adapter roles.
+  No secret values were printed or changed.
+- `venv/bin/ruff format --check .`: **294 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 221 source files**.
+- Focused canary checks, stages, verification diagnostics, and M13 contracts:
+  **59 passed in 0.30s**.
+- Complete pre-run suite, `venv/bin/pytest -q --tb=short`: **1,872 passed,
+  9 deselected, 82 subtests passed in 25.37s**; **91.78% coverage**.
+- One approved live invocation using the runbook's exact command: **1 failed in
+  11.31s**, exit code 1. Safe summary **11.242s**, **four logical calls**: planning,
+  You.com, Tavily extraction, and OpenAI evidence once each. Tavily search,
+  OpenAI Research Fit, and Nebius were not called.
+- Evidence extraction completed; verification failed with `missing_required_evidence`.
+  Both Research Fit stages were `not_reached`.
+- Standard `strict`; missing `current_affiliation` and
+  `research_interest_or_publication`; unknown category entries **0**.
+- Retained/grounded counts: identity **1/1**, current affiliation **1/0**,
+  research interest **8/0**, publication **9/0**. Methodology, project, and
+  availability each **0/0**. No Verified Supervisor, proposal, or shortlist.
+- No second live invocation, raw-output capture, or credential/configuration change.
+- Documentation/M13 audit,
+  `venv/bin/pytest -o addopts='' -q tests/contract/test_engineering_contract.py tests/contract/test_m13_release_contract.py`:
+  **12 passed, 82 subtests passed in 0.12s**. `git diff --check` passed.
+
+### Assumptions and lessons learned
+
+- A one-profile manual pipeline tests service integration, not live LangGraph
+  persistence, a quality benchmark, or all Week 4 requirements.
+- OpenAI Docs was consulted for interpreting structured output; schema conformity
+  does not establish grounded evidence. No model, SDK, or prompt change is included.
+- The canary's strict policy is independent of the app's identity-only MVP mode
+  and minimum Supervisor count. Earlier results remain separate observations.
+- Retained claims in a missing category narrow the investigation to support and
+  grounding, but do not identify the failed condition. No claim is made that the
+  source lacks the facts or that a local parser defect has been proved.
+- Identity passed; changing the minimum Supervisor count cannot repair this
+  strict one-profile affiliation/research-evidence failure.
+
+### Remaining debt
+
+- Next bounded offline step: reproduce the current-affiliation grounding gate
+  against fixed profile layouts and fake claims, preserving negative cases; fix
+  only a demonstrated defect. Research-interest/publication grounding remains open.
+- First testable hypothesis from read-only inspection: normalized excerpt admission
+  versus raw-text positioning in `_exact_excerpt_is_under_expected_profile_subject`.
+  Reuse the existing official-profile context tests with formatting-only differences
+  and wrong-person controls. This has not been proved to cause the live failure.
+- The live canary is still failing; no live Research Fit/Nebius success, token/cost
+  measurement, or quality benchmark is claimed.
+- No Mem0, persistent shortlist write, outreach, trace upload, or repeated live run.
+- Golden dataset review, quality/cost measurements, and submission comparison remain open.

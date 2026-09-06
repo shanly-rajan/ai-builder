@@ -152,3 +152,99 @@ equivalent to a reviewed 30–50-case golden dataset or human validation of real
 facts. Next, a separately authorized, tightly bounded live provider journey can validate
 service behavior while golden-dataset curation continues. Live expectations, latency,
 tokens/cost, measured before/after improvements, and the recording remain outstanding.
+
+## Step 3b: first real-provider diagnostic
+
+The [bounded one-profile canary](week4-live-canary.md) was run **once** on
+2026-09-06: **1 failed in 12.16s**, four logical calls. Planning, You.com discovery,
+and Tavily page extraction completed; execution stopped after the evidence-model
+attempt and before any Research Fit model call. Verification completion and the
+exact failure stage/cause are unconfirmed. Nebius was not reached. This is a manual provider pipeline,
+not a live LangGraph run or evidence of live quality. No Mem0, persistent shortlist
+write, or LangSmith upload occurred, and tokens/cost remain unknown.
+
+The regression change prevents unavailable Nebius review from being counted as
+canary success and reports safe attempted-call counts even on failure. All
+**1,836 offline tests passed**, with **91.74% coverage**. This does not turn the
+failed live diagnostic into a pass.
+
+The next small diagnostic improvement is an allowlisted evidence-stage failure
+outcome, including pre-model Research Fit validation, tested with fakes, so a
+separately approved follow-up run can distinguish provider failure, malformed
+output, missing required evidence, and local input validation. Do not relax
+verification or rerun until green. The reviewed golden dataset and remaining
+submission measurements are still outstanding.
+
+## Step 3c: stage diagnostics prepared offline
+
+The [canary stage diagnostics](week4-live-canary.md#step-3c-fixed-stage-outcomes-offline-only)
+now distinguish evidence-model errors, missing mandatory evidence, verification
+contract failures, and pre-model Research Fit input validation using explicit
+stages and fixed categories. Successful stages and unreached stages are recorded
+separately; raw errors or inputs never enter the JSON summary. The strict gate,
+nine-call ceiling, production agents, and existing retry policies are unchanged.
+
+Nineteen fixed-fixture stage tests exercise the categories without a network call;
+the full offline suite passed **1,855 tests**, with **91.78% coverage**. This does not
+diagnose or repair the earlier live failure. The next execution boundary is one
+separately approved live attempt with the new safe diagnostics; no repeated runs
+until green. The dataset, measured improvements, and submission work remain open.
+
+## Step 3d: strict verification is the confirmed stopping gate
+
+The [instrumented live attempt](week4-live-canary.md#step-3d-instrumented-live-result)
+ran once after fresh offline checks: **1 failed in 9.35s**, four logical calls.
+Evidence extraction completed; verification failed with `missing_required_evidence`.
+Research Fit and Nebius were not reached. The exact missing category and underlying
+cause are not in the summary, so do not infer them or attribute this outcome to the
+earlier uninstrumented attempt.
+
+The canary uses strict verification, not the app's identity-only MVP policy, and
+its single-profile gate is unrelated to the app's minimum Supervisor count.
+No implementation, gate, target, credential, or provider budget was changed; no
+Mem0/shortlist persistence, trace upload, or additional live attempt occurred.
+
+Next bounded offline step: report the verification standard and allowlisted
+missing-gate tokens (optionally retained/grounded counts), using the existing
+grounding function and fixed-fixture privacy/validation tests. Do not weaken the
+verification policy or treat this diagnostic as a passing live baseline.
+
+## Step 3e: missing-category detail prepared offline
+
+The [verification summary](week4-live-canary.md#step-3e-missing-evidence-and-grounding-counts-offline-only)
+now includes the record's verification standard, allowlisted missing-gate names,
+and retained/grounded counts. It uses the existing full-context domain grounder,
+not a model explanation or the direct-support flag alone. Unknown labels are
+counted without exposing text, and absence of a record remains null.
+
+Only canary diagnostics, fake-driven tests, and documentation change. There is no
+weaker gate, additional provider call, production behavior change, or commit.
+Another live attempt needs separate approval; the previous attempt's exact missing
+category is still unknown. Golden dataset, quality/cost comparison, and submission
+work remain open.
+
+## Step 3f: affiliation and research grounding are the observed gaps
+
+The [single live diagnostic](week4-live-canary.md#step-3f-live-missing-evidence-result)
+returned **1 failed in 11.31s**, four logical provider calls. Evidence extraction
+completed. Strict verification found grounded identity, but no grounded current
+affiliation or research-interest/publication evidence. It retained 1 affiliation,
+8 research-interest, and 9 publication claims; none qualified as grounded.
+Research Fit and Nebius were not reached. The specific support/grounding rejection
+reason is not captured, and previous runs remain unclassified at that detail.
+
+Next bounded offline step: reproduce the current-affiliation gate with fixed
+official-profile layouts and fake model output; examine support flags, asserted
+institution/department text, and same-page identity context. Repair only a reproduced
+defect while preserving negative cases. Research-interest/publication grounding is
+the next known gap, not an excuse to lower verification standards or rerun until green.
+
+First reproduction: excerpt admission normalizes case/whitespace, but contextual
+page positioning uses raw text matching. Test this formatting-only discrepancy
+in the existing official-profile context suite. It is a code-level hypothesis,
+not the established cause of this live result.
+
+No production/test code changed in this live-execution step. The pre-run suite
+passed **1,872 tests**, **82 subtests**, and **91.78% coverage**; nine live tests
+were deselected. There was no Mem0 call, persisted shortlist, trace upload, or commit.
+Golden dataset, measured improvement, and submission gaps remain open.

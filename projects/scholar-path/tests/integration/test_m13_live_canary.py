@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import os
 from collections import Counter
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from enum import StrEnum
+from time import monotonic
+from typing import TypedDict
 
 import pytest
 from pydantic import HttpUrl, SecretStr, TypeAdapter, ValidationError
@@ -34,7 +40,12 @@ from scholarpath.agents import (
     SupervisorDiscoveryAgent,
     canonical_profile_url,
 )
+from scholarpath.agents.evidence_verification import (
+    EvidenceModelInvocationError,
+    EvidenceModelOutputError,
+)
 from scholarpath.agents.nebius_review import NebiusReviewModelAdapter
+from scholarpath.agents.research_fit import ResearchFitEvaluationError, ResearchFitFailureKind
 from scholarpath.config import (
     Environment,
     LangSmithSettings,
@@ -52,14 +63,21 @@ from scholarpath.domain import (
     CandidateReviewAction,
     CandidateReviewDecision,
     EvidenceClaimType,
+    IndependentReviewStatus,
     ProspectiveSupervisor,
+    ReconciledResearchFitAssessment,
+    ResearchFitAssessment,
     ResearchFitRubric,
     SearchPlan,
     SearchResult,
     SearchSourceType,
     SourceKind,
     SupervisorLifecycleStatus,
+    SupervisorVerificationRecord,
+    VerificationEvidenceStandard,
+    VerifiedSupervisor,
     create_supervisor_shortlist,
+    evidence_claim_is_grounded_for_supervisor,
     is_singular_person_profile_url,
     supervisor_names_are_title_equivalent,
 )
@@ -81,6 +99,20 @@ _TARGET_SETTINGS = (
     "SCHOLARPATH_LIVE_CANARY_INSTITUTION",
     "SCHOLARPATH_LIVE_CANARY_PROFILE_URL",
 )
+_LIVE_CALL_LIMITS = {
+    "openai_planning": 2,
+    "you_search": 1,
+    "tavily_search": 1,
+    "tavily_extract": 1,
+    "openai_evidence": 1,
+    "openai_research_fit": 2,
+    "nebius_review": 1,
+}
+_REQUIRED_EVIDENCE_CATEGORIES = (
+    "identity",
+    "current_affiliation",
+    "research_interest_or_publication",
+)
 
 
 def _enabled(name: str) -> bool:
@@ -95,18 +127,203 @@ def _normalized_text(value: str) -> str:
     return " ".join(value.casefold().split())
 
 
+class _CanaryStage(StrEnum):
+    EVIDENCE_EXTRACTION = "evidence_extraction"
+    EVIDENCE_VERIFICATION = "evidence_verification"
+    RESEARCH_FIT_INPUT = "research_fit_input"
+    RESEARCH_FIT_EVALUATION = "research_fit_evaluation"
+
+
+class _StageStatus(StrEnum):
+    NOT_REACHED = "not_reached"
+    STARTED = "started"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class _FailureCategory(StrEnum):
+    MODEL_INVOCATION = "model_invocation"
+    INVALID_OUTPUT = "invalid_output"
+    LOCAL_VALIDATION = "local_validation"
+    INPUT_VALIDATION = "input_validation"
+    VERIFICATION_CONTRACT = "verification_contract_invalid"
+    MISSING_REQUIRED_EVIDENCE = "missing_required_evidence"
+    UNEXPECTED_FAILURE = "unexpected_failure"
+
+
+class _MissingRequiredEvidenceError(RuntimeError):
+    """The unchanged strict verification gate did not produce a Verified Supervisor."""
+
+
+@dataclass(frozen=True, slots=True)
+class _StageOutcome:
+    status: _StageStatus = _StageStatus.NOT_REACHED
+    failure_category: _FailureCategory | None = None
+
+
+class _VerificationDiagnostics(TypedDict):
+    """A bounded projection, not a serialized verification record."""
+
+    verification_standard: str | None
+    missing_required_evidence: list[str]
+    unrecognized_missing_category_count: int
+    retained_claim_counts: dict[str, int]
+    grounded_claim_counts: dict[str, int]
+
+
+def _verification_diagnostics(record: SupervisorVerificationRecord) -> _VerificationDiagnostics:
+    """Project fixed labels/counts using the verifier's existing grounding rules."""
+    grounded_claims = tuple(
+        claim
+        for claim in record.evidence
+        if evidence_claim_is_grounded_for_supervisor(
+            claim, record.prospective_supervisor, record.evidence
+        )
+    )
+    standard = record.verification_evidence_standard
+    return {
+        "verification_standard": (
+            standard.value if isinstance(standard, VerificationEvidenceStandard) else None
+        ),
+        "missing_required_evidence": [
+            category
+            for category in _REQUIRED_EVIDENCE_CATEGORIES
+            if category in record.missing_required_evidence
+        ],
+        "unrecognized_missing_category_count": sum(
+            category not in _REQUIRED_EVIDENCE_CATEGORIES
+            for category in record.missing_required_evidence
+        ),
+        "retained_claim_counts": {
+            kind.value: sum(claim.claim_type is kind for claim in record.evidence)
+            for kind in EvidenceClaimType
+        },
+        "grounded_claim_counts": {
+            kind.value: sum(claim.claim_type is kind for claim in grounded_claims)
+            for kind in EvidenceClaimType
+        },
+    }
+
+
+def _failure_category(stage: _CanaryStage, error: Exception) -> _FailureCategory:
+    """Classify only known types at their actual stage, never exception text or inputs."""
+    if stage is _CanaryStage.EVIDENCE_VERIFICATION:
+        if isinstance(error, _MissingRequiredEvidenceError):
+            return _FailureCategory.MISSING_REQUIRED_EVIDENCE
+        if isinstance(error, (EvidenceModelOutputError, ValueError)):
+            return _FailureCategory.VERIFICATION_CONTRACT
+    if stage is _CanaryStage.EVIDENCE_EXTRACTION:
+        if isinstance(error, EvidenceModelInvocationError):
+            return _FailureCategory.MODEL_INVOCATION
+        if isinstance(error, EvidenceModelOutputError):
+            return _FailureCategory.INVALID_OUTPUT
+    if stage is _CanaryStage.RESEARCH_FIT_EVALUATION and isinstance(
+        error, ResearchFitEvaluationError
+    ):
+        if error.kind is ResearchFitFailureKind.MODEL_INVOCATION:
+            return _FailureCategory.MODEL_INVOCATION
+        if error.kind is ResearchFitFailureKind.INVALID_OUTPUT:
+            return _FailureCategory.INVALID_OUTPUT
+    if isinstance(error, ValueError):  # Includes Pydantic ValidationError; do not serialize it.
+        if stage is _CanaryStage.RESEARCH_FIT_INPUT:
+            return _FailureCategory.INPUT_VALIDATION
+        return _FailureCategory.LOCAL_VALIDATION
+    return _FailureCategory.UNEXPECTED_FAILURE
+
+
 @dataclass(slots=True)
 class _CallBudget:
     """Reject a live provider call before it can exceed its explicit ceiling."""
 
     limits: dict[str, int]
     calls: Counter[str] = field(default_factory=Counter)
+    stage_outcomes: dict[_CanaryStage, _StageOutcome] = field(default_factory=dict)
+    verification_diagnostics: _VerificationDiagnostics | None = None
 
     def consume(self, operation: str) -> None:
         limit = self.limits[operation]
         if self.calls[operation] >= limit:
             raise AssertionError(f"Live canary call budget exhausted for {operation}")
         self.calls[operation] += 1
+
+    @contextmanager
+    def observe(self, stage: _CanaryStage) -> Iterator[None]:
+        """Record local completion explicitly; leave failures and retry behavior unchanged."""
+        if not isinstance(stage, _CanaryStage):
+            raise ValueError("Unknown live canary diagnostic stage")
+        self.stage_outcomes[stage] = _StageOutcome(_StageStatus.STARTED)
+        try:
+            yield
+        except Exception as error:
+            self.stage_outcomes[stage] = _StageOutcome(
+                _StageStatus.FAILED, _failure_category(stage, error)
+            )
+            raise
+        else:
+            self.stage_outcomes[stage] = _StageOutcome(_StageStatus.COMPLETED)
+
+
+def _stage_summary(budget: _CallBudget) -> dict[str, dict[str, str | None]]:
+    """Emit fixed stages and enum values only, never model or exception payloads."""
+    summary: dict[str, dict[str, str | None]] = {}
+    for stage in _CanaryStage:
+        outcome = budget.stage_outcomes.get(stage, _StageOutcome())
+        summary[stage.value] = {
+            "status": outcome.status.value,
+            "failure_category": (
+                outcome.failure_category.value if outcome.failure_category is not None else None
+            ),
+        }
+    return summary
+
+
+@contextmanager
+def _summarized_call_budget() -> Iterator[_CallBudget]:
+    """Report attempted calls even on failure, without provider payloads or errors."""
+    budget = _CallBudget(limits=dict(_LIVE_CALL_LIMITS))
+    started_at = monotonic()
+    try:
+        yield budget
+    finally:
+        provider_calls = {operation: budget.calls[operation] for operation in _LIVE_CALL_LIMITS}
+        print(
+            json.dumps(
+                {
+                    "event": "live_canary.summary",
+                    "provider_calls": provider_calls,
+                    "total_provider_calls": sum(provider_calls.values()),
+                    "elapsed_seconds": round(monotonic() - started_at, 3),
+                    "stage_outcomes": _stage_summary(budget),
+                    "verification_diagnostics": budget.verification_diagnostics,
+                    "token_usage": None,
+                    "cost_usd": None,
+                },
+                sort_keys=True,
+            )
+        )
+
+
+@pytest.fixture
+def live_canary_budget() -> Iterator[_CallBudget]:
+    """Keep a per-test budget and emit its safe summary during fixture teardown."""
+    with _summarized_call_budget() as budget:
+        yield budget
+
+
+def _require_completed_review(review: ReconciledResearchFitAssessment) -> None:
+    """A safe degraded review is not evidence of a successful live Nebius call."""
+    if (
+        review.review_status
+        not in {
+            IndependentReviewStatus.ACCEPTED,
+            IndependentReviewStatus.REVISED,
+        }
+        or review.failure_kind is not None
+    ):
+        pytest.fail(
+            "The live Nebius review did not return a valid completed independent review",
+            pytrace=False,
+        )
 
 
 class _BudgetedPlanningModel:
@@ -226,8 +443,42 @@ def _matching_target(
     )
 
 
+def _verify_and_evaluate(
+    profile: CandidateProfile,
+    prospective: ProspectiveSupervisor,
+    extracted_content: ExtractedContent,
+    evidence_model: EvidenceVerificationModelPort,
+    research_fit_model: ResearchFitModelPort,
+    budget: _CallBudget,
+) -> tuple[VerifiedSupervisor, ResearchFitAssessment]:
+    """Observe the existing pipeline without weakening gates or adding model calls."""
+    evidence_agent = EvidenceVerificationAgent(evidence_model)
+    with budget.observe(_CanaryStage.EVIDENCE_EXTRACTION):
+        source_kind = classify_evidence_source_kind(
+            extracted_content.source_url, title=prospective.full_name
+        )
+        claims = evidence_agent.extract_claims(prospective, extracted_content, source_kind)
+    with budget.observe(_CanaryStage.EVIDENCE_VERIFICATION):
+        verification = evidence_agent.build_verification_record(prospective, claims)
+        budget.verification_diagnostics = _verification_diagnostics(verification)
+        verified = verification.verified_supervisor
+        if verified is None:
+            raise _MissingRequiredEvidenceError(
+                "The configured live profile did not satisfy the verification minimum"
+            )
+    with budget.observe(_CanaryStage.RESEARCH_FIT_INPUT):
+        # Repeat only the agent's pure input mapping, to locate pre-model validation errors.
+        # Production evaluation still owns its validation, evidence limits and bounded retry.
+        ResearchFitInput.from_domain(profile, verified)
+    with budget.observe(_CanaryStage.RESEARCH_FIT_EVALUATION):
+        assessment = ResearchFitEvaluationAgent(research_fit_model).evaluate(profile, verified)
+    return verified, assessment
+
+
 @pytest.mark.live
-def test_live_vertical_canary_stays_within_provider_call_budgets() -> None:
+def test_live_vertical_canary_stays_within_provider_call_budgets(
+    live_canary_budget: _CallBudget,
+) -> None:
     """Exercise one configured public profile without running a costly five-result graph."""
     for flag in _LIVE_FLAGS:
         if not _enabled(flag):
@@ -291,17 +542,7 @@ def test_live_vertical_canary_stays_within_provider_call_budgets() -> None:
             pytrace=False,
         )
 
-    budget = _CallBudget(
-        limits={
-            "openai_planning": 2,
-            "you_search": 1,
-            "tavily_search": 1,
-            "tavily_extract": 1,
-            "openai_evidence": 1,
-            "openai_research_fit": 2,
-            "nebius_review": 1,
-        }
-    )
+    budget = live_canary_budget
     planning_configuration = planning_settings.for_planning_model().model_copy(
         update={"timeout_seconds": min(planning_settings.planning_timeout_seconds, 60.0)}
     )
@@ -415,22 +656,11 @@ def test_live_vertical_canary_stays_within_provider_call_budgets() -> None:
             )
 
         extracted_content = content_extractor.extract(prospective.profile_url)
-        source_kind = classify_evidence_source_kind(
-            extracted_content.source_url,
-            title=prospective.full_name,
+        verified, assessment = _verify_and_evaluate(
+            profile, prospective, extracted_content, evidence_model, research_fit_model, budget
         )
-        evidence_agent = EvidenceVerificationAgent(evidence_model)
-        claims = evidence_agent.extract_claims(prospective, extracted_content, source_kind)
-        verification = evidence_agent.build_verification_record(prospective, claims)
-        verified = verification.verified_supervisor
-        if verified is None:
-            pytest.fail(
-                "The configured live profile did not satisfy the verification minimum",
-                pytrace=False,
-            )
-
-        assessment = ResearchFitEvaluationAgent(research_fit_model).evaluate(profile, verified)
         reviewed = IndependentReviewAgent(review_model).review(profile, verified, assessment)
+        _require_completed_review(reviewed)
         proposal = ShortlistSynthesisAgent(max_results=1).synthesize(
             profile.candidate_id,
             (verified,),

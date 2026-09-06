@@ -1592,6 +1592,21 @@ search, one Tavily fallback search, one Tavily extraction, one evidence-model ca
 Research Fit attempts, and one Nebius review. It is skipped unless both opt-ins, all required
 credentials, and all three public target values are present.
 
+See the [Week 4 one-profile live-canary runbook](docs/week4-live-canary.md) for
+the selected public target, exact privacy-conscious command, and recorded outcome.
+The canary requires an accepted/revised Nebius result, not merely an attempted call,
+and emits aggregate call counts and elapsed time even when a later stage fails.
+It also reports fixed stage statuses and safe failure categories, distinguishing
+missing evidence from local Research Fit input validation without printing raw
+exceptions or model content. These diagnostics are tested offline; they do not
+retroactively identify the first live attempt's failure or establish a passing run.
+The summary also includes the verification standard, fixed missing-evidence names,
+and retained/grounded claim counts. Before a valid record exists, this diagnostic
+is null rather than an empty all-clear result. Raw claims and source URLs stay out
+of the summary.
+It is a manual integration pipeline, not a live LangGraph run, and makes no Mem0
+or persistent shortlist writes.
+
 ## Quality and test commands
 
 Run the complete local quality gate from `projects/scholar-path`:
@@ -1908,8 +1923,32 @@ summary of failed evaluation cases easier to follow.
 The [Week 4 triage and delivery order](docs/week4-triage.md) records the remaining
 dataset, measurement, trace, and submission gaps. The existing eleven-case offline
 baseline does **not** establish completion of all Week 4 requirements. Human label
-review, actual LangSmith evidence, and a measured before/after comparison remain pending.
+review, comparable baseline trace evidence, and a measured before/after comparison
+remain pending.
 
 Week 4 step 2 is also implemented: [declared outcomes and runtime metrics](docs/week4-metrics.md)
 now have tested checks, explicit budgets, and an accurately named eleven-case offline replay.
-The next bounded item is trace verification followed by the reviewed golden dataset.
+Step 3a verified [one synthetic LangSmith trace](docs/week4-synthetic-trace.md).
+Step 3b then attempted [one real-provider canary](docs/week4-live-canary.md): it
+stopped after the evidence-model attempt with four calls; the Research Fit and
+Nebius models were not called. The exact failure stage/cause is unconfirmed.
+This is a recorded diagnostic failure, not a completed live journey. Step 3c added
+offline-tested safe evidence-stage failure reporting. Step 3d's single instrumented
+attempt then located its stop at **strict verification: missing required evidence**
+after extraction completed; Research Fit and Nebius were not reached. The exact
+missing category is not yet known. This strict one-profile canary is separate from
+the app's identity-only MVP policy and cohort minimum.
+
+Step 3e adds offline-tested missing-gate names and retained/grounded counts to the
+safe diagnostic, without changing verification rules or making another live call.
+Further live execution requires separate approval. The reviewed golden dataset
+and comparable improvement measurements remain pending.
+
+Step 3f ran one separately approved canary with that diagnostic: **1 failed in
+11.31s**, four logical calls. Identity passed; **current affiliation and research
+interest/publication were missing after grounding**. Retained claims were identity
+1, affiliation 1, research interests 8, and publications 9; only the identity claim
+was grounded. Research Fit and Nebius were not reached. The exact rejection cause
+is still unconfirmed; the next bounded step is an offline affiliation-grounding
+reproduction, without relaxing verification. See the
+[recorded live result](docs/week4-live-canary.md#step-3f-live-missing-evidence-result).
