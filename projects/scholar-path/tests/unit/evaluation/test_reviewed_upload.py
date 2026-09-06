@@ -516,11 +516,9 @@ def test_reviewed_upload_executes_only_fakes_and_truthfully_reports_known_gaps(
     )
 
     assert report.example_count == 30
-    assert report.failed_example_count == 1
-    assert report.passed is False
-    assert [(item.scenario_id, item.key) for item in report.failures] == [
-        ("draft-evidence-heading-bound-research", "expected_behavior")
-    ]
+    assert report.failed_example_count == 0
+    assert report.passed is True
+    assert report.failures == ()
     assert report.dataset_name == manifest.dataset_name
     assert str(report.dataset_name) != EVALUATION_DATASET_NAME
     assert report.reviewed_version == manifest.reviewed_version
@@ -714,14 +712,14 @@ def test_graph_target_receives_synthetic_observability_without_enabling_live_too
 @pytest.mark.parametrize(
     ("output_format", "complete", "inject_failure", "exit_code"),
     [
-        ("text", True, False, 1),
-        ("json", True, False, 1),
+        ("text", True, False, 0),
+        ("json", True, False, 0),
         ("text", True, True, 1),
         ("json", True, True, 1),
         ("json", False, False, 2),
     ],
 )
-def test_cli_distinguishes_known_failure_and_incomplete_readback(
+def test_cli_distinguishes_current_success_injected_failure_and_incomplete_readback(
     output_format: str,
     complete: bool,
     inject_failure: bool,
@@ -770,11 +768,11 @@ def test_cli_distinguishes_known_failure_and_incomplete_readback(
     if output_format == "json":
         output = json.loads(captured.out)
         assert output["example_count"] == 30
-        assert output["failed_example_count"] == 1
+        assert output["failed_example_count"] == int(inject_failure)
         assert output["readback_complete"] is complete
         assert output["execution_mode"] == "fake_only"
     else:
-        passed_count = 29
+        passed_count = 29 if inject_failure else 30
         assert f"{passed_count}/30" in captured.out
     assert "synthetic-test-key" not in captured.out
     double.client.close.assert_called_once()
@@ -802,7 +800,7 @@ def test_sdk_evaluator_error_is_failure_not_not_applicable(
         evaluation_settings=EvaluationSettings.model_construct(run_langsmith_evals=True),
     )
 
-    assert report.failed_example_count == 2
+    assert report.failed_example_count == 1
     assert any(
         item.key == "schema_validity" and item.category == "evaluator_error"
         for item in report.failures
@@ -830,12 +828,10 @@ def test_recovery_inspects_existing_records_without_targets_or_writes(
     assert report.dataset_created is False
     assert report.recorded_on == (_AS_OF - timedelta(days=2)).date()
     assert report.example_count == len(report.cases) == 30
-    assert report.failed_example_count == 1
+    assert report.failed_example_count == 0
     assert report.readback_complete is True
     assert report.provisional_runtime_budgets_passed is False
-    assert [(item.scenario_id, item.key) for item in report.failures] == [
-        ("draft-evidence-heading-bound-research", "expected_behavior")
-    ]
+    assert report.failures == ()
     graph = next(item for item in report.runtime_summaries if item.target == "graph_fake")
     assert graph.maximum_port_invocations == 76
     assert graph.invocation_budget == 40
@@ -916,14 +912,14 @@ def test_cli_inspect_recovers_existing_report_without_upload(
     )
     monkeypatch.setattr(reviewed_upload, "run_reviewed_upload", _forbidden_call)
 
-    assert reviewed_upload.main(["--inspect", _EXPERIMENT_NAME, "--format", "json"]) == 1
+    assert reviewed_upload.main(["--inspect", _EXPERIMENT_NAME, "--format", "json"]) == 0
 
     captured = capsys.readouterr()
     assert captured.err == ""
     output = json.loads(captured.out)
     assert output["observation_source"] == "readback"
     assert output["example_count"] == 30
-    assert output["failed_example_count"] == 1
+    assert output["failed_example_count"] == 0
     assert output["dataset_created"] is False
     assert _PRIVATE not in captured.out
     double.client.close.assert_called_once()
@@ -1157,7 +1153,7 @@ def test_recovery_does_not_silently_pass_zero_rate_when_semantics_are_missing(
         "graph_expected_behavior" if expected_behavior_passed else "unavailable"
     )
     assert report.readback_complete is expected_behavior_passed
-    assert report.failed_example_count == (1 if expected_behavior_passed else 2)
+    assert report.failed_example_count == (0 if expected_behavior_passed else 1)
     if not expected_behavior_passed:
         assert any(
             item.scenario_id == case.scenario_id and item.key == "duplicate_supervisor_rate"

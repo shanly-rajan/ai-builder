@@ -157,6 +157,17 @@ _ACADEMIC_ROLE_HEADING_PATTERN = re.compile(
     r"professor\s+(?:of|in)\s+\S.+$",
     re.IGNORECASE,
 )
+_NAMED_PROFILE_ROLE_SENTENCE_PATTERN = re.compile(
+    r"^(?P<name>.+?)\s+is\s+(?:(?:a|an)\s+)?"
+    r"(?:(?:associate|assistant|adjunct|full|senior)\s+)?"
+    r"professor\s+(?:of|in|at)\s+(?P<role_body>[^.;!?:#|`]+)\.?$",
+    re.IGNORECASE,
+)
+_PROFILE_ROLE_EXTRA_SUBJECT_PATTERN = re.compile(
+    r"\b(?:dr|prof|professor|is|are|was|were|has|have|with|alongside|"
+    r"while|whereas|who|whose)\b",
+    re.IGNORECASE,
+)
 
 
 def _clean_profile_heading(value: str) -> str:
@@ -185,6 +196,24 @@ def _plausible_person_heading(value: str) -> str | None:
     return None
 
 
+def _is_expected_profile_role_sentence(value: str, asserted_name: str) -> bool:
+    """Recognize owner role prose without promoting it to a new subject heading.
+
+    This only preserves context: it does not establish affiliation or supply any
+    evidence. Explicit headings, compound prose, and other-person references remain
+    conservative boundaries. Unrecognized sentence forms are deliberately unchanged.
+    """
+    if value.lstrip().startswith("#"):
+        return False
+    match = _NAMED_PROFILE_ROLE_SENTENCE_PATTERN.fullmatch(_clean_profile_heading(value))
+    return (
+        match is not None
+        and bool(match.group("role_body").strip())
+        and _PROFILE_ROLE_EXTRA_SUBJECT_PATTERN.search(match.group("role_body")) is None
+        and supervisor_names_are_title_equivalent(match.group("name"), asserted_name)
+    )
+
+
 def _exact_excerpt_is_under_expected_profile_subject(
     page_content: str,
     supporting_excerpt: str,
@@ -210,7 +239,8 @@ def _exact_excerpt_is_under_expected_profile_subject(
             (
                 heading
                 for line in reversed(preceding_lines)
-                if (heading := _plausible_person_heading(line)) is not None
+                if not _is_expected_profile_role_sentence(line, asserted_name)
+                and (heading := _plausible_person_heading(line)) is not None
             ),
             None,
         )

@@ -1,0 +1,2483 @@
+{
+  "baseline_name": "scholarpath-week4-reviewed-local-20260906T162018Z-0cd79546",
+  "recorded_on": "2026-09-06",
+  "dataset_name": "scholarpath-week4-30case-reviewed-v1",
+  "graph_version": "m13",
+  "scenario_count": 30,
+  "passed_scenario_count": 30,
+  "metric_summaries": [
+    {
+      "key": "schema_validity",
+      "applicable_count": 30,
+      "passed_count": 30,
+      "observed_mean": 1
+    },
+    {
+      "key": "expected_behavior",
+      "applicable_count": 30,
+      "passed_count": 30,
+      "observed_mean": 1
+    },
+    {
+      "key": "canonical_terminology",
+      "applicable_count": 30,
+      "passed_count": 30,
+      "observed_mean": 1
+    },
+    {
+      "key": "evidence_id_validity",
+      "applicable_count": 14,
+      "passed_count": 14,
+      "observed_mean": 1
+    },
+    {
+      "key": "source_url_presence",
+      "applicable_count": 29,
+      "passed_count": 29,
+      "observed_mean": 1
+    },
+    {
+      "key": "score_range_and_component_totals",
+      "applicable_count": 14,
+      "passed_count": 14,
+      "observed_mean": 1
+    },
+    {
+      "key": "no_unsupported_availability_claim",
+      "applicable_count": 29,
+      "passed_count": 29,
+      "observed_mean": 1
+    },
+    {
+      "key": "no_admission_probability",
+      "applicable_count": 30,
+      "passed_count": 30,
+      "observed_mean": 1
+    },
+    {
+      "key": "correct_fallback_route",
+      "applicable_count": 1,
+      "passed_count": 1,
+      "observed_mean": 1
+    },
+    {
+      "key": "duplicate_supervisor_rate",
+      "applicable_count": 12,
+      "passed_count": 12,
+      "observed_mean": 0
+    },
+    {
+      "key": "human_approval_enforcement",
+      "applicable_count": 12,
+      "passed_count": 12,
+      "observed_mean": 1
+    }
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "strong-research-alignment",
+      "target": "research_fit",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.0038101250102045015,
+        "evaluator_seconds": 0.0010522090015001595,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "superficial-keyword-poor-fit",
+      "target": "research_fit",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.003438291998463683,
+        "evaluator_seconds": 0.0011849170114146546,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "availability-not-stated",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.004216875007841736,
+        "evaluator_seconds": 0.0002683750062715262,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "conflicting-institutional-affiliation",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.004202125011943281,
+        "evaluator_seconds": 0.00032425000972580165,
+        "port_invocations": 2
+      }
+    },
+    {
+      "scenario_id": "duplicate-supervisor-multiple-queries",
+      "target": "graph_fake",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.04938445800507907,
+        "evaluator_seconds": 0.01099537500704173,
+        "port_invocations": 38
+      }
+    },
+    {
+      "scenario_id": "you-timeout-tavily-fallback",
+      "target": "graph_fake",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.0419230000115931,
+        "evaluator_seconds": 0.0072440829972038046,
+        "port_invocations": 31
+      }
+    },
+    {
+      "scenario_id": "evidence-extraction-failure",
+      "target": "graph_fake",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.04524883300473448,
+        "evaluator_seconds": 0.00793229199189227,
+        "port_invocations": 36
+      }
+    },
+    {
+      "scenario_id": "independent-reviewer-disagreement",
+      "target": "graph_fake",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.0444207499967888,
+        "evaluator_seconds": 0.008916959006455727,
+        "port_invocations": 38
+      }
+    },
+    {
+      "scenario_id": "candidate-rejects-highly-theoretical",
+      "target": "graph_fake",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.056885625002905726,
+        "evaluator_seconds": 0.009038000003783964,
+        "port_invocations": 39
+      }
+    },
+    {
+      "scenario_id": "approval-required-before-persistence",
+      "target": "graph_fake",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.047316832991782576,
+        "evaluator_seconds": 0.009388167003635317,
+        "port_invocations": 38
+      }
+    },
+    {
+      "scenario_id": "planning-source-coverage",
+      "target": "search_planning",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.00015408400213345885,
+        "evaluator_seconds": 0.000152749998960644,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-confirmed-accepting",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.004729250009404495,
+        "evaluator_seconds": 0.00028904200007673353,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-confirmed-not-accepting",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.004013666999526322,
+        "evaluator_seconds": 0.0002775000029942021,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-markdown-identity",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.003990333992987871,
+        "evaluator_seconds": 0.0002590410003904253,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-honorific-identity",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.00398341599793639,
+        "evaluator_seconds": 0.0002507919998606667,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-line-wrapped-affiliation",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.004014790989458561,
+        "evaluator_seconds": 0.0002547919866628945,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-publication-only",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.003677583998069167,
+        "evaluator_seconds": 0.00019895800505764782,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-heading-bound-research",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.004347417008830234,
+        "evaluator_seconds": 0.00026191699726041406,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-missing-identity",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.003349416991113685,
+        "evaluator_seconds": 0.0002532090002205223,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-missing-affiliation",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.0035524160048225895,
+        "evaluator_seconds": 0.0002185420016758144,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-missing-research",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.0035265830083517358,
+        "evaluator_seconds": 0.00019137500203214586,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-publication-year-not-stated",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.00383933300327044,
+        "evaluator_seconds": 0.00023841600341256708,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-availability-without-statement",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.003965875002904795,
+        "evaluator_seconds": 0.00027741699886973947,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-evidence-off-page-excerpt",
+      "target": "evidence_verification",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.003522875005728565,
+        "evaluator_seconds": 0.0001952500024344772,
+        "port_invocations": 1
+      }
+    },
+    {
+      "scenario_id": "draft-graph-approve-one",
+      "target": "graph_fake",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.05126474999997299,
+        "evaluator_seconds": 0.008381082996493205,
+        "port_invocations": 39
+      }
+    },
+    {
+      "scenario_id": "draft-graph-approve-subset",
+      "target": "graph_fake",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.05096733399841469,
+        "evaluator_seconds": 0.00838649999059271,
+        "port_invocations": 39
+      }
+    },
+    {
+      "scenario_id": "draft-graph-request-more",
+      "target": "graph_fake",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.0726017499982845,
+        "evaluator_seconds": 0.009229041999788024,
+        "port_invocations": 76
+      }
+    },
+    {
+      "scenario_id": "draft-graph-reject-then-approve",
+      "target": "graph_fake",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.06442024999705609,
+        "evaluator_seconds": 0.010112832998856902,
+        "port_invocations": 40
+      }
+    },
+    {
+      "scenario_id": "draft-graph-review-timeout",
+      "target": "graph_fake",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.044582625007024035,
+        "evaluator_seconds": 0.009047374987858348,
+        "port_invocations": 38
+      }
+    },
+    {
+      "scenario_id": "draft-graph-review-malformed",
+      "target": "graph_fake",
+      "passed": true,
+      "metrics": [
+        {
+          "key": "schema_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "expected_behavior",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "canonical_terminology",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "evidence_id_validity",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "source_url_presence",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "score_range_and_component_totals",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_unsupported_availability_claim",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "no_admission_probability",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        },
+        {
+          "key": "correct_fallback_route",
+          "applicable": false,
+          "passed": true,
+          "score": null
+        },
+        {
+          "key": "duplicate_supervisor_rate",
+          "applicable": true,
+          "passed": true,
+          "score": 0
+        },
+        {
+          "key": "human_approval_enforcement",
+          "applicable": true,
+          "passed": true,
+          "score": true
+        }
+      ],
+      "runtime": {
+        "target_seconds": 0.045378334005363286,
+        "evaluator_seconds": 0.00900154201372061,
+        "port_invocations": 38
+      }
+    }
+  ],
+  "failures": [],
+  "runtime_budget": {
+    "fake_target_p95_seconds": 5,
+    "component_port_invocations": 2,
+    "graph_port_invocations": 40
+  },
+  "runtime_summaries": [
+    {
+      "target": "evidence_verification",
+      "case_count": 15,
+      "latency_sample_count": 15,
+      "median_target_seconds": 0.00398341599793639,
+      "p95_target_seconds": 0.004729250009404495,
+      "latency_budget_seconds": 5,
+      "latency_budget_passed": true,
+      "invocation_sample_count": 15,
+      "maximum_port_invocations": 2,
+      "invocation_budget": 2,
+      "invocation_budget_passed": true
+    },
+    {
+      "target": "graph_fake",
+      "case_count": 12,
+      "latency_sample_count": 12,
+      "median_target_seconds": 0.04835064549843082,
+      "p95_target_seconds": 0.0726017499982845,
+      "latency_budget_seconds": 5,
+      "latency_budget_passed": true,
+      "invocation_sample_count": 12,
+      "maximum_port_invocations": 76,
+      "invocation_budget": 40,
+      "invocation_budget_passed": false
+    },
+    {
+      "target": "research_fit",
+      "case_count": 2,
+      "latency_sample_count": 2,
+      "median_target_seconds": 0.003624208504334092,
+      "p95_target_seconds": 0.0038101250102045015,
+      "latency_budget_seconds": 5,
+      "latency_budget_passed": true,
+      "invocation_sample_count": 2,
+      "maximum_port_invocations": 1,
+      "invocation_budget": 2,
+      "invocation_budget_passed": true
+    },
+    {
+      "target": "search_planning",
+      "case_count": 1,
+      "latency_sample_count": 1,
+      "median_target_seconds": 0.00015408400213345885,
+      "p95_target_seconds": 0.00015408400213345885,
+      "latency_budget_seconds": 5,
+      "latency_budget_passed": true,
+      "invocation_sample_count": 1,
+      "maximum_port_invocations": 1,
+      "invocation_budget": 2,
+      "invocation_budget_passed": true
+    }
+  ],
+  "reviewed_version": "week4-30case-reviewed-v1",
+  "content_digest": "732ad206d79f30e2f9a3c0efd89c07daf4680216754fa21ce8e4d8f7bda911d5",
+  "source_draft_digest": "f705973c08abec07d88977873900a40af9e5835d3f02a6b010d751c5f820594e",
+  "approval_scope": "expected_behaviors",
+  "execution_mode": "fake_only"
+}

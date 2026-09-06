@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from scholarpath.evaluation import runner
+from scholarpath.evaluation import draft_review, runner
 from scholarpath.evaluation.draft_models import (
     DraftEvaluationCase,
     EvaluationDraft,
@@ -140,7 +140,7 @@ def _unexpected_external_call(*args: object, **kwargs: object) -> None:
     raise AssertionError("Draft inspection/checks must never call an external service")
 
 
-def test_all_thirty_offline_checks_capture_the_known_gap_without_approving_labels(
+def test_current_thirty_offline_checks_pass_without_rewriting_pending_draft_labels(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     for flag in (
@@ -160,14 +160,12 @@ def test_all_thirty_offline_checks_capture_the_known_gap_without_approving_label
         monkeypatch.setattr(runner, name, _unexpected_external_call)
     draft = build_evaluation_draft()
     report = run_draft_checks(draft)
-    # This is intentionally not all-green ground truth. Keep the meaningful
-    # expectation unchanged and surface the known heading-grounding false negative.
-    assert not report.passed
-    assert report.passed_scenario_count == 29
+    # Production grounding now satisfies the same unchanged heading expectation.
+    # A passing current check must not rewrite the historical draft provenance.
+    assert report.passed
+    assert report.passed_scenario_count == 30
     assert report.scenario_count == 30
-    assert [
-        (failure.scenario_id, failure.key, failure.category) for failure in report.failures
-    ] == [("draft-evidence-heading-bound-research", "expected_behavior", "metric_failed")]
+    assert report.failures == ()
     assert report.dataset_name == DRAFT_DATASET_NAME
     assert report.human_review_status == "pending_human_review"
     graph_runtime = next(item for item in report.runtime_summaries if item.target == "graph_fake")
@@ -185,16 +183,31 @@ def test_incorrect_declared_label_causes_a_failed_check() -> None:
     assert any(failure.scenario_id == "availability-not-stated" for failure in report.failures)
 
 
-def test_cli_check_reports_failure_and_runtime_limit_without_hiding_it(
+def test_cli_check_reports_current_correctness_pass_and_runtime_limit_separately(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    assert main(["--check"]) == 1
+    assert main(["--check"]) == 0
     output = capsys.readouterr().out
-    assert "Offline checks: 29/30 passed" in output
-    assert "FAIL draft-evidence-heading-bound-research: expected_behavior" in output
+    assert "Offline checks: 30/30 passed" in output
+    assert "FAIL " not in output
     assert "max=76.000; budget=40.000 [exceeded]" in output
     assert "pending_human_review" in output
     assert "--enforce-runtime-budgets" not in output
+
+
+def test_cli_still_returns_nonzero_for_an_incorrect_expected_outcome(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    raw = build_evaluation_draft().model_dump(mode="json")
+    raw["cases"][2]["scenario"]["expected"]["expected_availability_status"] = "confirmed_accepting"
+    failing_report = run_draft_checks(EvaluationDraft.model_validate(raw))
+    monkeypatch.setattr(draft_review, "run_draft_checks", lambda _: failing_report)
+
+    assert main(["--check"]) == 1
+    output = capsys.readouterr().out
+    assert "Offline checks: 29/30 passed" in output
+    assert "FAIL availability-not-stated: expected_behavior" in output
 
 
 @pytest.mark.parametrize(

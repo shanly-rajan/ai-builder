@@ -38,8 +38,7 @@ class _Expected:
     availability: AvailabilityStatus = AvailabilityStatus.NOT_STATED
 
 
-# Contract checks for the synthetic variations. The explicitly identified heading
-# false-negative below is an observed defect, not the dataset's intended label.
+# Contract checks for the unchanged synthetic variations and approved expectations.
 _EXPECTED = (
     _Expected(
         "confirmed_accepting",
@@ -62,10 +61,7 @@ _EXPECTED = (
         retained=("identity", "current_affiliation", "publication"),
         grounded=("identity", "current_affiliation", "publication"),
     ),
-    _Expected(
-        "heading_bound_research",
-        grounded=("identity", "current_affiliation", "methodology", "publication"),
-    ),
+    _Expected("heading_bound_research"),
     _Expected(
         "missing_identity",
         retained=("current_affiliation", "research_interest", "methodology", "publication"),
@@ -212,7 +208,7 @@ def test_undated_publication_does_not_invent_an_activity_year() -> None:
     assert "2025" not in varied_page.content
 
 
-def test_heading_bound_research_preserves_the_observed_false_negative() -> None:
+def test_heading_bound_research_satisfies_the_unchanged_approved_expectation() -> None:
     supervisor, page, response = _baseline()
     varied_page, varied_response = apply_draft_evidence_case(
         supervisor, page, response, "heading_bound_research"
@@ -226,19 +222,24 @@ def test_heading_bound_research_preserves_the_observed_false_negative() -> None:
     research = next(
         claim for claim in claims if claim.claim_type is EvidenceClaimType.RESEARCH_INTEREST
     )
-    # The named affiliation sentence is mistaken for another person heading. Do
-    # not rearrange this legitimate fixture to get green: its draft dataset label
-    # still requires grounded research and should fail expected_behavior today.
+    # The frozen profile and expected label remain unchanged. A same-owner role
+    # sentence must not be mistaken for another person's heading.
     assert identity.directly_supported
     assert varied_page.content.startswith(f"# {supervisor.full_name}\n")
-    assert not research.directly_supported
-    assert research.subject_identity_evidence_id is None
-    assert research.supporting_excerpt is not None
+    assert research.directly_supported
+    assert research.subject_identity_evidence_id == identity.evidence_id
+    expected_research = next(
+        claim
+        for claim in varied_response.claims
+        if claim.claim_type is EvidenceClaimType.RESEARCH_INTEREST
+    )
+    assert research.supporting_excerpt == expected_research.supporting_excerpt
+    assert research.source_url == varied_page.source_url == supervisor.profile_url
+    assert research.retrieved_at == varied_page.retrieved_at
+    assert evidence_claim_is_grounded_for_supervisor(research, supervisor, claims)
     assert supervisor.full_name not in research.supporting_excerpt
     assert research.supporting_excerpt in varied_page.content
-    assert diagnostics.summary()["rejection_counts"]["research_interest"] == {
-        "profile_subject_mismatch": 1
-    }
+    assert diagnostics.summary()["rejection_counts"]["research_interest"] == {}
 
 
 @pytest.mark.parametrize("case", ["", "not_a_case", "confirmed_accepting "])

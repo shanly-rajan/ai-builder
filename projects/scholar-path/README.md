@@ -2157,3 +2157,10 @@ records**, and **12 graph cases with traces**. The known heading-grounding failu
 and separate **76/40** fake-port budget overrun remain visible. See the linked guide
 for actual trace links and the explicitly labeled recovery of duplicate-rate
 interpretation from persisted graph checks. No second experiment was needed.
+
+Step 3ag repairs the [heading-bound research false rejection](docs/week4-heading-grounding-repair.md)
+without changing approved labels, fixtures, or evaluator definitions. The same
+frozen thirty-case cohort now passes **30/30 correctness checks locally**; the
+separate **76/40** fake-call budget overrun remains unresolved. Historical local
+and uploaded baselines stay at 29/30. Run `scripts/run_reviewed_evals.py --check`
+for the current offline result; no after-experiment was uploaded in this repair.

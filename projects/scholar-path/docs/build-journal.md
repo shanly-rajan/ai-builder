@@ -6974,3 +6974,110 @@ non-applicable when explicitly labeled; SDK evaluator errors remain failures.
 The heading-bound research false negative and provisional 76/40 request-more
 invocation overrun are intentionally preserved. Measured repairs, live quality
 evidence, and the Week 4 submission recording remain later work.
+
+## Week 4 step 3ag: heading-bound research grounding repair
+
+**Date:** 2026-09-06
+
+### Milestone objective
+
+Repair the reviewed baseline's one reproducible research-grounding false rejection
+and measure its effect against the unchanged thirty-case cohort. Preserve the
+approved source/expectation contract, existing worktree changes, and historical
+reports. The separate request-more call-budget issue is outside this increment.
+
+### Prompt used
+
+[`docs/prompts/week4-3ag-heading-bound-grounding-repair.md`](prompts/week4-3ag-heading-bound-grounding-repair.md)
+
+### Files changed
+
+- `src/agents/evidence_verification.py`: make narrowly recognized owner role prose
+  transparent to the existing heading scan without rebinding its subject.
+- `tests/unit/agents/test_heading_bound_research.py`: new strict-verifier and
+  adversarial regressions with exact provenance assertions.
+- `tests/unit/evaluation/test_draft_evidence.py`: assert the previously failing
+  frozen case now meets its already-approved expectation.
+- `tests/unit/evaluation/test_evaluation_draft.py`,
+  `tests/unit/evaluation/test_reviewed_baseline.py`, and
+  `tests/unit/evaluation/test_reviewed_upload.py`: update current observations,
+  preserve historical failure/CLI coverage, and validate the saved measured delta.
+- `docs/evaluation/week4-heading-grounding-after-2026-09-06.json`: distinct after
+  report, not an overwrite of either historical local or uploaded baseline.
+- `docs/week4-heading-grounding-repair.md`, archived prompt, and this journal:
+  reproduction, implementation rationale, comparison, demonstration, and debt.
+- `README.md`, `docs/week4-triage.md`, `docs/week4-reviewed-baseline.md`, and
+  `docs/week4-reviewed-langsmith-baseline.md`: distinguish the current local repair
+  from the unchanged historical 29/30 observations.
+
+### Tests added
+
+- Twenty-three focused grounding cases cover owner role variants, exact source
+  text/URL/time/identity linkage, deterministic replay, strict verification,
+  other-person headings and prose, owner prose after another heading, compound
+  sentences, explicit headings, longer-name collisions, repeated excerpts,
+  off-page text, missing identity, model-unsupported claims, and source restrictions.
+- Current draft/reviewed/mock-upload measurements now assert 30/30. Historical or
+  injected failures still assert CLI exit 1; incomplete readback remains exit 2.
+- A saved-artifact comparison requires identical manifests, case order, runtime
+  bars, and fake-call counts. Exactly the heading case's `expected_behavior` metric
+  must improve; all other per-case metric outcomes stay unchanged.
+- Existing graph, integration, contract, terminology, and privacy tests remain
+  part of the complete non-live suite; no live tests were enabled.
+
+### Test results
+
+- Before editing: `SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false
+  venv/bin/python scripts/run_reviewed_evals.py --check` reproduced **29/30**,
+  exit **1**, baseline `scholarpath-week4-reviewed-local-20260906T161710Z-91a821b9`.
+- After: the same command with `--format json` measured **30/30**, exit **0**,
+  baseline `scholarpath-week4-reviewed-local-20260906T162018Z-0cd79546`. The
+  provisional **76/40** fake graph call-budget overrun is still reported separately.
+- Dataset/fixture/evaluator diff checks were empty. Both reviewed/source digests
+  and ordered case IDs match. A `jq` comparison found exactly one changed metric:
+  `draft-evidence-heading-bound-research` / `expected_behavior`, false to true.
+- Focused existing profile-context plus draft-evidence tests: **237 passed in
+  0.86s**. New grounding regressions: **23 passed in 0.22s**. Updated current versus
+  historical evaluation checks: **130 passed in 18.47s**.
+- `venv/bin/ruff format --check .`: **365 files already formatted**.
+- `venv/bin/ruff check .`: **all checks passed**.
+- `venv/bin/mypy src tests scripts`: **no issues in 260 source files**.
+- First full run before documentation completion: **2,938 passed, 9 deselected,
+  108 subtests in 49.09s**, **92.53% coverage**. After adding the after-report test
+  and prompt, the audit contract correctly detected the not-yet-added prompt link
+  in this journal; no production test failed. Added this journal entry before the
+  final rerun rather than weakening the audit test.
+- Final `SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false venv/bin/pytest -q
+  --tb=line --show-capture=no`: **2,939 passed, 9 deselected, 109 subtests passed
+  in 50.32s**, **92.53% coverage**, exit **0**. This is 29 additional test cases
+  compared with step 3af's 2,910; all historical baseline artifacts remain intact.
+- After recording final results, contract/terminology checks passed again:
+  **184 passed, 109 subtests in 2.11s**.
+- `git diff --check`: passed. The production source hash matches the separate
+  after-report guide; no frozen fixture, expected label, or evaluator diff exists.
+- No live provider or LangSmith calls, environment changes, staged files, commits,
+  or pushes. Prior step 3af changes remain in the worktree.
+
+### Assumptions
+
+“Next step” refers to the previously documented heading-grounding repair, not an
+upload, broad parser rewrite, verification-policy relaxation, or commit. The frozen
+expectation was already approved; only production behavior and tests of current
+observations change. A passing current report must not rewrite historical results.
+
+### Lessons learned
+
+Aggregate verification can pass through publication evidence while silently losing
+a valid research-interest claim. Claim-level expected outcomes expose that defect.
+A same-owner sentence may preserve heading context, but cannot reset it: the safety
+review caught compound-person prose that required conservative exclusion before
+completion. Dataset stability makes the one-case improvement attributable without
+claiming general live-search quality.
+
+### Remaining debt
+
+The **76/40** request-more fake-call finding is unchanged. Next inspect its
+multi-round budget scope before changing behavior or its threshold. Complex role
+sentences and internal abbreviations can still be conservatively ungrounded. No
+after-experiment has been uploaded; live relevance, provider cost, remaining
+measured Week 4 improvements, and the submission recording are separate follow-ups.

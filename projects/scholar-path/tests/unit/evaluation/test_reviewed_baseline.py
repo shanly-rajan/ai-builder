@@ -28,20 +28,18 @@ def _forbidden_execution(*args: object, **kwargs: object) -> Never:
     raise AssertionError("Local reviewed evaluation must not invoke external operations")
 
 
-def test_reviewed_baseline_retains_the_known_correctness_and_runtime_gaps(
+def test_current_reviewed_baseline_passes_correctness_but_retains_runtime_gap(
     report: ReviewedBaselineReport,
 ) -> None:
     manifest = build_reviewed_manifest()
     assert report.scenario_count == 30
-    assert report.passed_scenario_count == 29
-    assert report.passed is False
+    assert report.passed_scenario_count == 30
+    assert report.passed is True
     assert report.runtime_budgets_passed is False
     assert tuple(item.scenario_id for item in report.scenarios) == tuple(
         case.scenario.scenario_id for case in manifest.source_draft.cases
     )
-    assert [(item.scenario_id, item.key, item.category) for item in report.failures] == [
-        ("draft-evidence-heading-bound-research", "expected_behavior", "metric_failed")
-    ]
+    assert report.failures == ()
     graph_runtime = next(item for item in report.runtime_summaries if item.target == "graph_fake")
     assert graph_runtime.maximum_port_invocations == 76
     assert graph_runtime.invocation_budget == 40
@@ -78,14 +76,14 @@ def test_report_uses_separate_reviewed_identity_and_round_trips(
         assert f'"{forbidden}"' not in serialized
 
 
-def test_missing_runtime_observations_are_unknown_not_a_correctness_pass(
+def test_missing_runtime_observations_stay_unknown_even_when_correctness_passes(
     report: ReviewedBaselineReport,
 ) -> None:
     unknown_runtime = report.model_copy(update={"runtime_summaries": ()})
 
     assert unknown_runtime.runtime_budgets_passed is None
-    assert unknown_runtime.passed is False
-    assert unknown_runtime.passed_scenario_count == 29
+    assert unknown_runtime.passed is True
+    assert unknown_runtime.passed_scenario_count == 30
 
 
 def test_reviewed_run_is_offline_even_with_live_flags_and_tracing_enabled(
@@ -130,7 +128,7 @@ def test_reviewed_run_is_offline_even_with_live_flags_and_tracing_enabled(
         assert get_tracing_context()["enabled"] is True
 
     assert result.scenario_count == 30
-    assert result.passed_scenario_count == 29
+    assert result.passed_scenario_count == 30
     assert len(observed_scenarios) == len(set(observed_scenarios)) == 30
     assert manifest.model_dump_json() == manifest_snapshot
     assert build_evaluation_draft().model_dump_json() == draft_snapshot
@@ -182,33 +180,50 @@ def test_cli_preview_never_runs_targets(
 
 
 @pytest.mark.parametrize("output_format", ["text", "json"])
-def test_cli_check_keeps_nonzero_correctness_result_and_runtime_separate(
+@pytest.mark.parametrize("use_historical_report", [False, True])
+def test_cli_check_reports_current_success_and_historical_failure_with_runtime_separate(
     output_format: str,
+    use_historical_report: bool,
     report: ReviewedBaselineReport,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     supplied_digests: list[str] = []
+    selected_report = report
+    if use_historical_report:
+        saved = (
+            Path(__file__).resolve().parents[3]
+            / "docs"
+            / "evaluation"
+            / ("week4-reviewed-baseline-2026-09-06.json")
+        )
+        selected_report = ReviewedBaselineReport.model_validate_json(
+            saved.read_text(encoding="utf-8")
+        )
 
     def fixed_result(manifest: ReviewedEvaluationManifest) -> ReviewedBaselineReport:
         supplied_digests.append(manifest.content_digest)
-        return report
+        return selected_report
 
     monkeypatch.setattr(reviewed_baseline, "run_reviewed_baseline", fixed_result)
 
-    assert reviewed_baseline.main(["--check", "--format", output_format]) == 1
+    assert reviewed_baseline.main(["--check", "--format", output_format]) == (
+        1 if use_historical_report else 0
+    )
 
     output = capsys.readouterr().out
-    assert supplied_digests == [report.content_digest]
-    assert "draft-evidence-heading-bound-research" in output
+    assert supplied_digests == [selected_report.content_digest]
     if output_format == "json":
         decoded = ReviewedBaselineReport.model_validate_json(output)
-        assert decoded == report
-        assert decoded.passed is False
+        assert decoded == selected_report
+        assert decoded.passed is (not use_historical_report)
         assert decoded.runtime_budgets_passed is False
     else:
-        assert "Offline checks: 29/30 passed" in output
-        assert "FAIL draft-evidence-heading-bound-research: expected_behavior" in output
+        passed_count = 29 if use_historical_report else 30
+        assert f"Offline checks: {passed_count}/30 passed" in output
+        assert (
+            "FAIL draft-evidence-heading-bound-research: expected_behavior" in output
+        ) is use_historical_report
         assert "max=76.000; budget=40.000 [exceeded]" in output
         assert "runtime is reported separately" in output
 
@@ -259,3 +274,38 @@ def test_saved_manifest_and_baseline_are_linked_without_hiding_known_failure() -
     assert [(item.scenario_id, item.key) for item in saved_report.failures] == [
         ("draft-evidence-heading-bound-research", "expected_behavior")
     ]
+
+
+def test_saved_grounding_comparison_changes_only_the_measured_heading_outcome(
+    report: ReviewedBaselineReport,
+) -> None:
+    documents = Path(__file__).resolve().parents[3] / "docs" / "evaluation"
+    before = ReviewedBaselineReport.model_validate_json(
+        (documents / "week4-reviewed-baseline-2026-09-06.json").read_text(encoding="utf-8")
+    )
+    after = ReviewedBaselineReport.model_validate_json(
+        (documents / "week4-heading-grounding-after-2026-09-06.json").read_text(encoding="utf-8")
+    )
+    assert after.baseline_name != before.baseline_name
+    assert after.dataset_name == before.dataset_name == report.dataset_name
+    assert after.content_digest == before.content_digest == report.content_digest
+    assert after.source_draft_digest == before.source_draft_digest == report.source_draft_digest
+    assert before.passed_scenario_count == 29
+    assert after.passed_scenario_count == 30
+    assert after.failures == ()
+    assert after.runtime_budget == before.runtime_budget == report.runtime_budget
+    assert after.runtime_budgets_passed is before.runtime_budgets_passed is False
+
+    changed_metrics: list[tuple[str, str]] = []
+    for old, new, current in zip(before.scenarios, after.scenarios, report.scenarios, strict=True):
+        assert old.scenario_id == new.scenario_id == current.scenario_id
+        assert old.target == new.target == current.target
+        assert old.runtime.port_invocations == new.runtime.port_invocations
+        assert new.metrics == current.metrics
+        for old_metric, new_metric in zip(old.metrics, new.metrics, strict=True):
+            assert old_metric.key == new_metric.key
+            if old_metric != new_metric:
+                assert old_metric.passed is False
+                assert new_metric.passed is True
+                changed_metrics.append((new.scenario_id, new_metric.key))
+    assert changed_metrics == [("draft-evidence-heading-bound-research", "expected_behavior")]

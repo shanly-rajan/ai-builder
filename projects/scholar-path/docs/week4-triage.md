@@ -653,6 +653,20 @@ graph cases with traces. One upload only; the readback issues were repaired and 
 same experiment recovered read-only. The full non-live suite passes **2,910 tests**
 at **92.53% coverage**. No production repair, provider calls, commit, or push.
 
+### Step 3ag: heading-bound research grounding repair
+
+The [bounded production repair and comparison](week4-heading-grounding-repair.md)
+fix the one observed heading-context false rejection. The same reviewed manifest,
+source fixtures, expectations, and evaluators now measure **30/30 correctness**
+locally, up from 29/30; no other case/metric outcome changes. A same-owner role
+sentence no longer replaces the real heading, while other-person and ambiguous
+boundaries remain blocked. Exact source provenance is retained.
+
+This is one measured quality improvement, not completion of the required broader
+improvement/reporting cycle. The **76/40** fake-call budget finding is unchanged;
+next inspect its multi-round scope before altering behavior or thresholds. No
+live provider calls, after-experiment upload, environment edits, staging, or commit.
+
 ## Step 3o: two excerpt false rejections repaired offline
 
 The [fixed reproduction](week4-live-canary.md#step-3o-excerpt-boundary-repair-offline)

@@ -5,6 +5,10 @@ LangSmith. It runs the same thirty synthetic scenarios and eleven deterministic
 evaluators. Only LangSmith is live: models, search, extraction, and memory use
 fakes. There are no LLM judges or paid provider targets.
 
+This page records the historical **29/30** uploaded baseline. The subsequent
+[step 3ag grounding repair](week4-heading-grounding-repair.md) measures **30/30
+locally** against the same manifest; that after-run has not been uploaded here.
+
 ```mermaid
 flowchart LR
     A[Approved thirty-case manifest] --> B{Exact snapshot matches?}

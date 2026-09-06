@@ -7,6 +7,10 @@ This page preserves the original **local** observation. The subsequent
 [LangSmith upload and readback](week4-reviewed-langsmith-baseline.md) uses the same
 reviewed manifest and records actual authenticated experiment/trace links.
 
+Later, [step 3ag's narrow grounding repair](week4-heading-grounding-repair.md)
+measures **30/30 locally** against the unchanged manifest. That separate after-run
+does not overwrite the historical 29/30 observation recorded here.
+
 ## Local freeze and provenance
 
 | Item | Recorded value |
@@ -54,8 +58,9 @@ SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false venv/bin/python scripts/ru
 ```
 
 Preview commands execute no targets. Both checks run the same 30 fake-provider cases
-and force tracing off even if live/tracing flags are enabled. They intentionally
-exit **1** while correctness is 29/30. Every execution gets a unique local baseline
+and force tracing off even if live/tracing flags are enabled. At this baseline,
+they exited **1** for 29/30; after step 3ag they exit **0** for current 30/30 correctness.
+Every execution gets a unique local baseline
 name; latency is an observation, not a fixed fixture. The CLI writes only to stdout;
 it does not overwrite the saved baseline and has no live, upload, or judge option.
 Exit status measures correctness; provisional runtime limits are reported separately.
