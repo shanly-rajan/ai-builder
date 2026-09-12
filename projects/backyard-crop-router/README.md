@@ -9,6 +9,13 @@ observation to one of four action categories:
 - Irrigation/Watering Issue
 - Fungal/Disease Treatment
 
+## Current checkpoint
+
+- Environment and balanced dataset are ready.
+- Zero-shot baseline is measured at **65.62% accuracy** and **0.5814 macro F1**.
+- Stage 3 code and its full trainer dry run pass; weight training has not run yet.
+- Adapter merging and final evaluation remain intentionally unimplemented.
+
 ## Pipeline at a glance
 
 ```mermaid
@@ -24,7 +31,7 @@ flowchart LR
 | 0. Setup | Complete | Creates an isolated Python environment and installs the ML dependencies. |
 | 1. Dataset | Complete | Generates 160 unique synthetic farming tickets, balanced at 40 per category. |
 | 2. Baseline | Complete | Tests the frozen base model on a stratified 32-ticket validation split. |
-| 3. LoRA training | Pending | Formats training examples as chats and trains a lightweight adapter. |
+| 3. LoRA training | Implemented; not trained | Formats training examples as chats and trains a lightweight adapter. |
 | 4. Merge and smoke test | Pending | Merges the adapter into Qwen and verifies five representative tickets. |
 | 5. Final evaluation | Pending | Compares tuned results with the baseline and creates a confusion matrix. |
 
@@ -79,9 +86,38 @@ Overall baseline accuracy is **65.62% (21/32)**. The base model completely
 missed fungal/disease tickets, which gives the LoRA stage a clear improvement
 target.
 
+## Stage 3: train the LoRA adapter
+
+```bash
+python src/stage3_train_lora.py
+```
+
+The training split contains 128 examples, balanced at 32 per category. Prompts
+are formatted as system, observation, and target-category chat turns. Training
+uses completion-only loss so only the assistant's answer contributes to the
+objective. The effective batch size produces 16 optimizer steps per epoch and
+48 steps across the full run.
+
+| Setting | Value |
+|---|---|
+| LoRA rank / alpha / dropout | `8` / `16` / `0.05` |
+| Target modules | `q_proj`, `k_proj`, `v_proj`, `o_proj` |
+| Batch size / accumulation | `4` / `2` (effective batch `8`) |
+| Learning rate / epochs | `2e-4` / `3` |
+| Precision | FP16 |
+| Trainable parameters | 2,179,072 (0.1410%) |
+
+Adapter weights are written to `artifacts/adapter_weights/`, which is excluded
+from Git. The trainer dry run passed with all 128 examples and 2,179,072
+trainable parameters. To repeat that validation without training, run:
+
+```bash
+python src/stage3_train_lora.py --dry-run
+```
+
 ## Remaining stages
 
-Stages 3–5 will add LoRA training, adapter merging, assertion-backed smoke
-tests, final validation metrics, the baseline delta, and an annotated confusion
-matrix. This README will be updated with the measured results as each stage is
-completed.
+After Stage 3 is trained, Stages 4–5 will add adapter merging,
+assertion-backed smoke tests, final validation metrics, the baseline delta, and
+an annotated confusion matrix. This README will be updated with the measured
+results as each stage is completed.
