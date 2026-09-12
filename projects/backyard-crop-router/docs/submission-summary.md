@@ -14,13 +14,10 @@ router for backyard farming support. Given a short crop observation, the model
 must return exactly one of four categories: nutrient, pest, watering, or
 fungal/disease action.
 
-```mermaid
-flowchart LR
-    Observation --> Base[Qwen 1.5B]
-    Base --> LoRA[LoRA fine-tuning]
-    LoRA --> Router[Four-category router]
-    Router --> Evidence[Smoke test + validation metrics]
-```
+![Hand-drawn Backyard Crop Router technical architecture](images/backyard-crop-router-technical-architecture.png)
+
+The architecture separates the offline build path—dataset preparation,
+fine-tuning, merging, and evaluation—from the reusable Ollama inference path.
 
 ## What we implemented
 
@@ -29,6 +26,8 @@ flowchart LR
 3. Fine-tuned Qwen with TRL and a PEFT LoRA adapter.
 4. Merged the adapter and verified five unseen smoke-test tickets.
 5. Evaluated all 32 held-out tickets and generated a confusion matrix.
+6. Converted the merged model to GGUF and deployed a 986 MB `Q4_K_M` model in
+   Ollama for local inference.
 
 ## Result
 
@@ -46,6 +45,7 @@ smoke-test assertions.
 
 - [Project README](../README.md)
 - [System architecture](system-architecture.md)
+- [Hand-drawn technical architecture](images/backyard-crop-router-technical-architecture.png)
 - [Synthetic dataset](../data/farming_tickets.csv)
 - [Training implementation](../src/stage3_train_lora.py)
 - [Smoke test](../src/stage4_merge_smoke_test.py)

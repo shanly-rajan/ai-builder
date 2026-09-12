@@ -38,6 +38,13 @@ flowchart LR
 | 5. Final evaluation | Complete | Compares tuned results with the baseline and creates a confusion matrix. |
 | Local deployment | Complete | Converts the merged model to GGUF, quantizes it, and runs it locally with Ollama. |
 
+### Technical architecture
+
+The diagram below connects the offline model-building stages to the packaged
+Ollama model and the local inference path.
+
+![Hand-drawn Backyard Crop Router technical architecture](docs/images/backyard-crop-router-technical-architecture.png)
+
 ## Setup
 
 Python 3.12 is recommended for compatibility with the ML packages. This
@@ -244,6 +251,7 @@ GitHub submission link:
 |---|---|---|
 | `data/farming_tickets.csv` | Tracked | Reproducible 160-ticket dataset |
 | `artifacts/confusion_matrix.png` | Tracked | Final validation evidence |
+| `docs/images/backyard-crop-router-technical-architecture.png` | Tracked | End-to-end technical architecture |
 | `docs/images/ollama-local-inference.png` | Tracked | Local Ollama inference evidence |
 | `artifacts/adapter_weights/` | Ignored | Local generated model weights |
 
