@@ -181,6 +181,14 @@ python run_pipeline.py
 
 The full run regenerates the dataset and retrains the adapter before evaluation.
 
+## Submission assets
+
+- [System architecture](docs/system-architecture.md)
+- [Submission summary](docs/submission-summary.md)
+
+GitHub submission link:
+[github.com/shanly-rajan/ai-builder/tree/main/projects/backyard-crop-router](https://github.com/shanly-rajan/ai-builder/tree/main/projects/backyard-crop-router)
+
 ## Generated outputs
 
 | Output | Git policy | Purpose |
