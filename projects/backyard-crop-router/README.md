@@ -13,8 +13,9 @@ observation to one of four action categories:
 
 - Environment and balanced dataset are ready.
 - Zero-shot baseline is measured at **65.62% accuracy** and **0.5814 macro F1**.
-- Stage 3 code and its full trainer dry run pass; weight training has not run yet.
-- Adapter merging and final evaluation remain intentionally unimplemented.
+- LoRA training completed with a final loss of **0.013273**.
+- The merged model passed all **5/5** smoke-test assertions.
+- Full validation evaluation and its confusion matrix remain unimplemented.
 
 ## Pipeline at a glance
 
@@ -31,8 +32,8 @@ flowchart LR
 | 0. Setup | Complete | Creates an isolated Python environment and installs the ML dependencies. |
 | 1. Dataset | Complete | Generates 160 unique synthetic farming tickets, balanced at 40 per category. |
 | 2. Baseline | Complete | Tests the frozen base model on a stratified 32-ticket validation split. |
-| 3. LoRA training | Implemented; not trained | Formats training examples as chats and trains a lightweight adapter. |
-| 4. Merge and smoke test | Pending | Merges the adapter into Qwen and verifies five representative tickets. |
+| 3. LoRA training | Complete | Formats training examples as chats and trains a lightweight adapter. |
+| 4. Merge and smoke test | Complete | Merges the adapter into Qwen and verifies five representative tickets. |
 | 5. Final evaluation | Pending | Compares tuned results with the baseline and creates a confusion matrix. |
 
 ## Setup
@@ -108,16 +109,33 @@ objective. The effective batch size produces 16 optimizer steps per epoch and
 | Trainable parameters | 2,179,072 (0.1410%) |
 
 Adapter weights are written to `artifacts/adapter_weights/`, which is excluded
-from Git. The trainer dry run passed with all 128 examples and 2,179,072
-trainable parameters. To repeat that validation without training, run:
+from Git. Training completed in 48 optimizer steps with a final loss of
+`0.013273`. To validate the trainer setup without changing weights, run:
 
 ```bash
 python src/stage3_train_lora.py --dry-run
 ```
 
+## Stage 4: merge and smoke-test
+
+```bash
+python src/stage4_merge_smoke_test.py
+```
+
+The script loads the base model and adapter, calls `merge_and_unload()`, and
+exposes `classify(observation: str) -> str`. It raises an `AssertionError` if
+any smoke-test prediction is incorrect.
+
+```text
+PASS 1/5 | Nutrient Adjustment Needed
+PASS 2/5 | Pest Control Required
+PASS 3/5 | Irrigation/Watering Issue
+PASS 4/5 | Fungal/Disease Treatment
+PASS 5/5 | Fungal/Disease Treatment
+Smoke test passed: 5/5 tickets classified correctly.
+```
+
 ## Remaining stages
 
-After Stage 3 is trained, Stages 4–5 will add adapter merging,
-assertion-backed smoke tests, final validation metrics, the baseline delta, and
-an annotated confusion matrix. This README will be updated with the measured
-results as each stage is completed.
+Stage 5 will add final validation metrics, the baseline delta, and an annotated
+confusion matrix. This README will be updated with those measured results.
