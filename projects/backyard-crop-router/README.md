@@ -16,6 +16,7 @@ observation to one of four action categories:
 - LoRA training completed with a final loss of **0.013273**.
 - The merged model passed all **5/5** smoke-test assertions.
 - Fine-tuned validation reached **100% accuracy** and **1.0000 macro F1**.
+- The merged model runs locally in Ollama as a **986 MB Q4_K_M** model.
 
 ## Pipeline at a glance
 
@@ -35,6 +36,7 @@ flowchart LR
 | 3. LoRA training | Complete | Formats training examples as chats and trains a lightweight adapter. |
 | 4. Merge and smoke test | Complete | Merges the adapter into Qwen and verifies five representative tickets. |
 | 5. Final evaluation | Complete | Compares tuned results with the baseline and creates a confusion matrix. |
+| Local deployment | Complete | Converts the merged model to GGUF, quantizes it, and runs it locally with Ollama. |
 
 ## Setup
 
@@ -170,6 +172,53 @@ symptom-template families across crops, so the random split is easier than
 production traffic. A production gate should add independently authored cases,
 ambiguous multi-symptom tickets, and a split grouped by symptom template.
 
+## Run locally with Ollama
+
+The LoRA adapter was merged into the Qwen2.5 base model, exported to GGUF with
+`llama.cpp`, and imported into Ollama using `Q4_K_M` quantization. Quantization
+reduced the Ollama model to **986 MB** while preserving the expected routing
+behaviour in local smoke tests.
+
+| Property | Value |
+|---|---|
+| Ollama model | `backyard-crop-router:latest` |
+| Architecture | Qwen2, 1.5B parameters |
+| Quantization | `Q4_K_M` |
+| Model context length | 32,768 tokens |
+| Ollama-managed cache | `~/.ollama/models` |
+| Intermediate FP16 GGUF | `~/.cache/backyard-crop-router/backyard-crop-router-f16.gguf` |
+
+Start an interactive session:
+
+```bash
+ollama run backyard-crop-router
+```
+
+Or classify one observation directly:
+
+```bash
+ollama run backyard-crop-router \
+  "My tomato leaves have dark spreading spots."
+```
+
+Expected output:
+
+```text
+Fungal/Disease Treatment
+```
+
+### Local inference evidence
+
+The screenshot below shows the Ollama desktop app using the locally cached
+`backyard-crop-router` model. It correctly routes disease, watering, and pest
+observations and returns only the required category label.
+
+![Backyard Crop Router running locally in Ollama](docs/images/ollama-local-inference.png)
+
+Ollama provides a convenient demonstration runtime. A production API should
+also validate that every response is one of the four allowed labels and record
+latency, model version, and rejected or ambiguous observations.
+
 ## Run the full pipeline
 
 With the project environment activated, this command executes Stages 1–5 in
@@ -195,7 +244,9 @@ GitHub submission link:
 |---|---|---|
 | `data/farming_tickets.csv` | Tracked | Reproducible 160-ticket dataset |
 | `artifacts/confusion_matrix.png` | Tracked | Final validation evidence |
+| `docs/images/ollama-local-inference.png` | Tracked | Local Ollama inference evidence |
 | `artifacts/adapter_weights/` | Ignored | Local generated model weights |
 
 The base model is downloaded from Hugging Face on first use. Neither the model
-cache nor generated adapter weights are committed to this repository.
+cache, the GGUF export, nor generated adapter weights are committed to this
+repository.
