@@ -1,0 +1,10 @@
+transformers
+datasets
+peft
+accelerate
+trl
+bitsandbytes
+scikit-learn
+seaborn
+matplotlib
+pandas
