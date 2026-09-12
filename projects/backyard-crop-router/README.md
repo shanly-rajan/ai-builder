@@ -1,6 +1,6 @@
 # Backyard Crop Router
 
-A small, fast farming-support router being built by fine-tuning
+A small, fast farming-support router created by fine-tuning
 `Qwen/Qwen2.5-1.5B-Instruct` with LoRA. It assigns each backyard crop
 observation to one of four action categories:
 
@@ -9,13 +9,13 @@ observation to one of four action categories:
 - Irrigation/Watering Issue
 - Fungal/Disease Treatment
 
-## Current checkpoint
+## Results at a glance
 
-- Environment and balanced dataset are ready.
+- All five implementation stages pass end to end on Apple Silicon MPS.
 - Zero-shot baseline is measured at **65.62% accuracy** and **0.5814 macro F1**.
 - LoRA training completed with a final loss of **0.013273**.
 - The merged model passed all **5/5** smoke-test assertions.
-- Full validation evaluation and its confusion matrix remain unimplemented.
+- Fine-tuned validation reached **100% accuracy** and **1.0000 macro F1**.
 
 ## Pipeline at a glance
 
@@ -34,7 +34,7 @@ flowchart LR
 | 2. Baseline | Complete | Tests the frozen base model on a stratified 32-ticket validation split. |
 | 3. LoRA training | Complete | Formats training examples as chats and trains a lightweight adapter. |
 | 4. Merge and smoke test | Complete | Merges the adapter into Qwen and verifies five representative tickets. |
-| 5. Final evaluation | Pending | Compares tuned results with the baseline and creates a confusion matrix. |
+| 5. Final evaluation | Complete | Compares tuned results with the baseline and creates a confusion matrix. |
 
 ## Setup
 
@@ -135,7 +135,59 @@ PASS 5/5 | Fungal/Disease Treatment
 Smoke test passed: 5/5 tickets classified correctly.
 ```
 
-## Remaining stages
+## Stage 5: evaluate and compare
 
-Stage 5 will add final validation metrics, the baseline delta, and an annotated
-confusion matrix. This README will be updated with those measured results.
+```bash
+python src/stage5_val_eval_matrix.py
+```
+
+All 32 held-out tickets were classified correctly after fine-tuning.
+
+| Metric | Baseline | Fine-tuned | Delta |
+|---|---:|---:|---:|
+| Accuracy | 0.6562 | 1.0000 | +0.3438 |
+| Macro precision | 0.5833 | 1.0000 | +0.4167 |
+| Macro recall | 0.6562 | 1.0000 | +0.3438 |
+| Macro F1 | 0.5814 | 1.0000 | +0.4186 |
+
+### Recall analysis
+
+| Category | Baseline recall | Fine-tuned recall | Delta |
+|---|---:|---:|---:|
+| Nutrient Adjustment | 0.6250 | 1.0000 | +0.3750 |
+| Pest Control | 1.0000 | 1.0000 | 0.0000 |
+| Irrigation/Watering | 1.0000 | 1.0000 | 0.0000 |
+| Fungal/Disease | 0.0000 | 1.0000 | +1.0000 |
+
+The baseline recall was highly asymmetric: it found every pest and watering
+ticket but missed every fungal/disease ticket. LoRA removed that blind spot and
+also recovered the three missed nutrient tickets.
+
+![Fine-tuned validation confusion matrix](artifacts/confusion_matrix.png)
+
+The perfect score is an in-distribution result. The synthetic dataset reuses
+symptom-template families across crops, so the random split is easier than
+production traffic. A production gate should add independently authored cases,
+ambiguous multi-symptom tickets, and a split grouped by symptom template.
+
+## Run the full pipeline
+
+With the project environment activated, this command executes Stages 1–5 in
+order and stops on the first failure:
+
+```bash
+python run_pipeline.py
+```
+
+The full run regenerates the dataset and retrains the adapter before evaluation.
+
+## Generated outputs
+
+| Output | Git policy | Purpose |
+|---|---|---|
+| `data/farming_tickets.csv` | Tracked | Reproducible 160-ticket dataset |
+| `artifacts/confusion_matrix.png` | Tracked | Final validation evidence |
+| `artifacts/adapter_weights/` | Ignored | Local generated model weights |
+
+The base model is downloaded from Hugging Face on first use. Neither the model
+cache nor generated adapter weights are committed to this repository.
