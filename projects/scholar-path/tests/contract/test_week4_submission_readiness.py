@@ -22,6 +22,9 @@ SCORECARD = DOCS / "week4-submission-readiness.md"
         "docs/week4-reviewed-langsmith-after.md",
         "docs/week4-improvement-ledger.md",
         "docs/prompts/week4-3am-measured-improvement-ledger.md",
+        "docs/week4-submission-report.md",
+        "docs/week4-recording-script.md",
+        "docs/prompts/week4-3an-submission-report-recording.md",
         "docs/week4-triage.md",
         "docs/prompts/week4-3ak-submission-evidence-check.md",
     ),
@@ -109,8 +112,9 @@ def test_readme_and_triage_point_to_current_status_without_rewriting_history() -
     triage = (DOCS / "week4-triage.md").read_text()
     assert "docs/week4-submission-readiness.md" in readme
     assert "[submission evidence scorecard](week4-submission-readiness.md)" in triage
-    assert "Current checkpoint: step 3am" in triage
-    assert "Incomplete: focused report and recording pending" in readme
+    assert "Current checkpoint: step 3an" in triage
+    assert "Incomplete: report and script prepared" in readme
+    assert "recording, reviewer access and submission pending" in readme
     assert "week4-improvement-ledger.md" in readme
     assert "week4-improvement-ledger.md" in triage
     assert "historical records" in SCORECARD.read_text()

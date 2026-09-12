@@ -34,6 +34,7 @@ flowchart LR
 Reviewer links:
 
 - [Project README](projects/scholar-path/README.md)
+- [Week 4 evaluation report](projects/scholar-path/docs/week4-submission-report.md)
 - [Architecture](projects/scholar-path/docs/architecture.md)
 - [Reliability review](projects/scholar-path/docs/reliability-review.md)
 

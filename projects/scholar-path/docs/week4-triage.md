@@ -1,6 +1,6 @@
 # Week 4 evaluation triage
 
-**Current checkpoint: step 3am.** Use the
+**Current checkpoint: step 3an.** Use the
 [submission evidence scorecard](week4-submission-readiness.md) for present status.
 The chronological entries below preserve what was known at each step. Thirty
 expected behaviors are reviewed; the uploaded before baseline is 29/30 and the
@@ -9,7 +9,10 @@ One comparable golden-benchmark improvement is demonstrated, not three or four.
 The [improvement ledger](week4-improvement-ledger.md) separately consolidates three
 earlier focused regression comparisons and their limitations. The after-experiment
 reused the unchanged dataset with complete readback; only LangSmith was live in
-that step. No live calls occurred in step 3am. Next assemble the report/recording.
+that step. No live calls occurred in steps 3am–3an. The
+[Week 4 report](week4-submission-report.md) and [script](week4-recording-script.md)
+are prepared. Next record the walkthrough, confirm reviewer access and submit;
+the recorded evidence limitations remain explicit.
 
 Date: 2026-09-06. Scope: evaluate and improve the existing ScholarPath agent using the
 supplied **Week 4 Project Handout (Aug 2026)** and the mentor's **Focus next** feedback.

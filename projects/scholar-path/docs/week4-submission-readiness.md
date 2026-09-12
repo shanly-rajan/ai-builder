@@ -1,6 +1,6 @@
 # Week 4 submission evidence scorecard
 
-Updated **2026-09-06**, step 3am after checkpoint **`dfd31a7`**. **Submission incomplete.**
+Updated **2026-09-06**, step 3an after checkpoint **`fa71077`**. **Submission incomplete.**
 This is the current evidence index; older step reports remain historical records.
 The supplied Week 4 handout's **own Week 3 agent / LangSmith track** applies to
 ScholarPath. Customer-support and social-post examples are not extra product requirements.
@@ -13,7 +13,9 @@ ScholarPath. Customer-support and social-post examples are not extra product req
 - The [improvement ledger](week4-improvement-ledger.md) consolidates three earlier
   focused comparisons separately from that golden-benchmark repair. Evidence for
   3–4 separate improvements on the frozen benchmark remains incomplete.
-- The focused Week 4 report/recording is the next delivery.
+- The [focused report](week4-submission-report.md) and
+  [five-minute script](week4-recording-script.md) are prepared. Recording,
+  reviewer-access confirmation and submission are still pending.
 - The approved 40/80 policy did not save calls. The original **76/40** failure remains.
 - Real provider calls have occurred, but live relevance, token usage, monetary cost,
   and successful repeatable live end-to-end completion are not established.
@@ -43,7 +45,7 @@ on the same frozen version, with the after upload and readback now complete.
 | Comparable LangSmith after experiment | [Uploaded after report and links](week4-reviewed-langsmith-after.md): 30/30, complete readback, 30 roots, 330 metric records, 12 graph children; same dataset snapshot. | Complete for this fake-provider cohort. Does not establish live quality or three separate improvements. |
 | Mentor: easier failed-case summaries | [Step 1](week4-triage.md#first-delivery-quick-verification) adds case IDs, failed checks, grouped counts and safe guidance. | Implemented and tested; not a measured agent-quality improvement. |
 | Mentor: window-related failures | Not reproduced on the inspected macOS environment; no Windows runner evidence. | Obtain the exact failing test/runner log before claiming resolution or making a speculative platform fix. |
-| Report, dataset, prompts, trace evidence and short Loom | This index, dataset, [prompt archive](prompts/), [journal](build-journal.md), and before/after trace links are available. | Assemble the focused Week 4 report and record/link the walkthrough. An earlier product demo is not evidence of a Week 4 evaluation recording. |
+| Report, dataset, prompts, trace evidence and short Loom | [Focused report](week4-submission-report.md), [recording script](week4-recording-script.md), dataset, [prompt archive](prompts/), [journal](build-journal.md), and before/after trace links are available. | Record/link the walkthrough, confirm reviewer access and submit. An earlier product demo or a prepared script is not evidence of a Week 4 evaluation recording. |
 
 ## Saved local comparison
 
@@ -105,11 +107,12 @@ measured. The ledger completes evidence consolidation, not the full rubric.
 The after-trace gap is closed by step 3al; no further upload is needed to prove
 this repair's 29/30 → 30/30 result.
 
-1. **Assemble the report and recording.** The improvement ledger is complete as an
-   evidence inventory. Show the dataset, linked before/after cases, cohort limits,
-   measured deltas, unresolved 76/40 finding, live limitations, and next hypotheses.
-   Obtain a screenshot/export or suitable access for reviewers without making
-   private traces public automatically. Record and attach the short Loom.
+1. **Record, verify access and submit.** The report and script are prepared; follow
+   the script's existing dataset/case links, cohort limits and unresolved findings.
+   Record and attach the short Loom, check playback, and provide suitable workspace
+   access or redacted trace screenshots without making private traces public
+   automatically. Submit the linked package only after those checks; no recording
+   or external submission was performed by preparing the documents.
 2. **Resolve the mentor's unidentified failure when evidence arrives.** Request the
    failing command and runner/test log. Current passing macOS tests do not prove a
    Windows-specific issue fixed.
@@ -144,5 +147,6 @@ Expect the documentation contracts to pass; correctness prints 30/30 and exits 0
 the policy command retains 76/40 and exits 1. These commands do not upload or call
 live providers. The initial scorecard step was documentation-only; step 3al updated
 it after one authorized LangSmith after-upload. Step 3am only consolidates public
-historical evidence and reruns offline checks. These steps do not change graph
-execution, verification gates, fixtures, labels or policies.
+historical evidence and reruns offline checks; step 3an prepares the report/script.
+These steps do not change graph execution, verification gates, fixtures, labels
+or policies. Preparing a recording script does not complete the recording.

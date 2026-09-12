@@ -7666,3 +7666,90 @@ The original 76/40 finding and live-quality/cost limitations remain. The mentor'
 unidentified window-related failure still needs its failing command/runner log.
 No private replay reads, credentials, live calls, uploads, environment edits,
 product changes or push in this step. New step 3am work remains uncommitted.
+
+## Week 4 step 3an: focused submission report and recording script
+
+### Milestone objective
+
+Commit the completed improvement ledger, then prepare the focused Week 4 own-agent
+evaluation report and a five-minute ready-to-read script. Stop at the recording
+handoff without changing the product or claiming external submission complete.
+
+### Prompt used
+
+[Commit ledger and prepare report/script](prompts/week4-3an-submission-report-recording.md).
+User: “lets commit and move to next step”.
+
+### Files changed
+
+- Added `docs/week4-submission-report.md` and `docs/week4-recording-script.md`:
+  framework, provenance, five metrics, hosted results, case links, four qualified
+  repair records, next hypotheses/monitoring, screen cues and submission checklist.
+- Updated repository/project README reviewer entry points, scorecard and current
+  triage pointer. Added saved prompt, journal entry and documentation contracts.
+- Retired Week 3 submission documents remain retired. No production code, dataset,
+  labels, fixtures, prompts used by models, dependencies or saved report JSON changed.
+
+### Tests added
+
+Nine report contracts compare dataset/experiment identity, quality counts and all four
+hosted timing rows with saved typed reports; restrict trace links to observed URLs;
+retain simulated-evidence and incomplete-recording caveats; check a contiguous
+five-minute script plan and bounded narration length. Added three link checks for the
+new report, script and prompt; current status assertions were updated.
+
+### Test results
+
+- Pre-commit Ruff formatting: **394 files already formatted**; lint passed; mypy:
+  **no issues in 277 source files**. Scoped contracts: **32 passed, 115 subtests
+  in 0.18s**. `git diff --check` passed.
+- Committed step 3am as **`fa71077`**, `docs: consolidate measured improvement
+  evidence` (8 files). Worktree then clean; no push.
+- Offline demonstration, `SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false
+  venv/bin/python scripts/run_reviewed_evals.py --check`: **30/30 correctness**,
+  runtime budgets still false, graph maximum **76/40**. No saved artifact overwritten.
+- `SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false venv/bin/python
+  scripts/check_interaction_policy.py`: **12 first-review passes, 3 completed,
+  9 paused within budget so far**; expected exit **1** for one legacy whole-case
+  failure. The 40/80 policy is not a reduction in work.
+- Formatted only the new test module. Initial Ruff found one missing explicit
+  `zip(strict=...)`; the adjacent-interval assertion was corrected with equal-length
+  slices and `strict=True`. Final `venv/bin/ruff format --check .`: **398 files
+  already formatted**; `venv/bin/ruff check .`: passed; `venv/bin/mypy src tests
+  scripts`: **no issues in 278 source files**.
+- Focused report, scorecard, ledger, after-experiment, engineering and M14 contracts:
+  `venv/bin/pytest -o addopts='' -q --tb=line --show-capture=no` with those six
+  modules: **48 passed, 116 subtests in 0.21s**. Links, artifact-derived figures,
+  the retired-document boundary and a **643-word** narration were checked.
+- Complete `SCHOLARPATH_LOG_LEVEL=WARNING LANGSMITH_TRACING=false venv/bin/pytest
+  -q --tb=no --show-capture=no`: **3,207 passed, 9 deselected, 116 subtests in
+  62.44s**, **92.79% coverage**, exit **0**. No live calls in default tests.
+- Independent read-only report/script audit confirmed numerical figures, strict
+  fixture policy, provenance and bounded interpretation. Clarified that the screen
+  cue's example excerpt is illustrative and abbreviated, not the full exact fixture.
+- `git diff --check` passed. Production source, scripts, fixtures and historical
+  evaluation artifacts have no diff. Ten new-step files remain uncommitted.
+
+### Assumptions
+
+The existing private-workspace LangSmith links and saved synthetic reports are
+sufficient to prepare a report without a new experiment. Recorded results remain
+historical observations; preparing narration does not record a video, grant access,
+approve public sharing or submit a form. Hypotheses and monitoring are proposals.
+
+### Lessons learned
+
+A reviewer needs an outcome, a reproducible case and a measured change, not the
+entire chronological journal. Preserve distinctions between focused and frozen
+cohorts, fake-call effort and billing, and paused versus completed interactions.
+An explicit unresolved finding is more useful than a misleading all-green summary.
+
+### Remaining debt
+
+Record and attach the actual walkthrough, check playback and reviewer access or
+provide appropriately redacted trace screenshots, then submit the package. The
+3–4 frozen-benchmark improvement gap, original 76/40 finding, unmeasured live
+quality/cost and unidentified mentor window-related failure remain disclosed.
+No live calls, uploads, private replay/credential reads, sharing changes, product
+changes, recording, submission or Git push occurred. New step 3an files remain
+uncommitted.
