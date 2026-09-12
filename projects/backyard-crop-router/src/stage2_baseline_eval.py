@@ -32,6 +32,7 @@ SYSTEM_PROMPT = (
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line options for the baseline evaluation."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", type=Path, default=DEFAULT_DATA_PATH)
     parser.add_argument("--model-id", default=DEFAULT_MODEL_ID)
@@ -47,6 +48,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def resolve_device(requested: str) -> torch.device:
+    """Resolve an explicit device or select the best available accelerator."""
     if requested == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("CUDA was requested but is not available")
     if requested == "mps" and not torch.backends.mps.is_available():
@@ -61,6 +63,7 @@ def resolve_device(requested: str) -> torch.device:
 
 
 def load_validation_split(data_path: Path, seed: int) -> pd.DataFrame:
+    """Load and validate the dataset, then return its stratified 20% split."""
     dataframe = pd.read_csv(data_path)
     required_columns = {"text", "category_truth"}
     missing_columns = required_columns.difference(dataframe.columns)
@@ -81,6 +84,7 @@ def load_validation_split(data_path: Path, seed: int) -> pd.DataFrame:
 
 
 def format_prompt(tokenizer: AutoTokenizer, observation: str) -> str:
+    """Format one observation as a constrained multiple-choice chat prompt."""
     choices = "\n".join(
         f"{letter}. {label}" for letter, label in LETTER_TO_LABEL.items()
     )
@@ -99,6 +103,7 @@ def format_prompt(tokenizer: AutoTokenizer, observation: str) -> str:
 
 
 def get_candidate_token_ids(tokenizer: AutoTokenizer) -> list[int]:
+    """Return the single-token vocabulary IDs representing A, B, C, and D."""
     token_ids: list[int] = []
     for letter in LETTER_TO_LABEL:
         encoded = tokenizer.encode(letter, add_special_tokens=False)
@@ -145,13 +150,16 @@ def predict_labels(
             LETTER_TO_LABEL[candidate_letters[index]] for index in choice_indices
         )
 
-        completed = min(start + len(batch), len(observations))
-        print(f"Evaluated {completed}/{len(observations)} validation tickets")
+        print(
+            f"Evaluated {min(start + len(batch), len(observations))}/"
+            f"{len(observations)} validation tickets"
+        )
 
     return predictions
 
 
 def main() -> None:
+    """Load the frozen model, classify the validation split, and print metrics."""
     args = parse_args()
     device = resolve_device(args.device)
     validation = load_validation_split(args.data, args.seed)
