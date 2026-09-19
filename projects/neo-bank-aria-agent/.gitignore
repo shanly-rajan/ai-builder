@@ -24,12 +24,7 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Evidence may contain user-specific test-session details
-evidence/*.png
-evidence/*.jpg
-evidence/*.jpeg
-evidence/*.webp
-!evidence/README.md
+# Evidence screenshots are submission artifacts and are intentionally tracked.
 
 # Editors and operating-system files
 .DS_Store
