@@ -45,3 +45,4 @@ Reviewer links:
 | [ScholarPath](projects/scholar-path/README.md) | Multi-agent postgraduate Supervisor discovery, source-backed verification, Research Fit evaluation, and Candidate-controlled shortlisting. |
 | [Project & Product Performance Dashboard](projects/project-product-performance-dashboard/README.md) | Fictional-data Streamlit dashboard connecting engineering delivery and quality to product adoption, revenue, break-even, and profitability. |
 | [Cricket RAG Engine](projects/cricket-rag-engine/README.md) | End-to-end RAG learning prototype restricted to selected cricket-law clauses in `data/sample/laws.txt`. |
+| [NeoBank ARIA Agent](projects/neo-bank-aria-agent/README.md) | Locally hosted Week 6 Path A security-testing target with a structured red-team evidence and submission workflow. |

@@ -1,0 +1,38 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+.streamlit/secrets.toml
+
+# Local application data
+neobank.db
+*.db
+*.sqlite
+*.sqlite3
+
+# Python environments and generated files
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Evidence may contain user-specific test-session details
+evidence/*.png
+evidence/*.jpg
+evidence/*.jpeg
+evidence/*.webp
+!evidence/README.md
+
+# Editors and operating-system files
+.DS_Store
+.idea/
+.vscode/
+*.swp
